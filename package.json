@@ -2,6 +2,11 @@
   "name": "setara-ui",
   "version": "0.1.0",
   "private": true,
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/ygrip/setara-ui.git"
+  },
   "type": "module",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
