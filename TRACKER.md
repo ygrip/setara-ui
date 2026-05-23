@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-23
 
 ```text
-UI: [~] Sortable tables and leadership statistics dashboard implemented
+UI: [~] Coverage history view connected to project statistics
 ```
 
 - [x] Git repository initialized on `main`.
@@ -56,6 +56,7 @@ UI: [~] Sortable tables and leadership statistics dashboard implemented
 - [x] Sortable scenario table in the Test Repository list.
 - [x] Sortable tribe and squad admin tables.
 - [x] Leadership coverage dashboard backed by project statistics.
+- [x] Project coverage page backed by statistics history.
 - [x] Manual execution screen.
 - [ ] WebSocket live run updates.
 - [~] Plans detail page (post-backend).

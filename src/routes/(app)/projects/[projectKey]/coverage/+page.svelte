@@ -2,9 +2,26 @@
   import { page } from '$app/state';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
+  import LineChart from '$lib/components/LineChart.svelte';
   import { coverageByType } from '$lib/mock/data';
+  import type { ProjectStatistic } from '$lib/api/statistics';
+
+  let { data }: { data: { history: ProjectStatistic[] } } = $props();
 
   const projectKey = $derived(page.params.projectKey);
+  const latest = $derived(data.history[0]);
+  const notAutomatable = $derived(latest ? Math.max(0, latest.totalScenarios - latest.totalAutomatable) : 0);
+  const coverageTrend = $derived({
+    labels: [...data.history].reverse().map(row => row.statDate.slice(5)),
+    datasets: [{
+      label: 'Coverage',
+      data: [...data.history].reverse().map(row => row.coveragePercentage),
+      borderColor: '#2f8f83',
+      backgroundColor: 'rgba(47, 143, 131, 0.14)',
+      fill: true,
+      tension: 0.32
+    }]
+  });
 </script>
 
 <svelte:head>
@@ -26,10 +43,21 @@
 
   <!-- Metric cards -->
   <div class="metrics-row">
-    <MetricCard label="Total Scenarios" value="—" sub="no scenario data" variant="default" />
-    <MetricCard label="Automated" value="—" sub="no data" variant="info" />
-    <MetricCard label="Automatable" value="—" sub="no data" variant="success" />
-    <MetricCard label="Not Automatable" value="—" sub="no data" variant="warning" />
+    <MetricCard label="Total Scenarios" value={latest?.totalScenarios ?? '—'} sub={latest ? `snapshot ${latest.statDate}` : 'no scenario data'} variant="default" />
+    <MetricCard label="Automated" value={latest?.totalAutomated ?? '—'} sub={latest ? `${latest.coveragePercentage}% coverage` : 'no data'} variant="info" />
+    <MetricCard label="Automatable" value={latest?.totalAutomatable ?? '—'} sub="live scenarios only" variant="success" />
+    <MetricCard label="Not Automatable" value={latest ? notAutomatable : '—'} sub={latest ? 'excluded from automatable coverage' : 'no data'} variant="warning" />
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">Coverage Trend</h2>
+    {#if data.history.length === 0}
+      <div class="empty-state"><p>No coverage statistics captured yet.</p></div>
+    {:else}
+      <div class="chart-panel">
+        <LineChart chartData={coverageTrend} height={260} label="Daily Coverage" />
+      </div>
+    {/if}
   </div>
 
   <!-- Coverage formulas -->
@@ -103,6 +131,21 @@
 
   .section {
     margin-bottom: 32px;
+  }
+
+  .chart-panel,
+  .empty-state {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .empty-state p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
   }
 
   .section-title {
