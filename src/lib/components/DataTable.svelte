@@ -59,4 +59,28 @@
   .table :global(tr:hover td) {
     background: var(--color-accent-subtle);
   }
+
+  .table :global(.sort-button) {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    font-weight: 700;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    cursor: pointer;
+  }
+
+  .table :global(.sort-button:hover) {
+    color: var(--color-accent);
+  }
+
+  .table :global(.sort-indicator) {
+    color: var(--color-accent);
+    font-size: 0.72rem;
+  }
 </style>

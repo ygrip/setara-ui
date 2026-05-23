@@ -12,6 +12,31 @@
       day: '2-digit', month: 'short', year: 'numeric'
     });
   }
+
+  const totals = $derived(data.statistics.reduce(
+    (acc, row) => ({
+      scenarios: acc.scenarios + row.totalScenarios,
+      automated: acc.automated + row.totalAutomated,
+      automatable: acc.automatable + row.totalAutomatable
+    }),
+    { scenarios: 0, automated: 0, automatable: 0 }
+  ));
+  const overallCoverage = $derived(
+    totals.automatable === 0 ? 0 : Math.round((totals.automated / totals.automatable) * 100)
+  );
+  const coverageTrend = $derived({
+    labels: data.statistics.map(row => row.projectKey),
+    datasets: [{
+      label: 'Coverage %',
+      data: data.statistics.map(row => row.coveragePercentage),
+      borderColor: '#0d9488',
+      backgroundColor: 'rgba(13, 148, 136, 0.12)',
+      fill: true,
+      tension: 0.35,
+      pointRadius: 4,
+      pointBackgroundColor: '#0d9488'
+    }]
+  });
 </script>
 
 <svelte:head>
@@ -41,26 +66,58 @@
       icon="M3 7h18M3 12h18M3 17h18"
     />
     <MetricCard
-      label="Active Plans"
-      value="—"
-      sub="no data yet"
+      label="Projects Tracked"
+      value={data.statistics.length}
+      sub="tracked projects"
       variant="default"
       icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
     />
     <MetricCard
       label="Overall Pass Rate"
-      value="—"
-      sub="no execution data"
+      value={totals.automated}
+      sub="automated scenarios"
       variant="default"
       icon="M22 12h-4l-3 9L9 3l-3 9H2"
     />
     <MetricCard
       label="Automation Coverage"
-      value="—"
-      sub="no scenario data"
+      value={`${overallCoverage}%`}
+      sub={`${totals.automatable} automatable`}
       variant="default"
       icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
     />
+  </div>
+
+  <div class="section">
+    <h2 class="section-title">Leadership Coverage Overview</h2>
+    {#if data.statistics.length === 0}
+      <div class="empty-state"><p>No project statistics captured yet.</p></div>
+    {:else}
+      <DataTable>
+        {#snippet head()}
+          <tr>
+            <th>Project</th>
+            <th>Total Scenarios</th>
+            <th>Automated</th>
+            <th>Automatable</th>
+            <th>Coverage</th>
+            <th>Snapshot</th>
+          </tr>
+        {/snippet}
+        {#snippet body()}
+          {#each data.statistics as row}
+            <tr>
+              <td><span class="key-badge">{row.projectKey}</span> <span class="project-name">{row.projectName}</span></td>
+              <td>{row.totalScenarios}</td>
+              <td>{row.totalAutomated}</td>
+              <td>{row.totalAutomatable}</td>
+              <td><strong>{row.coveragePercentage}%</strong></td>
+              <td class="muted">{formatDate(row.statDate)}</td>
+            </tr>
+          {/each}
+        {/snippet}
+      </DataTable>
+    {/if}
   </div>
 
   <!-- Recent projects -->
@@ -101,7 +158,7 @@
   <div class="chart-section">
     <h2 class="section-title">Pass Rate Trend</h2>
     <div class="chart-card">
-      <LineChart chartData={passRateTrend} height={220} />
+      <LineChart chartData={data.statistics.length ? coverageTrend : passRateTrend} height={220} />
     </div>
   </div>
 </div>
@@ -198,5 +255,10 @@
     color: var(--color-accent);
     font-size: 0.8rem;
     font-weight: 500;
+  }
+
+  .project-name {
+    margin-left: 8px;
+    color: var(--color-text);
   }
 </style>

@@ -16,6 +16,16 @@
     });
   }
 
+  function sortHref(field: string): string {
+    const nextDir = data.sortBy === field && data.sortDir === 'asc' ? 'desc' : 'asc';
+    return `/admin/tribes?sort_by=${field}&sort_dir=${nextDir}`;
+  }
+
+  function indicator(field: string): string {
+    if (data.sortBy !== field) return '';
+    return data.sortDir === 'asc' ? '↑' : '↓';
+  }
+
   async function handleCreateTribe(e: SubmitEvent) {
     e.preventDefault();
     creatingTribe = true;
@@ -51,9 +61,9 @@
       <DataTable>
         {#snippet head()}
           <tr>
-            <th>Name</th>
+            <th><a class="sort-button" href={sortHref('name')}>Name <span class="sort-indicator">{indicator('name')}</span></a></th>
             <th>ID</th>
-            <th>Created</th>
+            <th><a class="sort-button" href={sortHref('createdAt')}>Created <span class="sort-indicator">{indicator('createdAt')}</span></a></th>
           </tr>
         {/snippet}
         {#snippet body()}

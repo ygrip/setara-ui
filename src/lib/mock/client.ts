@@ -9,6 +9,8 @@ import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TestNode } from '$lib/api/testcases';
+import type { ProjectStatistic } from '$lib/api/statistics';
+import type { CursorPage } from '$lib/api/pagination';
 
 export function isMockMode(): boolean {
   return import.meta.env.VITE_MOCK === 'true';
@@ -16,9 +18,9 @@ export function isMockMode(): boolean {
 
 const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
-export async function mockListProjects(): Promise<Project[]> {
+export async function mockListProjects(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Project>> {
   await delay(150);
-  return mockProjects;
+  return { items: mockProjects, nextCursor: null };
 }
 
 export async function mockGetProject(projectKey: string): Promise<Project> {
@@ -28,9 +30,9 @@ export async function mockGetProject(projectKey: string): Promise<Project> {
   return p;
 }
 
-export async function mockListRuns(projectKey: string): Promise<AutomationRun[]> {
+export async function mockListRuns(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<AutomationRun>> {
   await delay(150);
-  return mockRunsByProject[projectKey] ?? [];
+  return { items: mockRunsByProject[projectKey] ?? [], nextCursor: null };
 }
 
 export async function mockGetRun(projectKey: string, runId: string): Promise<AutomationRun> {
@@ -68,19 +70,19 @@ export async function mockRotateApiKey(_projectKey: string, _apiKeyId: string): 
   return { rawKey: 'stk_mock_rotated_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' };
 }
 
-export async function mockListTribes(): Promise<Tribe[]> {
+export async function mockListTribes(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Tribe>> {
   await delay(120);
-  return mockTribes;
+  return { items: mockTribes, nextCursor: null };
 }
 
-export async function mockListSquads(tribeId: string): Promise<Squad[]> {
+export async function mockListSquads(tribeId: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Squad>> {
   await delay(100);
-  return mockSquads[tribeId] ?? [];
+  return { items: mockSquads[tribeId] ?? [], nextCursor: null };
 }
 
-export async function mockListUsers(): Promise<User[]> {
+export async function mockListUsers(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<User>> {
   await delay(100);
-  return mockUsers;
+  return { items: mockUsers, nextCursor: null };
 }
 
 export async function mockListNodes(projectKey: string): Promise<TestNode[]> {
@@ -95,7 +97,28 @@ export async function mockListScenarios(projectKey: string, nodeId?: string | nu
   return nodeId ? byStatus.filter(s => s.nodeId === nodeId) : byStatus;
 }
 
-export async function mockListPlans(projectKey: string): Promise<ReleasePlan[]> {
+export async function mockListPlans(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<ReleasePlan>> {
   await delay(120);
-  return mockPlansByProject[projectKey] ?? [];
+  return { items: mockPlansByProject[projectKey] ?? [], nextCursor: null };
+}
+
+export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {
+  await delay(120);
+  return mockProjects.map(project => {
+    const scenarios = mockScenariosByProject[project.projectKey]?.filter(s => s.status === 'ACTIVE') ?? [];
+    const totalAutomated = scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+    const totalAutomatable = scenarios.filter(s => s.automatable).length;
+    return {
+      id: `stat-${project.id}`,
+      projectId: project.id,
+      projectKey: project.projectKey,
+      projectName: project.name,
+      statDate: '2026-05-28',
+      totalScenarios: scenarios.length,
+      totalAutomated,
+      totalAutomatable,
+      coveragePercentage: totalAutomatable === 0 ? 0 : Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)),
+      updatedAt: '2026-05-28T00:00:00Z'
+    };
+  });
 }

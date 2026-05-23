@@ -8,6 +8,8 @@
   let selectedTribeId = $state('');
   let squads = $state<Squad[]>([]);
   let loadingSquads = $state(false);
+  let squadSortBy = $state('name');
+  let squadSortDir = $state('asc');
   let newSquadName = $state('');
   let creatingSquad = $state(false);
   let squadError = $state('');
@@ -22,12 +24,24 @@
     if (!selectedTribeId) { squads = []; return; }
     loadingSquads = true;
     try {
-      squads = await listSquads(selectedTribeId);
+      const result = await listSquads(selectedTribeId, undefined, undefined, squadSortBy, squadSortDir);
+      squads = result.items;
     } catch {
       squads = [];
     } finally {
       loadingSquads = false;
     }
+  }
+
+  async function sortSquads(field: string) {
+    squadSortDir = squadSortBy === field && squadSortDir === 'asc' ? 'desc' : 'asc';
+    squadSortBy = field;
+    await loadSquadList();
+  }
+
+  function indicator(field: string): string {
+    if (squadSortBy !== field) return '';
+    return squadSortDir === 'asc' ? '↑' : '↓';
   }
 
   async function handleCreateSquad(e: SubmitEvent) {
@@ -81,9 +95,9 @@
         <DataTable>
           {#snippet head()}
             <tr>
-              <th>Name</th>
+              <th><button class="sort-button" onclick={() => sortSquads('name')}>Name <span class="sort-indicator">{indicator('name')}</span></button></th>
               <th>ID</th>
-              <th>Created</th>
+              <th><button class="sort-button" onclick={() => sortSquads('createdAt')}>Created <span class="sort-indicator">{indicator('createdAt')}</span></button></th>
             </tr>
           {/snippet}
           {#snippet body()}

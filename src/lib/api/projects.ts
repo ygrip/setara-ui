@@ -1,4 +1,6 @@
 import { getApiBaseUrl } from './config';
+import type { CursorPage } from './pagination';
+import { buildCursorParams } from './pagination';
 import { isMockMode, mockListProjects, mockGetProject } from '$lib/mock/client';
 
 export interface Project {
@@ -19,9 +21,9 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
-export async function listProjects(): Promise<Project[]> {
-  if (isMockMode()) return mockListProjects();
-  const res = await apiFetch('/api/projects');
+export async function listProjects(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Project>> {
+  if (isMockMode()) return mockListProjects(cursor, limit, sortBy, sortDir);
+  const res = await apiFetch(`/api/projects${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
 

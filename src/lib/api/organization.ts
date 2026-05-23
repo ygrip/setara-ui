@@ -1,4 +1,6 @@
 import { getApiBaseUrl } from './config';
+import type { CursorPage } from './pagination';
+import { buildCursorParams } from './pagination';
 import { isMockMode, mockListTribes, mockListSquads, mockListUsers } from '$lib/mock/client';
 
 export interface Tribe {
@@ -30,9 +32,9 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
-export async function listTribes(): Promise<Tribe[]> {
-  if (isMockMode()) return mockListTribes();
-  const res = await apiFetch('/api/tribes');
+export async function listTribes(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Tribe>> {
+  if (isMockMode()) return mockListTribes(cursor, limit, sortBy, sortDir);
+  const res = await apiFetch(`/api/tribes${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
 
@@ -45,9 +47,9 @@ export async function createTribe(body: { name: string }): Promise<Tribe> {
   return res.json();
 }
 
-export async function listSquads(tribeId: string): Promise<Squad[]> {
-  if (isMockMode()) return mockListSquads(tribeId);
-  const res = await apiFetch(`/api/tribes/${tribeId}/squads`);
+export async function listSquads(tribeId: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
+  if (isMockMode()) return mockListSquads(tribeId, cursor, limit, sortBy, sortDir);
+  const res = await apiFetch(`/api/tribes/${tribeId}/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
 
@@ -60,9 +62,9 @@ export async function createSquad(tribeId: string, body: { name: string }): Prom
   return res.json();
 }
 
-export async function listUsers(): Promise<User[]> {
-  if (isMockMode()) return mockListUsers();
-  const res = await apiFetch('/api/users');
+export async function listUsers(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<User>> {
+  if (isMockMode()) return mockListUsers(cursor, limit, sortBy, sortDir);
+  const res = await apiFetch(`/api/users${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
 

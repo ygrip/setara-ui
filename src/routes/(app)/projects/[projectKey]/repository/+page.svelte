@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
+  import DataTable from '$lib/components/DataTable.svelte';
   import {
     approveDraftScenarios,
     archiveScenario,
@@ -33,6 +34,8 @@
   let busy = $state(false);
   let actionError = $state('');
   let selectedDraftIds = $state<string[]>([]);
+  let scenarioSortBy = $state('name');
+  let scenarioSortDir = $state<'asc' | 'desc'>('asc');
 
   let nodeName = $state('');
   let nodeType = $state<'DIRECTORY' | 'FEATURE'>('DIRECTORY');
@@ -68,8 +71,14 @@
       ? scopedScenarios.filter((scenario: Scenario) => scenario.nodeId === selectedNodeId)
       : scopedScenarios
   );
+  const sortedScenarios = $derived([...visibleScenarios].sort((a: Scenario, b: Scenario) => {
+    const av = scenarioValue(a, scenarioSortBy);
+    const bv = scenarioValue(b, scenarioSortBy);
+    const result = av.localeCompare(bv);
+    return scenarioSortDir === 'asc' ? result : -result;
+  }));
   const selectedScenario = $derived(
-    scopedScenarios.find((scenario: Scenario) => scenario.id === selectedScenarioId) ?? visibleScenarios[0] ?? null
+    scopedScenarios.find((scenario: Scenario) => scenario.id === selectedScenarioId) ?? sortedScenarios[0] ?? null
   );
 
   $effect(() => {
@@ -136,6 +145,26 @@
     selectedDraftIds = selectedDraftIds.includes(id)
       ? selectedDraftIds.filter(existing => existing !== id)
       : [...selectedDraftIds, id];
+  }
+
+  function scenarioValue(scenario: Scenario, field: string): string {
+    switch (field) {
+      case 'scenarioKey': return scenario.scenarioKey ?? '';
+      case 'priority': return scenario.priority ?? '';
+      case 'automationStatus': return scenario.automationStatus ?? '';
+      case 'status': return scenario.status ?? '';
+      default: return scenario.name ?? '';
+    }
+  }
+
+  function sortScenarios(field: string) {
+    scenarioSortDir = scenarioSortBy === field && scenarioSortDir === 'asc' ? 'desc' : 'asc';
+    scenarioSortBy = field;
+  }
+
+  function scenarioIndicator(field: string): string {
+    if (scenarioSortBy !== field) return '';
+    return scenarioSortDir === 'asc' ? '↑' : '↓';
   }
 
   function addDraftRow() {
@@ -348,7 +377,7 @@
       <div class="panel-header">
         <div>
           <span class="panel-title">{selectedNode ? selectedNode.name : 'All Scenarios'}</span>
-          <p class="panel-subtitle">{visibleScenarios.length} {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios</p>
+          <p class="panel-subtitle">{sortedScenarios.length} {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios</p>
         </div>
         <div class="segmented">
           <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
@@ -401,19 +430,34 @@
       {/if}
 
       <div class="scenario-list">
-        {#each visibleScenarios as scenario}
-          <button class="scenario-row" class:active={selectedScenario?.id === scenario.id} onclick={() => selectedScenarioId = scenario.id}>
-            {#if reviewMode === 'DRAFT'}
-              <input type="checkbox" checked={selectedDraftIds.includes(scenario.id)} onclick={(e) => { e.stopPropagation(); toggleDraft(scenario.id); }} />
-            {/if}
-            <span class="scenario-key">{scenario.scenarioKey}</span>
-            <span class="scenario-name">{scenario.name}</span>
-            <Badge text={scenario.status} variant={statusVariant(scenario.status)} />
-            <Badge text={scenario.automationStatus} variant={statusVariant(scenario.automationStatus)} />
-          </button>
-        {:else}
+        {#if sortedScenarios.length === 0}
           <div class="empty-state">No {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this scope.</div>
-        {/each}
+        {:else}
+          <DataTable>
+            {#snippet head()}
+              <tr>
+                {#if reviewMode === 'DRAFT'}<th></th>{/if}
+                <th><button class="sort-button" onclick={() => sortScenarios('scenarioKey')}>Key <span class="sort-indicator">{scenarioIndicator('scenarioKey')}</span></button></th>
+                <th><button class="sort-button" onclick={() => sortScenarios('name')}>Scenario <span class="sort-indicator">{scenarioIndicator('name')}</span></button></th>
+                <th><button class="sort-button" onclick={() => sortScenarios('status')}>Status <span class="sort-indicator">{scenarioIndicator('status')}</span></button></th>
+                <th><button class="sort-button" onclick={() => sortScenarios('automationStatus')}>Automation <span class="sort-indicator">{scenarioIndicator('automationStatus')}</span></button></th>
+              </tr>
+            {/snippet}
+            {#snippet body()}
+              {#each sortedScenarios as scenario}
+                <tr class:active-row={selectedScenario?.id === scenario.id} onclick={() => selectedScenarioId = scenario.id}>
+                  {#if reviewMode === 'DRAFT'}
+                    <td><input type="checkbox" checked={selectedDraftIds.includes(scenario.id)} onclick={(e) => { e.stopPropagation(); toggleDraft(scenario.id); }} /></td>
+                  {/if}
+                  <td class="scenario-key">{scenario.scenarioKey}</td>
+                  <td class="scenario-name">{scenario.name}</td>
+                  <td><Badge text={scenario.status} variant={statusVariant(scenario.status)} /></td>
+                  <td><Badge text={scenario.automationStatus} variant={statusVariant(scenario.automationStatus)} /></td>
+                </tr>
+              {/each}
+            {/snippet}
+          </DataTable>
+        {/if}
       </div>
     </section>
 
@@ -523,14 +567,14 @@
   .sheet-row { display: grid; grid-template-columns: 180px 112px 52px 160px minmax(360px, 1fr); gap: 8px; min-width: 900px; align-items: start; margin-bottom: 8px; }
   .sheet-row--head { color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
   .mini-check { display: grid; place-items: center; padding-top: 8px; }
-  .mini-check input, .scenario-row input { width: auto; }
+  .mini-check input, .scenario-list input { width: auto; }
   .step-sheet, .detail-steps { display: grid; gap: 8px; }
   .step-row, .edit-step { display: grid; grid-template-columns: 92px 1fr 1fr 1fr; gap: 8px; }
   .sheet > button { margin: 0 10px 12px; }
   .bulk-actions { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font-size: 0.82rem; }
   .scenario-list { padding: 10px; }
-  .scenario-row { width: 100%; display: grid; grid-template-columns: 28px 104px minmax(160px, 1fr) 86px 122px; align-items: center; gap: 10px; text-align: left; margin-bottom: 8px; }
-  .scenario-list .scenario-row:not(:has(input)) { grid-template-columns: 104px minmax(160px, 1fr) 86px 122px; }
+  .scenario-list :global(tr) { cursor: pointer; }
+  .scenario-list :global(tr.active-row td) { background: var(--color-accent-subtle); }
   .scenario-key { font-family: ui-monospace, monospace; font-size: 0.76rem; color: var(--color-text-muted); }
   .scenario-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }

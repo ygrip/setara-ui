@@ -14,7 +14,7 @@ export async function load({ params }: { params: { projectKey: string } }) {
   return {
     projectKey,
     project: projectResult.status === 'fulfilled' ? projectResult.value : null as Project | null,
-    runs: runsResult.status === 'fulfilled' ? runsResult.value : [] as AutomationRun[],
+    runs: runsResult.status === 'fulfilled' ? runsResult.value.items : [] as AutomationRun[],
     apiKeys: keysResult.status === 'fulfilled' ? keysResult.value : [] as ApiKey[],
     error: projectResult.status === 'rejected' ? (projectResult.reason as Error).message : null
   };
