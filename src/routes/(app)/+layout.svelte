@@ -81,7 +81,7 @@
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
       <img src="/favicon.svg" alt="Setara" class="brand-icon" width="28" height="28" />
-      <span class="brand-name">Setara</span>
+      <span class="brand-name">SETARA</span>
       <ThemeToggle />
     </div>
 
@@ -228,7 +228,7 @@
         <!-- Brand (mobile only) -->
         <a href="/workspace" class="topbar-brand-mobile" aria-label="Setara home">
           <img src="/favicon.svg" alt="" class="topbar-brand-icon" width="22" height="22" aria-hidden="true" />
-          <span>Setara</span>
+          <span>SETARA</span>
         </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
@@ -350,9 +350,9 @@
     flex: 1;
     font-family: var(--font-sans, "Sora", sans-serif);
     font-weight: 700;
-    font-size: 1.05rem;
+    font-size: 0.95rem;
     color: var(--color-accent);
-    letter-spacing: -0.02em;
+    letter-spacing: 0.12em;
   }
 
   .sidebar-nav {
