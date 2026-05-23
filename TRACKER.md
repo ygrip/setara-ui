@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-23
 
 ```text
-UI: [~] Tabular draft scenario review workflow implemented
+UI: [~] Sortable tables and leadership statistics dashboard implemented
 ```
 
 - [x] Git repository initialized on `main`.
@@ -43,6 +43,8 @@ UI: [~] Tabular draft scenario review workflow implemented
 - [x] Old `plans/` page converted to redirect to `/projects`.
 - [x] Shared components: Badge, Button, Card, Modal, DataTable, ThemeToggle, MetricCard, QualityGateBadge.
 - [x] Typed API clients: projects.ts, organization.ts, runs.ts, apikeys.ts, testcases.ts, plans.ts.
+- [x] Cursor page API client support.
+- [x] Project statistics API client and mock data support.
 - [ ] Permission/role-aware UI states.
 - [ ] Session refresh behavior.
 - [x] Scenario tree view (live, connected to backend).
@@ -51,6 +53,9 @@ UI: [~] Tabular draft scenario review workflow implemented
 - [x] Tabular bulk scenario draft creation.
 - [x] Cucumber-style step detail table with description and expectation fields.
 - [x] Draft review tab with bulk approve/reject actions.
+- [x] Sortable scenario table in the Test Repository list.
+- [x] Sortable tribe and squad admin tables.
+- [x] Leadership coverage dashboard backed by project statistics.
 - [x] Manual execution screen.
 - [ ] WebSocket live run updates.
 - [~] Plans detail page (post-backend).
@@ -61,7 +66,7 @@ UI: [~] Tabular draft scenario review workflow implemented
 ## Latest Commits
 
 ```text
+f241ff1 Add sortable tables and leadership statistics dashboard
+cb0c75e Sync UI tracker after draft review work
 a2be69b Add tabular draft scenario review UI
-0fda5f8 Sync UI tracker after backend wiring
-f885900 Connect repository and release plan UI
 ```
