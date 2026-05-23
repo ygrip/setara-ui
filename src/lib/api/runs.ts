@@ -17,6 +17,32 @@ export interface AutomationRun {
   startedAt: string;
   finishedAt: string | null;
   createdAt: string;
+  totalScenarios?: number | null;
+  passedScenarios?: number | null;
+  failedScenarios?: number | null;
+  skippedScenarios?: number | null;
+  undefinedScenarios?: number | null;
+  pendingScenarios?: number | null;
+  durationMs?: number | null;
+  notes?: string | null;
+}
+
+export interface ScenarioRunResult {
+  id: string;
+  runId: string;
+  scenarioId: string | null;
+  cucumberId: string | null;
+  featureUri: string | null;
+  featureName: string | null;
+  scenarioName: string;
+  scenarioLine: number | null;
+  tags: string[] | null;
+  status: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number | null;
+  exceptionType: string | null;
+  exceptionMessage: string | null;
 }
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
@@ -37,5 +63,11 @@ export async function listRuns(projectKey: string, cursor?: string, limit?: numb
 export async function getRun(projectKey: string, runId: string): Promise<AutomationRun> {
   if (isMockMode()) return mockGetRun(projectKey, runId);
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}`);
+  return res.json();
+}
+
+export async function listRunResults(projectKey: string, runId: string): Promise<ScenarioRunResult[]> {
+  if (isMockMode()) return [];
+  const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results`);
   return res.json();
 }

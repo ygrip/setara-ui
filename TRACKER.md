@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-23
 
 ```text
-UI: [~] Coverage history view connected to project statistics
+UI: [~] Execution WebSocket views connected
 ```
 
 - [x] Git repository initialized on `main`.
@@ -58,7 +58,7 @@ UI: [~] Coverage history view connected to project statistics
 - [x] Leadership coverage dashboard backed by project statistics.
 - [x] Project coverage page backed by statistics history.
 - [x] Manual execution screen.
-- [ ] WebSocket live run updates.
+- [x] WebSocket live run updates.
 - [~] Plans detail page (post-backend).
 - [x] Per-project release plan list/create/status/archive workflow.
 - [ ] End-to-end smoke tests.

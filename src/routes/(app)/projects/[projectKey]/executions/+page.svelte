@@ -1,8 +1,27 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
+  import type { AutomationRun } from '$lib/api/runs';
 
-  let { data } = $props();
+  let { data }: {
+    data: {
+      projectKey: string;
+      runs: AutomationRun[];
+      nextCursor: string | null;
+      error: string | null;
+    }
+  } = $props();
+
+  let runs = $state<AutomationRun[]>([]);
+  let liveEvents = $state<ExecutionEvent[]>([]);
+  let socketState = $state<'connecting' | 'live' | 'offline'>('offline');
+  let socket: WebSocket | null = null;
+
+  $effect(() => {
+    runs = data.runs;
+  });
 
   function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
@@ -27,6 +46,40 @@
     if (s < 60) return `${s}s`;
     return `${Math.floor(s / 60)}m ${s % 60}s`;
   }
+
+  function applyEvent(event: ExecutionEvent) {
+    liveEvents = [event, ...liveEvents].slice(0, 5);
+    if (event.type === 'RUN_FINISHED') {
+      runs = runs.map(run => run.id === event.runId
+        ? {
+            ...run,
+            status: event.status ?? run.status,
+            finishedAt: event.occurredAt,
+            totalScenarios: event.totalScenarios ?? run.totalScenarios,
+            durationMs: event.durationMs ?? run.durationMs
+          }
+        : run);
+    }
+  }
+
+  onMount(() => {
+    socketState = 'connecting';
+    socket = new WebSocket(executionSocketUrl(data.projectKey));
+    socket.onopen = () => socketState = 'live';
+    socket.onclose = () => socketState = 'offline';
+    socket.onerror = () => socketState = 'offline';
+    socket.onmessage = (message) => {
+      try {
+        applyEvent(JSON.parse(message.data) as ExecutionEvent);
+      } catch {
+        // Persisted run list remains authoritative when malformed events arrive.
+      }
+    };
+  });
+
+  onDestroy(() => {
+    socket?.close();
+  });
 </script>
 
 <svelte:head>
@@ -44,6 +97,7 @@
 
   <div class="page-header">
     <h1 class="page-title">Executions</h1>
+    <span class:socket-pill--live={socketState === 'live'} class="socket-pill">{socketState}</span>
   </div>
 
   <!-- Filters bar -->
@@ -76,7 +130,7 @@
 
   {#if data.error}
     <div class="error-banner">Could not load executions — {data.error}</div>
-  {:else if data.runs.length === 0}
+  {:else if runs.length === 0}
     <div class="empty-state">
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
         <polygon points="5 3 19 12 5 21 5 3"/>
@@ -99,7 +153,7 @@
         </tr>
       {/snippet}
       {#snippet body()}
-        {#each data.runs as run}
+        {#each runs as run}
           <tr>
             <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
             <td class="mono">{run.runnerId}</td>
@@ -113,6 +167,21 @@
         {/each}
       {/snippet}
     </DataTable>
+  {/if}
+
+  {#if liveEvents.length > 0}
+    <div class="live-panel">
+      <h2 class="section-title">Live Updates</h2>
+      <div class="event-feed">
+        {#each liveEvents as event}
+          <div class="event-item">
+            <span class="event-type">{event.type}</span>
+            <span>{event.message ?? event.status ?? event.runId}</span>
+            <span class="event-time">{formatDate(event.occurredAt)}</span>
+          </div>
+        {/each}
+      </div>
+    </div>
   {/if}
 </div>
 
@@ -130,8 +199,29 @@
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
 
-  .page-header { margin-bottom: 16px; }
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
   .page-title { font-size: 1.5rem; font-weight: 700; }
+
+  .socket-pill {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 3px 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .socket-pill.socket-pill--live {
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success), transparent 60%);
+    background: color-mix(in srgb, var(--color-success), transparent 90%);
+  }
 
   .filters-bar {
     display: flex;
@@ -201,4 +291,41 @@
 
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
   .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; }
+
+  .live-panel {
+    margin-top: 20px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 12px;
+  }
+
+  .event-feed {
+    display: grid;
+    gap: 8px;
+  }
+
+  .event-item {
+    display: grid;
+    grid-template-columns: minmax(130px, auto) 1fr auto;
+    gap: 12px;
+    align-items: center;
+    padding: 9px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    font-size: 0.8rem;
+  }
+
+  .event-type {
+    font-family: ui-monospace, monospace;
+    color: var(--color-accent);
+  }
+
+  .event-time {
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+  }
 </style>

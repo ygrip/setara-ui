@@ -8,3 +8,7 @@ export function getApiBaseUrl(): string {
 export function getWebSocketBaseUrl(): string {
   return import.meta.env.VITE_SETARA_WS_BASE_URL ?? DEFAULT_WS_BASE_URL;
 }
+
+export function getWebSocketToken(): string | undefined {
+  return import.meta.env.VITE_SETARA_WS_TOKEN;
+}
