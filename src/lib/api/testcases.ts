@@ -181,3 +181,8 @@ export async function createManualExecution(projectKey: string, scenarioId: stri
   });
   return res.json();
 }
+
+export async function listManualExecutions(projectKey: string, scenarioId: string): Promise<ManualExecution[]> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}/manual-executions`);
+  return res.json();
+}

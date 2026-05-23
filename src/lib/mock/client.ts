@@ -4,10 +4,10 @@ import {
   mockScenariosByProject, mockPlansByProject
 } from './data';
 import type { Project } from '$lib/api/projects';
-import type { AutomationRun } from '$lib/api/runs';
+import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
-import type { ReleasePlan } from '$lib/api/plans';
+import type { PlanMetrics, PlanScenario, ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TestNode } from '$lib/api/testcases';
 import type { ProjectStatistic } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
@@ -41,6 +41,27 @@ export async function mockGetRun(projectKey: string, runId: string): Promise<Aut
   const run = runs.find(r => r.id === runId);
   if (!run) throw new Error(`Run ${runId} not found`);
   return run;
+}
+
+export async function mockListRunResults(projectKey: string, runId: string): Promise<ScenarioRunResult[]> {
+  await delay(100);
+  return mockListScenarios(projectKey, null, 'ACTIVE').then(scenarios => scenarios.slice(0, 2).map((scenario, index) => ({
+    id: `result-${runId}-${index}`,
+    runId,
+    scenarioId: scenario.id,
+    cucumberId: scenario.cucumberId,
+    featureUri: scenario.featureUri,
+    featureName: scenario.featureName,
+    scenarioName: scenario.name,
+    scenarioLine: scenario.lineNumber,
+    tags: scenario.tags,
+    status: index === 0 ? 'PASSED' : 'FAILED',
+    startedAt: '2026-05-23T08:00:00Z',
+    finishedAt: '2026-05-23T08:02:00Z',
+    durationMs: 120000,
+    exceptionType: index === 0 ? null : 'AssertionError',
+    exceptionMessage: index === 0 ? null : 'Expected refund state to be APPROVED'
+  })));
 }
 
 export async function mockListApiKeys(projectKey: string): Promise<ApiKey[]> {
@@ -100,6 +121,45 @@ export async function mockListScenarios(projectKey: string, nodeId?: string | nu
 export async function mockListPlans(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<ReleasePlan>> {
   await delay(120);
   return { items: mockPlansByProject[projectKey] ?? [], nextCursor: null };
+}
+
+export async function mockGetPlan(projectKey: string, planId: string): Promise<ReleasePlan> {
+  await delay(100);
+  const plan = mockPlansByProject[projectKey]?.find(item => item.id === planId);
+  if (!plan) throw new Error(`Plan ${planId} not found`);
+  return plan;
+}
+
+export async function mockListPlanScenarios(projectKey: string, _planId: string): Promise<PlanScenario[]> {
+  await delay(100);
+  return (mockScenariosByProject[projectKey] ?? []).filter(scenario => scenario.status === 'ACTIVE').map((scenario, index) => ({
+    id: `plan-scenario-${index}`,
+    scenarioId: scenario.id,
+    scenarioKey: scenario.scenarioKey,
+    name: scenario.name,
+    priority: scenario.priority,
+    automationStatus: scenario.automationStatus,
+    createdAt: scenario.createdAt
+  }));
+}
+
+export async function mockGetPlanMetrics(projectKey: string, planId: string): Promise<PlanMetrics> {
+  const scenarios = await mockListPlanScenarios(projectKey, planId);
+  const selectedExecutions = scenarios.length ? Math.max(1, scenarios.length - 1) : 0;
+  const passed = selectedExecutions;
+  return {
+    planId,
+    totalScenarios: scenarios.length,
+    selectedExecutions,
+    passed,
+    failed: 0,
+    blocked: 0,
+    skipped: 0,
+    executionCoverage: scenarios.length ? Number(((selectedExecutions / scenarios.length) * 100).toFixed(2)) : 0,
+    passPercentage: selectedExecutions ? 100 : 0,
+    automationCoverage: scenarios.length ? Number(((scenarios.filter(s => s.automationStatus === 'AUTOMATED').length / scenarios.length) * 100).toFixed(2)) : 0,
+    qualityGate: selectedExecutions === scenarios.length ? 'PASS' : 'WARNING'
+  };
 }
 
 export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {

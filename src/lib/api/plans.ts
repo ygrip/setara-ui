@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from './config';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockListPlans } from '$lib/mock/client';
+import { isMockMode, mockGetPlan, mockGetPlanMetrics, mockListPlans, mockListPlanScenarios } from '$lib/mock/client';
 
 export interface ReleasePlan {
   id: string;
@@ -41,6 +41,16 @@ export interface PlanMetrics {
   qualityGate: string;
 }
 
+export interface PlanSelection {
+  id: string;
+  scenarioId: string;
+  scenarioRunResultId: string | null;
+  manualExecutionId: string | null;
+  status: string;
+  selectedBy: string | null;
+  selectedAt: string;
+}
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, init);
   if (!res.ok) {
@@ -71,6 +81,12 @@ export async function createPlan(projectKey: string, body: {
   return res.json();
 }
 
+export async function getPlan(projectKey: string, planId: string): Promise<ReleasePlan> {
+  if (isMockMode()) return mockGetPlan(projectKey, planId);
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}`);
+  return res.json();
+}
+
 export async function updatePlan(projectKey: string, planId: string, body: Partial<{
   name: string;
   releaseVersion: string;
@@ -92,6 +108,7 @@ export async function archivePlan(projectKey: string, planId: string): Promise<v
 }
 
 export async function listPlanScenarios(projectKey: string, planId: string): Promise<PlanScenario[]> {
+  if (isMockMode()) return mockListPlanScenarios(projectKey, planId);
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios`);
   return res.json();
 }
@@ -110,6 +127,21 @@ export async function removePlanScenario(projectKey: string, planId: string, sce
 }
 
 export async function getPlanMetrics(projectKey: string, planId: string): Promise<PlanMetrics> {
+  if (isMockMode()) return mockGetPlanMetrics(projectKey, planId);
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/metrics`);
+  return res.json();
+}
+
+export async function selectPlanExecution(projectKey: string, planId: string, body: {
+  scenarioId: string;
+  scenarioRunResultId?: string | null;
+  manualExecutionId?: string | null;
+  selectedBy?: string;
+}): Promise<PlanSelection> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/executions/select`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
   return res.json();
 }

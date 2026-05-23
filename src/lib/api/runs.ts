@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from './config';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockListRuns, mockGetRun } from '$lib/mock/client';
+import { isMockMode, mockListRuns, mockGetRun, mockListRunResults } from '$lib/mock/client';
 
 export interface AutomationRun {
   id: string;
@@ -67,7 +67,7 @@ export async function getRun(projectKey: string, runId: string): Promise<Automat
 }
 
 export async function listRunResults(projectKey: string, runId: string): Promise<ScenarioRunResult[]> {
-  if (isMockMode()) return [];
+  if (isMockMode()) return mockListRunResults(projectKey, runId);
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results`);
   return res.json();
 }

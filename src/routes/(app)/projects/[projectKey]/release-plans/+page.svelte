@@ -231,10 +231,9 @@
           {/each}
         </div>
 
-        <div class="integration-note">
-          <strong>Contract ready:</strong>
-          scenarios, execution selection, and metrics are exposed by the backend plan API. The next UI pass can add the detail screen for scenario scope and evidence selection.
-        </div>
+        <a class="detail-link" href="/projects/{data.projectKey}/release-plans/{selectedPlan.id}">
+          Open scope, evidence, and quality gate →
+        </a>
 
         <button class="danger-btn" onclick={handleArchive} disabled={busy}>Archive Plan</button>
       {:else}
@@ -301,7 +300,7 @@
   .metric-grid span { display: block; color: var(--color-text-muted); font-size: 0.72rem; margin-bottom: 4px; }
   .metric-grid strong { font-size: 0.92rem; }
   .status-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-  .integration-note { margin-top: 16px; padding: 12px; background: var(--color-accent-subtle); border: 1px solid var(--color-border); border-radius: 6px; color: var(--color-text-muted); font-size: 0.82rem; line-height: 1.5; }
+  .detail-link { display: inline-flex; margin-top: 16px; color: var(--color-accent); font-size: 0.85rem; font-weight: 700; }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
   .section { margin-bottom: 28px; }
   .section-title { font-size: 1rem; font-weight: 600; margin-bottom: 14px; }
