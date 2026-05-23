@@ -67,7 +67,7 @@ UI: [~] Execution WebSocket views connected
 ## Latest Commits
 
 ```text
+82f32a5 Display execution websocket updates
+647896d Sync UI tracker after coverage statistics work
 bf3f2a9 Connect coverage page to statistics history
-13bbe1f Sync UI tracker after statistics work
-f241ff1 Add sortable tables and leadership statistics dashboard
 ```
