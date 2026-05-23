@@ -67,7 +67,7 @@ UI: [~] Coverage history view connected to project statistics
 ## Latest Commits
 
 ```text
+bf3f2a9 Connect coverage page to statistics history
+13bbe1f Sync UI tracker after statistics work
 f241ff1 Add sortable tables and leadership statistics dashboard
-cb0c75e Sync UI tracker after draft review work
-a2be69b Add tabular draft scenario review UI
 ```
