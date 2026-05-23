@@ -2,6 +2,8 @@ import type { Project } from '$lib/api/projects';
 import type { AutomationRun } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
+import type { ReleasePlan } from '$lib/api/plans';
+import type { Scenario, TestNode } from '$lib/api/testcases';
 
 export const mockProjects: Project[] = [
   { id: '1', squadId: null, projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
@@ -36,6 +38,81 @@ export const mockApiKeysByProject: Record<string, ApiKey[]> = {
   ],
   CATALOG: [],
   CHECKOUT: [],
+};
+
+export const mockNodesByProject: Record<string, TestNode[]> = {
+  PAYMENT: [
+    { id: 'node-pay-root', parentId: null, nodeType: 'DIRECTORY', name: 'Payments', slug: 'payments', path: 'payments', createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-refund', parentId: null, nodeType: 'FEATURE', name: 'Refunds', slug: 'refunds', path: 'refunds', createdAt: '2026-05-01T00:00:00Z' }
+  ],
+  AUTH: [
+    { id: 'node-login', parentId: null, nodeType: 'FEATURE', name: 'Login', slug: 'login', path: 'login', createdAt: '2026-05-01T00:00:00Z' }
+  ]
+};
+
+export const mockScenariosByProject: Record<string, Scenario[]> = {
+  PAYMENT: [
+    {
+      id: 'scenario-refund-happy',
+      nodeId: 'node-refund',
+      scenarioKey: 'SCN-REFUND1',
+      name: 'Refund approved card payment',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Refunds',
+      lineNumber: null,
+      tags: ['refund', 'regression'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATABLE',
+      automatable: true,
+      automationNotes: null,
+      manualNotes: 'Validate full and partial refund cases.',
+      status: 'ACTIVE',
+      createdAt: '2026-05-20T08:00:00Z',
+      updatedAt: '2026-05-20T08:00:00Z'
+    }
+  ],
+  AUTH: [
+    {
+      id: 'scenario-login-valid',
+      nodeId: 'node-login',
+      scenarioKey: 'SCN-LOGIN1',
+      name: 'User logs in with valid credentials',
+      source: 'AUTOMATION',
+      cucumberId: 'auth-login-valid',
+      featureUri: 'features/auth/login.feature',
+      featureName: 'Login',
+      lineNumber: 12,
+      tags: ['auth', 'smoke'],
+      priority: 'CRITICAL',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Covered by smoke suite.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      createdAt: '2026-05-19T08:00:00Z',
+      updatedAt: '2026-05-19T08:00:00Z'
+    }
+  ]
+};
+
+export const mockPlansByProject: Record<string, ReleasePlan[]> = {
+  PAYMENT: [
+    {
+      id: 'plan-payment-2026-05',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      name: '2026.05 Regression',
+      releaseVersion: '2026.05',
+      description: 'Regression scope for payment release readiness.',
+      status: 'ACTIVE',
+      passThreshold: 95,
+      coverageThreshold: 90,
+      createdAt: '2026-05-22T08:00:00Z',
+      updatedAt: '2026-05-22T08:00:00Z'
+    }
+  ]
 };
 
 export const mockTribes: Tribe[] = [

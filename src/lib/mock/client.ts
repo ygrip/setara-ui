@@ -1,11 +1,14 @@
 import {
   mockProjects, mockRunsByProject, mockApiKeysByProject,
-  mockTribes, mockSquads, mockUsers
+  mockTribes, mockSquads, mockUsers, mockNodesByProject,
+  mockScenariosByProject, mockPlansByProject
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
+import type { ReleasePlan } from '$lib/api/plans';
+import type { Scenario, TestNode } from '$lib/api/testcases';
 
 export function isMockMode(): boolean {
   return import.meta.env.VITE_MOCK === 'true';
@@ -78,4 +81,20 @@ export async function mockListSquads(tribeId: string): Promise<Squad[]> {
 export async function mockListUsers(): Promise<User[]> {
   await delay(100);
   return mockUsers;
+}
+
+export async function mockListNodes(projectKey: string): Promise<TestNode[]> {
+  await delay(100);
+  return mockNodesByProject[projectKey] ?? [];
+}
+
+export async function mockListScenarios(projectKey: string, nodeId?: string | null): Promise<Scenario[]> {
+  await delay(120);
+  const scenarios = mockScenariosByProject[projectKey] ?? [];
+  return nodeId ? scenarios.filter(s => s.nodeId === nodeId) : scenarios;
+}
+
+export async function mockListPlans(projectKey: string): Promise<ReleasePlan[]> {
+  await delay(120);
+  return mockPlansByProject[projectKey] ?? [];
 }
