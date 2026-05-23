@@ -23,6 +23,24 @@
 
   let query = $state('');
   let activeIndex = $state(0);
+  let hintIndex = $state(0);
+
+  const hints = [
+    'Search projects, pages…',
+    'Find test scenarios…',
+    'Jump to executions…',
+    'Search by run status…',
+    'Go to release plans…',
+    'Find coverage reports…',
+  ];
+
+  $effect(() => {
+    if (!open) return;
+    const id = setInterval(() => {
+      hintIndex = (hintIndex + 1) % hints.length;
+    }, 2600);
+    return () => clearInterval(id);
+  });
 
   const filteredResults: Result[] = $derived(
     (() => {
@@ -93,16 +111,23 @@
         <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
         </svg>
-        <!-- svelte-ignore a11y_autofocus -->
-        <input
-          class="palette-input"
-          type="text"
-          placeholder="Search projects, pages…"
-          bind:value={query}
-          autofocus
-          autocomplete="off"
-          spellcheck="false"
-        />
+        <div class="palette-input-wrap">
+          <!-- svelte-ignore a11y_autofocus -->
+          <input
+            class="palette-input"
+            type="text"
+            placeholder=" "
+            bind:value={query}
+            autofocus
+            autocomplete="off"
+            spellcheck="false"
+          />
+          {#if !query}
+            {#key hintIndex}
+              <span class="palette-hint" aria-hidden="true">{hints[hintIndex]}</span>
+            {/key}
+          {/if}
+        </div>
         <kbd class="palette-esc-hint">Esc</kbd>
       </div>
 
@@ -182,8 +207,15 @@
     flex-shrink: 0;
   }
 
-  .palette-input {
+  .palette-input-wrap {
     flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  }
+
+  .palette-input {
+    width: 100%;
     background: none;
     border: none;
     outline: none;
@@ -191,11 +223,29 @@
     font-weight: 400;
     color: var(--color-text);
     font-family: inherit;
+    position: relative;
+    z-index: 1;
   }
 
-  .palette-input::placeholder {
+  .palette-hint {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 17px;
+    font-weight: 400;
     color: var(--color-text-muted);
-    opacity: 0.6;
+    opacity: 0;
+    pointer-events: none;
+    white-space: nowrap;
+    animation: hint-cycle 2.6s ease forwards;
+  }
+
+  @keyframes hint-cycle {
+    0%   { opacity: 0; transform: translateY(calc(-50% + 6px)); }
+    12%  { opacity: 0.55; transform: translateY(-50%); }
+    75%  { opacity: 0.55; transform: translateY(-50%); }
+    100% { opacity: 0; transform: translateY(calc(-50% - 6px)); }
   }
 
   .palette-esc-hint {

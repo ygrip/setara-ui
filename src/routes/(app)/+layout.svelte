@@ -12,6 +12,11 @@
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
 
+  // Topbar search hint cycling
+  const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
+  let searchHintIndex = $state(0);
+  let searchHintKey = $state(0); // triggers {#key} re-mount for animation
+
   const projectKey = $derived(page.params.projectKey ?? null);
 
   onMount(() => {
@@ -43,10 +48,16 @@
       }
     }
 
+    const hintInterval = setInterval(() => {
+      searchHintIndex = (searchHintIndex + 1) % searchHints.length;
+      searchHintKey += 1;
+    }, 3000);
+
     window.addEventListener('keydown', handleKeydown);
     document.addEventListener('click', handleOutsideClick);
 
     return () => {
+      clearInterval(hintInterval);
       window.removeEventListener('keydown', handleKeydown);
       document.removeEventListener('click', handleOutsideClick);
     };
@@ -82,7 +93,7 @@
     <div class="sidebar-brand">
       <img src="/favicon.svg" alt="Setara" class="brand-icon" width="28" height="28" />
       <span class="brand-name">SETARA</span>
-      <ThemeToggle />
+      <span class="sidebar-brand-theme-desktop"><ThemeToggle /></span>
     </div>
 
     <nav class="sidebar-nav">
@@ -211,6 +222,10 @@
     </nav>
 
     <div class="sidebar-footer">
+      <div class="sidebar-footer-theme">
+        <span class="sidebar-footer-label">Theme</span>
+        <ThemeToggle />
+      </div>
     </div>
   </aside>
 
@@ -219,17 +234,10 @@
     <!-- Top bar (always visible) -->
     <header class="topbar">
       <div class="topbar-left">
-        <!-- Hamburger button (mobile only) -->
-        <button class="hamburger" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle menu">
-          <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M3 5h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2zm0 4h14a1 1 0 010 2H3a1 1 0 010-2z" clip-rule="evenodd"/>
-          </svg>
+        <!-- Icon button — mobile only: toggles sidebar; desktop: links home -->
+        <button class="topbar-brand-mobile" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle navigation" aria-expanded={sidebarOpen}>
+          <img src="/favicon.svg" alt="" class="topbar-brand-icon" width="26" height="26" aria-hidden="true" />
         </button>
-        <!-- Brand (mobile only) -->
-        <a href="/workspace" class="topbar-brand-mobile" aria-label="Setara home">
-          <img src="/favicon.svg" alt="" class="topbar-brand-icon" width="22" height="22" aria-hidden="true" />
-          <span>SETARA</span>
-        </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
           <span class="project-key-pill">{projectKey}</span>
@@ -242,32 +250,41 @@
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
-          <span class="search-placeholder">Search anything…</span>
+          {#key searchHintKey}
+            <span class="search-placeholder">{searchHints[searchHintIndex]}</span>
+          {/key}
           <kbd class="search-kbd">⌘K</kbd>
         </button>
       </div>
 
       <div class="topbar-right">
         <!-- Live indicator -->
-        <div class="live-indicator">
+        <div class="live-indicator" title="Live updates active">
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
 
-        <!-- User avatar dropdown -->
+        <!-- User avatar -->
         {#if session}
           <div class="user-menu-wrap">
             <button
               class="topbar-avatar"
               onclick={() => userMenuOpen = !userMenuOpen}
-              aria-haspopup="true"
+              aria-haspopup="dialog"
               aria-expanded={userMenuOpen}
               title={session.name}
             >
               {session.name?.[0]?.toUpperCase() ?? '?'}
             </button>
+
             {#if userMenuOpen}
+              <!-- Desktop: positioned dropdown -->
               <div class="user-dropdown">
+                <div class="dropdown-header">
+                  <span class="dropdown-name">{session.name}</span>
+                  <span class="dropdown-email">{session.email}</span>
+                </div>
+                <div class="dropdown-divider"></div>
                 <a href="/profile" class="dropdown-item" onclick={() => userMenuOpen = false}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
                     <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -281,6 +298,31 @@
                   </svg>
                   Sign out
                 </button>
+              </div>
+
+              <!-- Mobile: centred popup overlay -->
+              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+              <div class="user-popup-overlay" role="dialog" aria-modal="true" aria-label="Account" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) userMenuOpen = false; }}>
+                <div class="user-popup">
+                  <div class="user-popup-avatar">{session.name?.[0]?.toUpperCase() ?? '?'}</div>
+                  <div class="user-popup-name">{session.name}</div>
+                  <div class="user-popup-email">{session.email}</div>
+                  <div class="user-popup-actions">
+                    <a href="/profile" class="popup-btn" onclick={() => userMenuOpen = false}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                      </svg>
+                      Profile
+                    </a>
+                    <button class="popup-btn popup-btn--danger" onclick={() => { userMenuOpen = false; signOut(); }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+                      </svg>
+                      Sign out
+                    </button>
+                  </div>
+                  <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">✕</button>
+                </div>
               </div>
             {/if}
           </div>
@@ -346,13 +388,29 @@
     display: block;
   }
 
+  /* Hide brand-row ThemeToggle on mobile (it moves to sidebar footer) */
+  .sidebar-brand-theme-desktop {
+    display: contents;
+  }
+
   .brand-name {
     flex: 1;
     font-family: var(--font-sans, "Sora", sans-serif);
     font-weight: 700;
-    font-size: 0.95rem;
-    color: var(--color-accent);
-    letter-spacing: 0.12em;
+    font-size: 1rem;
+    letter-spacing: 0.16em;
+    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: brand-shimmer 5s ease-in-out infinite;
+  }
+
+  @keyframes brand-shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50%       { background-position: 100% 50%; }
   }
 
   .sidebar-nav {
@@ -437,6 +495,19 @@
     border-top: 1px solid var(--color-border);
   }
 
+  .sidebar-footer-theme {
+    display: none; /* shown only on mobile via media query */
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 4px;
+  }
+
+  .sidebar-footer-label {
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+
   /* ── Main area ── */
   .main-area {
     flex: 1;
@@ -487,35 +558,21 @@
     flex-shrink: 0;
   }
 
-  .hamburger {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--color-text-muted);
-    padding: 4px;
-    display: none;
-    align-items: center;
-    border-radius: 4px;
-  }
-
-  .hamburger:hover {
-    color: var(--color-text);
-  }
-
+  /* Icon toggle button — mobile only */
   .topbar-brand-mobile {
     display: none;
     align-items: center;
-    gap: 7px;
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-weight: 700;
-    font-size: 1rem;
-    color: var(--color-accent);
-    text-decoration: none;
+    justify-content: center;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 8px;
+    transition: opacity 0.15s;
   }
 
   .topbar-brand-mobile:hover {
-    text-decoration: none;
-    opacity: 0.85;
+    opacity: 0.75;
   }
 
   .topbar-brand-icon {
@@ -568,6 +625,14 @@
     text-align: left;
     color: var(--color-text-muted);
     font-size: 0.85rem;
+    animation: hint-fade 3s ease forwards;
+  }
+
+  @keyframes hint-fade {
+    0%   { opacity: 0; transform: translateY(4px); }
+    15%  { opacity: 1; transform: translateY(0); }
+    80%  { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0.7; transform: translateY(0); }
   }
 
   .search-kbd {
@@ -614,6 +679,31 @@
     font-size: 0.75rem;
     font-weight: 600;
     color: var(--color-success);
+  }
+
+  /* Dropdown header (name + email) */
+  .dropdown-header {
+    padding: 12px 16px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .dropdown-name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+  }
+
+  .dropdown-email {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Mobile user popup ── */
+  /* Hidden on desktop — shown only via mobile media query */
+  .user-popup-overlay {
+    display: none;
   }
 
   /* User menu */
@@ -738,6 +828,7 @@
 
   /* ── Responsive ── */
   @media (max-width: 768px) {
+    /* Sidebar slides in from left */
     .sidebar {
       position: fixed;
       left: 0;
@@ -752,16 +843,190 @@
       transform: translateX(0);
     }
 
-    .hamburger {
-      display: flex;
-    }
-
+    /* Show icon toggle button */
     .topbar-brand-mobile {
       display: flex;
     }
 
+    /* Hide desktop ThemeToggle in brand row; show footer version */
+    .sidebar-brand-theme-desktop {
+      display: none;
+    }
+
+    .sidebar-footer-theme {
+      display: flex;
+    }
+
+    /* Hide project pill on mobile */
     .project-key-pill {
       display: none;
+    }
+
+    /* Search fills the center slot */
+    .topbar-center {
+      flex: 1;
+      padding: 0 8px;
+    }
+
+    .search-btn {
+      width: 100%;
+      max-width: none;
+    }
+
+    .search-kbd {
+      display: none;
+    }
+
+    /* Hide Live text, keep dot only */
+    .live-text {
+      display: none;
+    }
+
+    /* Hide desktop positioned dropdown */
+    .user-dropdown {
+      display: none;
+    }
+
+    /* Show mobile popup overlay */
+    .user-popup-overlay {
+      display: flex;
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      animation: popup-fade-in 0.15s ease;
+    }
+
+    @keyframes popup-fade-in {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .user-popup {
+      position: relative;
+      width: 100%;
+      max-width: 320px;
+      background: rgba(248, 250, 252, 0.95);
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 20px;
+      box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+      padding: 28px 24px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      text-align: center;
+      animation: popup-slide-in 0.18s ease;
+    }
+
+    :global([data-theme="dark"]) .user-popup {
+      background: rgba(11, 18, 32, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    @keyframes popup-slide-in {
+      from { opacity: 0; transform: scale(0.94) translateY(8px); }
+      to   { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    .user-popup-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--color-accent);
+      color: #fff;
+      font-family: var(--font-sans, "Sora", sans-serif);
+      font-weight: 700;
+      font-size: 1.4rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 4px;
+    }
+
+    .user-popup-name {
+      font-family: var(--font-sans, "Sora", sans-serif);
+      font-weight: 700;
+      font-size: 1rem;
+      color: var(--color-text);
+    }
+
+    .user-popup-email {
+      font-size: 0.78rem;
+      color: var(--color-text-muted);
+      margin-bottom: 8px;
+    }
+
+    .user-popup-actions {
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .popup-btn {
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: 12px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      font-family: var(--font-body, "Inter", sans-serif);
+      cursor: pointer;
+      text-decoration: none;
+      border: 1px solid var(--color-border);
+      background: var(--color-surface);
+      color: var(--color-text);
+      transition: background 0.12s, border-color 0.12s;
+    }
+
+    .popup-btn:hover {
+      background: var(--color-accent-subtle);
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      text-decoration: none;
+    }
+
+    .popup-btn--danger {
+      color: var(--color-danger);
+      border-color: rgba(239, 68, 68, 0.25);
+      background: rgba(239, 68, 68, 0.05);
+    }
+
+    .popup-btn--danger:hover {
+      background: rgba(239, 68, 68, 0.1);
+      border-color: var(--color-danger);
+      color: var(--color-danger);
+    }
+
+    .popup-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--color-text-muted);
+      font-size: 0.9rem;
+      padding: 4px 6px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+
+    .popup-close:hover {
+      background: var(--color-accent-subtle);
+      color: var(--color-accent);
     }
 
     .content {
