@@ -2,16 +2,18 @@ import { listNodes, listScenarios, type Scenario, type TestNode } from '$lib/api
 
 export async function load({ params }: { params: { projectKey: string } }) {
   try {
-    const [nodes, scenarios] = await Promise.all([
+    const [nodes, scenarios, draftScenarios] = await Promise.all([
       listNodes(params.projectKey),
-      listScenarios(params.projectKey)
+      listScenarios(params.projectKey, null, 'ACTIVE'),
+      listScenarios(params.projectKey, null, 'DRAFT')
     ]);
-    return { projectKey: params.projectKey, nodes, scenarios, error: null };
+    return { projectKey: params.projectKey, nodes, scenarios, draftScenarios, error: null };
   } catch (e) {
     return {
       projectKey: params.projectKey,
       nodes: [] as TestNode[],
       scenarios: [] as Scenario[],
+      draftScenarios: [] as Scenario[],
       error: (e as Error).message
     };
   }

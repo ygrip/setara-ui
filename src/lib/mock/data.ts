@@ -42,11 +42,11 @@ export const mockApiKeysByProject: Record<string, ApiKey[]> = {
 
 export const mockNodesByProject: Record<string, TestNode[]> = {
   PAYMENT: [
-    { id: 'node-pay-root', parentId: null, nodeType: 'DIRECTORY', name: 'Payments', slug: 'payments', path: 'payments', createdAt: '2026-05-01T00:00:00Z' },
-    { id: 'node-refund', parentId: null, nodeType: 'FEATURE', name: 'Refunds', slug: 'refunds', path: 'refunds', createdAt: '2026-05-01T00:00:00Z' }
+    { id: 'node-pay-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-PAYMENT01', name: 'Payments', slug: 'payments', path: 'payments', createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-refund', parentId: null, nodeType: 'FEATURE', directoryId: null, name: 'Refunds', slug: 'refunds', path: 'refunds', createdAt: '2026-05-01T00:00:00Z' }
   ],
   AUTH: [
-    { id: 'node-login', parentId: null, nodeType: 'FEATURE', name: 'Login', slug: 'login', path: 'login', createdAt: '2026-05-01T00:00:00Z' }
+    { id: 'node-login', parentId: null, nodeType: 'FEATURE', directoryId: null, name: 'Login', slug: 'login', path: 'login', createdAt: '2026-05-01T00:00:00Z' }
   ]
 };
 
@@ -69,6 +69,11 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       automationNotes: null,
       manualNotes: 'Validate full and partial refund cases.',
       status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A settled card payment exists', description: 'Use a payment eligible for refund.', expectation: 'Payment is found and refundable.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'The user requests a refund', description: 'Submit full refund from merchant dashboard.', expectation: 'Refund request is accepted.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Refund is approved', description: 'Verify final state.', expectation: 'Payment status reflects refunded amount.' }
+      ],
       createdAt: '2026-05-20T08:00:00Z',
       updatedAt: '2026-05-20T08:00:00Z'
     }
@@ -91,6 +96,10 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       automationNotes: 'Covered by smoke suite.',
       manualNotes: null,
       status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A registered user exists', description: null, expectation: 'User is active.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User enters valid credentials', description: null, expectation: 'Authentication succeeds.' }
+      ],
       createdAt: '2026-05-19T08:00:00Z',
       updatedAt: '2026-05-19T08:00:00Z'
     }

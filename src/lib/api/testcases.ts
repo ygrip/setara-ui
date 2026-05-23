@@ -5,6 +5,7 @@ export interface TestNode {
   id: string;
   parentId: string | null;
   nodeType: 'DIRECTORY' | 'FEATURE';
+  directoryId: string | null;
   name: string;
   slug: string;
   path: string;
@@ -28,8 +29,18 @@ export interface Scenario {
   automationNotes: string | null;
   manualNotes: string | null;
   status: string;
+  steps: ScenarioStep[];
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ScenarioStep {
+  id?: string;
+  sequenceNo: number;
+  keyword: string;
+  name: string;
+  description: string | null;
+  expectation: string | null;
 }
 
 export interface ManualExecution {
@@ -91,9 +102,12 @@ export async function deleteNode(projectKey: string, nodeId: string): Promise<vo
   await apiFetch(`/api/projects/${projectKey}/nodes/${nodeId}`, { method: 'DELETE' });
 }
 
-export async function listScenarios(projectKey: string, nodeId?: string | null): Promise<Scenario[]> {
-  if (isMockMode()) return mockListScenarios(projectKey, nodeId);
-  const query = nodeId ? `?nodeId=${nodeId}` : '';
+export async function listScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {
+  if (isMockMode()) return mockListScenarios(projectKey, nodeId, status);
+  const params = new URLSearchParams();
+  if (nodeId) params.set('nodeId', nodeId);
+  if (status) params.set('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios${query}`);
   return res.json();
 }
@@ -104,6 +118,7 @@ export async function createScenario(projectKey: string, body: {
   priority?: string;
   automatable?: boolean;
   notes?: string;
+  steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios`, {
     method: 'POST',
@@ -120,6 +135,7 @@ export async function updateScenario(projectKey: string, scenarioId: string, bod
   automationStatus?: string;
   automationNotes?: string;
   manualNotes?: string;
+  steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`, {
     method: 'PATCH',
@@ -131,6 +147,22 @@ export async function updateScenario(projectKey: string, scenarioId: string, bod
 
 export async function archiveScenario(projectKey: string, scenarioId: string): Promise<void> {
   await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`, { method: 'DELETE' });
+}
+
+export async function approveDraftScenarios(projectKey: string, scenarioIds: string[]): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenarioIds })
+  });
+}
+
+export async function rejectDraftScenarios(projectKey: string, scenarioIds: string[]): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenarioIds })
+  });
 }
 
 export async function createManualExecution(projectKey: string, scenarioId: string, body: {

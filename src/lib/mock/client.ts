@@ -88,10 +88,11 @@ export async function mockListNodes(projectKey: string): Promise<TestNode[]> {
   return mockNodesByProject[projectKey] ?? [];
 }
 
-export async function mockListScenarios(projectKey: string, nodeId?: string | null): Promise<Scenario[]> {
+export async function mockListScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {
   await delay(120);
   const scenarios = mockScenariosByProject[projectKey] ?? [];
-  return nodeId ? scenarios.filter(s => s.nodeId === nodeId) : scenarios;
+  const byStatus = scenarios.filter(s => s.status === status);
+  return nodeId ? byStatus.filter(s => s.nodeId === nodeId) : byStatus;
 }
 
 export async function mockListPlans(projectKey: string): Promise<ReleasePlan[]> {

@@ -13,7 +13,6 @@
   let createError = $state('');
 
   // Form state
-  let formKey = $state('');
   let formName = $state('');
   let formDesc = $state('');
 
@@ -37,11 +36,9 @@
     createError = '';
     try {
       await createProject({
-        projectKey: formKey.trim().toUpperCase(),
         name: formName.trim(),
         description: formDesc.trim() || undefined
       });
-      formKey = '';
       formName = '';
       formDesc = '';
       showModal = false;
@@ -115,13 +112,9 @@
 <Modal open={showModal} title="New Project" onclose={() => showModal = false}>
   <form onsubmit={handleCreate} class="form">
     <label class="field">
-      <span class="label">Project Key <span class="req">*</span></span>
-      <input class="input" type="text" bind:value={formKey} required placeholder="e.g. MYPROJ" maxlength="20"/>
-      <span class="hint">Short uppercase identifier (e.g. AUTH, PAYMENT)</span>
-    </label>
-    <label class="field">
       <span class="label">Project Name <span class="req">*</span></span>
       <input class="input" type="text" bind:value={formName} required placeholder="My Project"/>
+      <span class="hint">Project key is generated automatically from this name.</span>
     </label>
     <label class="field">
       <span class="label">Description</span>

@@ -33,7 +33,6 @@ export async function getProject(projectKey: string): Promise<Project> {
 
 export async function createProject(body: {
   squadId?: string;
-  projectKey: string;
   name: string;
   description?: string;
 }): Promise<Project> {
