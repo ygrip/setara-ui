@@ -1,0 +1,204 @@
+<script lang="ts">
+  import Badge from '$lib/components/Badge.svelte';
+  import DataTable from '$lib/components/DataTable.svelte';
+
+  let { data } = $props();
+
+  function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
+    switch (status?.toUpperCase()) {
+      case 'PASSED': return 'success';
+      case 'FAILED': return 'danger';
+      case 'RUNNING': return 'info';
+      default: return 'neutral';
+    }
+  }
+
+  function formatDate(iso: string | null): string {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  }
+
+  function duration(start: string, end: string | null): string {
+    if (!end) return 'Running…';
+    const ms = new Date(end).getTime() - new Date(start).getTime();
+    const s = Math.floor(ms / 1000);
+    if (s < 60) return `${s}s`;
+    return `${Math.floor(s / 60)}m ${s % 60}s`;
+  }
+</script>
+
+<svelte:head>
+  <title>Executions — {data.projectKey} — Setara</title>
+</svelte:head>
+
+<div class="page">
+  <nav class="breadcrumb">
+    <a href="/projects">Projects</a>
+    <span class="sep">›</span>
+    <a href="/projects/{data.projectKey}">{data.projectKey}</a>
+    <span class="sep">›</span>
+    <span>Executions</span>
+  </nav>
+
+  <div class="page-header">
+    <h1 class="page-title">Executions</h1>
+  </div>
+
+  <!-- Filters bar -->
+  <div class="filters-bar">
+    <div class="filter-group">
+      <label class="filter-label" for="filter-status">Status</label>
+      <select id="filter-status" class="filter-select" disabled>
+        <option>All</option>
+        <option>RUNNING</option>
+        <option>PASSED</option>
+        <option>FAILED</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="filter-source">Source</label>
+      <select id="filter-source" class="filter-select" disabled>
+        <option>All</option>
+        <option>Automation</option>
+        <option>Manual</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label class="filter-label" for="filter-env">Environment</label>
+      <select id="filter-env" class="filter-select" disabled>
+        <option>All</option>
+      </select>
+    </div>
+    <span class="filters-note">Filters coming soon</span>
+  </div>
+
+  {#if data.error}
+    <div class="error-banner">Could not load executions — {data.error}</div>
+  {:else if data.runs.length === 0}
+    <div class="empty-state">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
+        <polygon points="5 3 19 12 5 21 5 3"/>
+      </svg>
+      <p>No automation runs found for {data.projectKey}.</p>
+      <p class="empty-sub">Set up an API key and run your automation suite to see executions here.</p>
+    </div>
+  {:else}
+    <DataTable>
+      {#snippet head()}
+        <tr>
+          <th>Status</th>
+          <th>Runner</th>
+          <th>Branch</th>
+          <th>Environment</th>
+          <th>Framework</th>
+          <th>Started</th>
+          <th>Duration</th>
+          <th></th>
+        </tr>
+      {/snippet}
+      {#snippet body()}
+        {#each data.runs as run}
+          <tr>
+            <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
+            <td class="mono">{run.runnerId}</td>
+            <td>{run.branch ?? '—'}</td>
+            <td>{run.environment ?? '—'}</td>
+            <td>{run.framework ?? '—'}</td>
+            <td>{formatDate(run.startedAt)}</td>
+            <td>{duration(run.startedAt, run.finishedAt)}</td>
+            <td><a href="/projects/{data.projectKey}/executions/{run.id}" class="link">View →</a></td>
+          </tr>
+        {/each}
+      {/snippet}
+    </DataTable>
+  {/if}
+</div>
+
+<style>
+  .page { max-width: 1100px; }
+
+  .breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin-bottom: 20px;
+  }
+  .breadcrumb a { color: var(--color-accent); }
+  .sep { opacity: 0.5; }
+
+  .page-header { margin-bottom: 16px; }
+  .page-title { font-size: 1.5rem; font-weight: 700; }
+
+  .filters-bar {
+    display: flex;
+    align-items: flex-end;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 20px;
+    padding: 14px 16px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+  }
+
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .filter-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .filter-select {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.875rem;
+    outline: none;
+    cursor: not-allowed;
+    opacity: 0.6;
+    min-width: 120px;
+  }
+
+  .filters-note {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+    align-self: center;
+    padding-bottom: 2px;
+  }
+
+  .error-banner {
+    background: #fee2e2;
+    color: var(--color-danger);
+    border: 1px solid #fecaca;
+    border-radius: var(--radius);
+    padding: 12px 16px;
+    font-size: 0.875rem;
+    margin-bottom: 16px;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--color-text-muted);
+  }
+
+  .empty-state p { margin: 8px 0 0; font-size: 0.875rem; }
+  .empty-sub { font-size: 0.8rem !important; opacity: 0.7; }
+
+  .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; }
+</style>
