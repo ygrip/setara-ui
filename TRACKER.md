@@ -70,7 +70,7 @@ UI: [~] Plan detail, execution evidence, and quality gate implemented
 ## Latest Commits
 
 ```text
+ba1d1bd Implement release plan quality gate workflow
+9f286c1 Sync UI tracker after websocket updates
 82f32a5 Display execution websocket updates
-647896d Sync UI tracker after coverage statistics work
-bf3f2a9 Connect coverage page to statistics history
 ```
