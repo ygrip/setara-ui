@@ -80,10 +80,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
-      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-        <rect width="24" height="24" rx="6" fill="var(--color-accent)"/>
-        <path d="M7 8h10M7 12h7M7 16h4" stroke="#fff" stroke-width="2" stroke-linecap="round"/>
-      </svg>
+      <img src="/favicon.svg" alt="Setara" class="brand-icon" width="28" height="28" />
       <span class="brand-name">Setara</span>
       <ThemeToggle />
     </div>
@@ -229,7 +226,10 @@
           </svg>
         </button>
         <!-- Brand (mobile only) -->
-        <span class="topbar-brand-mobile">Setara</span>
+        <a href="/workspace" class="topbar-brand-mobile" aria-label="Setara home">
+          <img src="/favicon.svg" alt="" class="topbar-brand-icon" width="22" height="22" aria-hidden="true" />
+          <span>Setara</span>
+        </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
           <span class="project-key-pill">{projectKey}</span>
@@ -341,12 +341,18 @@
     justify-content: space-between;
   }
 
+  .brand-icon {
+    flex-shrink: 0;
+    display: block;
+  }
+
   .brand-name {
     flex: 1;
+    font-family: var(--font-sans, "Sora", sans-serif);
     font-weight: 700;
     font-size: 1.05rem;
     color: var(--color-accent);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
   }
 
   .sidebar-nav {
@@ -498,9 +504,23 @@
 
   .topbar-brand-mobile {
     display: none;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--font-sans, "Sora", sans-serif);
     font-weight: 700;
     font-size: 1rem;
     color: var(--color-accent);
+    text-decoration: none;
+  }
+
+  .topbar-brand-mobile:hover {
+    text-decoration: none;
+    opacity: 0.85;
+  }
+
+  .topbar-brand-icon {
+    flex-shrink: 0;
+    display: block;
   }
 
   .project-key-pill {

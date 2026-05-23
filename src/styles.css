@@ -30,6 +30,11 @@
   --color-status-automatable: #06B6D4;
   --color-status-not-automatable: #94A3B8;
 
+  /* Typography */
+  --font-sans: "Sora", sans-serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Mono", monospace;
+
   --sidebar-width: 240px;
   --topbar-height: 56px;
   --radius: 8px;
@@ -62,7 +67,7 @@ body {
                     radial-gradient(ellipse at 80% 80%, rgba(0, 175, 165, 0.05) 0%, transparent 55%);
   background-attachment: fixed;
   color: var(--color-text);
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: var(--font-body);
   font-size: 14px;
   line-height: 1.5;
   transition: background 0.2s, color 0.2s;
@@ -75,9 +80,15 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
   margin: 0;
+  font-family: var(--font-sans);
   font-weight: 600;
   line-height: 1.25;
   color: var(--color-text);
+}
+
+code, pre, kbd, samp {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
 }
 
 a {
@@ -91,7 +102,7 @@ a:hover {
 }
 
 input, select, textarea, button {
-  font-family: inherit;
+  font-family: var(--font-body);
   font-size: inherit;
 }
 
