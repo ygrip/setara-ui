@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-23
 
 ```text
-UI: [~] Comprehensive multi-route dashboard restructure implemented
+UI: [~] Backend-connected repository and release plan pages implemented
 ```
 
 - [x] Git repository initialized on `main`.
@@ -28,6 +28,7 @@ UI: [~] Comprehensive multi-route dashboard restructure implemented
 - [x] Test Repository page (`/projects/{key}/repository`) — three-column structural stub (tree, list, detail panels).
 - [x] Coverage page (`/projects/{key}/coverage`) — metric cards, formulas reference, chart placeholders.
 - [x] Release Plans page (`/projects/{key}/release-plans`) — empty state, status reference card.
+- [x] Release Plans page connected to backend plan contract with list/create/status/archive actions.
 - [x] Release Plan detail stub (`/projects/{key}/release-plans/{planId}`) — coming soon.
 - [x] Project Settings page (`/projects/{key}/settings`) — category cards grid.
 - [x] API Keys settings page (`/projects/{key}/settings/api-keys`) — full key management with create/revoke/rotate.
@@ -41,12 +42,23 @@ UI: [~] Comprehensive multi-route dashboard restructure implemented
 - [x] Old `runs/` pages converted to redirects to `executions/`.
 - [x] Old `plans/` page converted to redirect to `/projects`.
 - [x] Shared components: Badge, Button, Card, Modal, DataTable, ThemeToggle, MetricCard, QualityGateBadge.
-- [x] Typed API clients: projects.ts, organization.ts, runs.ts, apikeys.ts.
+- [x] Typed API clients: projects.ts, organization.ts, runs.ts, apikeys.ts, testcases.ts, plans.ts.
 - [ ] Permission/role-aware UI states.
 - [ ] Session refresh behavior.
-- [ ] Scenario tree view (live, connected to backend).
-- [ ] Manual execution screen.
+- [x] Scenario tree view (live, connected to backend).
+- [x] Directory/feature node create, rename, and delete actions.
+- [x] Scenario create/edit/archive workflow.
+- [x] Manual execution screen.
 - [ ] WebSocket live run updates.
-- [ ] Plans detail page (post-backend).
+- [~] Plans detail page (post-backend).
+- [x] Per-project release plan list/create/status/archive workflow.
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
+
+## Latest Commits
+
+```text
+f885900 Connect repository and release plan UI
+ad1946f Animated search hints, SETARA gradient shimmer, mobile header UX
+dd17531 Uppercase SETARA brand text with Sora letter-spacing
+```
