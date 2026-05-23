@@ -68,7 +68,7 @@
   }
 
   :global([data-theme="dark"]) .modal {
-    background: rgba(15, 25, 22, 0.88);
+    background: rgba(11, 18, 32, 0.92);
     border: 1px solid rgba(255,255,255,0.1);
   }
 

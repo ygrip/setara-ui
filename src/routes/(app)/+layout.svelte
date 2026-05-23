@@ -236,15 +236,18 @@
         {/if}
       </div>
 
-      <div class="topbar-right">
-        <!-- Search button -->
-        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <!-- Search — centred in topbar -->
+      <div class="topbar-center">
+        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search — press ⌘K">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
+          <span class="search-placeholder">Search anything…</span>
           <kbd class="search-kbd">⌘K</kbd>
         </button>
+      </div>
 
+      <div class="topbar-right">
         <!-- Live indicator -->
         <div class="live-indicator">
           <span class="live-dot"></span>
@@ -311,10 +314,10 @@
   /* ── Sidebar ── */
   .sidebar {
     width: var(--sidebar-width);
-    background: rgba(255, 255, 255, 0.7);
+    background: rgba(248, 250, 252, 0.75);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-right: 1px solid rgba(255, 255, 255, 0.4);
+    border-right: 1px solid rgba(203, 213, 225, 0.6);
     display: flex;
     flex-direction: column;
     flex-shrink: 0;
@@ -325,7 +328,7 @@
   }
 
   :global([data-theme="dark"]) .sidebar {
-    background: rgba(10, 20, 18, 0.75);
+    background: rgba(11, 18, 32, 0.82);
     border-right: 1px solid rgba(255, 255, 255, 0.06);
   }
 
@@ -440,21 +443,20 @@
   .topbar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     gap: 12px;
     height: var(--topbar-height);
     padding: 0 20px;
-    background: rgba(255, 255, 255, 0.72);
+    background: rgba(248, 250, 252, 0.78);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+    border-bottom: 1px solid rgba(203, 213, 225, 0.5);
     position: sticky;
     top: 0;
     z-index: 50;
   }
 
   :global([data-theme="dark"]) .topbar {
-    background: rgba(10, 20, 18, 0.78);
+    background: rgba(11, 18, 32, 0.84);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 
@@ -462,12 +464,21 @@
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
+  }
+
+  .topbar-center {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
   }
 
   .topbar-right {
     display: flex;
     align-items: center;
     gap: 12px;
+    flex-shrink: 0;
   }
 
   .hamburger {
@@ -506,38 +517,57 @@
 
   /* Search button */
   .search-btn {
-    background: rgba(0, 0, 0, 0.04);
+    width: 100%;
+    max-width: 480px;
+    background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 8px;
-    padding: 6px 10px;
+    border-radius: 10px;
+    padding: 8px 14px;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 8px;
     cursor: pointer;
     color: var(--color-text-muted);
-    font-size: 0.8rem;
-    transition: background 0.12s, border-color 0.12s;
+    font-size: 0.85rem;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+  }
+
+  :global([data-theme="dark"]) .search-btn {
+    background: rgba(255,255,255,0.04);
   }
 
   .search-btn:hover {
-    background: var(--color-accent-subtle);
     border-color: var(--color-accent);
-    color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1);
+    color: var(--color-text);
+  }
+
+  .search-placeholder {
+    flex: 1;
+    text-align: left;
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
   }
 
   .search-kbd {
     font-family: inherit;
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     background: var(--color-accent-subtle);
     border: 1px solid var(--color-border);
-    border-radius: 4px;
-    padding: 1px 5px;
+    border-radius: 5px;
+    padding: 2px 6px;
+    color: var(--color-accent);
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    flex-shrink: 0;
   }
 
   @media (max-width: 768px) {
-    .search-kbd {
-      display: none;
-    }
+    .search-kbd { display: none; }
+    .search-placeholder { display: none; }
+    .topbar-center { flex: 0 0 auto; padding: 0; }
+    .search-btn { width: 36px; max-width: none; padding: 8px; justify-content: center; }
   }
 
   /* Live indicator */
@@ -609,7 +639,7 @@
   }
 
   :global([data-theme="dark"]) .user-dropdown {
-    background: rgba(15, 25, 22, 0.88);
+    background: rgba(11, 18, 32, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.1);
   }
 

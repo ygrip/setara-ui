@@ -165,7 +165,7 @@
   }
 
   :global([data-theme="dark"]) .palette-panel {
-    background: rgba(12, 22, 19, 0.9);
+    background: rgba(11, 18, 32, 0.94);
     border: 1px solid rgba(255, 255, 255, 0.08);
   }
 
