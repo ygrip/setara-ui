@@ -100,6 +100,11 @@ export async function deleteDirectory(projectKey: string, directoryNodeId: strin
   await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}`, { method: 'DELETE' });
 }
 
+export async function getScenario(projectKey: string, scenarioId: string): Promise<Scenario> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`);
+  return res.json();
+}
+
 export async function listScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {
   if (isMockMode()) return mockListScenarios(projectKey, nodeId, status);
   const params = new URLSearchParams();

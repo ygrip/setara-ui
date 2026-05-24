@@ -3,7 +3,9 @@
   import Badge from '$lib/components/Badge.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
+  import ScenarioResultDetail from '$lib/components/ScenarioResultDetail.svelte';
+  import { wsManager } from '$lib/stores/websocket.svelte';
+  import type { ExecutionEvent } from '$lib/api/realtime';
   import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
 
   let { data }: {
@@ -19,13 +21,16 @@
   let run = $state<AutomationRun | null>(null);
   let results = $state<ScenarioRunResult[]>([]);
   let events = $state<ExecutionEvent[]>([]);
-  let socketState = $state<'connecting' | 'live' | 'offline'>('offline');
-  let socket: WebSocket | null = null;
+
+  // Detail panel state
+  let selectedResult = $state<ScenarioRunResult | null>(null);
 
   $effect(() => {
     run = data.run;
     results = data.results;
   });
+
+  // ── Status helpers ──────────────────────────────────────────────────────────
 
   function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
@@ -36,10 +41,23 @@
     }
   }
 
+  function resultStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
+    switch (status?.toUpperCase()) {
+      case 'PASSED':  return 'success';
+      case 'FAILED':  return 'danger';
+      case 'SKIPPED': return 'warning';
+      case 'PENDING': return 'info';
+      default:        return 'neutral';
+    }
+  }
+
+  // ── Formatters ──────────────────────────────────────────────────────────────
+
   function formatDate(iso: string | null): string {
     if (!iso) return '—';
     return new Date(iso).toLocaleString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit'
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit'
     });
   }
 
@@ -58,18 +76,11 @@
     return `${Math.floor(s / 60)}m ${s % 60}s`;
   }
 
-  function resultStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
-    switch (status?.toUpperCase()) {
-      case 'PASSED': return 'success';
-      case 'FAILED': return 'danger';
-      case 'SKIPPED': return 'warning';
-      case 'PENDING': return 'info';
-      default: return 'neutral';
-    }
-  }
+  // ── WebSocket event handler ─────────────────────────────────────────────────
 
   function applyEvent(event: ExecutionEvent) {
     events = [event, ...events].slice(0, 8);
+
     if (event.type === 'RUN_FINISHED' && run) {
       run = {
         ...run,
@@ -79,9 +90,10 @@
         durationMs: event.durationMs ?? run.durationMs
       };
     }
+
     if (event.type === 'SCENARIO_RESULT_PROCESSED' && event.resultId) {
-      const existing = results.find(result => result.id === event.resultId);
-      if (!existing) {
+      const exists = results.some(r => r.id === event.resultId);
+      if (!exists) {
         results = [{
           id: event.resultId,
           runId: event.runId,
@@ -99,41 +111,54 @@
           exceptionType: null,
           exceptionMessage: null
         }, ...results];
+      } else {
+        // Update status in case it changed.
+        results = results.map(r => r.id === event.resultId
+          ? { ...r, status: event.status ?? r.status }
+          : r);
+      }
+      // Refresh the detail panel if it is showing this result.
+      if (selectedResult?.id === event.resultId) {
+        selectedResult = results.find(r => r.id === event.resultId) ?? null;
       }
     }
   }
 
+  // ── Derived metrics ─────────────────────────────────────────────────────────
+
   const totalScenarios = $derived(run?.totalScenarios ?? results.length);
-  const passedScenarios = $derived(run?.passedScenarios ?? results.filter(result => result.status === 'PASSED').length);
-  const failedScenarios = $derived(run?.failedScenarios ?? results.filter(result => result.status === 'FAILED').length);
-  const skippedScenarios = $derived(run?.skippedScenarios ?? results.filter(result => result.status === 'SKIPPED').length);
+  const passedScenarios = $derived(run?.passedScenarios ?? results.filter(r => r.status === 'PASSED').length);
+  const failedScenarios = $derived(run?.failedScenarios ?? results.filter(r => r.status === 'FAILED').length);
+  const skippedScenarios = $derived(run?.skippedScenarios ?? results.filter(r => r.status === 'SKIPPED').length);
   const passRate = $derived(totalScenarios ? Math.round((passedScenarios / totalScenarios) * 100) : 0);
   const shortRunId = $derived(data.runId.slice(0, 8));
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
 
+  // ── Lifecycle ───────────────────────────────────────────────────────────────
+
+  let unsub: (() => void) | null = null;
+
   onMount(() => {
-    socketState = 'connecting';
-    socket = new WebSocket(executionSocketUrl(data.projectKey, data.runId));
-    socket.onopen = () => socketState = 'live';
-    socket.onclose = () => socketState = 'offline';
-    socket.onerror = () => socketState = 'offline';
-    socket.onmessage = (message) => {
-      try {
-        applyEvent(JSON.parse(message.data) as ExecutionEvent);
-      } catch {
-        // Ignore malformed events; the persisted result fetch remains authoritative.
-      }
-    };
+    wsManager.connect(data.projectKey, data.runId);
+    unsub = wsManager.addHandler(applyEvent);
   });
 
   onDestroy(() => {
-    socket?.close();
+    unsub?.();
+    wsManager.disconnect();
   });
 </script>
 
 <svelte:head>
   <title>Run {shortRunId} — {data.projectKey} — Setara</title>
 </svelte:head>
+
+<!-- Scenario result detail panel (slide-in from right) -->
+<ScenarioResultDetail
+  result={selectedResult}
+  projectKey={data.projectKey}
+  onclose={() => (selectedResult = null)}
+/>
 
 <div class="page">
   <nav class="breadcrumb">
@@ -156,14 +181,19 @@
         <Badge text={run.status} variant={runStatusVariant(run.status)} />
         <span class="run-id mono">#{shortRunId}</span>
         <span class="run-runner">{run.runnerId}</span>
+        <span
+          class="socket-pill"
+          class:socket-pill--live={wsManager.state === 'live'}
+          class:socket-pill--reconnecting={wsManager.state === 'connecting'}
+        >{wsManager.state}</span>
       </div>
     </div>
 
     <!-- Metric cards -->
     <div class="metrics-row">
-      <MetricCard label="Total Scenarios" value={totalScenarios} sub={socketState === 'live' ? 'live updates connected' : 'from latest snapshot'} variant="default" />
-      <MetricCard label="Passed" value={passedScenarios} variant="success" />
-      <MetricCard label="Failed" value={failedScenarios} variant="danger" />
+      <MetricCard label="Total Scenarios" value={totalScenarios} sub={wsManager.state === 'live' ? 'live updates connected' : 'from latest snapshot'} variant="default" />
+      <MetricCard label="Passed"  value={passedScenarios}  variant="success" />
+      <MetricCard label="Failed"  value={failedScenarios}  variant="danger" />
       <MetricCard label="Skipped" value={skippedScenarios} variant="warning" />
     </div>
 
@@ -222,51 +252,58 @@
       </div>
     </div>
 
-    <!-- Live indicator -->
-    <div class="section">
-      <div class="panel">
-        <div class="live-section">
-          {#if isRunning}
-            <div class="live-indicator">
-              <span class="live-dot"></span>
-              <span class="live-label">Execution in progress · {socketState}</span>
-            </div>
-          {:else}
-            <div class="complete-indicator">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
-              <span>Complete</span>
-            </div>
-          {/if}
-          <p class="live-note">
-            Scenario results update as the execution worker processes queued automation events.
-          </p>
-          {#if events.length > 0}
-            <div class="event-feed">
-              {#each events as event}
-                <div class="event-item">
-                  <span class="event-type">{event.type}</span>
-                  <span>{event.message ?? event.status ?? 'Execution update'}</span>
-                  <span class="event-time">{formatDate(event.occurredAt)}</span>
-                </div>
-              {/each}
-            </div>
-          {/if}
+    <!-- Live indicator + event feed -->
+    {#if isRunning || events.length > 0}
+      <div class="section">
+        <div class="panel">
+          <div class="live-section">
+            {#if isRunning}
+              <div class="live-indicator">
+                <span class="live-dot"></span>
+                <span class="live-label">Execution in progress · {wsManager.state}</span>
+              </div>
+            {:else}
+              <div class="complete-indicator">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+                <span>Complete</span>
+              </div>
+            {/if}
+            <p class="live-note">
+              Scenario results update as the execution worker processes queued automation events.
+            </p>
+            {#if events.length > 0}
+              <div class="event-feed">
+                {#each events as event}
+                  <div class="event-item">
+                    <span class="event-type">{event.type}</span>
+                    <span>{event.message ?? event.status ?? 'Execution update'}</span>
+                    <span class="event-time">{formatDate(event.occurredAt)}</span>
+                  </div>
+                {/each}
+              </div>
+            {/if}
+          </div>
         </div>
       </div>
-    </div>
+    {/if}
 
-    <!-- Scenario results placeholder -->
+    <!-- Scenario results table -->
     <div class="section">
-      <h2 class="section-title">Scenario Results</h2>
+      <div class="results-header">
+        <h2 class="section-title">Scenario Results</h2>
+        {#if results.length > 0}
+          <span class="results-hint">Click a row for detail</span>
+        {/if}
+      </div>
       <DataTable>
         {#snippet head()}
           <tr>
             <th>Scenario</th>
             <th>Status</th>
             <th>Duration</th>
-            <th>Error</th>
+            <th>Exception</th>
           </tr>
         {/snippet}
         {#snippet body()}
@@ -278,14 +315,42 @@
             </tr>
           {:else}
             {#each results as result}
-              <tr>
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <tr
+                class="result-row"
+                class:result-row--selected={selectedResult?.id === result.id}
+                class:result-row--failed={result.status?.toUpperCase() === 'FAILED'}
+                tabindex="0"
+                role="button"
+                aria-pressed={selectedResult?.id === result.id}
+                onclick={() => selectedResult = selectedResult?.id === result.id ? null : result}
+                onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); selectedResult = selectedResult?.id === result.id ? null : result; } }}
+              >
                 <td>
-                  <strong>{result.scenarioName}</strong>
+                  <strong class="scenario-name">{result.scenarioName}</strong>
                   {#if result.featureName}<span class="muted-line">{result.featureName}</span>{/if}
+                  {#if result.tags && result.tags.length > 0}
+                    <span class="tags-inline">
+                      {#each result.tags.slice(0, 3) as tag}
+                        <span class="tag-mini">@{tag}</span>
+                      {/each}
+                      {#if result.tags.length > 3}
+                        <span class="tag-more">+{result.tags.length - 3}</span>
+                      {/if}
+                    </span>
+                  {/if}
                 </td>
                 <td><Badge text={result.status} variant={resultStatusVariant(result.status)} /></td>
-                <td>{durationMs(result.durationMs)}</td>
-                <td>{result.exceptionMessage ?? '—'}</td>
+                <td class="mono-cell">{durationMs(result.durationMs)}</td>
+                <td class="exception-cell">
+                  {#if result.exceptionType || result.exceptionMessage}
+                    <span class="exception-snippet" title={result.exceptionMessage ?? ''}>
+                      {result.exceptionType ?? 'Error'}
+                    </span>
+                  {:else}
+                    <span class="muted">—</span>
+                  {/if}
+                </td>
               </tr>
             {/each}
           {/if}
@@ -311,18 +376,17 @@
   .mono { font-family: ui-monospace, monospace; font-size: 0.85em; }
 
   .error-banner {
-    background: #fee2e2;
+    background: color-mix(in srgb, var(--color-danger), transparent 90%);
     color: var(--color-danger);
-    border: 1px solid #fecaca;
+    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
     border-radius: var(--radius);
     padding: 12px 16px;
     font-size: 0.875rem;
     margin-bottom: 20px;
   }
 
-  .run-header {
-    margin-bottom: 24px;
-  }
+  /* ── Run header ────────────────────────────────────────────── */
+  .run-header { margin-bottom: 24px; }
 
   .run-header-top {
     display: flex;
@@ -331,17 +395,34 @@
     flex-wrap: wrap;
   }
 
-  .run-id {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-  }
-
+  .run-id    { color: var(--color-text-muted); font-size: 0.875rem; }
   .run-runner {
     font-size: 0.8rem;
     color: var(--color-text-muted);
     font-family: ui-monospace, monospace;
   }
 
+  .socket-pill {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    padding: 3px 9px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .socket-pill.socket-pill--live {
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success), transparent 60%);
+    background: color-mix(in srgb, var(--color-success), transparent 90%);
+  }
+  .socket-pill.socket-pill--reconnecting {
+    color: #f59e0b;
+    border-color: color-mix(in srgb, #f59e0b, transparent 60%);
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
+  }
+
+  /* ── Metrics ───────────────────────────────────────────────── */
   .metrics-row {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -349,9 +430,8 @@
     margin-bottom: 28px;
   }
 
-  .section {
-    margin-bottom: 28px;
-  }
+  /* ── Sections ──────────────────────────────────────────────── */
+  .section { margin-bottom: 28px; }
 
   .section-title {
     font-size: 1rem;
@@ -367,17 +447,14 @@
     padding: 20px;
   }
 
+  /* ── Run meta grid ─────────────────────────────────────────── */
   .meta-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
     gap: 14px;
   }
 
-  .meta-item {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
+  .meta-item { display: flex; flex-direction: column; gap: 2px; }
 
   .meta-label {
     font-size: 0.7rem;
@@ -393,6 +470,7 @@
     font-weight: 500;
   }
 
+  /* ── Progress ──────────────────────────────────────────────── */
   .progress-row {
     display: flex;
     align-items: center;
@@ -437,17 +515,10 @@
     border-radius: 12px;
   }
 
-  .live-section {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
+  /* ── Live section ──────────────────────────────────────────── */
+  .live-section { display: flex; flex-direction: column; gap: 10px; }
 
-  .live-indicator {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+  .live-indicator { display: flex; align-items: center; gap: 8px; }
 
   .live-dot {
     width: 8px;
@@ -459,7 +530,7 @@
 
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.5; transform: scale(0.8); }
+    50%       { opacity: 0.5; transform: scale(0.8); }
   }
 
   .live-label {
@@ -484,11 +555,7 @@
     line-height: 1.6;
   }
 
-  .event-feed {
-    display: grid;
-    gap: 8px;
-    margin-top: 4px;
-  }
+  .event-feed { display: grid; gap: 8px; margin-top: 4px; }
 
   .event-item {
     display: grid;
@@ -507,11 +574,96 @@
     color: var(--color-accent);
   }
 
-  .event-time,
-  .muted-line {
+  .event-time { color: var(--color-text-muted); font-size: 0.75rem; }
+
+  /* ── Results table ─────────────────────────────────────────── */
+  .results-header {
+    display: flex;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .results-header .section-title { margin-bottom: 0; }
+
+  .results-hint {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .result-row {
+    cursor: pointer;
+    transition: background 0.12s;
+  }
+
+  .result-row:hover { background: var(--color-accent-subtle) !important; }
+
+  .result-row:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: -2px;
+  }
+
+  .result-row--selected { background: color-mix(in srgb, var(--color-accent), transparent 88%) !important; }
+
+  .result-row--failed td:first-child { border-left: 3px solid var(--color-danger); }
+
+  .scenario-name {
+    display: block;
+    font-size: 0.83rem;
+    font-weight: 600;
+  }
+
+  .muted-line,
+  .muted {
     display: block;
     color: var(--color-text-muted);
+    font-size: 0.74rem;
+  }
+
+  .tags-inline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 3px;
+  }
+
+  .tag-mini {
+    font-size: 0.68rem;
+    font-family: ui-monospace, monospace;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 72%);
+    border-radius: 3px;
+    padding: 1px 5px;
+  }
+
+  .tag-more {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    padding: 1px 4px;
+  }
+
+  .mono-cell {
+    font-family: ui-monospace, monospace;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .exception-cell { max-width: 200px; }
+
+  .exception-snippet {
+    font-family: ui-monospace, monospace;
     font-size: 0.75rem;
+    color: var(--color-danger);
+    background: color-mix(in srgb, var(--color-danger), transparent 90%);
+    border-radius: 4px;
+    padding: 2px 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 180px;
   }
 
   .placeholder-row {

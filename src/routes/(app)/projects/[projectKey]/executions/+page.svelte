@@ -2,7 +2,8 @@
   import { onDestroy, onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
+  import { wsManager } from '$lib/stores/websocket.svelte';
+  import type { ExecutionEvent } from '$lib/api/realtime';
   import type { AutomationRun } from '$lib/api/runs';
 
   let { data }: {
@@ -16,8 +17,6 @@
 
   let runs = $state<AutomationRun[]>([]);
   let liveEvents = $state<ExecutionEvent[]>([]);
-  let socketState = $state<'connecting' | 'live' | 'offline'>('offline');
-  let socket: WebSocket | null = null;
 
   $effect(() => {
     runs = data.runs;
@@ -60,25 +59,25 @@
           }
         : run);
     }
+    if (event.type === 'RUN_STARTED') {
+      // Surface newly started runs at the top if not already in the list.
+      const exists = runs.some(r => r.id === event.runId);
+      if (!exists) {
+        // Re-fetch on next navigation; for now just promote via event indicator.
+      }
+    }
   }
 
+  let unsub: (() => void) | null = null;
+
   onMount(() => {
-    socketState = 'connecting';
-    socket = new WebSocket(executionSocketUrl(data.projectKey));
-    socket.onopen = () => socketState = 'live';
-    socket.onclose = () => socketState = 'offline';
-    socket.onerror = () => socketState = 'offline';
-    socket.onmessage = (message) => {
-      try {
-        applyEvent(JSON.parse(message.data) as ExecutionEvent);
-      } catch {
-        // Persisted run list remains authoritative when malformed events arrive.
-      }
-    };
+    wsManager.connect(data.projectKey);
+    unsub = wsManager.addHandler(applyEvent);
   });
 
   onDestroy(() => {
-    socket?.close();
+    unsub?.();
+    wsManager.disconnect();
   });
 </script>
 
@@ -97,7 +96,11 @@
 
   <div class="page-header">
     <h1 class="page-title">Executions</h1>
-    <span class:socket-pill--live={socketState === 'live'} class="socket-pill">{socketState}</span>
+    <span
+      class="socket-pill"
+      class:socket-pill--live={wsManager.state === 'live'}
+      class:socket-pill--reconnecting={wsManager.state === 'connecting'}
+    >{wsManager.state}</span>
   </div>
 
   <!-- Filters bar -->
@@ -109,14 +112,6 @@
         <option>RUNNING</option>
         <option>PASSED</option>
         <option>FAILED</option>
-      </select>
-    </div>
-    <div class="filter-group">
-      <label class="filter-label" for="filter-source">Source</label>
-      <select id="filter-source" class="filter-select" disabled>
-        <option>All</option>
-        <option>Automation</option>
-        <option>Manual</option>
       </select>
     </div>
     <div class="filter-group">
@@ -216,11 +211,15 @@
     text-transform: uppercase;
     letter-spacing: 0.04em;
   }
-
   .socket-pill.socket-pill--live {
     color: var(--color-success);
     border-color: color-mix(in srgb, var(--color-success), transparent 60%);
     background: color-mix(in srgb, var(--color-success), transparent 90%);
+  }
+  .socket-pill.socket-pill--reconnecting {
+    color: var(--color-warning, #f59e0b);
+    border-color: color-mix(in srgb, #f59e0b, transparent 60%);
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
   }
 
   .filters-bar {
@@ -235,11 +234,7 @@
     border-radius: var(--radius);
   }
 
-  .filter-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-  }
+  .filter-group { display: flex; flex-direction: column; gap: 4px; }
 
   .filter-label {
     font-size: 0.72rem;
@@ -271,9 +266,9 @@
   }
 
   .error-banner {
-    background: #fee2e2;
+    background: color-mix(in srgb, var(--color-danger), transparent 90%);
     color: var(--color-danger);
-    border: 1px solid #fecaca;
+    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
     border-radius: var(--radius);
     padding: 12px 16px;
     font-size: 0.875rem;
@@ -285,16 +280,13 @@
     padding: 60px 20px;
     color: var(--color-text-muted);
   }
-
   .empty-state p { margin: 8px 0 0; font-size: 0.875rem; }
   .empty-sub { font-size: 0.8rem !important; opacity: 0.7; }
 
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
   .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; }
 
-  .live-panel {
-    margin-top: 20px;
-  }
+  .live-panel { margin-top: 20px; }
 
   .section-title {
     font-size: 1rem;
@@ -302,10 +294,7 @@
     margin-bottom: 12px;
   }
 
-  .event-feed {
-    display: grid;
-    gap: 8px;
-  }
+  .event-feed { display: grid; gap: 8px; }
 
   .event-item {
     display: grid;
@@ -324,8 +313,5 @@
     color: var(--color-accent);
   }
 
-  .event-time {
-    color: var(--color-text-muted);
-    font-size: 0.75rem;
-  }
+  .event-time { color: var(--color-text-muted); font-size: 0.75rem; }
 </style>
