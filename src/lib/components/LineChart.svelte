@@ -18,9 +18,10 @@
   } = $props();
 
   let canvas: HTMLCanvasElement;
+  let chart: Chart | null = null;
 
   onMount(() => {
-    const chart = new Chart(canvas, {
+    chart = new Chart(canvas, {
       type: 'line',
       data: chartData as any,
       options: {
@@ -50,7 +51,13 @@
         }
       }
     });
-    return () => chart.destroy();
+    return () => chart?.destroy();
+  });
+
+  $effect(() => {
+    if (!chart) return;
+    chart.data = chartData as any;
+    chart.update();
   });
 </script>
 

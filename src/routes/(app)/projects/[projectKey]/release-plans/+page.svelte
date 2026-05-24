@@ -13,6 +13,7 @@
   let filterText = $state('');
   let sortBy = $state<'name' | 'date'>('date');
   let sortDir = $state<'asc' | 'desc'>('desc');
+  let showLegend = $state(false);
 
   let name = $state('');
   let releaseVersion = $state('');
@@ -35,20 +36,17 @@
   );
 
   const statusDefs = [
-    { status: 'DRAFT', color: 'neutral', desc: 'Plan is being configured.' },
-    { status: 'ACTIVE', color: 'info', desc: 'Plan is live and tracking execution results.' },
-    { status: 'READY', color: 'success', desc: 'Quality gate passed.' },
-    { status: 'AT_RISK', color: 'warning', desc: 'Quality gate needs attention.' },
-    { status: 'RELEASED', color: 'success', desc: 'Release has shipped.' },
+    { status: 'OPEN', color: 'neutral', desc: 'Plan exists but no scenario scope has been assigned yet.' },
+    { status: 'IN_PROGRESS', color: 'info', desc: 'Scenarios are scoped and execution evidence is being collected.' },
+    { status: 'CLOSED', color: 'success', desc: 'Plan has been signed off. Every scenario has evidence.' },
     { status: 'ARCHIVED', color: 'neutral', desc: 'Plan has been archived.' }
   ];
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
-      case 'READY':
-      case 'RELEASED':
+      case 'CLOSED':
         return 'success';
-      case 'ACTIVE':
+      case 'IN_PROGRESS':
         return 'info';
       case 'AT_RISK':
         return 'warning';
@@ -191,8 +189,8 @@
     {/if}
   </section>
 
-  <div class="section">
-    <h2 class="section-title">Plan Status Reference</h2>
+  <details class="legend" bind:open={showLegend}>
+    <summary>Plan Status Reference</summary>
     <div class="status-grid">
       {#each statusDefs as def}
         <div class="status-item">
@@ -201,7 +199,7 @@
         </div>
       {/each}
     </div>
-  </div>
+  </details>
 </div>
 
 <Modal
@@ -276,7 +274,9 @@
   .bold { font-weight: 600; }
   .muted { color: var(--color-text-muted); font-size: 0.82rem; }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
-  .status-grid { display: flex; flex-direction: column; gap: 8px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .legend { margin-top: 8px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); box-shadow: var(--shadow); }
+  .legend summary { cursor: pointer; padding: 12px 16px; font-weight: 700; font-size: 0.86rem; color: var(--color-text-muted); }
+  .status-grid { display: flex; flex-direction: column; gap: 8px; padding: 0 16px 16px; }
   .status-item { display: flex; align-items: center; gap: 12px; }
   .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; min-width: 80px; }
   .status-badge--neutral { background: var(--color-accent-subtle); color: var(--color-text-muted); }

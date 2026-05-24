@@ -24,6 +24,13 @@ export interface PlanScenario {
   name: string;
   priority: string | null;
   automationStatus: string;
+  runnable?: boolean;
+  source?: string;
+  selectedStatus?: string | null;
+  selectedBy?: string | null;
+  selectedAt?: string | null;
+  runBy?: string | null;
+  runAt?: string | null;
   createdAt: string;
 }
 
@@ -113,11 +120,20 @@ export async function listPlanScenarios(projectKey: string, planId: string): Pro
   return res.json();
 }
 
-export async function addPlanScenario(projectKey: string, planId: string, scenarioId: string): Promise<PlanScenario> {
+export async function addPlanScenario(projectKey: string, planId: string, scenarioId: string, runnable = false, source = 'MANUAL'): Promise<PlanScenario> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId })
+    body: JSON.stringify({ scenarioId, runnable, source })
+  });
+  return res.json();
+}
+
+export async function addPlanScenarioFromRunResult(projectKey: string, planId: string, scenarioRunResultId: string, selectedBy?: string): Promise<PlanScenario> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios/from-run-result`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenarioRunResultId, selectedBy })
   });
   return res.json();
 }
@@ -139,6 +155,18 @@ export async function selectPlanExecution(projectKey: string, planId: string, bo
   selectedBy?: string;
 }): Promise<PlanSelection> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/executions/select`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function closePlan(projectKey: string, planId: string, body: {
+  signedOffBy?: string;
+  notes?: string;
+} = {}): Promise<ReleasePlan> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)

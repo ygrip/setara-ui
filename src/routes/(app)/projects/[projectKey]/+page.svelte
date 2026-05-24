@@ -3,7 +3,6 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
-  import QualityGateBadge from '$lib/components/QualityGateBadge.svelte';
   import { type ApiKey } from '$lib/api/apikeys';
 
   let { data } = $props();
@@ -66,13 +65,16 @@
   {:else if data.project}
     <!-- Project header -->
     <div class="project-header">
-      <div class="header-top">
-        <h1 class="project-name">{data.project.name}</h1>
-        <Badge text={data.project.projectKey} variant="neutral" />
+      <div>
+        <div class="header-top">
+          <h1 class="project-name">{data.project.name}</h1>
+          <Badge text={data.project.projectKey} variant="neutral" />
+        </div>
+        {#if data.project.description}
+          <p class="project-desc">{data.project.description}</p>
+        {/if}
       </div>
-      {#if data.project.description}
-        <p class="project-desc">{data.project.description}</p>
-      {/if}
+      <a href="/projects/{data.projectKey}/settings" class="settings-entry">Project Settings</a>
     </div>
 
     <!-- Metric cards -->
@@ -99,8 +101,8 @@
       </div>
       <MetricCard
         label="Scenarios"
-        value="—"
-        sub="coming soon"
+        value={data.statistic?.totalScenarios ?? 0}
+        sub={`${data.statistic?.totalAutomated ?? 0} automated`}
         variant="default"
         icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
       />
@@ -108,22 +110,18 @@
 
     <div class="section">
       <div class="panel visual-panel">
-        <div>
+        <div class="coverage-copy">
           <h2 class="panel-title">Automation Coverage</h2>
           <p class="qg-note">
             {Number(data.statistic?.coveragePercentage ?? 0).toFixed(0)}% covered within this project.
           </p>
+          <div class="coverage-breakdown">
+            <span><strong>{data.statistic?.totalAutomated ?? 0}</strong> automated</span>
+            <span><strong>{data.statistic?.totalAutomatable ?? 0}</strong> automatable</span>
+            <span><strong>{data.statistic?.totalScenarios ?? 0}</strong> live scenarios</span>
+          </div>
         </div>
-        <DonutChart chartData={automationDonut} size={170} />
-      </div>
-    </div>
-
-    <!-- Quality Gate -->
-    <div class="section">
-      <div class="panel">
-        <h2 class="panel-title">Quality Gate</h2>
-        <QualityGateBadge status="UNKNOWN" size="md" />
-        <p class="qg-note">Run tests and configure a release plan to see your quality gate.</p>
+        <DonutChart chartData={automationDonut} size={300} />
       </div>
     </div>
 
@@ -224,9 +222,7 @@
     margin-bottom: 20px;
   }
 
-  .project-header {
-    margin-bottom: 24px;
-  }
+  .project-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 
   .header-top {
     display: flex;
@@ -245,6 +241,21 @@
     color: var(--color-text-muted);
     font-size: 0.875rem;
     margin: 0;
+  }
+
+  .settings-entry {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 38px;
+    padding: 8px 14px;
+    border: 1px solid var(--color-accent);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+    color: var(--color-accent);
+    font-size: 0.82rem;
+    font-weight: 800;
+    text-decoration: none;
   }
 
   .metrics-row {
@@ -314,12 +325,16 @@
   }
 
   .visual-panel {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
     align-items: center;
-    justify-content: space-between;
     gap: 20px;
-    flex-wrap: wrap;
   }
+
+  .coverage-copy { min-width: 0; }
+  .coverage-breakdown { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .coverage-breakdown span { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; color: var(--color-text-muted); font-size: 0.82rem; }
+  .coverage-breakdown strong { color: var(--color-text); }
 
   .panel-title {
     font-size: 0.875rem;
@@ -395,5 +410,10 @@
   .ql-arrow {
     color: var(--color-text-muted);
     font-size: 0.8rem;
+  }
+
+  @media (max-width: 760px) {
+    .metrics-row { grid-template-columns: 1fr; }
+    .visual-panel { grid-template-columns: 1fr; justify-items: start; }
   }
 </style>

@@ -1,163 +1,149 @@
 <script lang="ts">
-  import { page } from '$app/state';
+  import { invalidateAll } from '$app/navigation';
+  import { updateProject } from '$lib/api/projects';
 
-  const projectKey = $derived(page.params.projectKey ?? '');
+  let { data } = $props();
 
-  const sections = [
-    {
-      title: 'API Keys',
-      desc: 'Create and manage API keys for automation runners.',
-      href: (key: string) => `/projects/${key}/settings/api-keys`,
-      icon: 'M15 7h3a5 5 0 010 10h-3m-6 0H6A5 5 0 016 7h3M8 12h8',
-    },
-    {
-      title: 'Members',
-      desc: 'Manage who has access to this project.',
-      href: () => '#',
-      icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75M9 7a4 4 0 100 8 4 4 0 000-8z',
-      soon: true,
-    },
-    {
-      title: 'Notifications',
-      desc: 'Configure alerts for run failures and quality gate changes.',
-      href: () => '#',
-      icon: 'M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0',
-      soon: true,
-    },
-    {
-      title: 'Integrations',
-      desc: 'Connect CI/CD pipelines and third-party tools.',
-      href: () => '#',
-      icon: 'M18 20V10M12 20V4M6 20v-6',
-      soon: true,
-    },
-  ];
+  let busy = $state(false);
+  let error = $state('');
+  let saved = $state(false);
+  let initialized = false;
+  let name = $state('');
+  let description = $state('');
+  let squadId = $state('');
+  let active = $state(true);
+
+  $effect(() => {
+    if (initialized || !data.project) return;
+    name = data.project.name;
+    description = data.project.description ?? '';
+    squadId = data.project.squadId ?? '';
+    active = data.project.active ?? true;
+    initialized = true;
+  });
+
+  async function saveProject(e: SubmitEvent) {
+    e.preventDefault();
+    if (!name.trim()) return;
+    busy = true;
+    error = '';
+    saved = false;
+    try {
+      await updateProject(data.projectKey, {
+        name: name.trim(),
+        description: description.trim() || null,
+        squadId: squadId || null,
+        active
+      });
+      saved = true;
+      await invalidateAll();
+    } catch (err) {
+      error = (err as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
 </script>
 
 <svelte:head>
-  <title>Settings — {projectKey} — Setara</title>
+  <title>Settings — {data.projectKey} — Setara</title>
 </svelte:head>
 
 <div class="page">
   <nav class="breadcrumb">
     <a href="/projects">Projects</a>
     <span class="sep">›</span>
-    <a href="/projects/{projectKey}">{projectKey}</a>
+    <a href="/projects/{data.projectKey}">{data.projectKey}</a>
     <span class="sep">›</span>
     <span>Settings</span>
   </nav>
 
   <div class="page-header">
-    <h1 class="page-title">Settings</h1>
-    <p class="page-sub">Manage configuration for {projectKey}</p>
+    <div>
+      <h1 class="page-title">Project Settings</h1>
+      <p class="page-sub">Manage project metadata, ownership, and automation access.</p>
+    </div>
+    <a class="api-key-link" href="/projects/{data.projectKey}/settings/api-keys">API Keys</a>
   </div>
 
-  <div class="settings-grid">
-    {#each sections as s}
-      {#if s.soon}
-        <div class="settings-card settings-card--disabled">
-          <div class="settings-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d={s.icon}/>
-            </svg>
-          </div>
-          <div class="settings-body">
-            <div class="settings-title-row">
-              <h2 class="settings-name">{s.title}</h2>
-              <span class="soon-badge">Coming soon</span>
-            </div>
-            <p class="settings-desc">{s.desc}</p>
-          </div>
+  {#if data.error}
+    <div class="error-banner">Could not load project — {data.error}</div>
+  {/if}
+  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if saved}<div class="success-banner">Project settings saved.</div>{/if}
+
+  {#if data.project}
+    <form class="settings-panel" onsubmit={saveProject}>
+      <section>
+        <h2>Metadata</h2>
+        <div class="field-grid">
+          <label>
+            <span>Project title</span>
+            <input bind:value={name} disabled={busy} required />
+          </label>
+          <label>
+            <span>Squad</span>
+            <select bind:value={squadId} disabled={busy}>
+              <option value="">No squad</option>
+              {#each data.squads as squad}
+                <option value={squad.id}>{squad.name}</option>
+              {/each}
+            </select>
+          </label>
         </div>
-      {:else}
-        <a href={s.href(projectKey)} class="settings-card">
-          <div class="settings-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d={s.icon}/>
-            </svg>
-          </div>
-          <div class="settings-body">
-            <h2 class="settings-name">{s.title}</h2>
-            <p class="settings-desc">{s.desc}</p>
-          </div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 18l6-6-6-6"/>
-          </svg>
-        </a>
-      {/if}
-    {/each}
-  </div>
+        <label>
+          <span>Description</span>
+          <textarea bind:value={description} rows="5" disabled={busy} placeholder="What this project owns, tests, and releases"></textarea>
+        </label>
+      </section>
+
+      <section>
+        <h2>Lifecycle</h2>
+        <label class="toggle-row">
+          <input type="checkbox" bind:checked={active} disabled={busy} />
+          <span>
+            <strong>{active ? 'Active project' : 'Inactive project'}</strong>
+            <small>{active ? 'Visible in dashboards and selectable lists.' : 'Hidden from active project lists after save.'}</small>
+          </span>
+        </label>
+      </section>
+
+      <div class="form-actions">
+        <button class="primary-btn" type="submit" disabled={busy || !name.trim()}>{busy ? 'Saving…' : 'Save Changes'}</button>
+      </div>
+    </form>
+  {/if}
 </div>
 
 <style>
-  .page { max-width: 800px; }
-
-  .breadcrumb {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px;
-  }
+  .page { max-width: 920px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
-
-  .page-header { margin-bottom: 28px; }
-  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
+  .page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 4px; }
   .page-sub { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
-
-  .settings-grid {
-    display: flex; flex-direction: column; gap: 12px;
+  .api-key-link, button { border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 12px; text-decoration: none; font: inherit; cursor: pointer; }
+  .api-key-link:hover, button:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
+  .primary-btn { background: var(--color-accent); color: white; border-color: var(--color-accent); }
+  .primary-btn:hover:not(:disabled) { color: white; }
+  button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: 0.6; cursor: not-allowed; }
+  .settings-panel { display: grid; gap: 18px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
+  section { display: grid; gap: 14px; }
+  h2 { font-size: 1rem; margin: 0; }
+  .field-grid { display: grid; grid-template-columns: 1fr 280px; gap: 14px; }
+  label { display: grid; gap: 6px; color: var(--color-text-muted); font-size: 0.78rem; }
+  input, textarea, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); padding: 10px; font: inherit; }
+  textarea { resize: vertical; }
+  .toggle-row { display: flex; align-items: flex-start; gap: 12px; border: 1px solid var(--color-border); border-radius: 8px; padding: 14px; background: color-mix(in srgb, var(--color-accent), transparent 95%); }
+  .toggle-row input { width: 18px; height: 18px; margin-top: 2px; }
+  .toggle-row span { display: grid; gap: 3px; color: var(--color-text); }
+  .toggle-row small { color: var(--color-text-muted); }
+  .form-actions { display: flex; justify-content: flex-end; }
+  .error-banner, .success-banner { border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
+  .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; }
+  .success-banner { background: color-mix(in srgb, var(--color-success), transparent 88%); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success), transparent 70%); }
+  @media (max-width: 720px) {
+    .field-grid { grid-template-columns: 1fr; }
   }
-
-  .settings-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px;
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-
-  .settings-card:hover {
-    border-color: var(--color-accent);
-    box-shadow: var(--shadow-md);
-  }
-
-  .settings-card--disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-
-  .settings-icon {
-    width: 44px; height: 44px; border-radius: var(--radius);
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-    display: flex; align-items: center; justify-content: center;
-    flex-shrink: 0;
-  }
-
-  .settings-body { flex: 1; min-width: 0; }
-
-  .settings-title-row {
-    display: flex; align-items: center; gap: 10px; margin-bottom: 4px;
-  }
-
-  .settings-name {
-    font-size: 0.95rem; font-weight: 600; color: var(--color-text); margin: 0;
-  }
-
-  .settings-desc {
-    font-size: 0.8rem; color: var(--color-text-muted); margin: 0;
-  }
-
-  .soon-badge {
-    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.06em; padding: 2px 8px; border-radius: 4px;
-    background: var(--color-accent-subtle); color: var(--color-text-muted);
-  }
-
-  .chevron { color: var(--color-text-muted); flex-shrink: 0; }
 </style>

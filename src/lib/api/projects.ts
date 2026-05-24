@@ -9,6 +9,7 @@ export interface Project {
   projectKey: string;
   name: string;
   description: string | null;
+  active?: boolean;
   createdAt: string;
 }
 
@@ -40,6 +41,20 @@ export async function createProject(body: {
 }): Promise<Project> {
   const res = await apiFetch('/api/projects', {
     method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function updateProject(projectKey: string, body: {
+  squadId?: string | null;
+  name?: string;
+  description?: string | null;
+  active?: boolean;
+}): Promise<Project> {
+  const res = await apiFetch(`/api/projects/${projectKey}`, {
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
