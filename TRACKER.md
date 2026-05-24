@@ -96,17 +96,22 @@ UI: [x] Repository tree/table uses headless primitives with spacious navigation 
 - [x] Plan execution evidence selection workflow.
 - [x] Quality gate dashboard for release plans.
 - [x] Per-project release plan list/create/status/archive workflow.
+- [x] `SetaraStepGridEditor.svelte` — RevoGrid-backed step editor with Edit/Preview modes, toolbar (add/delete/move/duplicate/normalize), markdown preview via marked+highlight.js.
+- [x] `StepPasteParseDialog.svelte` — paste & parse unstructured text (Gherkin, numbered, bullet, multiline) into step rows with live preview.
+- [x] `step-parser.ts` — frontend step text parser matching backend `StepCellParser` logic.
+- [x] Repository scenario drawer step editor replaced with `SetaraStepGridEditor`.
+- [x] Drawer shows source badge (`⚙ From Automation` / `✎ Manual`) from `Scenario.source` field.
+- [x] `automationStatus` select auto-syncs `automatable` boolean; disabled for ingested (`source = AUTOMATED`) scenarios.
+- [x] Status badge color-coded: ACTIVE=green, DRAFT=amber, ARCHIVED=muted.
+- [x] `@revolist/svelte-datagrid` installed; type shim in `src/lib/revogrid.d.ts`; `ColumnRegular` from `@revolist/revogrid`.
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
 
 ## Latest Commits
 
 ```text
-Add repository tree and drawer primitives
-Enhance repository scenario editing layout
-Revamp test repository workbench layout
-Revamp dashboard and coverage overview
-Update executions UI for live ingestion events
+7486116 Add RevoGrid step editor, paste-parse, markdown preview, and API alignment fixes
 Add directory rename/move/delete and bulk scenario copy/delete with filters
-82475ac Add async polling, import history, and error report download to import wizard
+94a9240 Sync UI tracker — scenario execution detail and centralized WS complete
+8e7251f Add scenario execution detail panel and centralize WebSocket handling
 ```
