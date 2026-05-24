@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [x] Test Repository revamped with compact tree/table workbench layout and retained copy/actions
+UI: [x] Test Repository tree/table now supports spacious navigation, step previews, and scenario editing
 ```
 
 - [x] Git repository initialized on `main`.
@@ -25,7 +25,7 @@ UI: [x] Test Repository revamped with compact tree/table workbench layout and re
 - [x] Project detail page rewritten as rich dashboard — MetricCard row, QualityGateBadge, recent runs, quick links.
 - [x] Executions list page (`/projects/{key}/executions`) — replaces `runs/`. Filters bar (static, coming soon note).
 - [x] Execution detail page (`/projects/{key}/executions/{runId}`) — MetricCard row, metadata grid, live indicator, scenario results placeholder.
-- [x] Test Repository page (`/projects/{key}/repository`) — compact split-pane tree and selectable scenario table with detail modal.
+- [x] Test Repository page (`/projects/{key}/repository`) — split-pane tree and selectable scenario table with editable detail modal.
 - [x] Test Repository API client uses `/directories` for navigation and directory creation.
 - [x] Coverage page (`/projects/{key}/coverage`) — metric cards, formulas reference, chart placeholders.
 - [x] Release Plans page (`/projects/{key}/release-plans`) — sortable/filterable table with create-plan modal.
@@ -52,10 +52,14 @@ UI: [x] Test Repository revamped with compact tree/table workbench layout and re
 - [ ] Session refresh behavior.
 - [x] Scenario tree view (live, connected to backend).
 - [x] Repository tree displays directory counts, scenario leaves, hover actions, and copy buttons for directory/scenario IDs.
+- [x] Repository tree spacing widened, uses navbar-aligned surface color, and truncates parent/current long names cleanly.
 - [x] Directory/feature node create, rename, and delete actions.
 - [x] Scenario create/archive workflow with dedicated creation page.
 - [x] Tabular bulk scenario draft creation.
 - [x] Cucumber-style step detail table with description and expectation fields.
+- [x] Scenario table shows copy action beside scenario key, automatable checkmark column, editable priority/automatable/status row controls, and save confirmation.
+- [x] Scenario table shows first three step previews; full detail modal supports editable name, description, and 3-column step editor with long-step scrolling.
+- [x] Mock repository data expanded with deeper directories, live/draft scenarios, longer steps, and richer status/coverage coverage.
 - [x] Draft review tab with bulk approve/reject actions.
 - [x] Sortable scenario table in the Test Repository list.
 - [x] Sortable tribe and squad admin tables.
@@ -93,6 +97,7 @@ UI: [x] Test Repository revamped with compact tree/table workbench layout and re
 ## Latest Commits
 
 ```text
+Enhance repository scenario editing layout
 Revamp test repository workbench layout
 Revamp dashboard and coverage overview
 Update executions UI for live ingestion events

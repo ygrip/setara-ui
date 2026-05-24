@@ -132,7 +132,33 @@ export async function mockListScenarios(projectKey: string, nodeId?: string | nu
   await delay(120);
   const scenarios = mockScenariosByProject[projectKey] ?? [];
   const byStatus = scenarios.filter(s => s.status === status);
-  return nodeId ? byStatus.filter(s => s.nodeId === nodeId) : byStatus;
+  const filtered = nodeId ? byStatus.filter(s => s.nodeId === nodeId) : byStatus;
+  return filtered.map(scenario => ({ ...scenario, steps: scenario.steps.slice(0, 3) }));
+}
+
+export async function mockGetScenario(projectKey: string, scenarioId: string): Promise<Scenario> {
+  await delay(80);
+  const scenario = mockScenariosByProject[projectKey]?.find(item => item.id === scenarioId);
+  if (!scenario) throw new Error(`Scenario ${scenarioId} not found`);
+  return structuredClone(scenario);
+}
+
+export async function mockUpdateScenario(
+  projectKey: string,
+  scenarioId: string,
+  body: Partial<Scenario> & { steps?: Scenario['steps'] }
+): Promise<Scenario> {
+  await delay(120);
+  const scenarios = mockScenariosByProject[projectKey] ?? [];
+  const index = scenarios.findIndex(item => item.id === scenarioId);
+  if (index < 0) throw new Error(`Scenario ${scenarioId} not found`);
+  scenarios[index] = {
+    ...scenarios[index],
+    ...body,
+    steps: body.steps ?? scenarios[index].steps,
+    updatedAt: new Date().toISOString()
+  };
+  return structuredClone(scenarios[index]);
 }
 
 export async function mockListPlans(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<ReleasePlan>> {

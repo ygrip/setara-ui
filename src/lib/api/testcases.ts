@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from './config';
-import { isMockMode, mockListDirectories, mockListScenarios } from '$lib/mock/client';
+import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario } from '$lib/mock/client';
 
 export interface TestDirectory {
   id: string;
@@ -101,6 +101,7 @@ export async function deleteDirectory(projectKey: string, directoryNodeId: strin
 }
 
 export async function getScenario(projectKey: string, scenarioId: string): Promise<Scenario> {
+  if (isMockMode()) return mockGetScenario(projectKey, scenarioId);
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`);
   return res.json();
 }
@@ -206,8 +207,10 @@ export async function updateScenario(projectKey: string, scenarioId: string, bod
   automationStatus?: string;
   automationNotes?: string;
   manualNotes?: string;
+  status?: string;
   steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
+  if (isMockMode()) return mockUpdateScenario(projectKey, scenarioId, body);
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
