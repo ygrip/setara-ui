@@ -1,14 +1,16 @@
 import { getProject, type Project } from '$lib/api/projects';
 import { listRuns, type AutomationRun } from '$lib/api/runs';
 import { listApiKeys, type ApiKey } from '$lib/api/apikeys';
+import { listProjectStatisticHistory, type ProjectStatistic } from '$lib/api/statistics';
 
 export async function load({ params }: { params: { projectKey: string } }) {
   const { projectKey } = params;
 
-  const [projectResult, runsResult, keysResult] = await Promise.allSettled([
+  const [projectResult, runsResult, keysResult, statsResult] = await Promise.allSettled([
     getProject(projectKey),
     listRuns(projectKey),
-    listApiKeys(projectKey)
+    listApiKeys(projectKey),
+    listProjectStatisticHistory(projectKey, 1)
   ]);
 
   return {
@@ -16,6 +18,7 @@ export async function load({ params }: { params: { projectKey: string } }) {
     project: projectResult.status === 'fulfilled' ? projectResult.value : null as Project | null,
     runs: runsResult.status === 'fulfilled' ? runsResult.value.items : [] as AutomationRun[],
     apiKeys: keysResult.status === 'fulfilled' ? keysResult.value : [] as ApiKey[],
+    statistic: statsResult.status === 'fulfilled' ? (statsResult.value[0] ?? null) : null as ProjectStatistic | null,
     error: projectResult.status === 'rejected' ? (projectResult.reason as Error).message : null
   };
 }

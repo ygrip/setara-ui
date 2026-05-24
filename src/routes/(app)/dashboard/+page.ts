@@ -1,31 +1,41 @@
 import { listProjects, type Project } from '$lib/api/projects';
 import {
-  listProjectStatisticHistory,
-  listProjectStatistics,
-  type ProjectStatistic
+  getDashboardSummary,
+  listAggregateStatisticHistory,
+  type AggregateStatisticPoint,
+  type DashboardSummary
 } from '$lib/api/statistics';
 
 export async function load() {
   try {
-    const [projectsResult, statistics] = await Promise.all([
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 29);
+    const startText = start.toISOString().slice(0, 10);
+    const endText = end.toISOString().slice(0, 10);
+    const [projectsResult, summary, aggregateHistory] = await Promise.all([
       listProjects(undefined, undefined, 'createdAt', 'desc'),
-      listProjectStatistics()
+      getDashboardSummary(),
+      listAggregateStatisticHistory(startText, endText, 'daily')
     ]);
-    const histories = await Promise.all(
-      statistics.map((row) => listProjectStatisticHistory(row.projectKey, 30).catch(() => []))
-    );
     return {
       projects: projectsResult.items.slice(0, 5),
-      statistics,
-      statisticHistory: histories.flat(),
+      summary,
+      aggregateHistory,
+      chartStart: startText,
+      chartEnd: endText,
+      groupedBy: 'daily' as const,
       nextCursor: projectsResult.nextCursor,
       error: null
     };
   } catch (e) {
     return {
       projects: [] as Project[],
-      statistics: [] as ProjectStatistic[],
-      statisticHistory: [] as ProjectStatistic[],
+      summary: null as DashboardSummary | null,
+      aggregateHistory: [] as AggregateStatisticPoint[],
+      chartStart: '',
+      chartEnd: '',
+      groupedBy: 'daily' as const,
       nextCursor: null,
       error: (e as Error).message
     };

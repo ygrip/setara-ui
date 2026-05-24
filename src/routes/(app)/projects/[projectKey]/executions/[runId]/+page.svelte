@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import ScenarioResultDetail from '$lib/components/ScenarioResultDetail.svelte';
@@ -157,6 +158,14 @@
   const passRate = $derived(totalScenarios ? Math.round((passedScenarios / totalScenarios) * 100) : 0);
   const shortRunId = $derived(data.runId.slice(0, 8));
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
+  const runDonut = $derived({
+    labels: ['Passed', 'Failed'],
+    datasets: [{
+      data: [passedScenarios, failedScenarios],
+      backgroundColor: ['#0f766e', '#dc2626'],
+      borderWidth: 0
+    }]
+  });
 
   // ── Lifecycle ───────────────────────────────────────────────────────────────
 
@@ -219,6 +228,16 @@
       <MetricCard label="Passed"  value={passedScenarios}  variant="success" />
       <MetricCard label="Failed"  value={failedScenarios}  variant="danger" />
       <MetricCard label="Skipped" value={skippedScenarios} variant="warning" />
+    </div>
+
+    <div class="section">
+      <div class="panel visual-panel">
+        <div>
+          <h2 class="section-title">Run Result Mix</h2>
+          <p>{passedScenarios} passed and {failedScenarios} failed scenarios in this run.</p>
+        </div>
+        <DonutChart chartData={runDonut} size={160} />
+      </div>
     </div>
 
     <!-- Progress -->
@@ -469,6 +488,20 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding: 20px;
+  }
+
+  .visual-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
+  }
+
+  .visual-panel p {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.875rem;
   }
 
   /* ── Run meta grid ─────────────────────────────────────────── */

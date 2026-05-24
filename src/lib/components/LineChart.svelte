@@ -1,11 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import {
-    Chart, LineController, LineElement, PointElement,
+    Chart, LineController, LineElement, PointElement, BarController, BarElement,
     LinearScale, CategoryScale, Tooltip, Filler, Legend
   } from 'chart.js';
 
-  Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler, Legend);
+  Chart.register(LineController, LineElement, PointElement, BarController, BarElement, LinearScale, CategoryScale, Tooltip, Filler, Legend);
 
   let {
     chartData,
@@ -27,7 +27,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: false },
+          legend: { display: true, labels: { color: '#7d9589', boxWidth: 12 } },
           tooltip: { mode: 'index', intersect: false }
         },
         scales: {
@@ -38,6 +38,12 @@
           y: {
             grid: { color: 'rgba(125,149,137,0.12)' },
             ticks: { color: '#7d9589', font: { size: 11 } },
+            min: 0
+          },
+          y1: {
+            position: 'right',
+            grid: { drawOnChartArea: false },
+            ticks: { color: '#7d9589', font: { size: 11 }, callback: value => `${value}%` },
             min: 0,
             max: 100
           }

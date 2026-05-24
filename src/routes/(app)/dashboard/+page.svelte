@@ -2,12 +2,26 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
+  import { listAggregateStatisticHistory, type AggregateStatisticPoint } from '$lib/api/statistics';
 
   let { data } = $props();
 
-  let leadershipFilter = $state('');
-  let leadershipSortBy = $state<'name' | 'coverage'>('coverage');
-  let leadershipSortDir = $state<'asc' | 'desc'>('desc');
+  let initialized = false;
+  let chartStart = $state('');
+  let chartEnd = $state('');
+  let groupedBy = $state<'daily' | 'weekly' | 'monthly'>('daily');
+  let aggregateHistory = $state<AggregateStatisticPoint[]>([]);
+  let chartBusy = $state(false);
+  let chartError = $state('');
+
+  $effect(() => {
+    if (initialized) return;
+    chartStart = data.chartStart;
+    chartEnd = data.chartEnd;
+    groupedBy = data.groupedBy;
+    aggregateHistory = data.aggregateHistory;
+    initialized = true;
+  });
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', {
@@ -21,67 +35,49 @@
     });
   }
 
-  const totals = $derived(data.statistics.reduce(
-    (acc, row) => ({
-      scenarios: acc.scenarios + row.totalScenarios,
-      automated: acc.automated + row.totalAutomated,
-      automatable: acc.automatable + row.totalAutomatable
-    }),
-    { scenarios: 0, automated: 0, automatable: 0 }
-  ));
-  const overallCoverage = $derived(
-    totals.automatable === 0 ? 0 : Math.round((totals.automated / totals.automatable) * 100)
-  );
-  const historicalTotals = $derived(
-    Array.from(
-      data.statisticHistory.reduce((acc, row) => {
-        const key = row.statDate.slice(0, 10);
-        const existing = acc.get(key) ?? { date: key, automated: 0, automatable: 0, scenarios: 0 };
-        existing.automated += row.totalAutomated;
-        existing.automatable += row.totalAutomatable;
-        existing.scenarios += row.totalScenarios;
-        acc.set(key, existing);
-        return acc;
-      }, new Map<string, { date: string; automated: number; automatable: number; scenarios: number }>())
-    )
-      .map(([, row]) => ({
-        ...row,
-        coverage: row.automatable === 0 ? 0 : Math.round((row.automated / row.automatable) * 100)
-      }))
-      .sort((a, b) => a.date.localeCompare(b.date))
-  );
   const coverageTrend = $derived({
-    labels: historicalTotals.map(row => compactDate(row.date)),
-    datasets: [{
-      label: 'Overall Coverage %',
-      data: historicalTotals.map(row => row.coverage),
-      borderColor: '#0d9488',
-      backgroundColor: 'rgba(13, 148, 136, 0.12)',
-      fill: true,
-      tension: 0.35,
-      pointRadius: 4,
-      pointBackgroundColor: '#0d9488'
-    }]
+    labels: aggregateHistory.map(row => compactDate(row.bucketDate)),
+    datasets: [
+      {
+        type: 'bar',
+        label: 'Total Scenarios',
+        data: aggregateHistory.map(row => row.totalScenarios),
+        backgroundColor: 'rgba(15, 118, 110, 0.22)',
+        borderColor: '#0f766e',
+        yAxisID: 'y'
+      },
+      {
+        type: 'bar',
+        label: 'Total Automated',
+        data: aggregateHistory.map(row => row.totalAutomated),
+        backgroundColor: 'rgba(37, 99, 235, 0.22)',
+        borderColor: '#2563eb',
+        yAxisID: 'y'
+      },
+      {
+        type: 'line',
+        label: 'Automation Coverage %',
+        data: aggregateHistory.map(row => row.automationCoveragePercentage),
+        borderColor: '#b45309',
+        backgroundColor: 'rgba(180, 83, 9, 0.12)',
+        tension: 0.35,
+        pointRadius: 3,
+        yAxisID: 'y1'
+      }
+    ]
   });
-  const filteredLeadership = $derived(
-    data.statistics
-      .filter(row => row.projectName.toLowerCase().includes(leadershipFilter.toLowerCase()))
-      .sort((a, b) => {
-        const result = leadershipSortBy === 'name'
-          ? a.projectName.localeCompare(b.projectName)
-          : a.coveragePercentage - b.coveragePercentage;
-        return leadershipSortDir === 'asc' ? result : -result;
-      })
-  );
 
-  function sortLeadership(field: 'name' | 'coverage') {
-    leadershipSortDir = leadershipSortBy === field && leadershipSortDir === 'asc' ? 'desc' : 'asc';
-    leadershipSortBy = field;
-  }
-
-  function leadershipIndicator(field: 'name' | 'coverage'): string {
-    if (leadershipSortBy !== field) return '';
-    return leadershipSortDir === 'asc' ? '↑' : '↓';
+  async function refreshChart() {
+    if (!chartStart || !chartEnd) return;
+    chartBusy = true;
+    chartError = '';
+    try {
+      aggregateHistory = await listAggregateStatisticHistory(chartStart, chartEnd, groupedBy);
+    } catch (e) {
+      chartError = (e as Error).message;
+    } finally {
+      chartBusy = false;
+    }
   }
 </script>
 
@@ -106,29 +102,27 @@
   <!-- Metric cards row -->
   <div class="metrics-row">
     <MetricCard
-      label="Total Projects"
-      value={data.projects.length}
+      label="Total Squads"
+      value={data.summary?.totalSquads ?? '—'}
       variant="info"
       icon="M3 7h18M3 12h18M3 17h18"
     />
     <MetricCard
-      label="Projects Tracked"
-      value={data.statistics.length}
-      sub="tracked projects"
+      label="Total Projects"
+      value={data.summary?.totalProjects ?? '—'}
       variant="default"
       icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
     />
     <MetricCard
-      label="Overall Pass Rate"
-      value={totals.automated}
-      sub="automated scenarios"
+      label="Total Scenarios"
+      value={data.summary?.totalScenarios ?? '—'}
       variant="default"
       icon="M22 12h-4l-3 9L9 3l-3 9H2"
     />
     <MetricCard
-      label="Automation Coverage"
-      value={`${overallCoverage}%`}
-      sub={`${totals.automatable} automatable`}
+      label="Overall Pass"
+      value={`${Number(data.summary?.overallPassPercentage ?? 0).toFixed(0)}%`}
+      sub={`automation ${Number(data.summary?.automationCoveragePercentage ?? 0).toFixed(0)}%`}
       variant="default"
       icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
     />
@@ -138,50 +132,25 @@
     <div class="section-heading">
       <div>
         <h2 class="section-title">Overall Coverage Trend</h2>
-        <p class="section-subtitle">Last 30 days aggregated across all tracked projects.</p>
+        <p class="section-subtitle">Total scenarios, automated scenarios, and automation coverage over time.</p>
+      </div>
+      <div class="chart-controls">
+        <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
+        <label>End <input type="date" bind:value={chartEnd} onchange={refreshChart} /></label>
+        <label>Group
+          <select bind:value={groupedBy} onchange={refreshChart}>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
       </div>
     </div>
     <div class="chart-card">
       <LineChart chartData={coverageTrend} height={220} />
+      {#if chartBusy}<p class="chart-note">Refreshing chart…</p>{/if}
+      {#if chartError}<p class="chart-error">{chartError}</p>{/if}
     </div>
-  </div>
-
-  <div class="section leadership-section">
-    <div class="section-heading">
-      <div>
-        <h2 class="section-title">Leadership Coverage Overview</h2>
-        <p class="section-subtitle">Sortable project-level statistics from the latest snapshot.</p>
-      </div>
-      <input class="filter-input" bind:value={leadershipFilter} placeholder="Filter project" />
-    </div>
-    {#if data.statistics.length === 0}
-      <div class="empty-state"><p>No project statistics captured yet.</p></div>
-    {:else}
-      <DataTable>
-        {#snippet head()}
-          <tr>
-            <th><button class="sort-button" onclick={() => sortLeadership('name')}>Project <span class="sort-indicator">{leadershipIndicator('name')}</span></button></th>
-            <th>Total Scenarios</th>
-            <th>Automated</th>
-            <th>Automatable</th>
-            <th><button class="sort-button" onclick={() => sortLeadership('coverage')}>Coverage <span class="sort-indicator">{leadershipIndicator('coverage')}</span></button></th>
-            <th>Snapshot</th>
-          </tr>
-        {/snippet}
-        {#snippet body()}
-          {#each filteredLeadership as row}
-            <tr>
-              <td class="bold">{row.projectName}</td>
-              <td>{row.totalScenarios}</td>
-              <td>{row.totalAutomated}</td>
-              <td>{row.totalAutomatable}</td>
-              <td><strong>{row.coveragePercentage}%</strong></td>
-              <td class="muted">{formatDate(row.statDate)}</td>
-            </tr>
-          {/each}
-        {/snippet}
-      </DataTable>
-    {/if}
   </div>
 
   <!-- Recent projects -->
@@ -280,21 +249,44 @@
     flex-wrap: wrap;
   }
 
+  .chart-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .chart-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .chart-controls input,
+  .chart-controls select {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding: 7px 9px;
+  }
+
+  .chart-note,
+  .chart-error {
+    margin: 8px 0 0;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+
+  .chart-error { color: var(--color-danger); }
+
   .section-subtitle {
     margin: 0;
     color: var(--color-text-muted);
     font-size: 0.8rem;
-  }
-
-  .filter-input {
-    width: min(260px, 100%);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-surface);
-    color: var(--color-text);
-    padding: 8px 10px;
-    font: inherit;
-    font-size: 0.875rem;
   }
 
   .empty-state {

@@ -120,6 +120,17 @@
         </svg>
         Projects
       </a>
+      <a
+        href="/coverage-overview"
+        class="nav-item"
+        class:nav-item--active={isActive('/coverage-overview')}
+        onclick={closeSidebar}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
+        </svg>
+        Coverage Overview
+      </a>
 
       <!-- Divider with label -->
       <div class="nav-divider">

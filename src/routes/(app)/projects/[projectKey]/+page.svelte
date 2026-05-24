@@ -1,6 +1,7 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import QualityGateBadge from '$lib/components/QualityGateBadge.svelte';
   import { type ApiKey } from '$lib/api/apikeys';
@@ -35,6 +36,17 @@
   const recentRuns = $derived(data.runs.slice(0, 5));
   const lastRunStatus = $derived(data.runs[0]?.status ?? 'No runs');
   const lastRunVariant = $derived(runStatusVariant(lastRunStatus));
+  const automationDonut = $derived({
+    labels: ['Automated', 'Remaining'],
+    datasets: [{
+      data: [
+        data.statistic?.totalAutomated ?? 0,
+        Math.max((data.statistic?.totalAutomatable ?? data.statistic?.totalScenarios ?? 0) - (data.statistic?.totalAutomated ?? 0), 0)
+      ],
+      backgroundColor: ['#0f766e', '#d1d5db'],
+      borderWidth: 0
+    }]
+  });
 </script>
 
 <svelte:head>
@@ -92,6 +104,18 @@
         variant="default"
         icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
       />
+    </div>
+
+    <div class="section">
+      <div class="panel visual-panel">
+        <div>
+          <h2 class="panel-title">Automation Coverage</h2>
+          <p class="qg-note">
+            {Number(data.statistic?.coveragePercentage ?? 0).toFixed(0)}% covered within this project.
+          </p>
+        </div>
+        <DonutChart chartData={automationDonut} size={170} />
+      </div>
     </div>
 
     <!-- Quality Gate -->
@@ -287,6 +311,14 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     padding: 20px;
+  }
+
+  .visual-panel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    flex-wrap: wrap;
   }
 
   .panel-title {

@@ -2,6 +2,7 @@
   import { invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import QualityGateBadge from '$lib/components/QualityGateBadge.svelte';
   import { addPlanScenario, removePlanScenario, selectPlanExecution, updatePlan, type PlanMetrics, type PlanScenario, type ReleasePlan } from '$lib/api/plans';
@@ -38,6 +39,19 @@
       default: return 'UNKNOWN';
     }
   })());
+  const planDonut = $derived({
+    labels: ['Passed', 'Failed', 'Not executed', 'Other executed'],
+    datasets: [{
+      data: [
+        data.metrics?.passed ?? 0,
+        data.metrics?.failed ?? 0,
+        Math.max((data.metrics?.totalScenarios ?? 0) - (data.metrics?.selectedExecutions ?? 0), 0),
+        (data.metrics?.blocked ?? 0) + (data.metrics?.skipped ?? 0)
+      ],
+      backgroundColor: ['#0f766e', '#dc2626', '#d1d5db', '#f59e0b'],
+      borderWidth: 0
+    }]
+  });
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
@@ -152,6 +166,14 @@
       <MetricCard label="Pass Rate" value={pct(data.metrics.passPercentage)} sub={`${data.metrics.passed} passed`} variant={data.metrics.failed ? 'danger' : 'success'} />
       <MetricCard label="Automation Coverage" value={pct(data.metrics.automationCoverage)} sub={`threshold ${data.plan.coverageThreshold}%`} variant="default" />
     </div>
+
+    <section class="panel visual-panel">
+      <div>
+        <h2>Execution Composition</h2>
+        <p>{data.metrics.selectedExecutions} executed of {data.metrics.totalScenarios} scoped scenarios.</p>
+      </div>
+      <DonutChart chartData={planDonut} size={170} />
+    </section>
 
     <section class="panel quality-panel">
       <div>
@@ -273,6 +295,8 @@
   .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .grid { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(300px, 0.8fr); gap: 18px; margin-bottom: 18px; }
   .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .visual-panel { display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; margin-bottom: 18px; }
+  .visual-panel p { margin: 0; color: var(--color-text-muted); font-size: 0.82rem; }
   .quality-panel { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; margin-bottom: 18px; }
   h2 { font-size: 1rem; margin: 0 0 4px; }
   .quality-panel p { margin: 0; color: var(--color-text-muted); font-size: 0.82rem; }
