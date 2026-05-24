@@ -2,6 +2,11 @@
   import { goto, invalidateAll } from '$app/navigation';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import { Dialog } from 'bits-ui';
+  import { createTreeView, melt } from '@melt-ui/svelte';
+  import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
+  import { z } from 'zod';
+  import { writable } from 'svelte/store';
   import {
     approveDraftScenarios,
     archiveScenario,
@@ -35,7 +40,7 @@
   let detailScenario = $state<Scenario | null>(null);
   let detailDraft = $state<Scenario | null>(null);
   let detailBusy = $state(false);
-  let rowDrafts = $state<Record<string, { priority: string; automatable: boolean; status: string }>>({});
+  let detailOpen = $state(false);
 
   // ── Scenario sorting ─────────────────────────────────────────
   let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation' | 'status'>('name');
@@ -110,6 +115,38 @@
     [...new Set(scopedScenarios.map((s: Scenario) => s.priority).filter(Boolean))] as string[]
   );
   const selectedTitle = $derived(selectedDirectory ? selectedDirectory.name : 'All Scenarios');
+  const scenarioColumnHelper = createColumnHelper<Scenario>();
+  const scenarioColumns = [
+    scenarioColumnHelper.display({ id: 'select' }),
+    scenarioColumnHelper.accessor('scenarioKey', { id: 'key' }),
+    scenarioColumnHelper.accessor('name', { id: 'name' }),
+    scenarioColumnHelper.accessor('steps', { id: 'steps' }),
+    scenarioColumnHelper.accessor('priority', { id: 'priority' }),
+    scenarioColumnHelper.accessor('automatable', { id: 'automatable' }),
+    scenarioColumnHelper.accessor('status', { id: 'status' })
+  ] satisfies ColumnDef<Scenario, any>[];
+  const scenarioFormSchema = z.object({
+    name: z.string().min(1),
+    priority: z.string().nullable().optional(),
+    automatable: z.boolean(),
+    status: z.string().min(1),
+    manualNotes: z.string().nullable().optional(),
+    steps: z.array(z.object({
+      keyword: z.string().min(1),
+      name: z.string().min(1),
+      description: z.string().nullable().optional(),
+      expectation: z.string().nullable().optional()
+    }))
+  });
+  const treeExpandedStore = writable<string[]>([]);
+  const {
+    elements: { tree: treeRoot, item: treeItem, group: treeGroup },
+    states: { expanded: treeExpanded }
+  } = createTreeView({ expanded: treeExpandedStore });
+
+  treeExpanded.subscribe((ids) => {
+    expandedIds = new Set(ids);
+  });
 
   // Directories available as move targets (excludes selected node and its descendants)
   const moveCandidates = $derived(
@@ -134,24 +171,12 @@
   // ── Init ─────────────────────────────────────────────────────
   $effect(() => {
     if (data.directories.length && expandedIds.size === 0) {
-      expandedIds = new Set(
+      treeExpanded.set(
         data.directories
           .filter((n: TestDirectory) => n.parentId === null)
           .map((n: TestDirectory) => n.id)
       );
     }
-  });
-
-  $effect(() => {
-    const next: typeof rowDrafts = {};
-    for (const scenario of scopedScenarios) {
-      next[scenario.id] = rowDrafts[scenario.id] ?? {
-        priority: scenario.priority ?? '',
-        automatable: scenario.automatable,
-        status: scenario.status
-      };
-    }
-    rowDrafts = next;
   });
 
   // ── Tree builder ─────────────────────────────────────────────
@@ -208,39 +233,10 @@
       .sort((a: Scenario, b: Scenario) => a.name.localeCompare(b.name));
   }
 
-  function rowChanged(scenario: Scenario): boolean {
-    const draft = rowDrafts[scenario.id];
-    return !!draft && (
-      draft.priority !== (scenario.priority ?? '')
-      || draft.automatable !== scenario.automatable
-      || draft.status !== scenario.status
-    );
-  }
-
-  function setRowDraft(scenarioId: string, patch: Partial<{ priority: string; automatable: boolean; status: string }>) {
-    rowDrafts = {
-      ...rowDrafts,
-      [scenarioId]: {
-        ...(rowDrafts[scenarioId] ?? { priority: '', automatable: false, status: 'ACTIVE' }),
-        ...patch
-      }
-    };
-  }
-
-  async function saveRowScenario(scenario: Scenario) {
-    const draft = rowDrafts[scenario.id];
-    if (!draft || !rowChanged(scenario)) return;
-    if (!confirm(`Save changes to ${scenario.name}?`)) return;
-    await runAction(async () => {
-      await updateScenario(data.projectKey, scenario.id, {
-        priority: draft.priority || undefined,
-        automatable: draft.automatable,
-        status: draft.status
-      });
-    });
-  }
-
   async function openScenarioDetail(scenario: Scenario) {
+    detailScenario = scenario;
+    detailDraft = structuredClone(scenario);
+    detailOpen = true;
     detailBusy = true;
     try {
       const full = await getScenario(data.projectKey, scenario.id);
@@ -252,6 +248,7 @@
   }
 
   function closeScenarioDetail() {
+    detailOpen = false;
     detailScenario = null;
     detailDraft = null;
   }
@@ -273,6 +270,18 @@
   async function saveDetailScenario() {
     const draft = detailDraft;
     if (!draft) return;
+    const parsed = scenarioFormSchema.safeParse({
+      name: draft.name,
+      priority: draft.priority,
+      automatable: draft.automatable,
+      status: draft.status,
+      manualNotes: draft.manualNotes,
+      steps: draft.steps ?? []
+    });
+    if (!parsed.success) {
+      actionError = 'Please complete scenario name and step names before saving.';
+      return;
+    }
     await runAction(async () => {
       const saved = await updateScenario(data.projectKey, draft.id, {
         name: draft.name,
@@ -305,7 +314,7 @@
     e.stopPropagation();
     const next = new Set(expandedIds);
     next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId);
-    expandedIds = next;
+    treeExpanded.set([...next]);
   }
 
   function selectNode(nodeId: string | null) {
@@ -566,25 +575,22 @@
           <span class="count-pill">{scopedScenarios.length}</span>
         </button>
 
-        <div class="tree-list">
+        <div class="tree-list" use:melt={$treeRoot}>
         {#snippet treeRows(nodes: TreeNode[], level = 0)}
           {#each nodes as node}
             <div class="tree-row" style={`--level: ${level}`}>
               <div class="tree-line">
                 <button
-                  class="tree-caret"
-                  onclick={(e) => toggleExpand(node.id, e)}
-                  aria-label="Toggle directory"
-                >
-                  {#if node.children.length || node.directCount}
-                    {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
-                  {/if}
-                </button>
-                <button
                   class="tree-node"
                   class:active={selectedNodeId === node.id}
                   onclick={() => selectNode(node.id)}
+                  use:melt={$treeItem({ id: node.id, hasChildren: Boolean(node.children.length || node.directCount) })}
                 >
+                  <span class="tree-caret" aria-hidden="true">
+                    {#if node.children.length || node.directCount}
+                      {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
+                    {/if}
+                  </span>
                   <span class="node-icon folder">{#if expandedIds.has(node.id)}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
                   <span class="node-label"><strong>{node.name}</strong></span>
                   <span class="count-pill">{node.totalCount}</span>
@@ -599,11 +605,15 @@
                 </div>
               </div>
             </div>
-            {#if expandedIds.has(node.id)}
+            <div use:melt={$treeGroup({ id: node.id })}>
               {@render treeRows(node.children, level + 1)}
               {#each directScenariosForNode(node.id) as scenario}
                 <div class="scenario-leaf" style={`--level: ${level + 1}`}>
-                  <button class="leaf-main" onclick={() => openScenarioDetail(scenario)}>
+                  <button
+                    class="leaf-main"
+                    onclick={() => openScenarioDetail(scenario)}
+                    use:melt={$treeItem({ id: scenario.id, hasChildren: false })}
+                  >
                     <span class="tree-caret"></span>
                     <span class="node-icon file">{@render iconFile()}</span>
                     <span class="node-label">{scenario.name}</span>
@@ -614,7 +624,7 @@
                   </span>
                 </div>
               {/each}
-            {/if}
+            </div>
           {/each}
         {/snippet}
         {@render treeRows(tree)}
@@ -742,7 +752,7 @@
           {/snippet}
           {#snippet body()}
             {#each sortedScenarios as scenario}
-              <tr class="click-row" class:dirty-row={rowChanged(scenario)} onclick={() => openScenarioDetail(scenario)}>
+              <tr class="click-row" onclick={() => openScenarioDetail(scenario)}>
                 <td>
                   <input
                     type="checkbox"
@@ -754,7 +764,9 @@
                   <span class="scenario-key">{scenario.scenarioKey}</span>
                   <button class="ta-btn inline-copy" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
                 </td>
-                <td class="scenario-name">{scenario.name}</td>
+                <td>
+                  <button class="scenario-name-button" onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}>{scenario.name}</button>
+                </td>
                 <td>
                   <div class="steps-preview">
                     {#each (scenario.steps ?? []).slice(0, 3) as step, index}
@@ -772,47 +784,17 @@
                   </div>
                 </td>
                 <td>
-                  <select
-                    class="row-select"
-                    value={rowDrafts[scenario.id]?.priority ?? ''}
-                    onclick={(e) => e.stopPropagation()}
-                    onchange={(e) => setRowDraft(scenario.id, { priority: (e.currentTarget as HTMLSelectElement).value })}
-                  >
-                    <option value="">Unset</option>
-                    <option value="LOW">LOW</option>
-                    <option value="MEDIUM">MEDIUM</option>
-                    <option value="HIGH">HIGH</option>
-                    <option value="CRITICAL">CRITICAL</option>
-                  </select>
+                  <span class="status-badge priority">{scenario.priority ?? 'UNSET'}</span>
                 </td>
                 <td>
-                  <label class="check-cell">
-                    <input
-                      type="checkbox"
-                      checked={rowDrafts[scenario.id]?.automatable ?? scenario.automatable}
-                      onclick={(e) => e.stopPropagation()}
-                      onchange={(e) => setRowDraft(scenario.id, { automatable: (e.currentTarget as HTMLInputElement).checked })}
-                    />
-                    <span>{(rowDrafts[scenario.id]?.automatable ?? scenario.automatable) ? '✓' : '—'}</span>
-                  </label>
+                  <span class="check-cell" aria-label={scenario.automatable ? 'Automatable' : 'Not automatable'}>
+                    {scenario.automatable ? '✓' : '—'}
+                  </span>
                 </td>
                 <td>
-                  <select
-                    class="row-select"
-                    value={rowDrafts[scenario.id]?.status ?? scenario.status}
-                    onclick={(e) => e.stopPropagation()}
-                    onchange={(e) => setRowDraft(scenario.id, { status: (e.currentTarget as HTMLSelectElement).value })}
-                  >
-                    <option value="ACTIVE">ACTIVE</option>
-                    <option value="DRAFT">DRAFT</option>
-                    <option value="ARCHIVED">ARCHIVED</option>
-                  </select>
+                  <span class="status-badge">{scenario.status}</span>
                 </td>
-                <td>
-                  {#if rowChanged(scenario)}
-                    <button class="save-mini" onclick={(e) => { e.stopPropagation(); saveRowScenario(scenario); }}>Save</button>
-                  {/if}
-                </td>
+                <td></td>
               </tr>
             {/each}
           {/snippet}
@@ -996,120 +978,130 @@
   </div>
 </Modal>
 
-<!-- ── Scenario detail modal ───────────────────────────────────── -->
-<Modal
-  open={detailScenario !== null}
-  title={detailDraft?.scenarioKey ?? detailScenario?.scenarioKey ?? 'Scenario'}
-  onclose={closeScenarioDetail}
->
-  {#if detailBusy}
-    <div class="empty-state compact">Loading scenario...</div>
-  {:else if detailDraft}
-    <div class="scenario-editor">
-      <div class="editor-top">
-        <div class="id-row">
-          <span>ID</span>
-          <strong>{detailDraft.scenarioKey}</strong>
-          <button class="ta-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={copyDetailScenarioId}>{@render iconCopy()}</button>
+<!-- ── Scenario detail drawer ───────────────────────────────────── -->
+<Dialog.Root open={detailOpen} onOpenChange={(open) => { if (!open) closeScenarioDetail(); }}>
+  <Dialog.Portal>
+    <Dialog.Overlay class="drawer-overlay" />
+    <Dialog.Content class="scenario-drawer">
+      <div class="drawer-header">
+        <div>
+          <Dialog.Title class="drawer-title">{detailDraft?.name ?? detailScenario?.name ?? 'Scenario'}</Dialog.Title>
+          <p class="drawer-subtitle">{detailDraft?.scenarioKey ?? detailScenario?.scenarioKey ?? 'Loading...'}</p>
         </div>
-        <div class="editor-grid">
-          <label>
-            <span>Name</span>
-            <input bind:value={detailDraft.name} />
-          </label>
-          <label>
-            <span>Priority</span>
-            <select bind:value={detailDraft.priority}>
-              <option value="">Unset</option>
-              <option value="LOW">LOW</option>
-              <option value="MEDIUM">MEDIUM</option>
-              <option value="HIGH">HIGH</option>
-              <option value="CRITICAL">CRITICAL</option>
-            </select>
-          </label>
-          <label>
-            <span>Status</span>
-            <select bind:value={detailDraft.status}>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="DRAFT">DRAFT</option>
-              <option value="ARCHIVED">ARCHIVED</option>
-            </select>
-          </label>
-          <label class="check-edit">
-            <span>Automatable</span>
-            <input type="checkbox" bind:checked={detailDraft.automatable} />
-          </label>
-        </div>
-        <label class="description-field">
-          <span>Description</span>
-          <textarea bind:value={detailDraft.manualNotes} rows="3" placeholder="Scenario notes or acceptance context"></textarea>
-        </label>
+        <Dialog.Close class="drawer-close" aria-label="Close">×</Dialog.Close>
       </div>
 
-      <div class="steps-editor-head">
-        <h3>Steps</h3>
-        <button type="button" onclick={addDetailStep}>+ Step</button>
-      </div>
-
-      <div class="steps-editor">
-        <div class="steps-grid steps-grid-head">
-          <span>No</span>
-          <span>Step</span>
-          <span>Description</span>
-          <span>Expectation</span>
-        </div>
-        {#each detailDraft.steps ?? [] as step, index}
-          <div class="steps-grid">
-            <span class="step-number">{index + 1}</span>
-            <div class="step-name-edit">
-              <select
-                value={step.keyword}
-                onchange={(e) => setDetailStep(index, { keyword: (e.currentTarget as HTMLSelectElement).value })}
-              >
-                <option value="GIVEN">GIVEN</option>
-                <option value="WHEN">WHEN</option>
-                <option value="THEN">THEN</option>
-                <option value="AND">AND</option>
-                <option value="BUT">BUT</option>
-              </select>
-              <textarea
-                value={step.name}
-                rows="2"
-                placeholder="Step name"
-                oninput={(e) => setDetailStep(index, { name: (e.currentTarget as HTMLTextAreaElement).value })}
-              ></textarea>
+      {#if detailBusy && !detailDraft}
+        <div class="empty-state compact">Loading scenario...</div>
+      {:else if detailDraft}
+        <div class="scenario-editor">
+          <div class="editor-top">
+            <div class="id-row">
+              <span>ID</span>
+              <strong>{detailDraft.scenarioKey}</strong>
+              <button class="ta-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={copyDetailScenarioId}>{@render iconCopy()}</button>
+              {#if detailBusy}<span class="sync-pill">Syncing</span>{/if}
             </div>
-            <textarea
-              value={step.description ?? ''}
-              rows="3"
-              placeholder="What happens in this step"
-              oninput={(e) => setDetailStep(index, { description: (e.currentTarget as HTMLTextAreaElement).value })}
-            ></textarea>
-            <textarea
-              value={step.expectation ?? ''}
-              rows="3"
-              placeholder="Expected result"
-              oninput={(e) => setDetailStep(index, { expectation: (e.currentTarget as HTMLTextAreaElement).value })}
-            ></textarea>
+            <div class="editor-grid">
+              <label>
+                <span>Name</span>
+                <input bind:value={detailDraft.name} />
+              </label>
+              <label>
+                <span>Priority</span>
+                <select bind:value={detailDraft.priority}>
+                  <option value="">Unset</option>
+                  <option value="LOW">LOW</option>
+                  <option value="MEDIUM">MEDIUM</option>
+                  <option value="HIGH">HIGH</option>
+                  <option value="CRITICAL">CRITICAL</option>
+                </select>
+              </label>
+              <label>
+                <span>Status</span>
+                <select bind:value={detailDraft.status}>
+                  <option value="ACTIVE">ACTIVE</option>
+                  <option value="DRAFT">DRAFT</option>
+                  <option value="ARCHIVED">ARCHIVED</option>
+                </select>
+              </label>
+              <label class="check-edit">
+                <span>Automatable</span>
+                <input type="checkbox" bind:checked={detailDraft.automatable} />
+              </label>
+            </div>
+            <label class="description-field">
+              <span>Description</span>
+              <textarea bind:value={detailDraft.manualNotes} rows="4" placeholder="Scenario notes or acceptance context"></textarea>
+            </label>
           </div>
-        {:else}
-          <div class="empty-state compact">No steps recorded.</div>
-        {/each}
-      </div>
 
-      <div class="form-actions sticky-actions">
-        <button type="button" onclick={closeScenarioDetail}>Close</button>
-        <button class="primary-btn" type="button" onclick={saveDetailScenario} disabled={busy}>Save Changes</button>
-      </div>
-    </div>
-  {/if}
-</Modal>
+          <div class="steps-editor-head">
+            <h3>Steps</h3>
+            <button type="button" onclick={addDetailStep}>+ Step</button>
+          </div>
+
+          <div class="steps-editor">
+            <div class="steps-grid steps-grid-head">
+              <span>No</span>
+              <span>Step</span>
+              <span>Description</span>
+              <span>Expectation</span>
+            </div>
+            {#each detailDraft.steps ?? [] as step, index}
+              <div class="steps-grid">
+                <span class="step-number">{index + 1}</span>
+                <div class="step-name-edit">
+                  <select
+                    value={step.keyword}
+                    onchange={(e) => setDetailStep(index, { keyword: (e.currentTarget as HTMLSelectElement).value })}
+                  >
+                    <option value="GIVEN">GIVEN</option>
+                    <option value="WHEN">WHEN</option>
+                    <option value="THEN">THEN</option>
+                    <option value="AND">AND</option>
+                    <option value="BUT">BUT</option>
+                  </select>
+                  <textarea
+                    value={step.name}
+                    rows="3"
+                    placeholder="Step name"
+                    oninput={(e) => setDetailStep(index, { name: (e.currentTarget as HTMLTextAreaElement).value })}
+                  ></textarea>
+                </div>
+                <textarea
+                  value={step.description ?? ''}
+                  rows="4"
+                  placeholder="What happens in this step"
+                  oninput={(e) => setDetailStep(index, { description: (e.currentTarget as HTMLTextAreaElement).value })}
+                ></textarea>
+                <textarea
+                  value={step.expectation ?? ''}
+                  rows="4"
+                  placeholder="Expected result"
+                  oninput={(e) => setDetailStep(index, { expectation: (e.currentTarget as HTMLTextAreaElement).value })}
+                ></textarea>
+              </div>
+            {:else}
+              <div class="empty-state compact">No steps recorded.</div>
+            {/each}
+          </div>
+
+          <div class="form-actions sticky-actions">
+            <Dialog.Close>Close</Dialog.Close>
+            <button class="primary-btn" type="button" onclick={saveDetailScenario} disabled={busy}>Save Changes</button>
+          </div>
+        </div>
+      {/if}
+    </Dialog.Content>
+  </Dialog.Portal>
+</Dialog.Root>
 
 <style>
   .page { max-width: none; }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
   .toast { position: fixed; right: 24px; bottom: 24px; background: var(--color-text); color: var(--color-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; z-index: 120; }
-  .repo-layout { display: grid; grid-template-columns: minmax(360px, 520px) minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
+  .repo-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
   .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .tree-scroll { flex: 1; overflow: auto; }
   .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; }
@@ -1135,26 +1127,26 @@
   input, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   input[type='checkbox'] { width: auto; }
 
-  .tree-list { padding: 12px 14px 22px; }
-  .tree-row { margin-bottom: 7px; padding-left: calc(var(--level) * 30px); position: relative; }
+  .tree-list { padding: 16px 14px 28px; }
+  .tree-row { margin-bottom: 10px; padding-left: calc(var(--level) * 22px); position: relative; }
   .tree-row::before,
-  .scenario-leaf::before { content: ''; position: absolute; left: calc(16px + var(--level) * 30px); top: -7px; bottom: -7px; width: 1px; background: color-mix(in srgb, var(--color-border), transparent 12%); }
+  .scenario-leaf::before { content: ''; position: absolute; left: calc(12px + var(--level) * 22px); top: -10px; bottom: -10px; width: 1px; background: color-mix(in srgb, var(--color-border), transparent 8%); }
   .tree-line,
-  .scenario-leaf { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; position: relative; }
-  .scenario-leaf { padding-left: calc(var(--level) * 30px); margin-bottom: 7px; }
+  .scenario-leaf { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; position: relative; }
+  .scenario-leaf { padding-left: calc(var(--level) * 22px); margin-bottom: 10px; }
   .tree-node,
-  .leaf-main { min-width: 0; display: grid; grid-template-columns: 26px 30px minmax(0, 1fr) auto; align-items: center; gap: 8px; text-align: left; border-color: transparent; background: transparent; width: 100%; padding: 9px 10px; border-radius: 7px; }
-  .leaf-main { grid-template-columns: 26px 30px minmax(0, 1fr); }
+  .leaf-main { min-width: 0; display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; align-items: center; gap: 9px; text-align: left; border-color: transparent; background: transparent; width: 100%; padding: 12px 10px; border-radius: 8px; }
+  .leaf-main { grid-template-columns: 22px 30px minmax(0, 1fr); }
   .tree-node.active,
   .tree-node:hover,
   .leaf-main:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
   /* All Scenarios root button */
-  .tree-all-btn { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 18px 16px 6px; padding: 13px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--color-text); cursor: pointer; text-align: left; font: inherit; font-size: 0.95rem; }
+  .tree-all-btn { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 18px 16px 10px; padding: 16px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--color-text); cursor: pointer; text-align: left; font: inherit; font-size: 0.95rem; }
   .tree-all-btn:hover,
   .tree-all-btn.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
   .all-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: color-mix(in srgb, var(--color-accent), transparent 82%); color: var(--color-accent); font-size: 0.85rem; flex-shrink: 0; }
   .all-label { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-caret { display: inline-grid; place-items: center; width: 26px; height: 26px; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); font-weight: 900; }
+  .tree-caret { display: inline-grid; place-items: center; width: 22px; height: 28px; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); font-weight: 900; }
   .tree-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity 0.12s; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: 2px 3px; z-index: 2; box-shadow: 0 1px 6px color-mix(in srgb, #000, transparent 88%); }
   .tree-line:hover .tree-actions,
   .tree-line:focus-within .tree-actions { opacity: 1; pointer-events: auto; }
@@ -1199,23 +1191,22 @@
   .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
   .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
   .scenario-panel :global(td),
-  .scenario-panel :global(th) { padding: 15px 18px; }
+  .scenario-panel :global(th) { padding: 22px 22px; }
   .scenario-panel :global(tbody tr:hover) { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .click-row { cursor: pointer; }
-  .dirty-row { box-shadow: inset 3px 0 0 var(--color-accent); }
   .scenario-key { font-family: ui-monospace, monospace; font-size: 0.82rem; color: var(--color-accent); }
   .scenario-key-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
   .inline-copy { opacity: 0.78; }
-  .scenario-name { font-weight: 600; }
-  .steps-preview { display: grid; gap: 4px; max-width: 360px; }
-  .steps-preview button { display: flex; gap: 7px; align-items: center; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 0; background: transparent; padding: 2px 0; color: var(--color-text); font-size: 0.78rem; }
+  .scenario-name-button { border: 0; background: transparent; padding: 0; text-align: left; color: var(--color-text); font-weight: 800; line-height: 1.45; max-width: 280px; white-space: normal; }
+  .scenario-name-button:hover { color: var(--color-accent); background: transparent; }
+  .steps-preview { display: grid; gap: 8px; min-width: 260px; max-width: 420px; }
+  .steps-preview button { display: flex; gap: 9px; align-items: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 0; background: transparent; padding: 0; color: var(--color-text); font-size: 0.84rem; line-height: 1.35; }
   .steps-preview button span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-size: 0.68rem; font-weight: 800; flex: 0 0 auto; }
   .steps-preview button.washed { color: var(--color-text-muted); opacity: 0.5; }
   .steps-preview .show-more { color: var(--color-accent); font-weight: 800; width: max-content; opacity: 1; }
-  .row-select { min-width: 112px; padding: 6px 8px; font-size: 0.78rem; }
-  .check-cell { display: inline-flex; align-items: center; gap: 7px; cursor: pointer; }
-  .check-cell span { color: var(--color-success); font-weight: 900; min-width: 14px; }
-  .save-mini { background: var(--color-accent); color: #fff; border-color: var(--color-accent); padding: 5px 9px; font-size: 0.78rem; }
+  .check-cell { display: inline-grid; place-items: center; width: 26px; height: 26px; color: var(--color-success); font-weight: 900; font-size: 1rem; }
+  .status-badge { display: inline-flex; align-items: center; width: max-content; border-radius: 999px; background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); padding: 5px 10px; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; }
+  .status-badge.priority { background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 86%); color: var(--color-warning, #b45309); }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
   .empty-state.compact { padding: 16px; }
 
@@ -1250,12 +1241,19 @@
   .copy-result { padding: 14px; background: color-mix(in srgb, var(--color-success), transparent 90%); border: 1px solid color-mix(in srgb, var(--color-success), transparent 70%); border-radius: 6px; font-size: 0.85rem; }
   .copy-result p { margin: 0; }
 
-  /* Scenario editor */
-  .scenario-editor { display: grid; gap: 18px; max-height: min(78vh, 820px); overflow: auto; padding-right: 4px; }
+  /* Scenario drawer/editor */
+  :global(.drawer-overlay) { position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.42); backdrop-filter: blur(4px); }
+  :global(.scenario-drawer) { position: fixed; z-index: 101; top: 0; right: 0; bottom: 0; width: min(1120px, calc(100vw - 32px)); background: var(--color-bg); border-left: 1px solid var(--color-border); box-shadow: -24px 0 60px color-mix(in srgb, #000, transparent 78%); display: grid; grid-template-rows: auto minmax(0, 1fr); outline: none; }
+  .drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 28px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+  :global(.drawer-title) { margin: 0; font-size: 1.2rem; font-weight: 850; line-height: 1.25; }
+  .drawer-subtitle { margin: 6px 0 0; color: var(--color-text-muted); font-family: ui-monospace, monospace; font-size: 0.82rem; }
+  :global(.drawer-close) { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 8px; font-size: 1.35rem; line-height: 1; }
+  .sync-pill { justify-self: start; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); padding: 4px 10px; font-size: 0.72rem; font-weight: 800; }
+  .scenario-editor { display: grid; gap: 22px; height: 100%; overflow: auto; padding: 24px 28px 0; }
   .editor-top { display: grid; gap: 14px; }
   .id-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 0.86rem; }
   .id-row span { color: var(--color-text-muted); }
-  .editor-grid { display: grid; grid-template-columns: minmax(220px, 2fr) repeat(3, minmax(120px, 1fr)); gap: 12px; align-items: end; }
+  .editor-grid { display: grid; grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(150px, 1fr)); gap: 16px; align-items: end; }
   .editor-grid label,
   .description-field { display: grid; gap: 6px; font-size: 0.78rem; color: var(--color-text-muted); }
   textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; font: inherit; resize: vertical; box-sizing: border-box; }
@@ -1263,14 +1261,14 @@
   .check-edit input { width: 18px; height: 18px; }
   .steps-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
   .steps-editor-head h3 { margin: 0; font-size: 0.98rem; }
-  .steps-editor { border: 1px solid var(--color-border); border-radius: 8px; overflow: auto; max-height: 430px; background: var(--color-bg); }
-  .steps-grid { display: grid; grid-template-columns: 56px minmax(220px, 1.25fr) minmax(220px, 1fr) minmax(220px, 1fr); gap: 10px; padding: 10px; border-bottom: 1px solid var(--color-border); min-width: 880px; align-items: start; }
+  .steps-editor { border: 1px solid var(--color-border); border-radius: 8px; overflow: auto; max-height: none; background: var(--color-bg); }
+  .steps-grid { display: grid; grid-template-columns: 64px minmax(260px, 1.2fr) minmax(260px, 1fr) minmax(260px, 1fr); gap: 14px; padding: 16px; border-bottom: 1px solid var(--color-border); min-width: 980px; align-items: start; }
   .steps-grid:last-child { border-bottom: 0; }
   .steps-grid-head { position: sticky; top: 0; z-index: 1; background: var(--color-surface); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 800; }
   .step-number { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-weight: 900; }
   .step-name-edit { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
-  .steps-grid textarea { min-height: 76px; }
-  .sticky-actions { position: sticky; bottom: 0; background: var(--color-bg); padding-top: 12px; }
+  .steps-grid textarea { min-height: 108px; line-height: 1.5; }
+  .sticky-actions { position: sticky; bottom: 0; background: color-mix(in srgb, var(--color-bg), transparent 2%); border-top: 1px solid var(--color-border); padding: 16px 0; }
 
   @media (max-width: 1040px) {
     .repo-layout { grid-template-columns: 1fr; }
@@ -1278,13 +1276,14 @@
     .filter-bar { padding: 8px 12px; }
     .search-wrap { max-width: none; }
     .editor-grid { grid-template-columns: 1fr; }
+    :global(.scenario-drawer) { width: 100vw; }
     .scenario-topbar { align-items: stretch; flex-direction: column; }
   }
   @media (max-width: 720px) {
     .tree-list { padding-inline: 10px; }
     .tree-row,
     .scenario-leaf { padding-left: calc(var(--level) * 22px); }
-    .scenario-panel :global(table) { min-width: 1040px; }
+    .scenario-panel :global(table) { min-width: 1080px; }
     .filter-bar { display: grid; grid-template-columns: 1fr; }
     .filter-group { display: grid; align-items: stretch; }
     .header-actions { justify-content: space-between; }

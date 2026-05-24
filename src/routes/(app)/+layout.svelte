@@ -98,6 +98,7 @@
 
     <nav class="sidebar-nav">
       <!-- Global section -->
+      <div class="nav-section-label">Pinned</div>
       <a
         href="/dashboard"
         class="nav-item"
@@ -109,6 +110,20 @@
         </svg>
         Dashboard
       </a>
+      {#if projectKey}
+        <a
+          href="/projects/{projectKey}/repository"
+          class="nav-item nav-item--pinned"
+          class:nav-item--active={isActive(`/projects/${projectKey}/repository`)}
+          onclick={closeSidebar}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
+          </svg>
+          Repository
+        </a>
+      {/if}
+      <div class="nav-section-label">Browse</div>
       <a
         href="/projects"
         class="nav-item"
@@ -429,7 +444,17 @@
     padding: 12px 8px;
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+  }
+
+  .nav-section-label {
+    padding: 10px 12px 4px;
+    color: var(--color-text-muted);
+    font-size: 0.66rem;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    opacity: 0.58;
   }
 
   .nav-divider {
@@ -475,13 +500,18 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 8px 12px;
+    padding: 8px 10px;
     border-radius: 6px;
     color: var(--color-text-muted);
     font-weight: 500;
     font-size: 0.875rem;
     text-decoration: none;
     transition: background 0.12s, color 0.12s;
+  }
+
+  .nav-item--pinned {
+    color: var(--color-text);
+    background: color-mix(in srgb, var(--color-bg), var(--color-accent) 4%);
   }
 
   .nav-item:hover {

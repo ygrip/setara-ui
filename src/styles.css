@@ -35,7 +35,7 @@
   --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Mono", monospace;
 
-  --sidebar-width: 240px;
+  --sidebar-width: 220px;
   --topbar-height: 56px;
   --radius: 8px;
   --shadow: 0 1px 4px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.04);

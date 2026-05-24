@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [x] Test Repository tree/table now supports spacious navigation, step previews, and scenario editing
+UI: [x] Repository tree/table uses headless primitives with spacious navigation and scenario drawer editing
 ```
 
 - [x] Git repository initialized on `main`.
@@ -15,6 +15,7 @@ UI: [x] Test Repository tree/table now supports spacious navigation, step previe
 - [x] Apache-2.0 license and docs added.
 - [x] `npm run check` passes (0 errors, 0 warnings).
 - [x] `npm run build` passes.
+- [x] Added headless UI foundations for repository evolution: Melt UI tree, Bits UI dialog/drawer, TanStack table core, Zod/Superforms/Formsnap dependencies.
 - [x] CSS variable / design token foundation (no Tailwind — using plain CSS with `--color-*` tokens).
 - [x] Authenticated app shell with sidebar, top bar, hamburger mobile drawer, theme toggle.
 - [x] Dark mode via `prefers-color-scheme` + localStorage toggle (flash prevention in app.html).
@@ -59,6 +60,10 @@ UI: [x] Test Repository tree/table now supports spacious navigation, step previe
 - [x] Cucumber-style step detail table with description and expectation fields.
 - [x] Scenario table shows copy action beside scenario key, automatable checkmark column, editable priority/automatable/status row controls, and save confirmation.
 - [x] Scenario table shows first three step previews; full detail modal supports editable name, description, and 3-column step editor with long-step scrolling.
+- [x] Scenario detail now opens as a wide Bits UI drawer immediately on row/tree click, then hydrates the full scenario payload.
+- [x] Repository tree uses Melt UI tree behavior for accessible keyboard-friendly navigation.
+- [x] Scenario list read mode uses badges/checkmarks instead of always-visible edit selects; editing moves into the drawer.
+- [x] Global sidebar width reduced and pinned project repository entry added.
 - [x] Mock repository data expanded with deeper directories, live/draft scenarios, longer steps, and richer status/coverage coverage.
 - [x] Draft review tab with bulk approve/reject actions.
 - [x] Sortable scenario table in the Test Repository list.
@@ -97,6 +102,7 @@ UI: [x] Test Repository tree/table now supports spacious navigation, step previe
 ## Latest Commits
 
 ```text
+Add repository tree and drawer primitives
 Enhance repository scenario editing layout
 Revamp test repository workbench layout
 Revamp dashboard and coverage overview
