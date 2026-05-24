@@ -3,7 +3,6 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
-  import { coverageByType } from '$lib/mock/data';
   import type { ProjectStatistic } from '$lib/api/statistics';
 
   let { data }: { data: { history: ProjectStatistic[] } } = $props();
@@ -11,6 +10,21 @@
   const projectKey = $derived(page.params.projectKey);
   const latest = $derived(data.history[0]);
   const notAutomatable = $derived(latest ? Math.max(0, latest.totalScenarios - latest.totalAutomatable) : 0);
+
+  // Real automation breakdown donut computed from latest stats
+  const automationDonut = $derived({
+    labels: ['Automated', 'Automatable (not yet)', 'Not Automatable'],
+    datasets: [{
+      data: [
+        latest?.totalAutomated ?? 0,
+        latest ? Math.max(0, latest.totalAutomatable - latest.totalAutomated) : 0,
+        latest ? Math.max(0, latest.totalScenarios - latest.totalAutomatable) : 0
+      ],
+      backgroundColor: ['#0d9488', '#6366f1', '#94a3b8'],
+      borderWidth: 0
+    }]
+  });
+
   const coverageTrend = $derived({
     labels: [...data.history].reverse().map(row => row.statDate.slice(5)),
     datasets: [{
@@ -84,21 +98,20 @@
     </div>
   </div>
 
-  <!-- Coverage Charts -->
-  <div class="section">
-    <h2 class="section-title">Coverage Charts</h2>
-    <div class="charts-row">
-      <div class="chart-card">
-        <DonutChart chartData={coverageByType} size={160} label="Coverage by Type" />
-      </div>
-      <div class="chart-card">
-        <DonutChart chartData={coverageByType} size={160} label="Manual vs Automated" />
-      </div>
-      <div class="chart-card">
-        <DonutChart chartData={coverageByType} size={160} label="Coverage by Priority" />
+  <!-- Coverage Breakdown Donut -->
+  {#if latest}
+    <div class="section">
+      <h2 class="section-title">Automation Breakdown</h2>
+      <div class="chart-card donut-card">
+        <DonutChart chartData={automationDonut} size={220} label="Scenario Automation Status" />
+        <div class="donut-meta">
+          <p class="donut-meta-line">Based on the latest coverage snapshot.</p>
+          <p class="donut-meta-line"><strong>{latest.totalAutomated}</strong> automated out of <strong>{latest.totalScenarios}</strong> total scenarios.</p>
+          <p class="donut-meta-line">Automatable coverage: <strong>{latest.coveragePercentage}%</strong></p>
+        </div>
       </div>
     </div>
-  </div>
+  {/if}
 
   <p class="data-note">
     Coverage data will populate once automation sessions are ingested and the execution worker processes scenario results.
@@ -201,22 +214,32 @@
     margin: 0;
   }
 
-  .charts-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
-  }
-
-  .chart-card {
+  .donut-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    padding: 24px 16px;
+    padding: 28px 24px;
     display: flex;
     align-items: center;
-    justify-content: center;
+    gap: 40px;
     box-shadow: var(--shadow);
+    flex-wrap: wrap;
   }
+
+  .donut-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .donut-meta-line {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  .donut-meta-line strong { color: var(--color-text); }
 
   .data-note {
     font-size: 0.8rem;
@@ -224,11 +247,5 @@
     font-style: italic;
     text-align: center;
     padding: 8px 0 16px;
-  }
-
-  @media (max-width: 640px) {
-    .charts-row {
-      grid-template-columns: 1fr;
-    }
   }
 </style>

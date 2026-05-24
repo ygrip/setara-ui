@@ -4,6 +4,7 @@ import {
   mockListProjectStatistics,
   mockListProjectStatisticHistory
 } from '$lib/mock/client';
+import { mockSquads, mockTribes, mockProjects, mockScenariosByProject } from '$lib/mock/data';
 
 export interface ProjectStatistic {
   id: string;
@@ -84,9 +85,10 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     const totalScenarios = stats.reduce((sum, row) => sum + row.totalScenarios, 0);
     const totalAutomated = stats.reduce((sum, row) => sum + row.totalAutomated, 0);
     const totalAutomatable = stats.reduce((sum, row) => sum + row.totalAutomatable, 0);
+    const totalSquads = Object.values(mockSquads).reduce((sum, arr) => sum + arr.length, 0);
     return {
-      totalSquads: 4,
-      totalProjects: stats.length,
+      totalSquads,
+      totalProjects: mockProjects.length,
       totalScenarios,
       overallPassPercentage: 92,
       automationCoveragePercentage: totalAutomatable ? Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)) : 0
@@ -103,19 +105,31 @@ export async function listAggregateStatisticHistory(start: string, end: string, 
     const totalAutomated = stats.reduce((sum, row) => sum + row.totalAutomated, 0);
     const totalAutomatable = stats.reduce((sum, row) => sum + row.totalAutomatable, 0);
     const days = Math.max(1, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86_400_000));
-    return Array.from({ length: Math.min(days + 1, 60) }, (_, index) => {
+
+    // Step size in days based on groupedBy
+    const step = groupedBy === 'monthly' ? 30 : groupedBy === 'weekly' ? 7 : 1;
+
+    const points: AggregateStatisticPoint[] = [];
+    let currentDay = 0;
+    let bucketIndex = 0;
+    while (currentDay <= days && points.length < 60) {
       const date = new Date(start);
-      date.setDate(date.getDate() + index);
-      const drift = index % 7;
-      const automated = Math.max(0, totalAutomated - drift);
-      return {
+      date.setDate(date.getDate() + currentDay);
+      // Add realistic variation: gradual growth + small oscillation
+      const growthFactor = Math.min(1, 0.75 + (currentDay / days) * 0.25);
+      const oscillation = Math.sin(bucketIndex * 0.8) * totalAutomated * 0.04;
+      const automated = Math.max(0, Math.round(totalAutomated * growthFactor + oscillation));
+      points.push({
         bucketDate: date.toISOString().slice(0, 10),
-        totalScenarios,
+        totalScenarios: Math.round(totalScenarios * growthFactor),
         totalAutomated: automated,
         totalAutomatable,
         automationCoveragePercentage: totalAutomatable ? Number(((automated / totalAutomatable) * 100).toFixed(2)) : 0
-      };
-    });
+      });
+      currentDay += step;
+      bucketIndex++;
+    }
+    return points;
   }
   const params = new URLSearchParams({ start, end, grouped_by: groupedBy });
   const res = await apiFetch(`/api/statistics/projects/aggregate-history?${params}`);
@@ -129,18 +143,48 @@ export async function listSquadCoverage(params: {
   sortDir?: 'asc' | 'desc';
 } = {}): Promise<SquadCoverage[]> {
   if (isMockMode()) {
-    const stats = await mockListProjectStatistics();
-    return [{
-      squadId: 'mock-squad',
-      squadName: params.squad || 'Payments Squad',
-      tribeId: 'mock-tribe',
-      tribeName: params.tribe || 'Commerce',
-      projectCount: stats.length,
-      totalScenarios: stats.reduce((sum, row) => sum + row.totalScenarios, 0),
-      totalAutomated: stats.reduce((sum, row) => sum + row.totalAutomated, 0),
-      totalAutomatable: stats.reduce((sum, row) => sum + row.totalAutomatable, 0),
-      coveragePercentage: stats.length ? Number((stats.reduce((sum, row) => sum + row.coveragePercentage, 0) / stats.length).toFixed(2)) : 0
-    }];
+    // Build a flat list of all squads, finding their tribe info
+    const tribeById = new Map(mockTribes.map(t => [t.id, t]));
+    const allSquads = Object.values(mockSquads).flat();
+
+    const result: SquadCoverage[] = allSquads
+      .filter(squad => {
+        if (params.squad && !squad.name.toLowerCase().includes(params.squad.toLowerCase())) return false;
+        if (params.tribe) {
+          const tribe = tribeById.get(squad.tribeId);
+          if (!tribe || !tribe.name.toLowerCase().includes(params.tribe.toLowerCase())) return false;
+        }
+        return true;
+      })
+      .map(squad => {
+        const squadProjects = mockProjects.filter(p => p.squadId === squad.id);
+        let total = 0, automated = 0, automatable = 0;
+        for (const proj of squadProjects) {
+          const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
+          total += scenarios.length;
+          automated += scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+          automatable += scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+        }
+        const tribe = tribeById.get(squad.tribeId);
+        return {
+          squadId: squad.id,
+          squadName: squad.name,
+          tribeId: squad.tribeId,
+          tribeName: tribe?.name ?? '',
+          projectCount: squadProjects.length,
+          totalScenarios: total,
+          totalAutomated: automated,
+          totalAutomatable: automatable,
+          coveragePercentage: automatable ? Number(((automated / automatable) * 100).toFixed(2)) : 0
+        };
+      });
+
+    if (params.sortBy === 'coverage') {
+      result.sort((a, b) => params.sortDir === 'desc' ? b.coveragePercentage - a.coveragePercentage : a.coveragePercentage - b.coveragePercentage);
+    } else {
+      result.sort((a, b) => params.sortDir === 'desc' ? b.squadName.localeCompare(a.squadName) : a.squadName.localeCompare(b.squadName));
+    }
+    return result;
   }
   const query = new URLSearchParams();
   if (params.tribe) query.set('tribe', params.tribe);
@@ -157,16 +201,23 @@ export async function listSquadProjectCoverage(squadId: string, params: {
   sortDir?: 'asc' | 'desc';
 } = {}): Promise<SquadProjectCoverage[]> {
   if (isMockMode()) {
-    const stats = await mockListProjectStatistics();
-    return stats.map(row => ({
-      projectId: row.projectId,
-      projectKey: row.projectKey,
-      projectName: row.projectName,
-      totalScenarios: row.totalScenarios,
-      totalAutomated: row.totalAutomated,
-      totalAutomatable: row.totalAutomatable,
-      coveragePercentage: row.coveragePercentage
-    }));
+    const squadProjects = mockProjects.filter(p => p.squadId === squadId);
+    const result: SquadProjectCoverage[] = squadProjects.map(proj => {
+      const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
+      const totalScenarios = scenarios.length;
+      const totalAutomated = scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+      const totalAutomatable = scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+      return {
+        projectId: proj.id,
+        projectKey: proj.projectKey,
+        projectName: proj.name,
+        totalScenarios,
+        totalAutomated,
+        totalAutomatable,
+        coveragePercentage: totalAutomatable ? Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)) : 0
+      };
+    });
+    return result;
   }
   const query = new URLSearchParams();
   if (params.project) query.set('project', params.project);

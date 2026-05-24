@@ -579,9 +579,9 @@
         </button>
 
         <div class="tree-list">
-        {#snippet treeRows(nodes: TreeNode[], level = 0)}
+        {#snippet treeRows(nodes: TreeNode[])}
           {#each nodes as node}
-            <div class="tree-row" style={`--level: ${level}`}>
+            <div class="tree-row">
               <div class="tree-line">
                 <button
                   class="tree-caret-btn"
@@ -605,19 +605,21 @@
               </div>
             </div>
             {#if expandedIds.has(node.id)}
-              {@render treeRows(node.children, level + 1)}
-              {#each directScenariosForNode(node.id) as scenario}
-                <div class="scenario-leaf" style={`--level: ${level + 1}`}>
-                  <button
-                    class="leaf-main"
-                    onclick={() => openScenarioDetail(scenario)}
-                  >
-                    <span class="leaf-indent"></span>
-                    <span class="node-icon file">{@render iconFile()}</span>
-                    <span class="node-label">{scenario.name}</span>
-                  </button>
-                </div>
-              {/each}
+              <div class="tree-children">
+                {@render treeRows(node.children)}
+                {#each directScenariosForNode(node.id) as scenario}
+                  <div class="scenario-leaf">
+                    <button
+                      class="leaf-main"
+                      onclick={() => openScenarioDetail(scenario)}
+                    >
+                      <span class="leaf-indent"></span>
+                      <span class="node-icon file">{@render iconFile()}</span>
+                      <span class="node-label">{scenario.name}</span>
+                    </button>
+                  </div>
+                {/each}
+              </div>
             {/if}
           {/each}
         {/snippet}
@@ -1125,12 +1127,15 @@
   input[type='checkbox'] { width: auto; }
 
   .tree-list { padding: 16px 14px 28px; }
-  .tree-row { margin-bottom: 10px; padding-left: calc(var(--level) * 22px); position: relative; }
-  .tree-row::before,
-  .scenario-leaf::before { content: ''; position: absolute; left: calc(12px + var(--level) * 22px); top: -10px; bottom: -10px; width: 1px; background: color-mix(in srgb, var(--color-border), transparent 8%); }
-  .tree-line,
-  .scenario-leaf { display: flex; align-items: center; gap: 0; position: relative; }
-  .scenario-leaf { padding-left: calc(var(--level) * 22px); margin-bottom: 10px; }
+  .tree-row { margin-bottom: 4px; position: relative; }
+  .tree-line { display: flex; align-items: center; gap: 0; position: relative; }
+  /* IDE-style connected guide lines using nested .tree-children containers */
+  .tree-children {
+    margin-left: 13px; /* aligns with center of caret button (26px wide) */
+    padding-left: 13px;
+    border-left: 1px solid color-mix(in srgb, var(--color-border), transparent 25%);
+  }
+  .scenario-leaf { display: flex; align-items: center; gap: 0; margin-bottom: 4px; position: relative; }
   .tree-caret-btn { display: inline-grid; place-items: center; width: 26px; height: 38px; flex-shrink: 0; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; border-radius: 4px; }
   .tree-caret-btn:hover { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .leaf-indent { display: inline-block; width: 26px; flex-shrink: 0; }

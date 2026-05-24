@@ -6,10 +6,15 @@ import type { ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
 
 export const mockProjects: Project[] = [
-  { id: '1', squadId: null, projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
-  { id: '2', squadId: null, projectKey: 'AUTH', name: 'Auth Service', description: 'SSO and identity management test suite', createdAt: '2026-02-01T09:00:00Z' },
-  { id: '3', squadId: null, projectKey: 'CATALOG', name: 'Product Catalog', description: 'Product search and inventory scenarios', createdAt: '2026-02-20T14:00:00Z' },
-  { id: '4', squadId: null, projectKey: 'CHECKOUT', name: 'Checkout Flow', description: 'End-to-end checkout automation', createdAt: '2026-03-05T11:00:00Z' },
+  { id: '1', squadId: 'squad-3', projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
+  { id: '2', squadId: 'squad-1', projectKey: 'AUTH', name: 'Auth Service', description: 'SSO and identity management test suite', createdAt: '2026-02-01T09:00:00Z' },
+  { id: '3', squadId: 'squad-4', projectKey: 'CATALOG', name: 'Product Catalog', description: 'Product search and inventory scenarios', createdAt: '2026-02-20T14:00:00Z' },
+  { id: '4', squadId: 'squad-3', projectKey: 'CHECKOUT', name: 'Checkout Flow', description: 'End-to-end checkout automation', createdAt: '2026-03-05T11:00:00Z' },
+  { id: '5', squadId: 'squad-5', projectKey: 'NOTIFICATION', name: 'Notification Service', description: 'Email, SMS and push notification test scenarios', createdAt: '2026-03-12T08:00:00Z' },
+  { id: '6', squadId: 'squad-6', projectKey: 'ORDER', name: 'Order Management', description: 'Order lifecycle and fulfillment workflows', createdAt: '2026-03-18T10:00:00Z' },
+  { id: '7', squadId: 'squad-7', projectKey: 'WALLET', name: 'Digital Wallet', description: 'Wallet top-up, balance, and transfer flows', createdAt: '2026-04-01T09:00:00Z' },
+  { id: '8', squadId: 'squad-4', projectKey: 'SEARCH', name: 'Search & Discovery', description: 'Product search ranking and filter accuracy', createdAt: '2026-04-10T11:00:00Z' },
+  { id: '9', squadId: 'squad-2', projectKey: 'INFRA', name: 'Platform Infra', description: 'Infrastructure health and SLA tests', createdAt: '2026-04-15T10:00:00Z' },
 ];
 
 export const mockRunsByProject: Record<string, AutomationRun[]> = {
@@ -54,6 +59,24 @@ export const mockNodesByProject: Record<string, MockNode[]> = {
   AUTH: [
     { id: 'node-login', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-LOGIN01', name: 'Login', slug: 'login', path: 'login', scenarioCount: 2, createdAt: '2026-05-01T00:00:00Z' },
     { id: 'node-session', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-SESSION01', name: 'Session Security', slug: 'session-security', path: 'session-security', scenarioCount: 1, createdAt: '2026-05-02T00:00:00Z' }
+  ],
+  CATALOG: [
+    { id: 'node-catalog-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-CATALOG01', name: 'Product Management', slug: 'product-management', path: 'product-management', scenarioCount: 3, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-catalog-search', parentId: 'node-catalog-root', nodeType: 'DIRECTORY', directoryId: 'DIR-CATALOG02', name: 'Search & Filters', slug: 'search-filters', path: 'product-management/search-filters', scenarioCount: 2, createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-catalog-inventory', parentId: 'node-catalog-root', nodeType: 'DIRECTORY', directoryId: 'DIR-CATALOG03', name: 'Inventory', slug: 'inventory', path: 'product-management/inventory', scenarioCount: 2, createdAt: '2026-05-03T00:00:00Z' },
+  ],
+  CHECKOUT: [
+    { id: 'node-checkout-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-CHECKOUT01', name: 'Checkout', slug: 'checkout', path: 'checkout', scenarioCount: 3, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-checkout-cart', parentId: 'node-checkout-root', nodeType: 'DIRECTORY', directoryId: 'DIR-CHECKOUT02', name: 'Cart Operations', slug: 'cart-operations', path: 'checkout/cart-operations', scenarioCount: 2, createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-checkout-promo', parentId: 'node-checkout-root', nodeType: 'DIRECTORY', directoryId: 'DIR-CHECKOUT03', name: 'Promotions', slug: 'promotions', path: 'checkout/promotions', scenarioCount: 1, createdAt: '2026-05-03T00:00:00Z' },
+  ],
+  ORDER: [
+    { id: 'node-order-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-ORDER01', name: 'Order Lifecycle', slug: 'order-lifecycle', path: 'order-lifecycle', scenarioCount: 4, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-order-cancel', parentId: 'node-order-root', nodeType: 'DIRECTORY', directoryId: 'DIR-ORDER02', name: 'Cancellation', slug: 'cancellation', path: 'order-lifecycle/cancellation', scenarioCount: 2, createdAt: '2026-05-04T00:00:00Z' },
+  ],
+  NOTIFICATION: [
+    { id: 'node-notif-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF01', name: 'Delivery Channels', slug: 'delivery-channels', path: 'delivery-channels', scenarioCount: 3, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-notif-email', parentId: 'node-notif-root', nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF02', name: 'Email', slug: 'email', path: 'delivery-channels/email', scenarioCount: 2, createdAt: '2026-05-02T00:00:00Z' },
   ]
 };
 
@@ -337,6 +360,315 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       createdAt: '2026-05-21T08:00:00Z',
       updatedAt: '2026-05-21T08:00:00Z'
     }
+  ],
+  CATALOG: [
+    {
+      id: 'scenario-catalog-search-keyword',
+      nodeId: 'node-catalog-search',
+      scenarioKey: 'SCN-CTLG1',
+      name: 'Keyword search returns ranked results',
+      source: 'AUTOMATION',
+      cucumberId: 'catalog-keyword-search',
+      featureUri: 'features/catalog/search.feature',
+      featureName: 'Search & Filters',
+      lineNumber: 10,
+      tags: ['catalog', 'search', 'ranking'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Covered in search regression suite.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A product catalog with indexed items exists', description: 'Seed catalog with 50 products across categories.', expectation: 'Search index is built.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User searches for a keyword', description: 'Submit GET /search?q=laptop.', expectation: 'Search responds with results.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Results are ranked by relevance', description: 'Verify position scores.', expectation: 'Most relevant product appears first.' }
+      ],
+      createdAt: '2026-05-10T08:00:00Z',
+      updatedAt: '2026-05-10T08:00:00Z'
+    },
+    {
+      id: 'scenario-catalog-filter-price',
+      nodeId: 'node-catalog-search',
+      scenarioKey: 'SCN-CTLG2',
+      name: 'Price range filter narrows search results',
+      source: 'AUTOMATION',
+      cucumberId: 'catalog-filter-price',
+      featureUri: 'features/catalog/search.feature',
+      featureName: 'Search & Filters',
+      lineNumber: 40,
+      tags: ['catalog', 'filter'],
+      priority: 'MEDIUM',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: null,
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'Products exist across multiple price ranges', description: 'Seed products from $10–$1000.', expectation: 'Price data is indexed.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User applies a price filter', description: 'Submit search with min_price=100&max_price=500.', expectation: 'API accepts the filter.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Only in-range products are returned', description: 'Inspect each result price.', expectation: 'No result is outside the specified range.' }
+      ],
+      createdAt: '2026-05-11T08:00:00Z',
+      updatedAt: '2026-05-11T08:00:00Z'
+    },
+    {
+      id: 'scenario-catalog-stock',
+      nodeId: 'node-catalog-inventory',
+      scenarioKey: 'SCN-CTLG3',
+      name: 'Out-of-stock product is excluded from default listing',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Inventory',
+      lineNumber: null,
+      tags: ['catalog', 'inventory', 'stock'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATABLE',
+      automatable: true,
+      automationNotes: 'Pending stock state fixture for automation.',
+      manualNotes: 'Verify both API and storefront display.',
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A product has zero stock', description: 'Set inventory_count = 0 via admin API.', expectation: 'Product is marked out of stock.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Customer browses catalog default listing', description: 'Fetch /products?in_stock=true.', expectation: 'API returns only in-stock items.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Out-of-stock product is absent from results', description: 'Verify product ID is not in response.', expectation: 'OOS product is filtered from default view.' }
+      ],
+      createdAt: '2026-05-12T08:00:00Z',
+      updatedAt: '2026-05-12T08:00:00Z'
+    },
+    {
+      id: 'scenario-catalog-restock',
+      nodeId: 'node-catalog-inventory',
+      scenarioKey: 'SCN-CTLG4',
+      name: 'Restock event updates product availability in real time',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Inventory',
+      lineNumber: null,
+      tags: ['catalog', 'inventory', 'event'],
+      priority: 'MEDIUM',
+      automationStatus: 'MANUAL_ONLY',
+      automatable: false,
+      automationNotes: 'Requires live inventory event bus — not available in sandbox.',
+      manualNotes: 'Test with warehouse simulator.',
+      status: 'DRAFT',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A product is out of stock', description: 'Verify product is unavailable.', expectation: 'Product availability is false.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Warehouse system fires a restock event', description: 'Publish inventory.updated event with quantity > 0.', expectation: 'Event reaches catalog service.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Product becomes available within seconds', description: 'Poll product availability every 500ms for 5s.', expectation: 'Product is listed within SLA.' }
+      ],
+      createdAt: '2026-05-13T08:00:00Z',
+      updatedAt: '2026-05-13T08:00:00Z'
+    }
+  ],
+  CHECKOUT: [
+    {
+      id: 'scenario-checkout-add-item',
+      nodeId: 'node-checkout-cart',
+      scenarioKey: 'SCN-CHKOUT1',
+      name: 'Add item to cart persists across sessions',
+      source: 'AUTOMATION',
+      cucumberId: 'checkout-cart-persistence',
+      featureUri: 'features/checkout/cart.feature',
+      featureName: 'Cart Operations',
+      lineNumber: 8,
+      tags: ['checkout', 'cart'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Covered by cart regression suite.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A logged-in user has an empty cart', description: null, expectation: 'Cart is empty.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User adds a product to the cart', description: 'POST /cart/items with product_id and quantity.', expectation: 'Cart item is created.' },
+        { sequenceNo: 3, keyword: 'AND', name: 'User ends the session and returns', description: 'Clear session cookies and re-authenticate.', expectation: 'Re-login succeeds.' },
+        { sequenceNo: 4, keyword: 'THEN', name: 'Cart still contains the added item', description: 'GET /cart.', expectation: 'Previously added item is present.' }
+      ],
+      createdAt: '2026-05-14T08:00:00Z',
+      updatedAt: '2026-05-14T08:00:00Z'
+    },
+    {
+      id: 'scenario-checkout-remove-item',
+      nodeId: 'node-checkout-cart',
+      scenarioKey: 'SCN-CHKOUT2',
+      name: 'Remove item from cart updates total price',
+      source: 'AUTOMATION',
+      cucumberId: 'checkout-cart-remove',
+      featureUri: 'features/checkout/cart.feature',
+      featureName: 'Cart Operations',
+      lineNumber: 38,
+      tags: ['checkout', 'cart', 'price'],
+      priority: 'MEDIUM',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: null,
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'Cart has two items', description: 'Add items A and B.', expectation: 'Total reflects both items.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User removes item A', description: 'DELETE /cart/items/{itemId}.', expectation: 'Item is removed.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Cart total reflects only item B', description: 'GET /cart and inspect total_price.', expectation: 'Total equals price of B.' }
+      ],
+      createdAt: '2026-05-15T08:00:00Z',
+      updatedAt: '2026-05-15T08:00:00Z'
+    },
+    {
+      id: 'scenario-checkout-promo-code',
+      nodeId: 'node-checkout-promo',
+      scenarioKey: 'SCN-CHKOUT3',
+      name: 'Valid promo code applies discount at checkout',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Promotions',
+      lineNumber: null,
+      tags: ['checkout', 'promo', 'discount'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATABLE',
+      automatable: true,
+      automationNotes: 'Promo engine fixtures needed.',
+      manualNotes: 'Verify discount reflected in order summary before payment.',
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'A valid promo code SAVE20 exists', description: 'Create promo with 20% off, no expiry.', expectation: 'Promo is active in system.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'User applies SAVE20 at checkout', description: 'POST /checkout/promo with code.', expectation: 'Promo is accepted.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Order total is discounted by 20%', description: 'Compare pre- and post-promo totals.', expectation: 'Discount equals 20% of subtotal.' }
+      ],
+      createdAt: '2026-05-16T08:00:00Z',
+      updatedAt: '2026-05-16T08:00:00Z'
+    }
+  ],
+  ORDER: [
+    {
+      id: 'scenario-order-place',
+      nodeId: 'node-order-root',
+      scenarioKey: 'SCN-ORDER1',
+      name: 'Customer places order and receives confirmation',
+      source: 'AUTOMATION',
+      cucumberId: 'order-place-happy-path',
+      featureUri: 'features/order/place.feature',
+      featureName: 'Order Lifecycle',
+      lineNumber: 6,
+      tags: ['order', 'smoke'],
+      priority: 'CRITICAL',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Part of smoke suite.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'Cart has items and payment method is set', description: null, expectation: 'Order is ready to place.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Customer submits checkout', description: 'POST /orders', expectation: 'Order is created with PENDING status.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Confirmation email is sent', description: 'Check notification queue.', expectation: 'Email event is dispatched within 5s.' }
+      ],
+      createdAt: '2026-05-08T08:00:00Z',
+      updatedAt: '2026-05-08T08:00:00Z'
+    },
+    {
+      id: 'scenario-order-cancel-before-ship',
+      nodeId: 'node-order-cancel',
+      scenarioKey: 'SCN-ORDER2',
+      name: 'Order can be cancelled before shipment',
+      source: 'AUTOMATION',
+      cucumberId: 'order-cancel-pre-ship',
+      featureUri: 'features/order/cancel.feature',
+      featureName: 'Cancellation',
+      lineNumber: 12,
+      tags: ['order', 'cancel'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Covered in order regression.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'An order is in PENDING or CONFIRMED state', description: null, expectation: 'Order has not shipped.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Customer requests cancellation', description: 'POST /orders/{id}/cancel', expectation: 'Cancellation is accepted.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Order status changes to CANCELLED', description: 'GET /orders/{id}', expectation: 'Status is CANCELLED and refund is initiated.' }
+      ],
+      createdAt: '2026-05-09T08:00:00Z',
+      updatedAt: '2026-05-09T08:00:00Z'
+    },
+    {
+      id: 'scenario-order-cancel-after-ship',
+      nodeId: 'node-order-cancel',
+      scenarioKey: 'SCN-ORDER3',
+      name: 'Cancellation after shipment is rejected',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Cancellation',
+      lineNumber: null,
+      tags: ['order', 'cancel', 'edge-case'],
+      priority: 'MEDIUM',
+      automationStatus: 'AUTOMATABLE',
+      automatable: true,
+      automationNotes: null,
+      manualNotes: 'Must verify correct error message and no refund is triggered.',
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'An order is in SHIPPED state', description: null, expectation: 'Order has left warehouse.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Customer requests cancellation', description: 'POST /orders/{id}/cancel', expectation: 'Request is received.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Cancellation is rejected with 422', description: 'Check response.', expectation: 'Error code is ORDER_ALREADY_SHIPPED.' }
+      ],
+      createdAt: '2026-05-10T08:00:00Z',
+      updatedAt: '2026-05-10T08:00:00Z'
+    }
+  ],
+  NOTIFICATION: [
+    {
+      id: 'scenario-notif-email-delivery',
+      nodeId: 'node-notif-email',
+      scenarioKey: 'SCN-NOTIF1',
+      name: 'Order confirmation email is delivered within SLA',
+      source: 'AUTOMATION',
+      cucumberId: 'notif-email-order-confirm',
+      featureUri: 'features/notification/email.feature',
+      featureName: 'Email',
+      lineNumber: 10,
+      tags: ['notification', 'email', 'sla'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATED',
+      automatable: true,
+      automationNotes: 'Uses mailhog test mailbox.',
+      manualNotes: null,
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'Customer places an order', description: null, expectation: 'Order event is emitted.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Notification worker processes the event', description: 'Allow up to 10s for processing.', expectation: 'Email task is queued.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Email is delivered within 30 seconds', description: 'Check mailbox via mailhog API.', expectation: 'Email with order ID arrives in inbox.' }
+      ],
+      createdAt: '2026-05-06T08:00:00Z',
+      updatedAt: '2026-05-06T08:00:00Z'
+    },
+    {
+      id: 'scenario-notif-email-unsubscribe',
+      nodeId: 'node-notif-email',
+      scenarioKey: 'SCN-NOTIF2',
+      name: 'Unsubscribed user does not receive marketing emails',
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: 'Email',
+      lineNumber: null,
+      tags: ['notification', 'email', 'gdpr'],
+      priority: 'HIGH',
+      automationStatus: 'AUTOMATABLE',
+      automatable: true,
+      automationNotes: 'Needs unsubscribe fixture integration.',
+      manualNotes: 'GDPR compliance check — critical path.',
+      status: 'ACTIVE',
+      steps: [
+        { sequenceNo: 1, keyword: 'GIVEN', name: 'User has unsubscribed from marketing emails', description: null, expectation: 'Preference is saved as unsubscribed.' },
+        { sequenceNo: 2, keyword: 'WHEN', name: 'Marketing campaign is dispatched', description: 'Trigger campaign blast.', expectation: 'Campaign service processes recipients.' },
+        { sequenceNo: 3, keyword: 'THEN', name: 'Unsubscribed user receives no email', description: 'Check mailhog for user address.', expectation: 'No email arrives for unsubscribed address.' }
+      ],
+      createdAt: '2026-05-07T08:00:00Z',
+      updatedAt: '2026-05-07T08:00:00Z'
+    }
   ]
 };
 
@@ -354,6 +686,45 @@ export const mockPlansByProject: Record<string, ReleasePlan[]> = {
       coverageThreshold: 90,
       createdAt: '2026-05-22T08:00:00Z',
       updatedAt: '2026-05-22T08:00:00Z'
+    },
+    {
+      id: 'plan-payment-2026-04',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      name: '2026.04 Hotfix Validation',
+      releaseVersion: '2026.04.1',
+      description: 'Post-hotfix smoke and regression validation.',
+      status: 'CLOSED',
+      passThreshold: 90,
+      coverageThreshold: 85,
+      createdAt: '2026-04-10T08:00:00Z',
+      updatedAt: '2026-04-18T16:30:00Z'
+    },
+    {
+      id: 'plan-payment-2026-03',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      name: '2026.03 Feature Release',
+      releaseVersion: '2026.03',
+      description: null,
+      status: 'ARCHIVED',
+      passThreshold: 95,
+      coverageThreshold: 90,
+      createdAt: '2026-03-01T08:00:00Z',
+      updatedAt: '2026-03-28T12:00:00Z'
+    },
+    {
+      id: 'plan-payment-2026-06-prep',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      name: '2026.06 Prep',
+      releaseVersion: null,
+      description: 'Early preparation for June release scope.',
+      status: 'OPEN',
+      passThreshold: 95,
+      coverageThreshold: 90,
+      createdAt: '2026-05-25T08:00:00Z',
+      updatedAt: '2026-05-25T08:00:00Z'
     }
   ]
 };
@@ -361,6 +732,8 @@ export const mockPlansByProject: Record<string, ReleasePlan[]> = {
 export const mockTribes: Tribe[] = [
   { id: 'tribe-1', name: 'Platform', createdAt: '2026-01-01T00:00:00Z' },
   { id: 'tribe-2', name: 'Commerce', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tribe-3', name: 'Growth', createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'tribe-4', name: 'Mobile', createdAt: '2026-01-01T00:00:00Z' },
 ];
 
 export const mockSquads: Record<string, Squad[]> = {
@@ -371,6 +744,16 @@ export const mockSquads: Record<string, Squad[]> = {
   'tribe-2': [
     { id: 'squad-3', name: 'Payments', tribeId: 'tribe-2', createdAt: '2026-01-15T00:00:00Z' },
     { id: 'squad-4', name: 'Catalog & Search', tribeId: 'tribe-2', createdAt: '2026-01-15T00:00:00Z' },
+    { id: 'squad-6', name: 'Order Fulfillment', tribeId: 'tribe-2', createdAt: '2026-02-01T00:00:00Z' },
+  ],
+  'tribe-3': [
+    { id: 'squad-5', name: 'Notifications', tribeId: 'tribe-3', createdAt: '2026-02-10T00:00:00Z' },
+    { id: 'squad-7', name: 'Wallet & Rewards', tribeId: 'tribe-3', createdAt: '2026-02-10T00:00:00Z' },
+    { id: 'squad-8', name: 'Pricing', tribeId: 'tribe-3', createdAt: '2026-02-15T00:00:00Z' },
+  ],
+  'tribe-4': [
+    { id: 'squad-9', name: 'iOS', tribeId: 'tribe-4', createdAt: '2026-03-01T00:00:00Z' },
+    { id: 'squad-10', name: 'Android', tribeId: 'tribe-4', createdAt: '2026-03-01T00:00:00Z' },
   ],
 };
 

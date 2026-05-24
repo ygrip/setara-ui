@@ -6,33 +6,42 @@
 
   let {
     chartData,
-    size = 160,
-    label = ''
+    size = 220,
+    label = '',
+    legendPosition = 'bottom' as 'bottom' | 'right' | 'left' | 'top'
   }: {
     chartData: { labels: string[]; datasets: object[] };
     size?: number;
     label?: string;
+    legendPosition?: 'bottom' | 'right' | 'left' | 'top';
   } = $props();
 
   let canvas: HTMLCanvasElement;
+  let chart: Chart | null = null;
 
   onMount(() => {
-    const chart = new Chart(canvas, {
+    chart = new Chart(canvas, {
       type: 'doughnut',
       data: chartData as any,
       options: {
         responsive: false,
-        cutout: '68%',
+        cutout: '70%',
         plugins: {
           legend: {
-            position: 'right',
-            labels: { color: '#7d9589', font: { size: 12 }, padding: 12, boxWidth: 12 }
+            position: legendPosition,
+            labels: { color: '#7d9589', font: { size: 12 }, padding: 14, boxWidth: 13 }
           },
           tooltip: { enabled: true }
         }
       }
     });
-    return () => chart.destroy();
+    return () => chart?.destroy();
+  });
+
+  $effect(() => {
+    if (!chart) return;
+    chart.data = chartData as any;
+    chart.update();
   });
 </script>
 

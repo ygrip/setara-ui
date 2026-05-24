@@ -36,16 +36,19 @@
   );
 
   const statusDefs = [
-    { status: 'OPEN', color: 'neutral', desc: 'Plan exists but no scenario scope has been assigned yet.' },
+    { status: 'OPEN', color: 'neutral', desc: 'Plan created but no scenario scope assigned yet.' },
+    { status: 'ACTIVE', color: 'info', desc: 'Scenarios are scoped and execution evidence is being collected.' },
     { status: 'IN_PROGRESS', color: 'info', desc: 'Scenarios are scoped and execution evidence is being collected.' },
+    { status: 'AT_RISK', color: 'warning', desc: 'Plan is at risk — some quality gates may not be met.' },
     { status: 'CLOSED', color: 'success', desc: 'Plan has been signed off. Every scenario has evidence.' },
-    { status: 'ARCHIVED', color: 'neutral', desc: 'Plan has been archived.' }
+    { status: 'ARCHIVED', color: 'muted', desc: 'Plan has been archived and is no longer active.' }
   ];
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
       case 'CLOSED':
         return 'success';
+      case 'ACTIVE':
       case 'IN_PROGRESS':
         return 'info';
       case 'AT_RISK':
@@ -280,6 +283,7 @@
   .status-item { display: flex; align-items: center; gap: 12px; }
   .status-badge { display: inline-flex; align-items: center; justify-content: center; padding: 2px 10px; border-radius: 12px; font-size: 0.72rem; font-weight: 700; min-width: 80px; }
   .status-badge--neutral { background: var(--color-accent-subtle); color: var(--color-text-muted); }
+  .status-badge--muted { background: color-mix(in srgb, var(--color-border), transparent 20%); color: var(--color-text-muted); }
   .status-badge--info { background: #dbeafe; color: #1d4ed8; }
   .status-badge--success { background: #dcfce7; color: #15803d; }
   .status-badge--warning { background: #fef9c3; color: #92400e; }

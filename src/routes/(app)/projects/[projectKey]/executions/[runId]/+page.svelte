@@ -159,10 +159,10 @@
   const shortRunId = $derived(data.runId.slice(0, 8));
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
   const runDonut = $derived({
-    labels: ['Passed', 'Failed'],
+    labels: ['Passed', 'Failed', 'Skipped'],
     datasets: [{
-      data: [passedScenarios, failedScenarios],
-      backgroundColor: ['#0f766e', '#dc2626'],
+      data: [passedScenarios, failedScenarios, skippedScenarios],
+      backgroundColor: ['#0d9488', '#dc2626', '#f59e0b'],
       borderWidth: 0
     }]
   });
@@ -232,11 +232,12 @@
 
     <div class="section">
       <div class="panel visual-panel">
-        <div>
-          <h2 class="section-title">Run Result Mix</h2>
-          <p>{passedScenarios} passed and {failedScenarios} failed scenarios in this run.</p>
+        <div class="visual-text">
+          <h2 class="section-title">Result Composition</h2>
+          <p class="visual-desc">{passedScenarios} passed · {failedScenarios} failed · {skippedScenarios} skipped</p>
+          <p class="visual-desc">Pass rate: <strong>{passRate}%</strong></p>
         </div>
-        <DonutChart chartData={runDonut} size={160} />
+        <DonutChart chartData={runDonut} size={240} legendPosition="bottom" />
       </div>
     </div>
 
@@ -494,15 +495,19 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 20px;
+    gap: 32px;
     flex-wrap: wrap;
   }
 
-  .visual-panel p {
-    margin: 0;
+  .visual-text { flex: 1; min-width: 160px; }
+
+  .visual-desc {
+    margin: 4px 0 0;
     color: var(--color-text-muted);
     font-size: 0.875rem;
   }
+
+  .visual-desc strong { color: var(--color-text); }
 
   /* ── Run meta grid ─────────────────────────────────────────── */
   .meta-grid {

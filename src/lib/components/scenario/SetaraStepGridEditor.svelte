@@ -205,6 +205,10 @@
     };
   });
 
+  // ── Effective focused row (defaults to 0 when nothing is focused) ──────────
+  // This allows toolbar buttons to operate on row 0 even before user clicks a cell.
+  function eff() { return focusedRowIndex >= 0 ? focusedRowIndex : 0; }
+
   // ── Toolbar operations ────────────────────────────────────────
   function addRow() {
     const insertAt = focusedRowIndex >= 0 ? focusedRowIndex + 1 : rows.length;
@@ -215,15 +219,16 @@
   }
 
   function deleteRow() {
-    if (focusedRowIndex < 0 || rows.length <= 1) return;
-    const updated = rows.filter((_, i) => i !== focusedRowIndex);
+    if (rows.length <= 1) return;
+    const idx = eff();
+    const updated = rows.filter((_, i) => i !== idx);
     rows = validateRows(reorder(updated.length > 0 ? updated : [emptyRow(1)]));
-    focusedRowIndex = Math.min(focusedRowIndex, rows.length - 1);
+    focusedRowIndex = Math.min(idx, rows.length - 1);
     onchange(toBackendSteps(rows));
   }
 
   function moveUp() {
-    const idx = focusedRowIndex;
+    const idx = eff();
     if (idx <= 0 || idx >= rows.length) return;
     const updated = [...rows];
     [updated[idx - 1], updated[idx]] = [updated[idx], updated[idx - 1]];
@@ -233,8 +238,8 @@
   }
 
   function moveDown() {
-    const idx = focusedRowIndex;
-    if (idx < 0 || idx >= rows.length - 1) return;
+    const idx = eff();
+    if (idx >= rows.length - 1) return;
     const updated = [...rows];
     [updated[idx], updated[idx + 1]] = [updated[idx + 1], updated[idx]];
     rows = validateRows(reorder(updated));
@@ -243,17 +248,18 @@
   }
 
   function duplicateRow() {
-    if (focusedRowIndex < 0 || focusedRowIndex >= rows.length) return;
-    const src = rows[focusedRowIndex];
+    const idx = eff();
+    if (idx >= rows.length) return;
+    const src = rows[idx];
     const dupe: StepGridRow = {
       ...src,
       _id: crypto.randomUUID(),
       order: 0
     };
     const updated = [...rows];
-    updated.splice(focusedRowIndex + 1, 0, dupe);
+    updated.splice(idx + 1, 0, dupe);
     rows = validateRows(reorder(updated));
-    focusedRowIndex = focusedRowIndex + 1;
+    focusedRowIndex = idx + 1;
     onchange(toBackendSteps(rows));
   }
 
@@ -283,19 +289,19 @@
       <div class="toolbar-group">
         <button title="Add row after focused" onclick={addRow}>+ Row</button>
         <button
-          title="Delete focused row"
+          title="Delete focused row (or row 0 if none selected)"
           onclick={deleteRow}
-          disabled={rows.length <= 1 || focusedRowIndex < 0}
+          disabled={rows.length <= 1}
           class="danger-text"
         >Delete</button>
         <span class="divider"></span>
-        <button title="Move row up" onclick={moveUp} disabled={focusedRowIndex <= 0}>↑ Up</button>
+        <button title="Move row up" onclick={moveUp} disabled={eff() <= 0}>↑ Up</button>
         <button
           title="Move row down"
           onclick={moveDown}
-          disabled={focusedRowIndex < 0 || focusedRowIndex >= rows.length - 1}
+          disabled={eff() >= rows.length - 1}
         >↓ Down</button>
-        <button title="Duplicate focused row" onclick={duplicateRow} disabled={focusedRowIndex < 0}
+        <button title="Duplicate focused row (or row 0 if none selected)" onclick={duplicateRow}
           >Duplicate</button
         >
         <span class="divider"></span>

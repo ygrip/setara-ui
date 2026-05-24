@@ -1,9 +1,17 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (release plan scenario execution, audit modal, and run import)
+Last synced with parent tracker: 2026-05-25 (UI polish: charts, tree lines, step editor fixes)
 
 ```text
-UI: [x] Release plan scenario execution workflow, audit modal, and run import polished
+UI: [x] DonutChart bigger default (220px), reactive data updates, legend at bottom, legendPosition prop
+UI: [x] Dashboard coverage trend chart: flat Setara-themed colors (teal/indigo/amber), height 290px, click-to-expand popup with filter controls
+UI: [x] Aggregate history mock respects groupedBy (daily/weekly/monthly buckets with realistic growth variation)
+UI: [x] Coverage page: removed 3 static dummy donuts; replaced with real computed automation breakdown donut
+UI: [x] Plan status legend and statusVariant updated to include ACTIVE, AT_RISK, ARCHIVED alongside IN_PROGRESS/CLOSED/OPEN
+UI: [x] Mock plans expanded with 4 plans (ACTIVE, CLOSED, ARCHIVED, OPEN) for realistic display
+UI: [x] Execution detail donut: size 240, includes Skipped, legend at bottom, improved visual-panel layout
+UI: [x] Repository tree: IDE-style connected guide lines via nested .tree-children border-left (no more disconnected ::before segments)
+UI: [x] SetaraStepGridEditor toolbar: Delete/Move/Duplicate buttons no longer always-disabled; use effective row 0 when no cell is focused
 ```
 
 - [x] Git repository initialized on `main`.
@@ -121,12 +129,22 @@ UI: [x] Release plan scenario execution workflow, audit modal, and run import po
 - [x] Repository scenario table layout tightened: aligned row/grid spacing, stable status widths, cleaner step preview width, and clearer priority badge colors.
 - [x] Scenario creation page (`scenarios/new`) migrated from textarea step table to `SetaraStepGridEditor`.
 - [x] Global error page (`+error.svelte`) with status-aware messages and animated floating icon (404 / 403 / 401 / 5xx / generic).
+- [x] DonutChart bigger default (220px), reactive updates, legendPosition prop, legend at bottom.
+- [x] Dashboard coverage trend: flat Setara colors, taller chart (290px), click-to-expand modal with filter controls.
+- [x] Aggregate history mock respects `groupedBy` (daily/weekly/monthly) with realistic growth + oscillation.
+- [x] Coverage page: 3 identical static donuts removed; single real automation breakdown donut from live stats.
+- [x] Plan status reference legend and `statusVariant` include ACTIVE, AT_RISK, ARCHIVED, IN_PROGRESS, CLOSED, OPEN.
+- [x] Mock plans expanded to 4 entries (ACTIVE, CLOSED, ARCHIVED, OPEN) for realistic plan list display.
+- [x] Execution detail: donut size 240, Skipped included, legend at bottom, improved layout.
+- [x] Repository tree: IDE-style connected guide lines via nested `.tree-children` `border-left` containers.
+- [x] SetaraStepGridEditor: Delete/Move/Duplicate toolbar buttons functional from first render (default to row 0 when no cell focused).
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
 
 ## Latest Commits
 
 ```text
+(pending) UI polish: charts, tree guide lines, step editor toolbar, plan status, groupedBy mock fix
 f2d569c Fix repository UI: drawer layout, RevoGrid double-numbering, preview, row height, error page
 7486116 Add RevoGrid step editor, paste-parse, markdown preview, and API alignment fixes
 Add directory rename/move/delete and bulk scenario copy/delete with filters

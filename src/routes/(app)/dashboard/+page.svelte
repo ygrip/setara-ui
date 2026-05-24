@@ -2,6 +2,7 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { listAggregateStatisticHistory, type AggregateStatisticPoint } from '$lib/api/statistics';
 
   let { data } = $props();
@@ -13,6 +14,7 @@
   let aggregateHistory = $state<AggregateStatisticPoint[]>([]);
   let chartBusy = $state(false);
   let chartError = $state('');
+  let showChartExpand = $state(false);
 
   $effect(() => {
     if (initialized) return;
@@ -42,26 +44,30 @@
         type: 'bar',
         label: 'Total Scenarios',
         data: aggregateHistory.map(row => row.totalScenarios),
-        backgroundColor: 'rgba(15, 118, 110, 0.22)',
-        borderColor: '#0f766e',
+        backgroundColor: 'rgba(13, 148, 136, 0.55)',
+        borderColor: '#0d9488',
+        borderRadius: 3,
         yAxisID: 'y'
       },
       {
         type: 'bar',
-        label: 'Total Automated',
+        label: 'Automated',
         data: aggregateHistory.map(row => row.totalAutomated),
-        backgroundColor: 'rgba(37, 99, 235, 0.22)',
-        borderColor: '#2563eb',
+        backgroundColor: 'rgba(99, 102, 241, 0.65)',
+        borderColor: '#6366f1',
+        borderRadius: 3,
         yAxisID: 'y'
       },
       {
         type: 'line',
-        label: 'Automation Coverage %',
+        label: 'Coverage %',
         data: aggregateHistory.map(row => row.automationCoveragePercentage),
-        borderColor: '#b45309',
-        backgroundColor: 'rgba(180, 83, 9, 0.12)',
-        tension: 0.35,
+        borderColor: '#f59e0b',
+        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        tension: 0.4,
         pointRadius: 3,
+        pointBackgroundColor: '#f59e0b',
+        borderWidth: 2,
         yAxisID: 'y1'
       }
     ]
@@ -132,7 +138,7 @@
     <div class="section-heading">
       <div>
         <h2 class="section-title">Overall Coverage Trend</h2>
-        <p class="section-subtitle">Total scenarios, automated scenarios, and automation coverage over time.</p>
+        <p class="section-subtitle">Scenarios, automation, and coverage percentage over time.</p>
       </div>
       <div class="chart-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -144,14 +150,34 @@
             <option value="monthly">Monthly</option>
           </select>
         </label>
+        <button class="expand-btn" title="Expand chart" onclick={() => showChartExpand = true}>⛶ Expand</button>
       </div>
     </div>
-    <div class="chart-card">
-      <LineChart chartData={coverageTrend} height={220} />
+    <div class="chart-card" role="button" tabindex="0" title="Click to expand" onclick={() => showChartExpand = true} onkeydown={(e) => { if (e.key === 'Enter') showChartExpand = true; }}>
+      <LineChart chartData={coverageTrend} height={290} />
       {#if chartBusy}<p class="chart-note">Refreshing chart…</p>{/if}
       {#if chartError}<p class="chart-error">{chartError}</p>{/if}
     </div>
   </div>
+
+  <!-- Chart expand modal -->
+  <Modal open={showChartExpand} title="Overall Coverage Trend" onclose={() => showChartExpand = false}>
+    <div class="expand-modal-content">
+      <div class="expand-controls">
+        <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
+        <label>End <input type="date" bind:value={chartEnd} onchange={refreshChart} /></label>
+        <label>Group
+          <select bind:value={groupedBy} onchange={refreshChart}>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
+      </div>
+      <LineChart chartData={coverageTrend} height={400} />
+      {#if chartBusy}<p class="chart-note">Refreshing…</p>{/if}
+    </div>
+  </Modal>
 
   <!-- Recent projects -->
   <div class="section">
@@ -282,6 +308,45 @@
   }
 
   .chart-error { color: var(--color-danger); }
+
+  .expand-btn {
+    font: inherit;
+    font-size: 0.78rem;
+    padding: 6px 11px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .expand-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .chart-card {
+    cursor: pointer;
+    transition: box-shadow 0.15s;
+  }
+  .chart-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%); }
+
+  .expand-modal-content { display: flex; flex-direction: column; gap: 14px; min-width: min(760px, 90vw); }
+  .expand-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
+  .expand-controls label {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+  .expand-controls input,
+  .expand-controls select {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    padding: 7px 9px;
+    font: inherit;
+  }
 
   .section-subtitle {
     margin: 0;
