@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [~] Repository uses directory contract with scenario counts
+UI: [~] Scenario execution detail + centralized WS done; dashboard WS updates pending
 ```
 
 - [x] Git repository initialized on `main`.
@@ -59,8 +59,14 @@ UI: [~] Repository uses directory contract with scenario counts
 - [x] Leadership coverage dashboard backed by project statistics.
 - [x] Dashboard aggregate coverage graph backed by project statistics history.
 - [x] Project coverage page backed by statistics history.
+- [x] Excel bulk scenario import wizard (`/projects/{key}/repository/import`) — dropzone → validate → confirm → result.
+- [x] Import history table with status badges, row counts, error report download link.
+- [x] Async polling for QUEUED/PROCESSING import jobs (3 s interval, `onDestroy` cleanup).
 - [x] Manual execution screen.
 - [x] WebSocket live run updates.
+- [x] Centralized WebSocket manager (`stores/websocket.svelte.ts`) with auto-reconnect + multi-subscriber.
+- [x] Scenario execution detail panel — slide-in from right: status, meta, exception, steps (lazy-fetched).
+- [x] Clickable scenario result rows in run detail (keyboard + mouse, selected row highlight).
 - [x] Plans detail page.
 - [x] Plan scenario add/remove workflow.
 - [x] Plan execution evidence selection workflow.
@@ -72,7 +78,7 @@ UI: [~] Repository uses directory contract with scenario counts
 ## Latest Commits
 
 ```text
-8fe2136 Use directory contract in repository UI
-271c19c Sync UI tracker
-f39dda5 Revamp dashboard repository and release plan UI
+8e7251f Add scenario execution detail panel and centralize WebSocket handling
+82475ac Add async polling, import history, and error report download to import wizard
+6181b66 Add Excel scenario import UI
 ```
