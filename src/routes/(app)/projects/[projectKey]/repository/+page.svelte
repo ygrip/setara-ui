@@ -602,14 +602,6 @@
                   <span class="node-label"><strong>{node.name}</strong></span>
                   <span class="count-pill">{node.totalCount}</span>
                 </button>
-                <div class="tree-actions">
-                  <button class="ta-btn ta-secondary" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(node.directoryId ?? node.id, 'Directory id', e)}>{@render iconCopy()}</button>
-                  <button class="ta-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(node.id); }}>{@render iconFolderPlus()}</button>
-                  <button class="ta-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(node.id)); }}>{@render iconFilePlus()}</button>
-                  <button class="ta-btn ta-secondary" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(node.id, node.name); }}>{@render iconPencil()}</button>
-                  <button class="ta-btn ta-secondary" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(node.id, node.name); }}>{@render iconMove()}</button>
-                  <button class="ta-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(node.id, node.name); }}>{@render iconTrash()}</button>
-                </div>
               </div>
             </div>
             {#if expandedIds.has(node.id)}
@@ -641,11 +633,18 @@
           <div class="title-row">
             <h1>{selectedTitle}</h1>
             <span class="scenario-count-badge">{sortedScenarios.length} scenarios</span>
-            {#if selectedDirectory}
-              <button class="ta-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()}</button>
-            {/if}
           </div>
           <p class="panel-subtitle">{selectedDirectory?.path ?? data.projectKey}</p>
+          {#if selectedDirectory}
+            <div class="directory-toolbar" aria-label="Directory actions">
+              <button class="dir-action-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()} <span>Copy ID</span></button>
+              <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
+              <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
+              <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
+              <button class="dir-action-btn" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconMove()} <span>Move</span></button>
+              <button class="dir-action-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconTrash()} <span>Delete</span></button>
+            </div>
+          {/if}
         </div>
         <div class="header-actions">
           <div class="segmented">
@@ -1099,6 +1098,7 @@
   .scenario-topbar { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
   .tree-topbar-actions,
   .header-actions,
+  .directory-toolbar,
   .segmented { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .panel-title { font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
   .panel-subtitle { margin: 3px 0 0; font-size: 0.76rem; color: var(--color-text-muted); }
@@ -1114,6 +1114,10 @@
   .primary-outline { border-color: color-mix(in srgb, var(--color-accent), transparent 55%); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
   .icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; text-decoration: none; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text-muted); font-weight: 800; line-height: 1; }
   .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .directory-toolbar { margin-top: 10px; max-width: min(100%, 760px); }
+  .dir-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 10px; font-size: 0.76rem; font-weight: 760; line-height: 1; white-space: nowrap; color: var(--color-text-muted); }
+  .dir-action-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
+  .dir-action-btn.danger { color: var(--color-danger, #ef4444); }
   /* Import button */
   .import-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; text-decoration: none; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 0.78rem; font-weight: 700; line-height: 1; white-space: nowrap; transition: border-color 0.12s, color 0.12s; }
   .import-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
@@ -1141,10 +1145,7 @@
   .tree-all-btn.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
   .all-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: color-mix(in srgb, var(--color-accent), transparent 82%); color: var(--color-accent); font-size: 0.85rem; flex-shrink: 0; }
   .all-label { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity 0.12s; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: 2px 3px; z-index: 2; box-shadow: 0 1px 6px color-mix(in srgb, #000, transparent 88%); }
-  .tree-line:hover .tree-actions,
-  .tree-line:focus-within .tree-actions { opacity: 1; pointer-events: auto; }
-  .ta-btn { display: inline-grid; place-items: center; width: 24px; height: 24px; padding: 0; border: none; background: transparent; color: var(--color-text-muted); border-radius: 4px; cursor: pointer; transition: background 0.1s, color 0.1s; flex-shrink: 0; }
+  .ta-btn { display: inline-grid; place-items: center; width: 28px; height: 28px; padding: 0; border: none; background: transparent; color: var(--color-text-muted); border-radius: 5px; cursor: pointer; transition: background 0.1s, color 0.1s; flex-shrink: 0; }
   .ta-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); }
   .ta-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger, #ef4444), transparent 85%); color: var(--color-danger, #ef4444); }
   .ta-btn.ta-secondary { opacity: 0.75; }
@@ -1183,12 +1184,12 @@
   .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
   .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
   .scenario-panel :global(td),
-  .scenario-panel :global(th) { padding: 14px 18px; vertical-align: middle; }
+  .scenario-panel :global(th) { padding: 16px 18px; vertical-align: middle; }
   .scenario-panel :global(tbody tr:hover) { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .click-row { cursor: pointer; }
   /* Name cell: key above name + copy button */
-  .name-cell { min-width: 180px; }
-  .name-cell-inner { display: flex; align-items: center; gap: 10px; }
+  .name-cell { min-width: 240px; width: 30%; }
+  .name-cell-inner { display: flex; align-items: center; gap: 10px; min-height: 50px; }
   .name-cell-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
   .scenario-key { font-family: ui-monospace, monospace; font-size: 0.75rem; color: var(--color-accent); font-weight: 700; }
   .name-link { border: 0; background: transparent; padding: 0; text-align: left; color: var(--color-text); font-weight: 700; line-height: 1.45; cursor: pointer; white-space: normal; }
@@ -1202,20 +1203,20 @@
   .auto-icon.is-manual { color: var(--color-text-muted); opacity: 0.55; }
   .auto-icon.is-automatable { color: #d97706; opacity: 1; }
   .auto-icon.is-automated { color: var(--color-success, #0d9488); opacity: 1; }
-  .steps-preview { display: grid; gap: 8px; min-width: 260px; max-width: 420px; }
+  .steps-preview { display: grid; gap: 7px; min-width: 300px; max-width: 460px; }
   .steps-preview button { display: flex; gap: 9px; align-items: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 0; background: transparent; padding: 0; color: var(--color-text); font-size: 0.84rem; line-height: 1.35; }
   .steps-preview button span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-size: 0.68rem; font-weight: 800; flex: 0 0 auto; }
   .steps-preview button.washed { color: var(--color-text-muted); opacity: 0.5; }
   .steps-preview .show-more { color: var(--color-accent); font-weight: 800; width: max-content; opacity: 1; }
-  .status-badge { display: inline-flex; align-items: center; width: max-content; border-radius: 999px; background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); padding: 5px 10px; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; }
+  .status-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 72px; width: max-content; border-radius: 999px; background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); padding: 5px 10px; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; }
   .status-badge.status-draft { background: color-mix(in srgb, #d97706, transparent 84%); color: #92400e; }
   .status-badge.status-active { background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); }
   .status-badge.status-archived { background: color-mix(in srgb, var(--color-text-muted), transparent 82%); color: var(--color-text-muted); }
   /* Priority badge color variants */
   .priority-critical { background: color-mix(in srgb, var(--color-danger, #ef4444), transparent 86%); color: var(--color-danger, #dc2626); }
   .priority-high { background: color-mix(in srgb, #f97316, transparent 84%); color: #c2410c; }
-  .priority-medium { background: color-mix(in srgb, #f59e0b, transparent 84%); color: #b45309; }
-  .priority-low { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
+  .priority-medium { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
+  .priority-low { background: color-mix(in srgb, #14b8a6, transparent 88%); color: #0f766e; }
   .priority-unset { background: color-mix(in srgb, var(--color-text-muted), transparent 86%); color: var(--color-text-muted); }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
   .empty-state.compact { padding: 16px; }
@@ -1319,6 +1320,8 @@
     :global(.scenario-drawer) { width: 100vw; }
     .scenario-topbar { align-items: stretch; flex-direction: column; }
     .header-actions { flex-wrap: wrap; }
+    .directory-toolbar { margin-top: 12px; }
+    .dir-action-btn { flex: 1 1 118px; }
   }
   @media (max-width: 720px) {
     .tree-list { padding-inline: 10px; }
@@ -1328,10 +1331,11 @@
     .filter-bar { display: grid; grid-template-columns: 1fr; }
     .filter-group { display: grid; align-items: stretch; }
     .header-actions { justify-content: space-between; }
+    .directory-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .dir-action-btn { width: 100%; min-width: 0; }
   }
-  /* Touch / mobile: always show tree actions and copy buttons */
+  /* Touch / mobile: always show copy buttons */
   @media (hover: none) and (pointer: coarse) {
-    .tree-actions { position: static; transform: none; opacity: 1; pointer-events: auto; background: transparent; border: none; box-shadow: none; padding: 0; gap: 0; margin-left: 2px; }
     .ta-secondary { display: none; }
     .tree-line { gap: 2px; }
     .copy-name-btn { opacity: 1; }

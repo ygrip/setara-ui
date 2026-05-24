@@ -10,7 +10,7 @@
    */
 
   import { untrack } from 'svelte';
-  import type { ColumnRegular } from '@revolist/revogrid';
+  import type { ColumnRegular, EditorBase, EditorCtr, ColumnDataSchemaModel, EditCell } from '@revolist/revogrid';
   import { RevoGrid } from '@revolist/svelte-datagrid';
   import StepPasteParseDialog from './StepPasteParseDialog.svelte';
   import { renderMarkdown } from '$lib/markdown';
@@ -86,6 +86,49 @@
     BUT: '#64748b'
   };
 
+  const keywordSelectEditor: EditorCtr = (_column: ColumnDataSchemaModel, save: (value?: unknown, preventFocus?: boolean) => void): EditorBase => {
+    let selectEl: HTMLSelectElement | null = null;
+    const editor: EditorBase = {
+      element: null,
+      editCell: undefined,
+      componentDidRender() {
+        selectEl?.focus();
+      },
+      beforeDisconnect() {
+        selectEl?.blur();
+      },
+      getValue() {
+        return selectEl?.value ?? '';
+      },
+      render(h) {
+        const editCell = editor.editCell as (EditCell & { val?: string }) | undefined;
+        const value = editCell?.val ?? '';
+        return h(
+          'select',
+          {
+            class: 'keyword-select-editor',
+            value,
+            ref: (el: HTMLSelectElement) => {
+              selectEl = el;
+            },
+            onChange: (event: Event) => {
+              save((event.currentTarget as HTMLSelectElement).value, false);
+            },
+            onKeyDown: (event: KeyboardEvent) => {
+              if (event.key === 'Escape') selectEl?.blur();
+            }
+          },
+          KEYWORD_VALUES.map((keyword) =>
+            h('option', { value: keyword, selected: keyword === value }, keyword || 'Unset')
+          )
+        );
+      }
+    };
+    return editor;
+  };
+
+  const gridEditors = { keywordSelect: keywordSelectEditor };
+
   const gridColumns: ColumnRegular[] = [
     {
       prop: 'order',
@@ -100,8 +143,7 @@
       prop: 'keyword',
       name: 'Keyword',
       size: 110,
-      editor: 'select',
-      source: KEYWORD_VALUES,
+      editor: 'keywordSelect',
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       cellProperties: ((props: any) => {
         const kw: string = props?.model?.keyword ?? '';
@@ -312,6 +354,7 @@
       <RevoGrid
         source={gridSource}
         columns={gridColumns}
+        editors={gridEditors}
         theme="compact"
         rowSize={rowSize}
         resize={true}
@@ -457,6 +500,20 @@
     --revo-theme-focus-color: var(--color-accent);
     --revo-theme-selection-color: color-mix(in srgb, var(--color-accent), transparent 80%);
     --revo-theme-text-color: var(--color-text);
+  }
+
+  .grid-wrap :global(.keyword-select-editor) {
+    width: 100%;
+    height: 100%;
+    border: 1px solid var(--color-accent);
+    border-radius: 4px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 800;
+    padding: 0 8px;
+    outline: none;
   }
 
   /* Preview */

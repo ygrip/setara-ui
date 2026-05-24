@@ -1,9 +1,9 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-24 (commit f2d569c)
+Last synced with parent tracker: 2026-05-25 (repository toolbar, priority badges, and RevoGrid keyword dropdown)
 
 ```text
-UI: [x] Repository tree/table uses headless primitives with spacious navigation and scenario drawer editing
+UI: [x] Repository tree/table uses headless primitives with spacious navigation, drawer editing, and cleaner directory actions
 ```
 
 - [x] Git repository initialized on `main`.
@@ -52,8 +52,9 @@ UI: [x] Repository tree/table uses headless primitives with spacious navigation 
 - [ ] Permission/role-aware UI states.
 - [ ] Session refresh behavior.
 - [x] Scenario tree view (live, connected to backend).
-- [x] Repository tree displays directory counts, scenario leaves, hover actions, and copy buttons for directory/scenario IDs.
+- [x] Repository tree displays directory counts, scenario leaves, and copy buttons for directory/scenario IDs.
 - [x] Repository tree spacing widened, uses navbar-aligned surface color, and truncates parent/current long names cleanly.
+- [x] Directory actions moved out of row hover chrome into the selected-directory toolbar with uniform responsive buttons.
 - [x] Directory/feature node create, rename, and delete actions.
 - [x] Scenario create/archive workflow with dedicated creation page.
 - [x] Tabular bulk scenario draft creation.
@@ -97,6 +98,7 @@ UI: [x] Repository tree/table uses headless primitives with spacious navigation 
 - [x] Quality gate dashboard for release plans.
 - [x] Per-project release plan list/create/status/archive workflow.
 - [x] `SetaraStepGridEditor.svelte` — RevoGrid-backed step editor with Edit/Preview modes, toolbar (add/delete/move/duplicate/normalize), markdown preview via marked+highlight.js.
+- [x] `SetaraStepGridEditor.svelte` keyword cells use a real dropdown editor for GIVEN/WHEN/THEN/AND/BUT.
 - [x] `StepPasteParseDialog.svelte` — paste & parse unstructured text (Gherkin, numbered, bullet, multiline) into step rows with live preview.
 - [x] `step-parser.ts` — frontend step text parser matching backend `StepCellParser` logic.
 - [x] Repository scenario drawer step editor replaced with `SetaraStepGridEditor`.
@@ -109,6 +111,7 @@ UI: [x] Repository tree/table uses headless primitives with spacious navigation 
 - [x] Row height selector added to RevoGrid toolbar (Compact / Normal / Spacious).
 - [x] Scenario drawer restructured to flex-column with always-visible footer; Save/Close buttons reliably accessible.
 - [x] Import button relocated to scenario panel header, renamed from "Import Excel" to "Import".
+- [x] Repository scenario table layout tightened: aligned row/grid spacing, stable status widths, cleaner step preview width, and clearer priority badge colors.
 - [x] Scenario creation page (`scenarios/new`) migrated from textarea step table to `SetaraStepGridEditor`.
 - [x] Global error page (`+error.svelte`) with status-aware messages and animated floating icon (404 / 403 / 401 / 5xx / generic).
 - [ ] End-to-end smoke tests.
