@@ -1,9 +1,9 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (release plan lifecycle audit metadata)
+Last synced with parent tracker: 2026-05-25 (release plan scenario execution, audit modal, and run import)
 
 ```text
-UI: [x] Release plan lifecycle audit metadata visible in plan detail
+UI: [x] Release plan scenario execution workflow, audit modal, and run import polished
 ```
 
 - [x] Git repository initialized on `main`.
@@ -32,7 +32,7 @@ UI: [x] Release plan lifecycle audit metadata visible in plan detail
 - [x] Coverage page (`/projects/{key}/coverage`) — metric cards, formulas reference, chart placeholders.
 - [x] Release Plans page (`/projects/{key}/release-plans`) — sortable/filterable table with create-plan modal and collapsible status reference.
 - [x] Release Plans page connected to backend plan contract with list/create/status/archive actions.
-- [x] Release Plan detail (`/projects/{key}/release-plans/{planId}`) — scenario scope, execution evidence, larger composition chart, manual evidence, and sign-off.
+- [x] Release Plan detail (`/projects/{key}/release-plans/{planId}`) — scenario scope, execution state, larger composition chart, manual evidence, run import, audit trail, and sign-off.
 - [x] Project Settings page (`/projects/{key}/settings`) — edit metadata, description, squad assignment, and active/inactive state.
 - [x] API Keys settings page (`/projects/{key}/settings/api-keys`) — full key management with create/revoke/rotate and multi-select permissions.
 - [x] Admin layout with horizontal pill sub-nav (Tribes / Squads / Users / Roles).
@@ -96,9 +96,12 @@ UI: [x] Release plan lifecycle audit metadata visible in plan detail
 - [x] Plans detail page.
 - [x] Plan scenario add/remove workflow.
 - [x] Plan execution evidence selection workflow.
-- [x] Plan scenario list shows runnable/manual scope, evidence status, and run-by/selected-by context.
+- [x] Plan scenario list shows execution source, expected PASS, actual status, and run-by/selected-by context.
 - [x] Plan sign-off flow blocks closing until every scoped scenario has evidence.
-- [x] Plan detail displays lifecycle audit metadata for opened, in-progress, and signed-off states plus sign-off notes.
+- [x] Plan detail displays lifecycle audit metadata behind an Audit Trail modal with progress steps.
+- [x] Add manual scenario uses searchable directory tree + scenario filter popup.
+- [x] Add from last run opens automation execution history and bulk-adds run scenarios.
+- [x] Scenario steps are available from the plan scenario list via detail popup.
 - [x] Quality gate dashboard for release plans.
 - [x] Per-project release plan list/create/status/archive workflow.
 - [x] `SetaraStepGridEditor.svelte` — RevoGrid-backed step editor with Edit/Preview modes, toolbar (add/delete/move/duplicate/normalize), markdown preview via marked+highlight.js.

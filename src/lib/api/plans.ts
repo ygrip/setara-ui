@@ -65,6 +65,14 @@ export interface PlanSelection {
   selectedAt: string;
 }
 
+export interface AddRunResultBulk {
+  planId: string;
+  runId: string;
+  addedScenarios: number;
+  selectedExecutions: number;
+  skippedResults: number;
+}
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, init);
   if (!res.ok) {
@@ -144,6 +152,15 @@ export async function addPlanScenarioFromRunResult(projectKey: string, planId: s
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ scenarioRunResultId, selectedBy })
+  });
+  return res.json();
+}
+
+export async function addPlanScenariosFromRun(projectKey: string, planId: string, runId: string, selectedBy?: string): Promise<AddRunResultBulk> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios/from-run`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ runId, selectedBy })
   });
   return res.json();
 }
