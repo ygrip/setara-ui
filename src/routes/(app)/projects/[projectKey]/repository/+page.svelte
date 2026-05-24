@@ -99,6 +99,7 @@
   const uniquePriorities = $derived(
     [...new Set(scopedScenarios.map((s: Scenario) => s.priority).filter(Boolean))] as string[]
   );
+  const selectedTitle = $derived(selectedDirectory ? selectedDirectory.name : 'All Scenarios');
 
   // Directories available as move targets (excludes selected node and its descendants)
   const moveCandidates = $derived(
@@ -187,6 +188,12 @@
       case 'DRAFT': case 'BLOCKED': case 'MANUAL_ONLY': return 'warning';
       default: return 'neutral';
     }
+  }
+
+  function directScenariosForNode(nodeId: string): Scenario[] {
+    return scopedScenarios
+      .filter((scenario: Scenario) => scenario.nodeId === nodeId)
+      .sort((a: Scenario, b: Scenario) => a.name.localeCompare(b.name));
   }
 
   // ── Tree interaction ─────────────────────────────────────────
@@ -413,22 +420,6 @@
 </svelte:head>
 
 <div class="page">
-  <nav class="breadcrumb">
-    <a href="/projects">Projects</a>
-    <span class="sep">›</span>
-    <a href="/projects/{data.projectKey}">{data.projectKey}</a>
-    <span class="sep">›</span>
-    <span>Test Repository</span>
-  </nav>
-
-  <div class="page-header">
-    <div>
-      <h1 class="page-title">Test Repository</h1>
-      <p class="page-subtitle">Browse directories, review drafts, and manage scenario scope.</p>
-    </div>
-    <a class="import-btn" href="/projects/{data.projectKey}/repository/import">⬆ Import Excel</a>
-  </div>
-
   {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
   {#if actionError}<div class="error-banner">{actionError}</div>{/if}
   {#if copyMessage}<div class="toast">{copyMessage}</div>{/if}
@@ -436,79 +427,71 @@
   <div class="repo-layout">
     <!-- ── Directory tree ──────────────────────────────────────── -->
     <aside class="tree-panel">
-      <div class="panel-header">
-        <div>
-          <span class="panel-title">Directories</span>
-          <p class="panel-subtitle">
-            {reviewMode === 'LIVE' ? data.scenarios.length : data.draftScenarios.length} scenarios
-          </p>
+      <div class="tree-topbar">
+        <span class="panel-title">Test Repository</span>
+        <div class="tree-topbar-actions">
+          <button class="icon-btn" title="Add root directory" aria-label="Add root directory" onclick={() => openNodeModal(null)}>＋</button>
+          <a class="icon-btn" title="Import Excel" aria-label="Import Excel" href="/projects/{data.projectKey}/repository/import">⇧</a>
         </div>
-        <button onclick={() => openNodeModal(null)}>+ Dir</button>
       </div>
 
       <button
-        class="tree-item all-item"
+        class="tree-node all-item"
         class:active={selectedNodeId === null}
         onclick={() => selectNode(null)}
       >
-        <span class="node-icon">A</span>
-        <span><strong>All Scenarios</strong><small>{scopedScenarios.length} total</small></span>
+        <span class="tree-caret"></span>
+        <span class="node-icon folder">▣</span>
+        <span class="node-label"><strong>All Scenarios</strong></span>
+        <span class="count-pill">{scopedScenarios.length}</span>
       </button>
 
       <div class="tree-list">
         {#snippet treeRows(nodes: TreeNode[], level = 0)}
           {#each nodes as node}
             <div class="tree-row" style={`--level: ${level}`}>
-              <div class="tree-item-wrap">
+              <div class="tree-line">
                 <button
-                  class="twisty"
+                  class="tree-caret"
                   onclick={(e) => toggleExpand(node.id, e)}
                   aria-label="Toggle directory"
                 >
-                  {node.children.length ? (expandedIds.has(node.id) ? '⌄' : '›') : ''}
+                  {node.children.length || node.directCount ? (expandedIds.has(node.id) ? '⌄' : '›') : ''}
                 </button>
                 <button
-                  class="tree-item"
+                  class="tree-node"
                   class:active={selectedNodeId === node.id}
                   onclick={() => selectNode(node.id)}
                 >
-                  <span class="node-icon">D</span>
-                  <span class="node-main">
-                    <strong>{node.name}</strong>
-                    <small>{node.totalCount} scenarios</small>
-                  </span>
+                  <span class="node-icon folder">▰</span>
+                  <span class="node-label"><strong>{node.name}</strong></span>
+                  <span class="count-pill">{node.totalCount}</span>
                 </button>
-              </div>
-              <div class="tree-actions">
-                <button
-                  title="Copy directory id"
-                  onclick={(e) => copyText(node.directoryId ?? node.id, 'Directory id', e)}
-                >Copy ID</button>
-                <button
-                  title="Add sub directory"
-                  onclick={(e) => { e.stopPropagation(); openNodeModal(node.id); }}
-                >+ Dir</button>
-                <button
-                  title="Add scenario"
-                  onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(node.id)); }}
-                >+ Scen</button>
-                <button
-                  title="Rename directory"
-                  onclick={(e) => { e.stopPropagation(); openRenameModal(node.id, node.name); }}
-                >Rename</button>
-                <button
-                  title="Move directory to a different parent"
-                  onclick={(e) => { e.stopPropagation(); openMoveModal(node.id, node.name); }}
-                >Move</button>
-                <button
-                  class="danger"
-                  title="Delete empty directory"
-                  onclick={(e) => { e.stopPropagation(); openDeleteDirModal(node.id, node.name); }}
-                >Delete</button>
+                <div class="tree-actions">
+                  <button class="icon-btn ghost" title="Copy directory id" aria-label="Copy directory id" onclick={(e) => copyText(node.directoryId ?? node.id, 'Directory id', e)}>⧉</button>
+                  <button class="icon-btn ghost" title="Add sub directory" aria-label="Add sub directory" onclick={(e) => { e.stopPropagation(); openNodeModal(node.id); }}>＋</button>
+                  <button class="icon-btn ghost" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(node.id)); }}>◆</button>
+                  <button class="icon-btn ghost" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(node.id, node.name); }}>✎</button>
+                  <button class="icon-btn ghost" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(node.id, node.name); }}>↕</button>
+                  <button class="icon-btn ghost danger" title="Delete empty directory" aria-label="Delete empty directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(node.id, node.name); }}>×</button>
+                </div>
               </div>
             </div>
             {#if expandedIds.has(node.id)}
               {@render treeRows(node.children, level + 1)}
+              {#each directScenariosForNode(node.id) as scenario}
+                <div class="scenario-leaf" style={`--level: ${level + 1}`}>
+                  <button class="leaf-main" onclick={() => (detailScenario = scenario)}>
+                    <span class="tree-caret"></span>
+                    <span class="node-icon file">▤</span>
+                    <span class="node-label"><strong>{scenario.name}</strong></span>
+                  </button>
+                  <span class="leaf-actions">
+                    <span class="leaf-key">{scenario.scenarioKey}</span>
+                    <button class="icon-btn ghost" title="Copy scenario id" aria-label="Copy scenario id" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>⧉</button>
+                  </span>
+                </div>
+              {/each}
             {/if}
           {/each}
         {/snippet}
@@ -518,40 +501,47 @@
 
     <!-- ── Scenario panel ─────────────────────────────────────── -->
     <section class="scenario-panel">
-      <div class="panel-header scenario-header">
+      <div class="scenario-topbar">
         <div>
-          <span class="panel-title">{selectedDirectory ? selectedDirectory.name : 'All Scenarios'}</span>
-          <p class="panel-subtitle">
-            {sortedScenarios.length} {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios
-            {#if filteredScenarios.length < visibleScenarios.length}
-              <span class="filter-badge">filtered</span>
+          <div class="title-row">
+            <h1>{selectedTitle}</h1>
+            <span class="scenario-count-badge">{sortedScenarios.length} scenarios</span>
+            {#if selectedDirectory}
+              <button class="icon-btn ghost" title="Copy directory id" aria-label="Copy directory id" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>⧉</button>
             {/if}
-          </p>
+          </div>
+          <p class="panel-subtitle">{selectedDirectory?.path ?? data.projectKey}</p>
         </div>
         <div class="header-actions">
           <div class="segmented">
             <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
-          <button onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
+          <button class="primary-outline" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
             + Scenario
           </button>
         </div>
       </div>
 
-      <!-- Filter bar -->
-      <div class="filter-bar">
-        <div class="filter-group">
-          <label class="filter-label" for="filter-automation">Automation</label>
+      <div class="scenario-toolbar">
+        <div class="bulk-actions">
+          <span class="bulk-count">{selectedScenarioIds.length} selected</span>
+          {#if reviewMode === 'DRAFT'}
+            <button onclick={handleBulkApprove} disabled={busy || selectedScenarioIds.length === 0}>Approve</button>
+            <button class="danger" onclick={handleBulkReject} disabled={busy || selectedScenarioIds.length === 0}>Reject</button>
+          {:else}
+            <button onclick={handleBulkArchive} disabled={busy || selectedScenarioIds.length === 0}>Archive</button>
+          {/if}
+          <button onclick={openCopyModal} disabled={busy || selectedScenarioIds.length === 0} title="Copy selected scenarios to another directory">Copy</button>
+          <button class="danger" onclick={handleBulkDelete} disabled={busy || selectedScenarioIds.length === 0} title="Permanently delete selected scenarios">Delete</button>
+        </div>
+        <div class="filters">
           <select id="filter-automation" class="filter-select" bind:value={filterAutomation}>
             <option value="">All</option>
             <option value="MANUAL_ONLY">Manual Only</option>
             <option value="AUTOMATABLE">Automatable</option>
             <option value="AUTOMATED">Automated</option>
           </select>
-        </div>
-        <div class="filter-group">
-          <label class="filter-label" for="filter-priority">Priority</label>
           <select id="filter-priority" class="filter-select" bind:value={filterPriority}>
             <option value="">All</option>
             {#each uniquePriorities.sort() as p}
@@ -563,39 +553,8 @@
           <button
             class="clear-filter"
             onclick={() => { filterAutomation = ''; filterPriority = ''; }}
-          >✕ Clear</button>
+          >Clear</button>
         {/if}
-      </div>
-
-      <!-- Bulk action bar -->
-      <div class="bulk-bar">
-        <span class="bulk-count">{selectedScenarioIds.length} selected</span>
-        {#if reviewMode === 'DRAFT'}
-          <button onclick={handleBulkApprove} disabled={busy || selectedScenarioIds.length === 0}>
-            Approve
-          </button>
-          <button
-            class="danger"
-            onclick={handleBulkReject}
-            disabled={busy || selectedScenarioIds.length === 0}
-          >Reject</button>
-        {:else}
-          <button
-            onclick={handleBulkArchive}
-            disabled={busy || selectedScenarioIds.length === 0}
-          >Archive</button>
-        {/if}
-        <button
-          onclick={openCopyModal}
-          disabled={busy || selectedScenarioIds.length === 0}
-          title="Copy selected scenarios to another directory"
-        >Copy to Dir</button>
-        <button
-          class="danger"
-          onclick={handleBulkDelete}
-          disabled={busy || selectedScenarioIds.length === 0}
-          title="Permanently delete selected scenarios"
-        >Delete</button>
       </div>
 
       <!-- Scenario table -->
@@ -618,12 +577,12 @@
               </th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('key')}>
-                  ID <span class="sort-indicator">{sortIndicator('key')}</span>
+                  Key <span class="sort-indicator">{sortIndicator('key')}</span>
                 </button>
               </th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('name')}>
-                  Scenario <span class="sort-indicator">{sortIndicator('name')}</span>
+                  Name <span class="sort-indicator">{sortIndicator('name')}</span>
                 </button>
               </th>
               <th>
@@ -633,7 +592,7 @@
               </th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('automation')}>
-                  Automation <span class="sort-indicator">{sortIndicator('automation')}</span>
+                  Type <span class="sort-indicator">{sortIndicator('automation')}</span>
                 </button>
               </th>
               <th>
@@ -664,7 +623,7 @@
                   <Badge text={scenario.status} variant={statusVariant(scenario.status)} />
                 </td>
                 <td>
-                  <button onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>Copy ID</button>
+                  <button class="icon-btn ghost" title="Copy scenario id" aria-label="Copy scenario id" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>⧉</button>
                 </td>
               </tr>
             {/each}
@@ -895,24 +854,22 @@
 </Modal>
 
 <style>
-  .page { max-width: 1320px; }
-  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
-  .breadcrumb a { color: var(--color-accent); }
-  .sep { opacity: 0.5; }
-  .page-header { margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
-  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-  .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
-  .import-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--color-accent); color: #fff; border-radius: 8px; padding: 0.55rem 1.1rem; font-size: 0.82rem; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background 0.15s; }
-  .import-btn:hover { background: var(--color-accent-hover); }
+  .page { max-width: none; }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
   .toast { position: fixed; right: 24px; bottom: 24px; background: var(--color-text); color: var(--color-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; z-index: 120; }
-  .repo-layout { display: grid; grid-template-columns: 380px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius); min-height: 680px; overflow: hidden; background: var(--color-surface); }
-  .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-bg); min-width: 0; }
-  .scenario-panel { min-width: 0; padding: 0 0 14px; }
-  .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--color-border); }
-  .panel-title { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+  .repo-layout { display: grid; grid-template-columns: 405px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
+  .tree-panel { border-right: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-bg), #111827 4%); min-width: 0; overflow: auto; }
+  .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; }
+  .tree-topbar,
+  .scenario-topbar { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
+  .tree-topbar-actions,
+  .header-actions,
+  .segmented,
+  .scenario-toolbar,
+  .bulk-actions,
+  .filters { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .panel-title { font-size: 0.82rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
   .panel-subtitle { margin: 3px 0 0; font-size: 0.76rem; color: var(--color-text-muted); }
-  .filter-badge { display: inline-block; background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); font-size: 0.65rem; border-radius: 3px; padding: 1px 5px; margin-left: 4px; font-weight: 600; }
 
   button, input, select { font: inherit; }
   button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
@@ -922,39 +879,61 @@
   button.danger:hover:not(:disabled) { border-color: var(--color-danger); }
   button.danger-btn { background: var(--color-danger); color: #fff; border-color: var(--color-danger); }
   .primary-btn { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+  .primary-outline { border-color: color-mix(in srgb, var(--color-accent), transparent 55%); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+  .icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; text-decoration: none; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text-muted); font-weight: 800; line-height: 1; }
+  .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .icon-btn.ghost { width: 26px; height: 26px; border-color: transparent; background: transparent; }
   input, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   input[type='checkbox'] { width: auto; }
 
-  .tree-list { padding: 8px; }
-  .tree-row { padding-left: calc(var(--level) * 18px); display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 6px; }
-  .tree-item-wrap { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 4px; }
-  .tree-item { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; }
-  .all-item { margin: 10px; width: calc(100% - 20px); }
-  .tree-actions { display: flex; gap: 3px; padding-left: 38px; flex-wrap: wrap; }
-  .tree-actions button { padding: 3px 6px; font-size: 0.7rem; }
-  .twisty { width: 24px; min-height: 34px; padding: 0; color: var(--color-text-muted); }
-  .tree-item small { display: block; color: var(--color-text-muted); font-size: 0.72rem; margin-top: 2px; }
-  .node-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 0.72rem; font-weight: 800; flex-shrink: 0; }
+  .tree-list { padding: 10px 8px 18px; }
+  .tree-row { padding-left: calc(var(--level) * 23px); margin-bottom: 2px; position: relative; }
+  .tree-row::before,
+  .scenario-leaf::before { content: ''; position: absolute; left: calc(14px + var(--level) * 23px); top: 0; bottom: 0; width: 1px; background: color-mix(in srgb, var(--color-border), transparent 8%); }
+  .tree-line,
+  .scenario-leaf { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 6px; position: relative; }
+  .scenario-leaf { padding-left: calc(var(--level) * 23px); margin-bottom: 2px; }
+  .tree-node,
+  .leaf-main { min-width: 0; display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto; align-items: center; gap: 7px; text-align: left; border-color: transparent; background: transparent; width: 100%; padding: 8px 8px; border-radius: 3px; }
+  .leaf-main { grid-template-columns: 22px 22px minmax(0, 1fr); }
+  .tree-node.active,
+  .tree-node:hover,
+  .leaf-main:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
+  .all-item { margin: 10px 8px 4px; width: calc(100% - 16px); }
+  .tree-caret { display: inline-grid; place-items: center; width: 22px; height: 22px; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); font-weight: 900; }
+  .tree-actions { display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity 0.12s; }
+  .tree-line:hover .tree-actions,
+  .tree-line:focus-within .tree-actions { opacity: 1; pointer-events: auto; }
+  .node-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 4px; color: var(--color-accent); font-size: 0.78rem; font-weight: 900; flex-shrink: 0; }
+  .node-icon.folder { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
+  .node-icon.file { background: transparent; color: var(--color-text-muted); }
   .node-icon.small { width: 18px; height: 18px; font-size: 0.65rem; }
-  .node-main { min-width: 0; }
+  .node-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .node-label strong { font-weight: 750; }
+  .count-pill,
+  .scenario-count-badge { border-radius: 4px; background: color-mix(in srgb, var(--color-text-muted), transparent 82%); color: var(--color-text-muted); padding: 3px 8px; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
+  .leaf-actions { display: flex; align-items: center; gap: 4px; padding-right: 5px; opacity: 0.65; }
+  .scenario-leaf:hover .leaf-actions { opacity: 1; }
+  .leaf-key { font-family: ui-monospace, monospace; color: var(--color-accent); font-size: 0.72rem; }
 
-  .scenario-header { flex-wrap: wrap; }
-  .header-actions, .segmented, .bulk-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-
-  /* Filter bar */
-  .filter-bar { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; padding: 10px 16px; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface), transparent 40%); }
-  .filter-group { display: flex; flex-direction: column; gap: 3px; }
-  .filter-label { font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
-  .filter-select { padding: 5px 8px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 0.82rem; min-width: 110px; }
-  .clear-filter { padding: 5px 10px; font-size: 0.78rem; align-self: flex-end; }
-
-  .bulk-bar { padding: 10px 16px; color: var(--color-text-muted); font-size: 0.82rem; border-bottom: 1px solid var(--color-border); }
-  .bulk-count { font-weight: 600; min-width: 70px; }
-  .bulk-bar button { padding: 5px 10px; font-size: 0.8rem; }
+  .title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .title-row h1 { font-size: 1.25rem; line-height: 1.2; font-weight: 800; margin: 0; }
+  .segmented { border: 1px solid var(--color-border); border-radius: 4px; overflow: hidden; gap: 0; }
+  .segmented button { border: 0; border-radius: 0; padding: 8px 13px; text-transform: uppercase; font-size: 0.78rem; font-weight: 850; background: transparent; }
+  .segmented button.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
+  .scenario-toolbar { justify-content: space-between; padding: 9px 16px; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-surface), transparent 25%); }
+  .bulk-actions button,
+  .clear-filter { padding: 5px 9px; font-size: 0.78rem; }
+  .bulk-count { font-size: 0.8rem; color: var(--color-text-muted); font-weight: 700; min-width: 72px; }
+  .filter-select { padding: 5px 8px; border-radius: 5px; font-size: 0.8rem; min-width: 118px; }
 
   .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
+  .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
+  .scenario-panel :global(td),
+  .scenario-panel :global(th) { padding: 15px 18px; }
+  .scenario-panel :global(tbody tr:hover) { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .click-row { cursor: pointer; }
-  .scenario-key { font-family: ui-monospace, monospace; font-size: 0.76rem; color: var(--color-text-muted); }
+  .scenario-key { font-family: ui-monospace, monospace; font-size: 0.82rem; color: var(--color-accent); }
   .scenario-name { font-weight: 600; }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
   .empty-state.compact { padding: 16px; }
