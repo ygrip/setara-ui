@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-24
+Last synced with parent tracker: 2026-05-24 (commit f2d569c)
 
 ```text
 UI: [x] Repository tree/table uses headless primitives with spacious navigation and scenario drawer editing
@@ -104,14 +104,21 @@ UI: [x] Repository tree/table uses headless primitives with spacious navigation 
 - [x] `automationStatus` select auto-syncs `automatable` boolean; disabled for ingested (`source = AUTOMATED`) scenarios.
 - [x] Status badge color-coded: ACTIVE=green, DRAFT=amber, ARCHIVED=muted.
 - [x] `@revolist/svelte-datagrid` installed; type shim in `src/lib/revogrid.d.ts`; `ColumnRegular` from `@revolist/revogrid`.
+- [x] RevoGrid double-numbering fixed — removed built-in `rowHeaders`; `order` column is the sole row number.
+- [x] RevoGrid preview mode fixed — `$effect` now uses `untrack` to skip reinit when `steps` prop change is our own `onchange` feedback.
+- [x] Row height selector added to RevoGrid toolbar (Compact / Normal / Spacious).
+- [x] Scenario drawer restructured to flex-column with always-visible footer; Save/Close buttons reliably accessible.
+- [x] Import button relocated to scenario panel header, renamed from "Import Excel" to "Import".
+- [x] Scenario creation page (`scenarios/new`) migrated from textarea step table to `SetaraStepGridEditor`.
+- [x] Global error page (`+error.svelte`) with status-aware messages and animated floating icon (404 / 403 / 401 / 5xx / generic).
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
 
 ## Latest Commits
 
 ```text
+f2d569c Fix repository UI: drawer layout, RevoGrid double-numbering, preview, row height, error page
 7486116 Add RevoGrid step editor, paste-parse, markdown preview, and API alignment fixes
 Add directory rename/move/delete and bulk scenario copy/delete with filters
 94a9240 Sync UI tracker — scenario execution detail and centralized WS complete
-8e7251f Add scenario execution detail panel and centralize WebSocket handling
 ```
