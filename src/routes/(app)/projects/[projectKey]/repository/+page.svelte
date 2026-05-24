@@ -3,10 +3,8 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { Dialog } from 'bits-ui';
-  import { createTreeView, melt } from '@melt-ui/svelte';
   import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
   import { z } from 'zod';
-  import { writable } from 'svelte/store';
   import {
     approveDraftScenarios,
     archiveScenario,
@@ -138,16 +136,6 @@
       expectation: z.string().nullable().optional()
     }))
   });
-  const treeExpandedStore = writable<string[]>([]);
-  const {
-    elements: { tree: treeRoot, item: treeItem, group: treeGroup },
-    states: { expanded: treeExpanded }
-  } = createTreeView({ expanded: treeExpandedStore });
-
-  treeExpanded.subscribe((ids) => {
-    expandedIds = new Set(ids);
-  });
-
   // Directories available as move targets (excludes selected node and its descendants)
   const moveCandidates = $derived(
     data.directories.filter((d: TestDirectory) => {
@@ -171,7 +159,7 @@
   // ── Init ─────────────────────────────────────────────────────
   $effect(() => {
     if (data.directories.length && expandedIds.size === 0) {
-      treeExpanded.set(
+      expandedIds = new Set(
         data.directories
           .filter((n: TestDirectory) => n.parentId === null)
           .map((n: TestDirectory) => n.id)
@@ -310,11 +298,11 @@
   }
 
   // ── Tree interaction ─────────────────────────────────────────
-  function toggleExpand(nodeId: string, e: MouseEvent) {
-    e.stopPropagation();
+  function toggleExpand(nodeId: string, e?: MouseEvent) {
+    e?.stopPropagation();
     const next = new Set(expandedIds);
     next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId);
-    treeExpanded.set([...next]);
+    expandedIds = next;
   }
 
   function selectNode(nodeId: string | null) {
@@ -548,6 +536,8 @@
 {#snippet iconCopy()}<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>{/snippet}
 {#snippet iconUpload()}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{/snippet}
 
+{#snippet iconRobot()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><line x1="12" y1="11" x2="12" y2="8"/></svg>{/snippet}
+
 <div class="page">
   {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
   {#if actionError}<div class="error-banner">{actionError}</div>{/if}
@@ -575,22 +565,26 @@
           <span class="count-pill">{scopedScenarios.length}</span>
         </button>
 
-        <div class="tree-list" use:melt={$treeRoot}>
+        <div class="tree-list">
         {#snippet treeRows(nodes: TreeNode[], level = 0)}
           {#each nodes as node}
             <div class="tree-row" style={`--level: ${level}`}>
               <div class="tree-line">
                 <button
+                  class="tree-caret-btn"
+                  onclick={(e) => toggleExpand(node.id, e)}
+                  aria-label={expandedIds.has(node.id) ? 'Collapse' : 'Expand'}
+                  tabindex="-1"
+                >
+                  {#if node.children.length || node.directCount}
+                    {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
+                  {/if}
+                </button>
+                <button
                   class="tree-node"
                   class:active={selectedNodeId === node.id}
-                  onclick={() => selectNode(node.id)}
-                  use:melt={$treeItem({ id: node.id, hasChildren: Boolean(node.children.length || node.directCount) })}
+                  onclick={() => { selectNode(node.id); if (node.children.length || node.directCount) toggleExpand(node.id, new MouseEvent('click')); }}
                 >
-                  <span class="tree-caret" aria-hidden="true">
-                    {#if node.children.length || node.directCount}
-                      {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
-                    {/if}
-                  </span>
                   <span class="node-icon folder">{#if expandedIds.has(node.id)}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
                   <span class="node-label"><strong>{node.name}</strong></span>
                   <span class="count-pill">{node.totalCount}</span>
@@ -605,26 +599,21 @@
                 </div>
               </div>
             </div>
-            <div use:melt={$treeGroup({ id: node.id })}>
+            {#if expandedIds.has(node.id)}
               {@render treeRows(node.children, level + 1)}
               {#each directScenariosForNode(node.id) as scenario}
                 <div class="scenario-leaf" style={`--level: ${level + 1}`}>
                   <button
                     class="leaf-main"
                     onclick={() => openScenarioDetail(scenario)}
-                    use:melt={$treeItem({ id: scenario.id, hasChildren: false })}
                   >
-                    <span class="tree-caret"></span>
+                    <span class="leaf-indent"></span>
                     <span class="node-icon file">{@render iconFile()}</span>
                     <span class="node-label">{scenario.name}</span>
                   </button>
-                  <span class="leaf-actions">
-                    <span class="leaf-key">{scenario.scenarioKey}</span>
-                    <button class="ta-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
-                  </span>
                 </div>
               {/each}
-            </div>
+            {/if}
           {/each}
         {/snippet}
         {@render treeRows(tree)}
@@ -726,11 +715,6 @@
                 />
               </th>
               <th>
-                <button class="sort-button" onclick={() => sortScenarios('key')}>
-                  Key <span class="sort-indicator">{sortIndicator('key')}</span>
-                </button>
-              </th>
-              <th>
                 <button class="sort-button" onclick={() => sortScenarios('name')}>
                   Name <span class="sort-indicator">{sortIndicator('name')}</span>
                 </button>
@@ -741,7 +725,7 @@
                   Priority <span class="sort-indicator">{sortIndicator('priority')}</span>
                 </button>
               </th>
-              <th>Automatable</th>
+              <th class="col-auto" title="Automatable">{@render iconRobot()}</th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('status')}>
                   Status <span class="sort-indicator">{sortIndicator('status')}</span>
@@ -753,19 +737,21 @@
           {#snippet body()}
             {#each sortedScenarios as scenario}
               <tr class="click-row" onclick={() => openScenarioDetail(scenario)}>
-                <td>
+                <td onclick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedScenarioIds.includes(scenario.id)}
-                    onclick={(e) => { e.stopPropagation(); toggleScenario(scenario.id); }}
+                    onchange={() => toggleScenario(scenario.id)}
                   />
                 </td>
-                <td class="scenario-key-cell">
-                  <span class="scenario-key">{scenario.scenarioKey}</span>
-                  <button class="ta-btn inline-copy" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
-                </td>
-                <td>
-                  <button class="scenario-name-button" onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}>{scenario.name}</button>
+                <td class="name-cell" onclick={(e) => e.stopPropagation()}>
+                  <div class="name-cell-inner">
+                    <div class="name-cell-text">
+                      <span class="scenario-key">{scenario.scenarioKey}</span>
+                      <button class="name-link" onclick={() => openScenarioDetail(scenario)}>{scenario.name}</button>
+                    </div>
+                    <button class="ta-btn copy-name-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
+                  </div>
                 </td>
                 <td>
                   <div class="steps-preview">
@@ -786,15 +772,12 @@
                 <td>
                   <span class="status-badge priority">{scenario.priority ?? 'UNSET'}</span>
                 </td>
-                <td>
-                  <span class="check-cell" aria-label={scenario.automatable ? 'Automatable' : 'Not automatable'}>
-                    {scenario.automatable ? '✓' : '—'}
-                  </span>
+                <td class="col-auto">
+                  <span class="auto-icon" class:is-auto={scenario.automatable} title={scenario.automatable ? 'Automatable' : 'Not automatable'}>{@render iconRobot()}</span>
                 </td>
                 <td>
                   <span class="status-badge">{scenario.status}</span>
                 </td>
-                <td></td>
               </tr>
             {/each}
           {/snippet}
@@ -979,7 +962,7 @@
 </Modal>
 
 <!-- ── Scenario detail drawer ───────────────────────────────────── -->
-<Dialog.Root open={detailOpen} onOpenChange={(open) => { if (!open) closeScenarioDetail(); }}>
+<Dialog.Root bind:open={detailOpen} onOpenChange={(open) => { if (!open) closeScenarioDetail(); }}>
   <Dialog.Portal>
     <Dialog.Overlay class="drawer-overlay" />
     <Dialog.Content class="scenario-drawer">
@@ -1132,11 +1115,13 @@
   .tree-row::before,
   .scenario-leaf::before { content: ''; position: absolute; left: calc(12px + var(--level) * 22px); top: -10px; bottom: -10px; width: 1px; background: color-mix(in srgb, var(--color-border), transparent 8%); }
   .tree-line,
-  .scenario-leaf { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 10px; position: relative; }
+  .scenario-leaf { display: flex; align-items: center; gap: 0; position: relative; }
   .scenario-leaf { padding-left: calc(var(--level) * 22px); margin-bottom: 10px; }
+  .tree-caret-btn { display: inline-grid; place-items: center; width: 26px; height: 38px; flex-shrink: 0; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; border-radius: 4px; }
+  .tree-caret-btn:hover { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  .leaf-indent { display: inline-block; width: 26px; flex-shrink: 0; }
   .tree-node,
-  .leaf-main { min-width: 0; display: grid; grid-template-columns: 22px 30px minmax(0, 1fr) auto; align-items: center; gap: 9px; text-align: left; border-color: transparent; background: transparent; width: 100%; padding: 12px 10px; border-radius: 8px; }
-  .leaf-main { grid-template-columns: 22px 30px minmax(0, 1fr); }
+  .leaf-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; text-align: left; border-color: transparent; background: transparent; padding: 10px 10px 10px 4px; border-radius: 8px; }
   .tree-node.active,
   .tree-node:hover,
   .leaf-main:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
@@ -1146,7 +1131,6 @@
   .tree-all-btn.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
   .all-icon { display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 8px; background: color-mix(in srgb, var(--color-accent), transparent 82%); color: var(--color-accent); font-size: 0.85rem; flex-shrink: 0; }
   .all-label { flex: 1; font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .tree-caret { display: inline-grid; place-items: center; width: 22px; height: 28px; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); font-weight: 900; }
   .tree-actions { position: absolute; right: 0; top: 50%; transform: translateY(-50%); display: flex; align-items: center; gap: 1px; opacity: 0; pointer-events: none; transition: opacity 0.12s; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 6px; padding: 2px 3px; z-index: 2; box-shadow: 0 1px 6px color-mix(in srgb, #000, transparent 88%); }
   .tree-line:hover .tree-actions,
   .tree-line:focus-within .tree-actions { opacity: 1; pointer-events: auto; }
@@ -1155,18 +1139,15 @@
   .ta-btn.danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger, #ef4444), transparent 85%); color: var(--color-danger, #ef4444); }
   .ta-btn.ta-secondary { opacity: 0.75; }
   .ta-btn svg { display: block; pointer-events: none; }
-  .node-icon { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; color: var(--color-accent); font-size: 0.72rem; font-weight: 900; flex-shrink: 0; }
+  .node-icon { display: inline-grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--color-accent); flex-shrink: 0; }
   .node-icon.folder { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
   .node-icon.file { background: transparent; color: var(--color-text-muted); }
-  .node-icon.small { width: 18px; height: 18px; font-size: 0.65rem; }
+  .node-icon.small { width: 20px; height: 20px; font-size: 0.7rem; }
   .node-label { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-node.active .node-label { color: var(--color-accent); }
   .node-label strong { font-weight: 750; }
   .count-pill,
-  .scenario-count-badge { border-radius: 4px; background: color-mix(in srgb, var(--color-text-muted), transparent 82%); color: var(--color-text-muted); padding: 3px 8px; font-size: 0.72rem; font-weight: 800; white-space: nowrap; }
-  .leaf-actions { display: flex; align-items: center; gap: 4px; padding-right: 5px; opacity: 0.65; }
-  .scenario-leaf:hover .leaf-actions { opacity: 1; }
-  .leaf-key { font-family: ui-monospace, monospace; color: var(--color-accent); font-size: 0.72rem; }
+  .scenario-count-badge { border-radius: 4px; background: color-mix(in srgb, var(--color-text-muted), transparent 82%); color: var(--color-text-muted); padding: 3px 8px; font-size: 0.72rem; font-weight: 800; white-space: nowrap; flex-shrink: 0; }
 
   .title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   .title-row h1 { font-size: 1.25rem; line-height: 1.2; font-weight: 800; margin: 0; }
@@ -1188,23 +1169,31 @@
   .bulk-bar button { padding: 5px 10px; font-size: 0.78rem; }
   .bulk-count { font-size: 0.8rem; color: var(--color-accent); font-weight: 700; min-width: 72px; }
 
+  /* Scenario table */
   .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
   .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
   .scenario-panel :global(td),
-  .scenario-panel :global(th) { padding: 22px 22px; }
+  .scenario-panel :global(th) { padding: 14px 18px; vertical-align: middle; }
   .scenario-panel :global(tbody tr:hover) { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .click-row { cursor: pointer; }
-  .scenario-key { font-family: ui-monospace, monospace; font-size: 0.82rem; color: var(--color-accent); }
-  .scenario-key-cell { display: flex; align-items: center; gap: 8px; white-space: nowrap; }
-  .inline-copy { opacity: 0.78; }
-  .scenario-name-button { border: 0; background: transparent; padding: 0; text-align: left; color: var(--color-text); font-weight: 800; line-height: 1.45; max-width: 280px; white-space: normal; }
-  .scenario-name-button:hover { color: var(--color-accent); background: transparent; }
+  /* Name cell: key above name + copy button */
+  .name-cell { min-width: 180px; }
+  .name-cell-inner { display: flex; align-items: center; gap: 10px; }
+  .name-cell-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+  .scenario-key { font-family: ui-monospace, monospace; font-size: 0.75rem; color: var(--color-accent); font-weight: 700; }
+  .name-link { border: 0; background: transparent; padding: 0; text-align: left; color: var(--color-text); font-weight: 700; line-height: 1.45; cursor: pointer; white-space: normal; }
+  .name-link:hover { color: var(--color-accent); background: transparent; border: 0; }
+  .copy-name-btn { opacity: 0; transition: opacity 0.12s; flex-shrink: 0; }
+  tr:hover .copy-name-btn { opacity: 1; }
+  /* Automatable column */
+  .col-auto { width: 44px; text-align: center !important; }
+  .auto-icon { display: inline-flex; color: var(--color-text-muted); opacity: 0.45; }
+  .auto-icon.is-auto { color: var(--color-accent); opacity: 1; }
   .steps-preview { display: grid; gap: 8px; min-width: 260px; max-width: 420px; }
   .steps-preview button { display: flex; gap: 9px; align-items: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 0; background: transparent; padding: 0; color: var(--color-text); font-size: 0.84rem; line-height: 1.35; }
   .steps-preview button span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-size: 0.68rem; font-weight: 800; flex: 0 0 auto; }
   .steps-preview button.washed { color: var(--color-text-muted); opacity: 0.5; }
   .steps-preview .show-more { color: var(--color-accent); font-weight: 800; width: max-content; opacity: 1; }
-  .check-cell { display: inline-grid; place-items: center; width: 26px; height: 26px; color: var(--color-success); font-weight: 900; font-size: 1rem; }
   .status-badge { display: inline-flex; align-items: center; width: max-content; border-radius: 999px; background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); padding: 5px 10px; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; }
   .status-badge.priority { background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 86%); color: var(--color-warning, #b45309); }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
@@ -1288,10 +1277,11 @@
     .filter-group { display: grid; align-items: stretch; }
     .header-actions { justify-content: space-between; }
   }
-  /* Touch / mobile: always show tree actions, hide secondary ones */
+  /* Touch / mobile: always show tree actions and copy buttons */
   @media (hover: none) and (pointer: coarse) {
-    .tree-actions { position: static; transform: none; opacity: 1; pointer-events: auto; background: transparent; border: none; box-shadow: none; padding: 0; gap: 0; }
+    .tree-actions { position: static; transform: none; opacity: 1; pointer-events: auto; background: transparent; border: none; box-shadow: none; padding: 0; gap: 0; margin-left: 2px; }
     .ta-secondary { display: none; }
     .tree-line { gap: 2px; }
+    .copy-name-btn { opacity: 1; }
   }
 </style>
