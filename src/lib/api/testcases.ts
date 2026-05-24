@@ -184,3 +184,70 @@ export async function listManualExecutions(projectKey: string, scenarioId: strin
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}/manual-executions`);
   return res.json();
 }
+
+// ── Excel import ──────────────────────────────────────────────────────────────
+
+export interface ImportIssue {
+  rowNumber: number;
+  severity: 'ERROR' | 'WARNING';
+  code: string;
+  message: string;
+}
+
+export interface ImportValidationResult {
+  totalRows: number;
+  newScenarioCount: number;
+  existingScenarioCount: number;
+  parsedStepCount: number;
+  errorCount: number;
+  warningCount: number;
+  issues: ImportIssue[];
+}
+
+export interface ImportResult {
+  importId: string;
+  status: string;
+  totalRows: number;
+  createdCount: number;
+  updatedCount: number;
+  skippedCount: number;
+  failedCount: number;
+  issues: ImportIssue[];
+}
+
+export function importTemplateUrl(projectKey: string): string {
+  return `${getApiBaseUrl()}/api/projects/${projectKey}/scenarios/import/template`;
+}
+
+export async function validateImport(
+  projectKey: string,
+  file: File,
+  duplicateStrategy = 'SKIP_EXISTING'
+): Promise<ImportValidationResult> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('duplicateStrategy', duplicateStrategy);
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/validate`, {
+    method: 'POST',
+    body: form
+  });
+  return res.json();
+}
+
+export async function executeImport(
+  projectKey: string,
+  file: File,
+  duplicateStrategy = 'SKIP_EXISTING',
+  defaultStatus = 'DRAFT'
+): Promise<ImportResult> {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('duplicateStrategy', duplicateStrategy);
+  const url = `${getApiBaseUrl()}/api/projects/${projectKey}/scenarios/import/execute?defaultStatus=${defaultStatus}`;
+  const res = await fetch(url, { method: 'POST', body: form });
+  if (!res.ok) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
+  }
+  return res.json();
+}

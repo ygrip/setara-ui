@@ -232,6 +232,7 @@
       <h1 class="page-title">Test Repository</h1>
       <p class="page-subtitle">Browse directories, review drafts, and manage scenario scope.</p>
     </div>
+    <a class="import-btn" href="/projects/{data.projectKey}/repository/import">⬆ Import Excel</a>
   </div>
 
   {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
@@ -407,9 +408,11 @@
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
-  .page-header { margin-bottom: 18px; }
+  .page-header { margin-bottom: 18px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
+  .import-btn { display: inline-flex; align-items: center; gap: 6px; background: var(--color-accent); color: #fff; border-radius: 8px; padding: 0.55rem 1.1rem; font-size: 0.82rem; font-weight: 600; text-decoration: none; white-space: nowrap; transition: background 0.15s; }
+  .import-btn:hover { background: var(--color-accent-hover); }
   .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
   .toast { position: fixed; right: 24px; bottom: 24px; background: var(--color-text); color: var(--color-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; z-index: 120; }
   .repo-layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius); min-height: 680px; overflow: hidden; background: var(--color-surface); }
