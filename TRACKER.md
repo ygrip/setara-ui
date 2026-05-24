@@ -71,7 +71,7 @@ UI: [~] Dashboard aggregates, repository, API key permissions, and release plans
 ## Latest Commits
 
 ```text
+f39dda5 Revamp dashboard repository and release plan UI
+a584172 Sync UI tracker after plan workflow
 ba1d1bd Implement release plan quality gate workflow
-9f286c1 Sync UI tracker after websocket updates
-82f32a5 Display execution websocket updates
 ```
