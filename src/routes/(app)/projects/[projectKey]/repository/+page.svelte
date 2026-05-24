@@ -5,6 +5,8 @@
   import { Dialog } from 'bits-ui';
   import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
   import { z } from 'zod';
+  import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
+  import type { BackendStep } from '$lib/components/scenario/step-grid.types';
   import {
     approveDraftScenarios,
     archiveScenario,
@@ -39,6 +41,7 @@
   let detailDraft = $state<Scenario | null>(null);
   let detailBusy = $state(false);
   let detailOpen = $state(false);
+  let detailSteps = $state<BackendStep[]>([]);
 
   // ── Scenario sorting ─────────────────────────────────────────
   let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation' | 'status'>('name');
@@ -126,7 +129,7 @@
   const scenarioFormSchema = z.object({
     name: z.string().min(1),
     priority: z.string().nullable().optional(),
-    automatable: z.boolean(),
+    automationStatus: z.string().optional(),
     status: z.string().min(1),
     manualNotes: z.string().nullable().optional(),
     steps: z.array(z.object({
@@ -224,12 +227,26 @@
   async function openScenarioDetail(scenario: Scenario) {
     detailScenario = scenario;
     detailDraft = structuredClone(scenario);
+    detailSteps = (scenario.steps ?? []).map((s) => ({
+      sequenceNo: s.sequenceNo,
+      keyword: s.keyword,
+      name: s.name,
+      description: s.description,
+      expectation: s.expectation
+    }));
     detailOpen = true;
     detailBusy = true;
     try {
       const full = await getScenario(data.projectKey, scenario.id);
       detailScenario = full;
       detailDraft = structuredClone(full);
+      detailSteps = (full.steps ?? []).map((s) => ({
+        sequenceNo: s.sequenceNo,
+        keyword: s.keyword,
+        name: s.name,
+        description: s.description,
+        expectation: s.expectation
+      }));
     } finally {
       detailBusy = false;
     }
@@ -239,35 +256,19 @@
     detailOpen = false;
     detailScenario = null;
     detailDraft = null;
-  }
-
-  function setDetailStep(index: number, patch: Partial<ScenarioStep>) {
-    if (!detailDraft) return;
-    const steps = [...(detailDraft.steps ?? [])];
-    steps[index] = { ...steps[index], ...patch };
-    detailDraft = { ...detailDraft, steps };
-  }
-
-  function addDetailStep() {
-    if (!detailDraft) return;
-    const steps = [...(detailDraft.steps ?? [])];
-    steps.push({ sequenceNo: steps.length + 1, keyword: 'AND', name: '', description: null, expectation: null });
-    detailDraft = { ...detailDraft, steps };
+    detailSteps = [];
   }
 
   async function saveDetailScenario() {
     const draft = detailDraft;
     if (!draft) return;
-    const parsed = scenarioFormSchema.safeParse({
-      name: draft.name,
-      priority: draft.priority,
-      automatable: draft.automatable,
-      status: draft.status,
-      manualNotes: draft.manualNotes,
-      steps: draft.steps ?? []
-    });
-    if (!parsed.success) {
-      actionError = 'Please complete scenario name and step names before saving.';
+    if (!draft.name?.trim()) {
+      actionError = 'Scenario name is required.';
+      return;
+    }
+    const hasEmptySteps = detailSteps.some((s) => !s.name?.trim());
+    if (hasEmptySteps) {
+      actionError = 'All steps must have a non-empty step text before saving.';
       return;
     }
     await runAction(async () => {
@@ -279,16 +280,23 @@
         automationStatus: draft.automationStatus,
         manualNotes: draft.manualNotes ?? undefined,
         automationNotes: draft.automationNotes ?? undefined,
-        steps: (draft.steps ?? []).map((step, index) => ({
-          sequenceNo: index + 1,
-          keyword: step.keyword,
-          name: step.name,
-          description: step.description,
-          expectation: step.expectation
+        steps: detailSteps.map((s, i) => ({
+          sequenceNo: i + 1,
+          keyword: s.keyword,
+          name: s.name,
+          description: s.description,
+          expectation: s.expectation
         }))
       });
       detailScenario = saved;
       detailDraft = structuredClone(saved);
+      detailSteps = (saved.steps ?? []).map((s) => ({
+        sequenceNo: s.sequenceNo,
+        keyword: s.keyword,
+        name: s.name,
+        description: s.description,
+        expectation: s.expectation
+      }));
     });
   }
 
@@ -536,7 +544,13 @@
 {#snippet iconCopy()}<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>{/snippet}
 {#snippet iconUpload()}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{/snippet}
 
-{#snippet iconRobot()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><line x1="12" y1="11" x2="12" y2="8"/></svg>{/snippet}
+{#snippet iconExcel()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18"/><path d="m13 12 2 3 2-3m-4 0 2-3 2 3" stroke-width="1.5"/></svg>{/snippet}
+
+{#snippet iconManual()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="7" r="4"/><path d="M6 21v-2a6 6 0 0 1 12 0v2"/></svg>{/snippet}
+
+{#snippet iconAutomatable()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/></svg>{/snippet}
+
+{#snippet iconAutomated()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><polyline points="8.5 21 11 18.5 13 20.5 16.5 17" stroke-width="2"/></svg>{/snippet}
 
 <div class="page">
   {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
@@ -550,7 +564,7 @@
         <span class="panel-title">Test Repository</span>
         <div class="tree-topbar-actions">
           <button class="icon-btn" title="Add root directory" aria-label="Add root directory" onclick={() => openNodeModal(null)}>{@render iconFolderPlus()}</button>
-          <a class="icon-btn" title="Import from Excel" aria-label="Import from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()}</a>
+          <a class="excel-btn" title="Import from Excel" aria-label="Import from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconExcel()} <span>Import Excel</span></a>
         </div>
       </div>
 
@@ -725,7 +739,9 @@
                   Priority <span class="sort-indicator">{sortIndicator('priority')}</span>
                 </button>
               </th>
-              <th class="col-auto" title="Automatable">{@render iconRobot()}</th>
+              <th class="col-auto" title="Automation Status">
+                <span class="auto-legend" title="Manual / Automatable / Automated">{@render iconManual()}&hairsp;{@render iconAutomatable()}&hairsp;{@render iconAutomated()}</span>
+              </th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('status')}>
                   Status <span class="sort-indicator">{sortIndicator('status')}</span>
@@ -770,13 +786,19 @@
                   </div>
                 </td>
                 <td>
-                  <span class="status-badge priority">{scenario.priority ?? 'UNSET'}</span>
+                  <span class="status-badge priority priority-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
                 </td>
                 <td class="col-auto">
-                  <span class="auto-icon" class:is-auto={scenario.automatable} title={scenario.automatable ? 'Automatable' : 'Not automatable'}>{@render iconRobot()}</span>
+                  {#if scenario.automationStatus === 'AUTOMATED'}
+                    <span class="auto-icon is-automated" title="Automated">{@render iconAutomated()}</span>
+                  {:else if scenario.automationStatus === 'AUTOMATABLE'}
+                    <span class="auto-icon is-automatable" title="Automatable">{@render iconAutomatable()}</span>
+                  {:else}
+                    <span class="auto-icon is-manual" title="Manual only">{@render iconManual()}</span>
+                  {/if}
                 </td>
                 <td>
-                  <span class="status-badge">{scenario.status}</span>
+                  <span class="status-badge status-{scenario.status.toLowerCase()}">{scenario.status}</span>
                 </td>
               </tr>
             {/each}
@@ -983,6 +1005,11 @@
               <span>ID</span>
               <strong>{detailDraft.scenarioKey}</strong>
               <button class="ta-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={copyDetailScenarioId}>{@render iconCopy()}</button>
+              {#if detailDraft.source === 'AUTOMATED'}
+                <span class="source-badge automated" title="Ingested from automation">⚙ From Automation</span>
+              {:else}
+                <span class="source-badge manual" title="Manually created">✎ Manual</span>
+              {/if}
               {#if detailBusy}<span class="sync-pill">Syncing</span>{/if}
             </div>
             <div class="editor-grid">
@@ -1008,66 +1035,42 @@
                   <option value="ARCHIVED">ARCHIVED</option>
                 </select>
               </label>
-              <label class="check-edit">
-                <span>Automatable</span>
-                <input type="checkbox" bind:checked={detailDraft.automatable} />
+              <label>
+                <span>Automation Type</span>
+                <select
+                  value={detailDraft.automationStatus}
+                  onchange={(e) => {
+                    if (!detailDraft) return;
+                    const val = (e.currentTarget as HTMLSelectElement).value;
+                    detailDraft = {
+                      ...detailDraft,
+                      automationStatus: val,
+                      automatable: val === 'AUTOMATABLE' || val === 'AUTOMATED'
+                    };
+                  }}
+                  disabled={detailDraft.source === 'AUTOMATED'}
+                  title={detailDraft.source === 'AUTOMATED' ? 'Set automatically from ingestion' : ''}
+                >
+                  <option value="MANUAL_ONLY">Manual Only</option>
+                  <option value="AUTOMATABLE">Automatable</option>
+                  <option value="AUTOMATED">Automated</option>
+                </select>
               </label>
             </div>
             <label class="description-field">
-              <span>Description</span>
-              <textarea bind:value={detailDraft.manualNotes} rows="4" placeholder="Scenario notes or acceptance context"></textarea>
+              <span>Description / Notes</span>
+              <textarea bind:value={detailDraft.manualNotes} rows="3" placeholder="Scenario notes or acceptance context"></textarea>
             </label>
           </div>
 
-          <div class="steps-editor-head">
-            <h3>Steps</h3>
-            <button type="button" onclick={addDetailStep}>+ Step</button>
-          </div>
-
-          <div class="steps-editor">
-            <div class="steps-grid steps-grid-head">
-              <span>No</span>
-              <span>Step</span>
-              <span>Description</span>
-              <span>Expectation</span>
-            </div>
-            {#each detailDraft.steps ?? [] as step, index}
-              <div class="steps-grid">
-                <span class="step-number">{index + 1}</span>
-                <div class="step-name-edit">
-                  <select
-                    value={step.keyword}
-                    onchange={(e) => setDetailStep(index, { keyword: (e.currentTarget as HTMLSelectElement).value })}
-                  >
-                    <option value="GIVEN">GIVEN</option>
-                    <option value="WHEN">WHEN</option>
-                    <option value="THEN">THEN</option>
-                    <option value="AND">AND</option>
-                    <option value="BUT">BUT</option>
-                  </select>
-                  <textarea
-                    value={step.name}
-                    rows="3"
-                    placeholder="Step name"
-                    oninput={(e) => setDetailStep(index, { name: (e.currentTarget as HTMLTextAreaElement).value })}
-                  ></textarea>
-                </div>
-                <textarea
-                  value={step.description ?? ''}
-                  rows="4"
-                  placeholder="What happens in this step"
-                  oninput={(e) => setDetailStep(index, { description: (e.currentTarget as HTMLTextAreaElement).value })}
-                ></textarea>
-                <textarea
-                  value={step.expectation ?? ''}
-                  rows="4"
-                  placeholder="Expected result"
-                  oninput={(e) => setDetailStep(index, { expectation: (e.currentTarget as HTMLTextAreaElement).value })}
-                ></textarea>
-              </div>
-            {:else}
-              <div class="empty-state compact">No steps recorded.</div>
-            {/each}
+          <!-- RevoGrid step editor -->
+          <div class="steps-section">
+            <h3 class="steps-section-title">Steps</h3>
+            <SetaraStepGridEditor
+              steps={detailSteps}
+              readonly={detailDraft.source === 'AUTOMATED'}
+              onchange={(updated) => { detailSteps = updated; }}
+            />
           </div>
 
           <div class="form-actions sticky-actions">
@@ -1107,6 +1110,9 @@
   .primary-outline { border-color: color-mix(in srgb, var(--color-accent), transparent 55%); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
   .icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; text-decoration: none; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text-muted); font-weight: 800; line-height: 1; }
   .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  /* Excel import button */
+  .excel-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; text-decoration: none; border: 1px solid #166534; border-radius: 6px; background: #166534; color: #fff; font-size: 0.78rem; font-weight: 700; line-height: 1; white-space: nowrap; transition: background 0.12s, border-color 0.12s; }
+  .excel-btn:hover { background: #14532d; border-color: #14532d; color: #fff; }
   input, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   input[type='checkbox'] { width: auto; }
 
@@ -1186,16 +1192,27 @@
   .copy-name-btn { opacity: 0; transition: opacity 0.12s; flex-shrink: 0; }
   tr:hover .copy-name-btn { opacity: 1; }
   /* Automatable column */
-  .col-auto { width: 44px; text-align: center !important; }
-  .auto-icon { display: inline-flex; color: var(--color-text-muted); opacity: 0.45; }
-  .auto-icon.is-auto { color: var(--color-accent); opacity: 1; }
+  .col-auto { width: 52px; text-align: center !important; }
+  .auto-legend { display: inline-flex; align-items: center; gap: 1px; opacity: 0.6; }
+  .auto-icon { display: inline-flex; }
+  .auto-icon.is-manual { color: var(--color-text-muted); opacity: 0.55; }
+  .auto-icon.is-automatable { color: #d97706; opacity: 1; }
+  .auto-icon.is-automated { color: var(--color-success, #0d9488); opacity: 1; }
   .steps-preview { display: grid; gap: 8px; min-width: 260px; max-width: 420px; }
   .steps-preview button { display: flex; gap: 9px; align-items: flex-start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; border: 0; background: transparent; padding: 0; color: var(--color-text); font-size: 0.84rem; line-height: 1.35; }
   .steps-preview button span { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-size: 0.68rem; font-weight: 800; flex: 0 0 auto; }
   .steps-preview button.washed { color: var(--color-text-muted); opacity: 0.5; }
   .steps-preview .show-more { color: var(--color-accent); font-weight: 800; width: max-content; opacity: 1; }
   .status-badge { display: inline-flex; align-items: center; width: max-content; border-radius: 999px; background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); padding: 5px 10px; font-size: 0.72rem; font-weight: 850; letter-spacing: 0.03em; }
-  .status-badge.priority { background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 86%); color: var(--color-warning, #b45309); }
+  .status-badge.status-draft { background: color-mix(in srgb, #d97706, transparent 84%); color: #92400e; }
+  .status-badge.status-active { background: color-mix(in srgb, var(--color-success), transparent 86%); color: var(--color-success); }
+  .status-badge.status-archived { background: color-mix(in srgb, var(--color-text-muted), transparent 82%); color: var(--color-text-muted); }
+  /* Priority badge color variants */
+  .priority-critical { background: color-mix(in srgb, var(--color-danger, #ef4444), transparent 86%); color: var(--color-danger, #dc2626); }
+  .priority-high { background: color-mix(in srgb, #f97316, transparent 84%); color: #c2410c; }
+  .priority-medium { background: color-mix(in srgb, #f59e0b, transparent 84%); color: #b45309; }
+  .priority-low { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
+  .priority-unset { background: color-mix(in srgb, var(--color-text-muted), transparent 86%); color: var(--color-text-muted); }
   .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
   .empty-state.compact { padding: 16px; }
 
@@ -1246,17 +1263,13 @@
   .editor-grid label,
   .description-field { display: grid; gap: 6px; font-size: 0.78rem; color: var(--color-text-muted); }
   textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; font: inherit; resize: vertical; box-sizing: border-box; }
-  .check-edit { align-self: stretch; align-content: end; }
-  .check-edit input { width: 18px; height: 18px; }
-  .steps-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-  .steps-editor-head h3 { margin: 0; font-size: 0.98rem; }
-  .steps-editor { border: 1px solid var(--color-border); border-radius: 8px; overflow: auto; max-height: none; background: var(--color-bg); }
-  .steps-grid { display: grid; grid-template-columns: 64px minmax(260px, 1.2fr) minmax(260px, 1fr) minmax(260px, 1fr); gap: 14px; padding: 16px; border-bottom: 1px solid var(--color-border); min-width: 980px; align-items: start; }
-  .steps-grid:last-child { border-bottom: 0; }
-  .steps-grid-head { position: sticky; top: 0; z-index: 1; background: var(--color-surface); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); font-weight: 800; }
-  .step-number { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 86%); color: var(--color-accent); font-weight: 900; }
-  .step-name-edit { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; }
-  .steps-grid textarea { min-height: 108px; line-height: 1.5; }
+  /* Source badge */
+  .source-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
+  .source-badge.automated { background: color-mix(in srgb, var(--color-accent), transparent 84%); color: var(--color-accent); }
+  .source-badge.manual { background: color-mix(in srgb, var(--color-text-muted), transparent 86%); color: var(--color-text-muted); }
+  /* Steps section */
+  .steps-section { display: flex; flex-direction: column; gap: 10px; }
+  .steps-section-title { margin: 0; font-size: 0.98rem; font-weight: 700; }
   .sticky-actions { position: sticky; bottom: 0; background: color-mix(in srgb, var(--color-bg), transparent 2%); border-top: 1px solid var(--color-border); padding: 16px 0; }
 
   @media (max-width: 1040px) {
