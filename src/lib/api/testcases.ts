@@ -105,13 +105,81 @@ export async function getScenario(projectKey: string, scenarioId: string): Promi
   return res.json();
 }
 
-export async function listScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {
+export async function listScenarios(
+  projectKey: string,
+  nodeId?: string | null,
+  status = 'ACTIVE',
+  sortBy?: string,
+  sortDir?: string
+): Promise<Scenario[]> {
   if (isMockMode()) return mockListScenarios(projectKey, nodeId, status);
   const params = new URLSearchParams();
   if (nodeId) params.set('nodeId', nodeId);
   if (status) params.set('status', status);
+  if (sortBy) params.set('sortBy', sortBy);
+  if (sortDir) params.set('sortDir', sortDir);
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios${query}`);
+  return res.json();
+}
+
+export interface ScenarioExistsResult {
+  exists: boolean;
+  name: string;
+}
+
+export async function checkScenarioExists(
+  projectKey: string,
+  directoryNodeId: string,
+  name: string
+): Promise<ScenarioExistsResult> {
+  const res = await apiFetch(
+    `/api/projects/${projectKey}/directories/${directoryNodeId}/scenarios/exists?name=${encodeURIComponent(name)}`
+  );
+  return res.json();
+}
+
+export interface BulkCopyResult {
+  createdCount: number;
+  skippedCount: number;
+  createdIds: string[];
+  skippedIds: string[];
+}
+
+export async function bulkCopyScenarios(
+  projectKey: string,
+  body: { scenarioIds: string[]; targetNodeId: string; duplicateStrategy?: string }
+): Promise<BulkCopyResult> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/copy`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function bulkDeleteScenarios(
+  projectKey: string,
+  scenarioIds: string[]
+): Promise<{ updatedCount: number; scenarioIds: string[] }> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/delete`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ scenarioIds })
+  });
+  return res.json();
+}
+
+export async function moveDirectory(
+  projectKey: string,
+  directoryNodeId: string,
+  parentId: string | null
+): Promise<TestDirectory> {
+  const res = await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}/move`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ parentId })
+  });
   return res.json();
 }
 
