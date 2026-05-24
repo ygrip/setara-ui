@@ -6,15 +6,15 @@
   import {
     approveDraftScenarios,
     archiveScenario,
-    createNode,
+    createDirectory,
     rejectDraftScenarios,
     type Scenario,
-    type TestNode
+    type TestDirectory
   } from '$lib/api/testcases';
 
   let { data } = $props();
 
-  type TreeNode = TestNode & { children: TreeNode[]; directCount: number; totalCount: number };
+  type TreeNode = TestDirectory & { children: TreeNode[]; directCount: number; totalCount: number };
 
   let selectedNodeId = $state<string | null>(null);
   let reviewMode = $state<'LIVE' | 'DRAFT'>('LIVE');
@@ -24,15 +24,15 @@
   let actionError = $state('');
   let copyMessage = $state('');
   let detailScenario = $state<Scenario | null>(null);
-  let showNodeModal = $state(false);
-  let nodeParentId = $state<string | null>(null);
-  let nodeName = $state('');
+  let showDirectoryModal = $state(false);
+  let directoryParentId = $state<string | null>(null);
+  let directoryName = $state('');
   let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation'>('name');
   let scenarioSortDir = $state<'asc' | 'desc'>('asc');
 
   const scopedScenarios = $derived(reviewMode === 'LIVE' ? data.scenarios : data.draftScenarios);
-  const selectedNode = $derived(data.nodes.find((node: TestNode) => node.id === selectedNodeId) ?? null);
-  const tree = $derived(buildTree(data.nodes, scopedScenarios));
+  const selectedDirectory = $derived(data.directories.find((directory: TestDirectory) => directory.id === selectedNodeId) ?? null);
+  const tree = $derived(buildTree(data.directories, scopedScenarios));
   const visibleScenarios = $derived(
     selectedNodeId
       ? scopedScenarios.filter((scenario: Scenario) => scenario.nodeId === selectedNodeId)
@@ -44,12 +44,12 @@
   }));
 
   $effect(() => {
-    if (data.nodes.length && expandedIds.size === 0) {
-      expandedIds = new Set(data.nodes.filter((node: TestNode) => node.parentId === null).map((node: TestNode) => node.id));
+    if (data.directories.length && expandedIds.size === 0) {
+      expandedIds = new Set(data.directories.filter((node: TestDirectory) => node.parentId === null).map((node: TestDirectory) => node.id));
     }
   });
 
-  function buildTree(nodes: TestNode[], scenarios: Scenario[]): TreeNode[] {
+  function buildTree(nodes: TestDirectory[], scenarios: Scenario[]): TreeNode[] {
     const byId = new Map<string, TreeNode>();
     for (const node of nodes) {
       byId.set(node.id, { ...node, children: [], directCount: 0, totalCount: 0 });
@@ -144,9 +144,9 @@
   }
 
   function openNodeModal(parentId: string | null) {
-    nodeParentId = parentId;
-    nodeName = '';
-    showNodeModal = true;
+    directoryParentId = parentId;
+    directoryName = '';
+    showDirectoryModal = true;
   }
 
   async function runAction(work: () => Promise<void>) {
@@ -164,13 +164,13 @@
 
   async function handleCreateNode(e: SubmitEvent) {
     e.preventDefault();
-    if (!nodeName.trim()) return;
+    if (!directoryName.trim()) return;
     await runAction(async () => {
-      const node = await createNode(data.projectKey, { parentId: nodeParentId, nodeType: 'DIRECTORY', name: nodeName.trim() });
+      const node = await createDirectory(data.projectKey, { parentId: directoryParentId, name: directoryName.trim() });
       selectedNodeId = node.id;
-      expandedIds = new Set([...expandedIds, nodeParentId ?? node.id]);
-      showNodeModal = false;
-      nodeName = '';
+      expandedIds = new Set([...expandedIds, directoryParentId ?? node.id]);
+      showDirectoryModal = false;
+      directoryName = '';
     });
   }
 
@@ -287,7 +287,7 @@
     <section class="scenario-panel">
       <div class="panel-header scenario-header">
         <div>
-          <span class="panel-title">{selectedNode ? selectedNode.name : 'All Scenarios'}</span>
+          <span class="panel-title">{selectedDirectory ? selectedDirectory.name : 'All Scenarios'}</span>
           <p class="panel-subtitle">{sortedScenarios.length} {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios</p>
         </div>
         <div class="header-actions">
@@ -344,18 +344,18 @@
 </div>
 
 <Modal
-  open={showNodeModal}
+  open={showDirectoryModal}
   title="Create Directory"
-  onclose={() => showNodeModal = false}
+  onclose={() => showDirectoryModal = false}
 >
   <form class="modal-form" onsubmit={handleCreateNode}>
     <label>
       <span>Name</span>
-      <input bind:value={nodeName} placeholder="Directory name" disabled={busy} required />
+      <input bind:value={directoryName} placeholder="Directory name" disabled={busy} required />
     </label>
     <div class="form-actions">
-      <button type="button" onclick={() => showNodeModal = false} disabled={busy}>Cancel</button>
-      <button class="primary-btn" type="submit" disabled={busy || !nodeName.trim()}>Create</button>
+      <button type="button" onclick={() => showDirectoryModal = false} disabled={busy}>Cancel</button>
+      <button class="primary-btn" type="submit" disabled={busy || !directoryName.trim()}>Create</button>
     </div>
   </form>
 </Modal>

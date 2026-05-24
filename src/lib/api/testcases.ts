@@ -1,14 +1,14 @@
 import { getApiBaseUrl } from './config';
-import { isMockMode, mockListNodes, mockListScenarios } from '$lib/mock/client';
+import { isMockMode, mockListDirectories, mockListScenarios } from '$lib/mock/client';
 
-export interface TestNode {
+export interface TestDirectory {
   id: string;
   parentId: string | null;
-  nodeType: 'DIRECTORY' | 'FEATURE';
-  directoryId: string | null;
+  directoryId: string;
   name: string;
   slug: string;
   path: string;
+  scenarioCount: number;
   createdAt: string;
 }
 
@@ -65,23 +65,21 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
-export async function listNodes(projectKey: string): Promise<TestNode[]> {
-  if (isMockMode()) return mockListNodes(projectKey);
-  const res = await apiFetch(`/api/projects/${projectKey}/nodes`);
+export async function listDirectories(projectKey: string, parentId?: string | null, status = 'ACTIVE'): Promise<TestDirectory[]> {
+  if (isMockMode()) return mockListDirectories(projectKey, parentId, status);
+  const params = new URLSearchParams();
+  if (parentId) params.set('parentId', parentId);
+  if (status) params.set('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/directories${query}`);
   return res.json();
 }
 
-export async function listNodeChildren(projectKey: string, nodeId: string): Promise<TestNode[]> {
-  const res = await apiFetch(`/api/projects/${projectKey}/nodes/${nodeId}/children`);
-  return res.json();
-}
-
-export async function createNode(projectKey: string, body: {
+export async function createDirectory(projectKey: string, body: {
   parentId?: string | null;
-  nodeType: 'DIRECTORY' | 'FEATURE';
   name: string;
-}): Promise<TestNode> {
-  const res = await apiFetch(`/api/projects/${projectKey}/nodes`, {
+}): Promise<TestDirectory> {
+  const res = await apiFetch(`/api/projects/${projectKey}/directories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
@@ -89,8 +87,8 @@ export async function createNode(projectKey: string, body: {
   return res.json();
 }
 
-export async function renameNode(projectKey: string, nodeId: string, name: string): Promise<TestNode> {
-  const res = await apiFetch(`/api/projects/${projectKey}/nodes/${nodeId}`, {
+export async function renameDirectory(projectKey: string, directoryNodeId: string, name: string): Promise<TestDirectory> {
+  const res = await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name })
@@ -98,8 +96,8 @@ export async function renameNode(projectKey: string, nodeId: string, name: strin
   return res.json();
 }
 
-export async function deleteNode(projectKey: string, nodeId: string): Promise<void> {
-  await apiFetch(`/api/projects/${projectKey}/nodes/${nodeId}`, { method: 'DELETE' });
+export async function deleteDirectory(projectKey: string, directoryNodeId: string): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}`, { method: 'DELETE' });
 }
 
 export async function listScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {

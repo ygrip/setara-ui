@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [~] Dashboard aggregates, repository, API key permissions, and release plans revamped
+UI: [~] Repository uses directory contract with scenario counts
 ```
 
 - [x] Git repository initialized on `main`.
@@ -26,6 +26,7 @@ UI: [~] Dashboard aggregates, repository, API key permissions, and release plans
 - [x] Executions list page (`/projects/{key}/executions`) — replaces `runs/`. Filters bar (static, coming soon note).
 - [x] Execution detail page (`/projects/{key}/executions/{runId}`) — MetricCard row, metadata grid, live indicator, scenario results placeholder.
 - [x] Test Repository page (`/projects/{key}/repository`) — two-column directory tree and selectable scenario table with detail modal.
+- [x] Test Repository API client uses `/directories` for navigation and directory creation.
 - [x] Coverage page (`/projects/{key}/coverage`) — metric cards, formulas reference, chart placeholders.
 - [x] Release Plans page (`/projects/{key}/release-plans`) — sortable/filterable table with create-plan modal.
 - [x] Release Plans page connected to backend plan contract with list/create/status/archive actions.

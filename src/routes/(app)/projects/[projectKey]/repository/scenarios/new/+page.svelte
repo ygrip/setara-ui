@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createScenario, type ScenarioStep, type TestNode } from '$lib/api/testcases';
+  import { createScenario, type ScenarioStep, type TestDirectory } from '$lib/api/testcases';
 
   let { data } = $props();
 
@@ -17,18 +17,18 @@
     { sequenceNo: 3, keyword: 'THEN', name: '', description: '', expectation: '' }
   ]);
 
-  const selectedNode = $derived(data.nodes.find((node: TestNode) => node.id === nodeId) ?? null);
+  const selectedNode = $derived(data.directories.find((node: TestDirectory) => node.id === nodeId) ?? null);
   const breadcrumbNodes = $derived(buildBreadcrumb(selectedNode));
 
   $effect(() => {
-    if (!nodeId) nodeId = data.nodeId ?? data.nodes[0]?.id ?? '';
+    if (!nodeId) nodeId = data.nodeId ?? data.directories[0]?.id ?? '';
   });
 
-  function buildBreadcrumb(node: TestNode | null): TestNode[] {
+  function buildBreadcrumb(node: TestDirectory | null): TestDirectory[] {
     if (!node) return [];
-    const byId = new Map(data.nodes.map((item: TestNode) => [item.id, item]));
-    const result: TestNode[] = [];
-    let current: TestNode | undefined = node;
+    const byId = new Map(data.directories.map((item: TestDirectory) => [item.id, item]));
+    const result: TestDirectory[] = [];
+    let current: TestDirectory | undefined = node;
     while (current) {
       result.unshift(current);
       current = current.parentId ? byId.get(current.parentId) : undefined;
@@ -120,7 +120,7 @@
         <label class="wide">
           <span>Directory</span>
           <select bind:value={nodeId} required disabled={busy}>
-            {#each data.nodes as node}
+            {#each data.directories as node}
               <option value={node.id}>{node.path}</option>
             {/each}
           </select>

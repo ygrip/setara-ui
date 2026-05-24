@@ -8,7 +8,7 @@ import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanMetrics, PlanScenario, ReleasePlan } from '$lib/api/plans';
-import type { Scenario, TestNode } from '$lib/api/testcases';
+import type { Scenario, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
 
@@ -106,9 +106,26 @@ export async function mockListUsers(_cursor?: string, _limit?: number, _sortBy?:
   return { items: mockUsers, nextCursor: null };
 }
 
-export async function mockListNodes(projectKey: string): Promise<TestNode[]> {
+export async function mockListDirectories(projectKey: string, parentId?: string | null, status = 'ACTIVE'): Promise<TestDirectory[]> {
   await delay(100);
-  return mockNodesByProject[projectKey] ?? [];
+  const nodes = mockNodesByProject[projectKey] ?? [];
+  const scenarios = mockScenariosByProject[projectKey]?.filter(scenario => scenario.status === status) ?? [];
+  return nodes
+    .filter(node => node.nodeType === 'DIRECTORY')
+    .filter(node => (parentId ? node.parentId === parentId : node.parentId === null))
+    .map(node => ({
+      id: node.id,
+      parentId: node.parentId,
+      directoryId: node.directoryId ?? node.id,
+      name: node.name,
+      slug: node.slug,
+      path: node.path,
+      createdAt: node.createdAt,
+      scenarioCount: scenarios.filter(scenario => {
+        const scenarioNode = nodes.find(item => item.id === scenario.nodeId);
+        return scenarioNode?.path === node.path || scenarioNode?.path.startsWith(`${node.path}/`);
+      }).length
+    }));
 }
 
 export async function mockListScenarios(projectKey: string, nodeId?: string | null, status = 'ACTIVE'): Promise<Scenario[]> {

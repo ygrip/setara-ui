@@ -3,7 +3,7 @@ import type { AutomationRun } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { ReleasePlan } from '$lib/api/plans';
-import type { Scenario, TestNode } from '$lib/api/testcases';
+import type { Scenario, TestDirectory } from '$lib/api/testcases';
 
 export const mockProjects: Project[] = [
   { id: '1', squadId: null, projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
@@ -40,13 +40,15 @@ export const mockApiKeysByProject: Record<string, ApiKey[]> = {
   CHECKOUT: [],
 };
 
-export const mockNodesByProject: Record<string, TestNode[]> = {
+type MockNode = TestDirectory & { nodeType: 'DIRECTORY' | 'FEATURE'; directoryId: string | null };
+
+export const mockNodesByProject: Record<string, MockNode[]> = {
   PAYMENT: [
-    { id: 'node-pay-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-PAYMENT01', name: 'Payments', slug: 'payments', path: 'payments', createdAt: '2026-05-01T00:00:00Z' },
-    { id: 'node-refund', parentId: null, nodeType: 'FEATURE', directoryId: null, name: 'Refunds', slug: 'refunds', path: 'refunds', createdAt: '2026-05-01T00:00:00Z' }
+    { id: 'node-pay-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-PAYMENT01', name: 'Payments', slug: 'payments', path: 'payments', scenarioCount: 1, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-refund', parentId: 'node-pay-root', nodeType: 'DIRECTORY', directoryId: 'DIR-REFUND01', name: 'Refunds', slug: 'refunds', path: 'payments/refunds', scenarioCount: 1, createdAt: '2026-05-01T00:00:00Z' }
   ],
   AUTH: [
-    { id: 'node-login', parentId: null, nodeType: 'FEATURE', directoryId: null, name: 'Login', slug: 'login', path: 'login', createdAt: '2026-05-01T00:00:00Z' }
+    { id: 'node-login', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-LOGIN01', name: 'Login', slug: 'login', path: 'login', scenarioCount: 1, createdAt: '2026-05-01T00:00:00Z' }
   ]
 };
 
