@@ -219,6 +219,10 @@ export function importTemplateUrl(projectKey: string): string {
   return `${getApiBaseUrl()}/api/projects/${projectKey}/scenarios/import/template`;
 }
 
+export function importErrorReportUrl(projectKey: string, importId: string): string {
+  return `${getApiBaseUrl()}/api/projects/${projectKey}/scenarios/import/${importId}/errors.xlsx`;
+}
+
 export async function validateImport(
   projectKey: string,
   file: File,
@@ -231,6 +235,32 @@ export async function validateImport(
     method: 'POST',
     body: form
   });
+  return res.json();
+}
+
+export interface ImportJobView {
+  importId: string;
+  status: string; // QUEUED | PROCESSING | COMPLETED | FAILED
+  fileName: string | null;
+  duplicateStrategy: string;
+  defaultStatus: string;
+  totalRows: number;
+  processedRows: number;
+  successCount: number;
+  warningCount: number;
+  errorCount: number;
+  createdAt: string;
+  finishedAt: string | null;
+  issues: ImportIssue[];
+}
+
+export async function listImportJobs(projectKey: string): Promise<ImportJobView[]> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/history`);
+  return res.json();
+}
+
+export async function getImportJob(projectKey: string, importId: string): Promise<ImportJobView> {
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/${importId}`);
   return res.json();
 }
 
