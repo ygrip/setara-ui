@@ -15,6 +15,13 @@ export interface ReleasePlan {
   coverageThreshold: number;
   createdAt: string;
   updatedAt: string;
+  openedAt?: string | null;
+  openedBy?: string | null;
+  inProgressAt?: string | null;
+  inProgressBy?: string | null;
+  signedOffAt?: string | null;
+  signedOffBy?: string | null;
+  signOffNotes?: string | null;
 }
 
 export interface PlanScenario {
@@ -79,6 +86,7 @@ export async function createPlan(projectKey: string, body: {
   description?: string;
   passThreshold?: number;
   coverageThreshold?: number;
+  openedBy?: string;
 }): Promise<ReleasePlan> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans`, {
     method: 'POST',
@@ -101,6 +109,8 @@ export async function updatePlan(projectKey: string, planId: string, body: Parti
   status: string;
   passThreshold: number;
   coverageThreshold: number;
+  changedBy: string;
+  notes: string;
 }>): Promise<ReleasePlan> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}`, {
     method: 'PATCH',
@@ -120,11 +130,11 @@ export async function listPlanScenarios(projectKey: string, planId: string): Pro
   return res.json();
 }
 
-export async function addPlanScenario(projectKey: string, planId: string, scenarioId: string, runnable = false, source = 'MANUAL'): Promise<PlanScenario> {
+export async function addPlanScenario(projectKey: string, planId: string, scenarioId: string, runnable = false, source = 'MANUAL', addedBy?: string): Promise<PlanScenario> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenarioId, runnable, source })
+    body: JSON.stringify({ scenarioId, runnable, source, addedBy })
   });
   return res.json();
 }

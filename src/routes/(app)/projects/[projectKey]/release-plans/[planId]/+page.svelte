@@ -31,6 +31,7 @@
   let scenarioFilter = $state('');
   let manualStatus = $state('PASSED');
   let signoffBy = $state('');
+  let signoffNotes = $state('');
 
   const scopedIds = $derived(new Set(data.planScenarios.map(item => item.scenarioId)));
   const availableScenarios = $derived(data.liveScenarios.filter(item => !scopedIds.has(item.id)));
@@ -140,7 +141,10 @@
   async function signOffPlan() {
     if (!canClose) return;
     await runAction(async () => {
-      await closePlan(data.projectKey, data.planId, { signedOffBy: signoffBy.trim() || undefined });
+      await closePlan(data.projectKey, data.planId, {
+        signedOffBy: signoffBy.trim() || undefined,
+        notes: signoffNotes.trim() || undefined
+      });
     });
   }
 </script>
@@ -204,8 +208,35 @@
       </div>
       <div class="signoff-actions">
         <input bind:value={signoffBy} placeholder="Signed off by" disabled={busy || data.plan.status === 'CLOSED'} />
+        <input bind:value={signoffNotes} placeholder="Sign-off notes" disabled={busy || data.plan.status === 'CLOSED'} />
         <button class="primary-btn" onclick={signOffPlan} disabled={busy || !canClose || data.plan.status === 'CLOSED'}>Sign Off / Close Plan</button>
       </div>
+    </section>
+
+    <section class="panel audit-panel">
+      <div class="section-head">
+        <h2>Lifecycle Audit</h2>
+      </div>
+      <div class="audit-grid">
+        <div class="audit-item">
+          <span>Opened</span>
+          <strong>{formatDate(data.plan.openedAt ?? data.plan.createdAt)}</strong>
+          <small>{data.plan.openedBy ?? 'System'}</small>
+        </div>
+        <div class="audit-item">
+          <span>Moved to In Progress</span>
+          <strong>{formatDate(data.plan.inProgressAt ?? null)}</strong>
+          <small>{data.plan.inProgressBy ?? (data.plan.inProgressAt ? 'System' : 'Not yet')}</small>
+        </div>
+        <div class="audit-item">
+          <span>Signed Off</span>
+          <strong>{formatDate(data.plan.signedOffAt ?? null)}</strong>
+          <small>{data.plan.signedOffBy ?? (data.plan.signedOffAt ? 'System' : 'Not yet')}</small>
+        </div>
+      </div>
+      {#if data.plan.signOffNotes}
+        <p class="audit-notes">{data.plan.signOffNotes}</p>
+      {/if}
     </section>
 
     <section class="panel">
@@ -331,7 +362,7 @@
   .gate-breakdown { display: flex; flex-wrap: wrap; gap: 8px; }
   .gate-breakdown span { border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 9px; color: var(--color-text-muted); font-size: 0.8rem; }
   .gate-breakdown strong { color: var(--color-text); }
-  .signoff-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 10px; align-items: center; }
+  .signoff-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) auto; gap: 10px; align-items: center; }
   button, select, input { font: inherit; }
   button, select, input { border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }
   button { padding: 7px 11px; cursor: pointer; }
@@ -342,6 +373,13 @@
   .ghost-btn { font-size: 0.78rem; }
   .section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
   .section-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .audit-panel { margin-bottom: 18px; }
+  .audit-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+  .audit-item { display: grid; gap: 4px; border: 1px solid var(--color-border); border-radius: 8px; padding: 12px; background: color-mix(in srgb, var(--color-accent), transparent 96%); }
+  .audit-item span { color: var(--color-text-muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+  .audit-item strong { font-size: 0.9rem; }
+  .audit-item small, .audit-notes { color: var(--color-text-muted); }
+  .audit-notes { margin: 12px 0 0; font-size: 0.85rem; }
   .section-head span { color: var(--color-text-muted); font-size: 0.78rem; }
   td span { display: block; color: var(--color-text-muted); font-size: 0.78rem; margin-top: 2px; }
   .empty-cell { text-align: center; color: var(--color-text-muted); font-size: 0.85rem; padding: 24px !important; }
@@ -357,6 +395,6 @@
   .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
   @media (max-width: 920px) {
     .page-header, .quality-panel { grid-template-columns: 1fr; flex-direction: column; }
-    .evidence-controls, .visual-panel, .signoff-actions { grid-template-columns: 1fr; }
+    .evidence-controls, .visual-panel, .signoff-actions, .audit-grid { grid-template-columns: 1fr; }
   }
 </style>

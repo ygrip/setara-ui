@@ -1,9 +1,9 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (dashboard trend, project settings, and release plan sign-off)
+Last synced with parent tracker: 2026-05-25 (release plan lifecycle audit metadata)
 
 ```text
-UI: [x] Dashboard/project/release-plan UX aligned with current backend contracts
+UI: [x] Release plan lifecycle audit metadata visible in plan detail
 ```
 
 - [x] Git repository initialized on `main`.
@@ -98,6 +98,7 @@ UI: [x] Dashboard/project/release-plan UX aligned with current backend contracts
 - [x] Plan execution evidence selection workflow.
 - [x] Plan scenario list shows runnable/manual scope, evidence status, and run-by/selected-by context.
 - [x] Plan sign-off flow blocks closing until every scoped scenario has evidence.
+- [x] Plan detail displays lifecycle audit metadata for opened, in-progress, and signed-off states plus sign-off notes.
 - [x] Quality gate dashboard for release plans.
 - [x] Per-project release plan list/create/status/archive workflow.
 - [x] `SetaraStepGridEditor.svelte` — RevoGrid-backed step editor with Edit/Preview modes, toolbar (add/delete/move/duplicate/normalize), markdown preview via marked+highlight.js.
