@@ -9,6 +9,7 @@
    * - Local draft state — changes do NOT auto-save; parent receives steps via `onchange`
    */
 
+  import { untrack } from 'svelte';
   import type { ColumnRegular } from '@revolist/revogrid';
   import { RevoGrid } from '@revolist/svelte-datagrid';
   import StepPasteParseDialog from './StepPasteParseDialog.svelte';
@@ -42,6 +43,8 @@
   let focusedRowIndex = $state<number>(-1);
   let showPasteDialog = $state(false);
   let gridWrap = $state<HTMLDivElement | undefined>();
+  /** Row height in px — user-adjustable via toolbar */
+  let rowSize = $state(34);
   let errorCount = $derived(rows.filter((r) => r._error).length);
   let warningCount = $derived(
     rows.filter((r) => !r._error && r.text.trim() === '' && rows.indexOf(r) < rows.length - 1)
@@ -49,9 +52,28 @@
   );
 
   // ── Sync from parent when steps prop changes ──────────────────
+  // Use untrack to read current `rows` without making it a dependency,
+  // then only reinitialise when the incoming steps are genuinely different
+  // from what we last pushed via onchange (preventing the feedback loop
+  // where onchange → parent updates `steps` → effect resets rows).
   $effect(() => {
-    rows = steps.length > 0 ? fromBackendSteps(steps) : [emptyRow(1)];
-    rows = validateRows(rows);
+    const incoming = steps; // reactive dependency
+    untrack(() => {
+      const current = toBackendSteps(rows); // read rows without tracking
+      const same =
+        incoming.length === current.length &&
+        incoming.every(
+          (s, i) =>
+            s.name === current[i]?.name &&
+            s.keyword === current[i]?.keyword &&
+            (s.description ?? '') === (current[i]?.description ?? '') &&
+            (s.expectation ?? '') === (current[i]?.expectation ?? '') &&
+            (s.sequenceNo ?? i + 1) === (current[i]?.sequenceNo ?? i + 1)
+        );
+      if (same) return; // our own feedback — skip reinit
+      rows = incoming.length > 0 ? fromBackendSteps(incoming) : [emptyRow(1)];
+      rows = validateRows(rows);
+    });
   });
 
   // ── RevoGrid columns ──────────────────────────────────────────
@@ -244,6 +266,16 @@
       </div>
 
       <div class="toolbar-right">
+        <select
+          class="height-select"
+          title="Row height"
+          bind:value={rowSize}
+          aria-label="Row height"
+        >
+          <option value={28}>Compact</option>
+          <option value={34}>Normal</option>
+          <option value={50}>Spacious</option>
+        </select>
         <div class="segmented">
           <button class:active={mode === 'edit'} onclick={() => (mode = 'edit')}>Edit</button>
           <button class:active={mode === 'preview'} onclick={() => (mode = 'preview')}
@@ -255,9 +287,21 @@
   {:else}
     <div class="toolbar readonly-bar">
       <span class="readonly-label">Read-only</span>
-      <div class="segmented">
-        <button class:active={mode === 'edit'} onclick={() => (mode = 'edit')}>Table</button>
-        <button class:active={mode === 'preview'} onclick={() => (mode = 'preview')}>Preview</button>
+      <div class="toolbar-right">
+        <select
+          class="height-select"
+          title="Row height"
+          bind:value={rowSize}
+          aria-label="Row height"
+        >
+          <option value={28}>Compact</option>
+          <option value={34}>Normal</option>
+          <option value={50}>Spacious</option>
+        </select>
+        <div class="segmented">
+          <button class:active={mode === 'edit'} onclick={() => (mode = 'edit')}>Table</button>
+          <button class:active={mode === 'preview'} onclick={() => (mode = 'preview')}>Preview</button>
+        </div>
       </div>
     </div>
   {/if}
@@ -269,7 +313,7 @@
         source={gridSource}
         columns={gridColumns}
         theme="compact"
-        rowHeaders={true}
+        rowSize={rowSize}
         resize={true}
         readonly={readonly}
         externalSourceChanged={gridSource}
@@ -380,6 +424,17 @@
   button.danger-text:hover:not(:disabled) { border-color: var(--color-danger, #ef4444); }
   button.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: color-mix(in srgb, var(--color-accent), transparent 55%); }
 
+  .height-select {
+    font: inherit;
+    font-size: 0.75rem;
+    padding: 4px 7px;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    width: auto;
+  }
   .segmented { display: flex; border: 1px solid var(--color-border); border-radius: 5px; overflow: hidden; }
   .segmented button { border: 0; border-radius: 0; padding: 5px 10px; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
   .segmented button.active { background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); }

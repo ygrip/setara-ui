@@ -564,7 +564,6 @@
         <span class="panel-title">Test Repository</span>
         <div class="tree-topbar-actions">
           <button class="icon-btn" title="Add root directory" aria-label="Add root directory" onclick={() => openNodeModal(null)}>{@render iconFolderPlus()}</button>
-          <a class="excel-btn" title="Import from Excel" aria-label="Import from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconExcel()} <span>Import Excel</span></a>
         </div>
       </div>
 
@@ -653,6 +652,7 @@
             <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
+          <a class="import-btn" title="Import scenarios from Excel" aria-label="Import scenarios" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
           <button class="primary-outline" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
             + Scenario
           </button>
@@ -1002,8 +1002,8 @@
         <div class="scenario-editor">
           <div class="editor-top">
             <div class="id-row">
-              <span>ID</span>
-              <strong>{detailDraft.scenarioKey}</strong>
+              <span class="id-label">ID</span>
+              <strong class="id-value">{detailDraft.scenarioKey}</strong>
               <button class="ta-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={copyDetailScenarioId}>{@render iconCopy()}</button>
               {#if detailDraft.source === 'AUTOMATED'}
                 <span class="source-badge automated" title="Ingested from automation">⚙ From Automation</span>
@@ -1072,11 +1072,15 @@
               onchange={(updated) => { detailSteps = updated; }}
             />
           </div>
+        </div>
 
-          <div class="form-actions sticky-actions">
-            <Dialog.Close>Close</Dialog.Close>
-            <button class="primary-btn" type="button" onclick={saveDetailScenario} disabled={busy}>Save Changes</button>
-          </div>
+        <!-- Footer always visible at bottom of drawer -->
+        <div class="drawer-footer">
+          {#if actionError}<span class="footer-error">{actionError}</span>{/if}
+          <Dialog.Close class="drawer-close-btn">Close</Dialog.Close>
+          <button class="primary-btn" type="button" onclick={saveDetailScenario} disabled={busy}>
+            {busy ? 'Saving…' : 'Save Changes'}
+          </button>
         </div>
       {/if}
     </Dialog.Content>
@@ -1110,9 +1114,9 @@
   .primary-outline { border-color: color-mix(in srgb, var(--color-accent), transparent 55%); color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
   .icon-btn { display: inline-grid; place-items: center; width: 34px; height: 34px; padding: 0; text-decoration: none; border: 1px solid var(--color-border); border-radius: 5px; background: var(--color-surface); color: var(--color-text-muted); font-weight: 800; line-height: 1; }
   .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  /* Excel import button */
-  .excel-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; text-decoration: none; border: 1px solid #166534; border-radius: 6px; background: #166534; color: #fff; font-size: 0.78rem; font-weight: 700; line-height: 1; white-space: nowrap; transition: background 0.12s, border-color 0.12s; }
-  .excel-btn:hover { background: #14532d; border-color: #14532d; color: #fff; }
+  /* Import button */
+  .import-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px; text-decoration: none; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 0.78rem; font-weight: 700; line-height: 1; white-space: nowrap; transition: border-color 0.12s, color 0.12s; }
+  .import-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
   input, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   input[type='checkbox'] { width: auto; }
 
@@ -1249,28 +1253,62 @@
 
   /* Scenario drawer/editor */
   :global(.drawer-overlay) { position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.42); backdrop-filter: blur(4px); }
-  :global(.scenario-drawer) { position: fixed; z-index: 101; top: 0; right: 0; bottom: 0; width: min(1120px, calc(100vw - 32px)); background: var(--color-bg); border-left: 1px solid var(--color-border); box-shadow: -24px 0 60px color-mix(in srgb, #000, transparent 78%); display: grid; grid-template-rows: auto minmax(0, 1fr); outline: none; }
-  .drawer-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 22px 28px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
-  :global(.drawer-title) { margin: 0; font-size: 1.2rem; font-weight: 850; line-height: 1.25; }
-  .drawer-subtitle { margin: 6px 0 0; color: var(--color-text-muted); font-family: ui-monospace, monospace; font-size: 0.82rem; }
-  :global(.drawer-close) { width: 36px; height: 36px; display: inline-grid; place-items: center; border-radius: 8px; font-size: 1.35rem; line-height: 1; }
-  .sync-pill { justify-self: start; border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); padding: 4px 10px; font-size: 0.72rem; font-weight: 800; }
-  .scenario-editor { display: grid; gap: 22px; height: 100%; overflow: auto; padding: 24px 28px 0; }
-  .editor-top { display: grid; gap: 14px; }
-  .id-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; font-size: 0.86rem; }
-  .id-row span { color: var(--color-text-muted); }
-  .editor-grid { display: grid; grid-template-columns: minmax(280px, 2fr) repeat(3, minmax(150px, 1fr)); gap: 16px; align-items: end; }
+  :global(.scenario-drawer) {
+    position: fixed; z-index: 101; top: 0; right: 0; bottom: 0;
+    width: min(1120px, calc(100vw - 32px));
+    background: var(--color-bg);
+    border-left: 1px solid var(--color-border);
+    box-shadow: -24px 0 60px color-mix(in srgb, #000, transparent 78%);
+    outline: none;
+    /* flex column: header | scrollable body | fixed footer */
+    display: flex;
+    flex-direction: column;
+  }
+  .drawer-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
+  :global(.drawer-title) { margin: 0; font-size: 1.15rem; font-weight: 850; line-height: 1.25; }
+  .drawer-subtitle { margin: 4px 0 0; color: var(--color-text-muted); font-family: ui-monospace, monospace; font-size: 0.8rem; }
+  :global(.drawer-close) { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 8px; font-size: 1.3rem; line-height: 1; }
+  .sync-pill { border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); padding: 3px 9px; font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
+  /* Scrollable body */
+  .scenario-editor { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 20px 24px 8px; }
+  .editor-top { display: flex; flex-direction: column; gap: 14px; flex-shrink: 0; }
+  .id-row { display: flex; align-items: center; gap: 10px; font-size: 0.86rem; flex-wrap: wrap; }
+  .id-label { color: var(--color-text-muted); flex-shrink: 0; }
+  .id-value { font-family: ui-monospace, monospace; font-size: 0.85rem; }
+  .editor-grid { display: grid; grid-template-columns: minmax(260px, 2fr) repeat(3, minmax(130px, 1fr)); gap: 14px; align-items: end; }
   .editor-grid label,
   .description-field { display: grid; gap: 6px; font-size: 0.78rem; color: var(--color-text-muted); }
   textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; font: inherit; resize: vertical; box-sizing: border-box; }
   /* Source badge */
-  .source-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; }
+  .source-badge { display: inline-flex; align-items: center; padding: 3px 9px; border-radius: 999px; font-size: 0.7rem; font-weight: 700; letter-spacing: 0.03em; flex-shrink: 0; }
   .source-badge.automated { background: color-mix(in srgb, var(--color-accent), transparent 84%); color: var(--color-accent); }
   .source-badge.manual { background: color-mix(in srgb, var(--color-text-muted), transparent 86%); color: var(--color-text-muted); }
   /* Steps section */
-  .steps-section { display: flex; flex-direction: column; gap: 10px; }
-  .steps-section-title { margin: 0; font-size: 0.98rem; font-weight: 700; }
-  .sticky-actions { position: sticky; bottom: 0; background: color-mix(in srgb, var(--color-bg), transparent 2%); border-top: 1px solid var(--color-border); padding: 16px 0; }
+  .steps-section { display: flex; flex-direction: column; gap: 8px; flex: 1; }
+  .steps-section-title { margin: 0; font-size: 0.95rem; font-weight: 700; }
+  /* Always-visible drawer footer */
+  .drawer-footer {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 24px;
+    border-top: 1px solid var(--color-border);
+    background: var(--color-surface);
+  }
+  .footer-error { flex: 1; font-size: 0.78rem; color: var(--color-danger, #ef4444); }
+  :global(.drawer-close-btn) {
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    border-radius: 6px;
+    padding: 8px 16px;
+    font: inherit;
+    font-size: 0.875rem;
+    cursor: pointer;
+  }
+  :global(.drawer-close-btn:hover) { border-color: var(--color-accent); color: var(--color-accent); }
 
   @media (max-width: 1040px) {
     .repo-layout { grid-template-columns: 1fr; }
@@ -1280,6 +1318,7 @@
     .editor-grid { grid-template-columns: 1fr; }
     :global(.scenario-drawer) { width: 100vw; }
     .scenario-topbar { align-items: stretch; flex-direction: column; }
+    .header-actions { flex-wrap: wrap; }
   }
   @media (max-width: 720px) {
     .tree-list { padding-inline: 10px; }

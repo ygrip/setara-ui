@@ -1,6 +1,8 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createScenario, type ScenarioStep, type TestDirectory } from '$lib/api/testcases';
+  import { createScenario, type TestDirectory } from '$lib/api/testcases';
+  import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
+  import type { BackendStep } from '$lib/components/scenario/step-grid.types';
 
   let { data } = $props();
 
@@ -9,12 +11,12 @@
   let nodeId = $state('');
   let name = $state('');
   let priority = $state('MEDIUM');
-  let automatable = $state(true);
+  let automationStatus = $state('AUTOMATABLE');
   let description = $state('');
-  let steps = $state<Array<Omit<ScenarioStep, 'id'>>>([
-    { sequenceNo: 1, keyword: 'GIVEN', name: '', description: '', expectation: '' },
-    { sequenceNo: 2, keyword: 'WHEN', name: '', description: '', expectation: '' },
-    { sequenceNo: 3, keyword: 'THEN', name: '', description: '', expectation: '' }
+  let detailSteps = $state<BackendStep[]>([
+    { sequenceNo: 1, keyword: 'GIVEN', name: '', description: null, expectation: null },
+    { sequenceNo: 2, keyword: 'WHEN', name: '', description: null, expectation: null },
+    { sequenceNo: 3, keyword: 'THEN', name: '', description: null, expectation: null }
   ]);
 
   const selectedNode = $derived(data.directories.find((node: TestDirectory) => node.id === nodeId) ?? null);
@@ -36,25 +38,10 @@
     return result;
   }
 
-  function addStep() {
-    steps = [...steps, { sequenceNo: steps.length + 1, keyword: 'AND', name: '', description: '', expectation: '' }];
-  }
-
-  function removeStep(index: number) {
-    steps = steps.filter((_, stepIndex) => stepIndex !== index).map((step, stepIndex) => ({ ...step, sequenceNo: stepIndex + 1 }));
-  }
-
-  function moveStep(index: number, direction: -1 | 1) {
-    const target = index + direction;
-    if (target < 0 || target >= steps.length) return;
-    const next = [...steps];
-    [next[index], next[target]] = [next[target], next[index]];
-    steps = next.map((step, stepIndex) => ({ ...step, sequenceNo: stepIndex + 1 }));
-  }
-
   async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     if (!nodeId || !name.trim()) return;
+    const filledSteps = detailSteps.filter((s) => s.name?.trim());
     busy = true;
     actionError = '';
     try {
@@ -62,15 +49,19 @@
         nodeId,
         name: name.trim(),
         priority,
-        automatable,
+        automatable: automationStatus !== 'MANUAL_ONLY',
         notes: description.trim() || undefined,
-        steps: steps
-          .filter((step) => step.name.trim())
-          .map((step, index) => ({ ...step, sequenceNo: index + 1, name: step.name.trim() }))
+        steps: filledSteps.map((s, i) => ({
+          sequenceNo: i + 1,
+          keyword: s.keyword,
+          name: s.name.trim(),
+          description: s.description ?? null,
+          expectation: s.expectation ?? null
+        }))
       });
       await goto(`/projects/${data.projectKey}/repository`);
-    } catch (e) {
-      actionError = (e as Error).message;
+    } catch (err) {
+      actionError = (err as Error).message;
     } finally {
       busy = false;
     }
@@ -138,9 +129,13 @@
             <option>LOW</option>
           </select>
         </label>
-        <label class="check-field">
-          <input type="checkbox" bind:checked={automatable} disabled={busy} />
-          <span>Automatable</span>
+        <label>
+          <span>Automation</span>
+          <select bind:value={automationStatus} disabled={busy}>
+            <option value="MANUAL_ONLY">Manual Only</option>
+            <option value="AUTOMATABLE">Automatable</option>
+            <option value="AUTOMATED">Automated</option>
+          </select>
         </label>
         <label class="wide">
           <span>Description</span>
@@ -149,46 +144,20 @@
       </div>
     </section>
 
-    <section class="section">
-      <div class="section-header">
-        <h2>Steps</h2>
-        <button type="button" onclick={addStep} disabled={busy}>+ Step</button>
-      </div>
-      <div class="steps-table">
-        <div class="steps-row steps-row--head">
-          <span>Order</span>
-          <span>Keyword</span>
-          <span>Name</span>
-          <span>Description</span>
-          <span>Expectation</span>
-          <span></span>
-        </div>
-        {#each steps as step, index}
-          <div class="steps-row">
-            <div class="order-cell">
-              <strong>{index + 1}</strong>
-              <button type="button" onclick={() => moveStep(index, -1)} disabled={busy || index === 0}>↑</button>
-              <button type="button" onclick={() => moveStep(index, 1)} disabled={busy || index === steps.length - 1}>↓</button>
-            </div>
-            <select bind:value={step.keyword} disabled={busy}>
-              <option>GIVEN</option>
-              <option>WHEN</option>
-              <option>THEN</option>
-              <option>AND</option>
-              <option>BUT</option>
-            </select>
-            <textarea bind:value={step.name} placeholder="Step name" disabled={busy}></textarea>
-            <textarea bind:value={step.description} placeholder="Details" disabled={busy}></textarea>
-            <textarea bind:value={step.expectation} placeholder="Expected result" disabled={busy}></textarea>
-            <button type="button" class="danger" onclick={() => removeStep(index)} disabled={busy || steps.length === 1}>Remove</button>
-          </div>
-        {/each}
-      </div>
+    <section class="section steps-section">
+      <h2 class="section-title">Steps</h2>
+      <SetaraStepGridEditor
+        steps={detailSteps}
+        readonly={busy}
+        onchange={(updated) => { detailSteps = updated; }}
+      />
     </section>
 
     <div class="form-actions">
       <button type="button" onclick={() => goto(`/projects/${data.projectKey}/repository`)} disabled={busy}>Cancel</button>
-      <button type="submit" class="primary-btn" disabled={busy || !nodeId || !name.trim()}>Create Draft Scenario</button>
+      <button type="submit" class="primary-btn" disabled={busy || !nodeId || !name.trim()}>
+        {busy ? 'Creating…' : 'Create Draft Scenario'}
+      </button>
     </div>
   </form>
 </div>
@@ -201,7 +170,7 @@
   .page-header { margin-bottom: 18px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
-  .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
+  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
   .scenario-form { display: grid; gap: 18px; }
   .section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
   .path-row { display: flex; align-items: center; gap: 12px; padding-bottom: 14px; margin-bottom: 14px; border-bottom: 1px solid var(--color-border); font-size: 0.85rem; color: var(--color-text-muted); }
@@ -209,26 +178,17 @@
   .form-grid { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
   .wide { grid-column: 1 / -1; }
   label { display: grid; gap: 5px; font-size: 0.78rem; color: var(--color-text-muted); }
-  .check-field { grid-template-columns: auto 1fr; align-items: center; align-content: center; padding-top: 22px; }
   button, input, select, textarea { font: inherit; }
   button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
   button:disabled { opacity: 0.55; cursor: not-allowed; }
   .primary-btn { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-  button.danger { color: var(--color-danger); }
   input, select, textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); padding: 8px 10px; min-width: 0; }
-  input[type='checkbox'] { width: auto; }
   textarea { min-height: 64px; resize: vertical; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
-  .section-header h2 { font-size: 1rem; margin: 0; }
-  .steps-table { overflow-x: auto; }
-  .steps-row { display: grid; grid-template-columns: 86px 110px minmax(180px, 1fr) minmax(180px, 1fr) minmax(180px, 1fr) 90px; gap: 8px; min-width: 960px; margin-bottom: 8px; align-items: start; }
-  .steps-row--head { color: var(--color-text-muted); font-size: 0.72rem; font-weight: 800; text-transform: uppercase; }
-  .order-cell { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 4px; }
-  .order-cell button { padding: 5px 7px; }
+  .steps-section { padding-bottom: 8px; }
+  .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 12px; }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
   @media (max-width: 720px) {
     .form-grid { grid-template-columns: 1fr; }
-    .check-field { padding-top: 0; }
   }
 </style>
