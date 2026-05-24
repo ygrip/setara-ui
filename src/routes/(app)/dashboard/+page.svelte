@@ -2,14 +2,22 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
-  import { type Project } from '$lib/api/projects';
-  import { passRateTrend } from '$lib/mock/data';
 
   let { data } = $props();
+
+  let leadershipFilter = $state('');
+  let leadershipSortBy = $state<'name' | 'coverage'>('coverage');
+  let leadershipSortDir = $state<'asc' | 'desc'>('desc');
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric'
+    });
+  }
+
+  function compactDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short'
     });
   }
 
@@ -24,11 +32,29 @@
   const overallCoverage = $derived(
     totals.automatable === 0 ? 0 : Math.round((totals.automated / totals.automatable) * 100)
   );
+  const historicalTotals = $derived(
+    Array.from(
+      data.statisticHistory.reduce((acc, row) => {
+        const key = row.statDate.slice(0, 10);
+        const existing = acc.get(key) ?? { date: key, automated: 0, automatable: 0, scenarios: 0 };
+        existing.automated += row.totalAutomated;
+        existing.automatable += row.totalAutomatable;
+        existing.scenarios += row.totalScenarios;
+        acc.set(key, existing);
+        return acc;
+      }, new Map<string, { date: string; automated: number; automatable: number; scenarios: number }>())
+    )
+      .map(([, row]) => ({
+        ...row,
+        coverage: row.automatable === 0 ? 0 : Math.round((row.automated / row.automatable) * 100)
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date))
+  );
   const coverageTrend = $derived({
-    labels: data.statistics.map(row => row.projectKey),
+    labels: historicalTotals.map(row => compactDate(row.date)),
     datasets: [{
-      label: 'Coverage %',
-      data: data.statistics.map(row => row.coveragePercentage),
+      label: 'Overall Coverage %',
+      data: historicalTotals.map(row => row.coverage),
       borderColor: '#0d9488',
       backgroundColor: 'rgba(13, 148, 136, 0.12)',
       fill: true,
@@ -37,6 +63,26 @@
       pointBackgroundColor: '#0d9488'
     }]
   });
+  const filteredLeadership = $derived(
+    data.statistics
+      .filter(row => row.projectName.toLowerCase().includes(leadershipFilter.toLowerCase()))
+      .sort((a, b) => {
+        const result = leadershipSortBy === 'name'
+          ? a.projectName.localeCompare(b.projectName)
+          : a.coveragePercentage - b.coveragePercentage;
+        return leadershipSortDir === 'asc' ? result : -result;
+      })
+  );
+
+  function sortLeadership(field: 'name' | 'coverage') {
+    leadershipSortDir = leadershipSortBy === field && leadershipSortDir === 'asc' ? 'desc' : 'asc';
+    leadershipSortBy = field;
+  }
+
+  function leadershipIndicator(field: 'name' | 'coverage'): string {
+    if (leadershipSortBy !== field) return '';
+    return leadershipSortDir === 'asc' ? '↑' : '↓';
+  }
 </script>
 
 <svelte:head>
@@ -88,26 +134,44 @@
     />
   </div>
 
-  <div class="section">
-    <h2 class="section-title">Leadership Coverage Overview</h2>
+  <div class="chart-section">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">Overall Coverage Trend</h2>
+        <p class="section-subtitle">Last 30 days aggregated across all tracked projects.</p>
+      </div>
+    </div>
+    <div class="chart-card">
+      <LineChart chartData={coverageTrend} height={220} />
+    </div>
+  </div>
+
+  <div class="section leadership-section">
+    <div class="section-heading">
+      <div>
+        <h2 class="section-title">Leadership Coverage Overview</h2>
+        <p class="section-subtitle">Sortable project-level statistics from the latest snapshot.</p>
+      </div>
+      <input class="filter-input" bind:value={leadershipFilter} placeholder="Filter project" />
+    </div>
     {#if data.statistics.length === 0}
       <div class="empty-state"><p>No project statistics captured yet.</p></div>
     {:else}
       <DataTable>
         {#snippet head()}
           <tr>
-            <th>Project</th>
+            <th><button class="sort-button" onclick={() => sortLeadership('name')}>Project <span class="sort-indicator">{leadershipIndicator('name')}</span></button></th>
             <th>Total Scenarios</th>
             <th>Automated</th>
             <th>Automatable</th>
-            <th>Coverage</th>
+            <th><button class="sort-button" onclick={() => sortLeadership('coverage')}>Coverage <span class="sort-indicator">{leadershipIndicator('coverage')}</span></button></th>
             <th>Snapshot</th>
           </tr>
         {/snippet}
         {#snippet body()}
-          {#each data.statistics as row}
+          {#each filteredLeadership as row}
             <tr>
-              <td><span class="key-badge">{row.projectKey}</span> <span class="project-name">{row.projectName}</span></td>
+              <td class="bold">{row.projectName}</td>
               <td>{row.totalScenarios}</td>
               <td>{row.totalAutomated}</td>
               <td>{row.totalAutomatable}</td>
@@ -154,13 +218,6 @@
     {/if}
   </div>
 
-  <!-- Pass Rate Trend Chart -->
-  <div class="chart-section">
-    <h2 class="section-title">Pass Rate Trend</h2>
-    <div class="chart-card">
-      <LineChart chartData={data.statistics.length ? coverageTrend : passRateTrend} height={220} />
-    </div>
-  </div>
 </div>
 
 <style>
@@ -210,8 +267,34 @@
   .section-title {
     font-size: 1rem;
     font-weight: 600;
-    margin-bottom: 14px;
+    margin: 0 0 4px;
     color: var(--color-text);
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .section-subtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+  }
+
+  .filter-input {
+    width: min(260px, 100%);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 0.875rem;
   }
 
   .empty-state {
@@ -257,8 +340,4 @@
     font-weight: 500;
   }
 
-  .project-name {
-    margin-left: 8px;
-    color: var(--color-text);
-  }
 </style>

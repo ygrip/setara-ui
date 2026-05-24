@@ -1,114 +1,98 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import {
     approveDraftScenarios,
     archiveScenario,
-    createManualExecution,
     createNode,
-    createScenario,
-    deleteNode,
     rejectDraftScenarios,
-    renameNode,
-    updateScenario,
     type Scenario,
-    type ScenarioStep,
     type TestNode
   } from '$lib/api/testcases';
 
   let { data } = $props();
 
-  type ScenarioDraftRow = {
-    name: string;
-    priority: string;
-    automatable: boolean;
-    notes: string;
-    steps: Array<Omit<ScenarioStep, 'id'>>;
-  };
+  type TreeNode = TestNode & { children: TreeNode[]; directCount: number; totalCount: number };
 
   let selectedNodeId = $state<string | null>(null);
-  let selectedScenarioId = $state<string | null>(null);
   let reviewMode = $state<'LIVE' | 'DRAFT'>('LIVE');
-  let initializedSelection = $state(false);
+  let selectedScenarioIds = $state<string[]>([]);
+  let expandedIds = $state<Set<string>>(new Set());
   let busy = $state(false);
   let actionError = $state('');
-  let selectedDraftIds = $state<string[]>([]);
-  let scenarioSortBy = $state('name');
-  let scenarioSortDir = $state<'asc' | 'desc'>('asc');
-
+  let copyMessage = $state('');
+  let detailScenario = $state<Scenario | null>(null);
+  let showNodeModal = $state(false);
+  let nodeParentId = $state<string | null>(null);
   let nodeName = $state('');
-  let nodeType = $state<'DIRECTORY' | 'FEATURE'>('DIRECTORY');
-  let renameValue = $state('');
-
-  let draftRows = $state<ScenarioDraftRow[]>([
-    {
-      name: '',
-      priority: 'MEDIUM',
-      automatable: true,
-      notes: '',
-      steps: [
-        { sequenceNo: 1, keyword: 'GIVEN', name: '', description: '', expectation: '' },
-        { sequenceNo: 2, keyword: 'WHEN', name: '', description: '', expectation: '' },
-        { sequenceNo: 3, keyword: 'THEN', name: '', description: '', expectation: '' }
-      ]
-    }
-  ]);
-
-  let manualStatus = $state('PASSED');
-  let manualExecutor = $state('');
-  let manualEnvironment = $state('');
-  let manualNotes = $state('');
-  let editScenarioName = $state('');
-  let editAutomationStatus = $state('MANUAL_ONLY');
-  let editManualNotes = $state('');
-  let editSteps = $state<Array<Omit<ScenarioStep, 'id'>>>([]);
+  let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation'>('name');
+  let scenarioSortDir = $state<'asc' | 'desc'>('asc');
 
   const scopedScenarios = $derived(reviewMode === 'LIVE' ? data.scenarios : data.draftScenarios);
   const selectedNode = $derived(data.nodes.find((node: TestNode) => node.id === selectedNodeId) ?? null);
+  const tree = $derived(buildTree(data.nodes, scopedScenarios));
   const visibleScenarios = $derived(
     selectedNodeId
       ? scopedScenarios.filter((scenario: Scenario) => scenario.nodeId === selectedNodeId)
       : scopedScenarios
   );
   const sortedScenarios = $derived([...visibleScenarios].sort((a: Scenario, b: Scenario) => {
-    const av = scenarioValue(a, scenarioSortBy);
-    const bv = scenarioValue(b, scenarioSortBy);
-    const result = av.localeCompare(bv);
+    const result = scenarioValue(a, scenarioSortBy).localeCompare(scenarioValue(b, scenarioSortBy));
     return scenarioSortDir === 'asc' ? result : -result;
   }));
-  const selectedScenario = $derived(
-    scopedScenarios.find((scenario: Scenario) => scenario.id === selectedScenarioId) ?? sortedScenarios[0] ?? null
-  );
 
   $effect(() => {
-    if (!initializedSelection) {
-      selectedNodeId = data.nodes[0]?.id ?? null;
-      selectedScenarioId = data.scenarios[0]?.id ?? null;
-      initializedSelection = true;
+    if (data.nodes.length && expandedIds.size === 0) {
+      expandedIds = new Set(data.nodes.filter((node: TestNode) => node.parentId === null).map((node: TestNode) => node.id));
     }
   });
 
-  $effect(() => {
-    if (selectedNode) renameValue = selectedNode.name;
-  });
-
-  $effect(() => {
-    if (selectedScenario) {
-      editScenarioName = selectedScenario.name;
-      editAutomationStatus = selectedScenario.automationStatus;
-      editManualNotes = selectedScenario.manualNotes ?? '';
-      editSteps = selectedScenario.steps?.length
-        ? selectedScenario.steps.map((step: ScenarioStep, index: number) => ({
-            sequenceNo: index + 1,
-            keyword: step.keyword,
-            name: step.name,
-            description: step.description ?? '',
-            expectation: step.expectation ?? ''
-          }))
-        : [{ sequenceNo: 1, keyword: 'GIVEN', name: '', description: '', expectation: '' }];
+  function buildTree(nodes: TestNode[], scenarios: Scenario[]): TreeNode[] {
+    const byId = new Map<string, TreeNode>();
+    for (const node of nodes) {
+      byId.set(node.id, { ...node, children: [], directCount: 0, totalCount: 0 });
     }
-  });
+    for (const scenario of scenarios) {
+      const node = byId.get(scenario.nodeId);
+      if (node) node.directCount += 1;
+    }
+    const roots: TreeNode[] = [];
+    for (const node of byId.values()) {
+      if (node.parentId && byId.has(node.parentId)) {
+        byId.get(node.parentId)?.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+    const count = (node: TreeNode): number => {
+      node.children.sort((a, b) => a.name.localeCompare(b.name));
+      node.totalCount = node.directCount + node.children.reduce((sum, child) => sum + count(child), 0);
+      return node.totalCount;
+    };
+    roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(count);
+    return roots;
+  }
+
+  function scenarioValue(scenario: Scenario, field: string): string {
+    switch (field) {
+      case 'key': return scenario.scenarioKey ?? '';
+      case 'priority': return scenario.priority ?? '';
+      case 'automation': return scenario.automationStatus ?? '';
+      default: return scenario.name ?? '';
+    }
+  }
+
+  function sortScenarios(field: 'key' | 'name' | 'priority' | 'automation') {
+    scenarioSortDir = scenarioSortBy === field && scenarioSortDir === 'asc' ? 'desc' : 'asc';
+    scenarioSortBy = field;
+  }
+
+  function sortIndicator(field: 'key' | 'name' | 'priority' | 'automation'): string {
+    if (scenarioSortBy !== field) return '';
+    return scenarioSortDir === 'asc' ? '↑' : '↓';
+  }
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
@@ -130,67 +114,39 @@
     }
   }
 
+  function toggleExpand(nodeId: string, e: MouseEvent) {
+    e.stopPropagation();
+    const next = new Set(expandedIds);
+    next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId);
+    expandedIds = next;
+  }
+
   function selectNode(nodeId: string | null) {
     selectedNodeId = nodeId;
-    selectedScenarioId = null;
+    selectedScenarioIds = [];
   }
 
   function setReviewMode(mode: 'LIVE' | 'DRAFT') {
     reviewMode = mode;
-    selectedDraftIds = [];
-    selectedScenarioId = (mode === 'LIVE' ? data.scenarios[0]?.id : data.draftScenarios[0]?.id) ?? null;
+    selectedScenarioIds = [];
   }
 
-  function toggleDraft(id: string) {
-    selectedDraftIds = selectedDraftIds.includes(id)
-      ? selectedDraftIds.filter(existing => existing !== id)
-      : [...selectedDraftIds, id];
+  function toggleScenario(id: string) {
+    selectedScenarioIds = selectedScenarioIds.includes(id)
+      ? selectedScenarioIds.filter((existing) => existing !== id)
+      : [...selectedScenarioIds, id];
   }
 
-  function scenarioValue(scenario: Scenario, field: string): string {
-    switch (field) {
-      case 'scenarioKey': return scenario.scenarioKey ?? '';
-      case 'priority': return scenario.priority ?? '';
-      case 'automationStatus': return scenario.automationStatus ?? '';
-      case 'status': return scenario.status ?? '';
-      default: return scenario.name ?? '';
-    }
+  function toggleAllVisible() {
+    selectedScenarioIds = selectedScenarioIds.length === sortedScenarios.length
+      ? []
+      : sortedScenarios.map((scenario: Scenario) => scenario.id);
   }
 
-  function sortScenarios(field: string) {
-    scenarioSortDir = scenarioSortBy === field && scenarioSortDir === 'asc' ? 'desc' : 'asc';
-    scenarioSortBy = field;
-  }
-
-  function scenarioIndicator(field: string): string {
-    if (scenarioSortBy !== field) return '';
-    return scenarioSortDir === 'asc' ? '↑' : '↓';
-  }
-
-  function addDraftRow() {
-    draftRows = [
-      ...draftRows,
-      { name: '', priority: 'MEDIUM', automatable: true, notes: '', steps: [{ sequenceNo: 1, keyword: 'GIVEN', name: '', description: '', expectation: '' }] }
-    ];
-  }
-
-  function addStep(rowIndex: number) {
-    draftRows[rowIndex].steps = [
-      ...draftRows[rowIndex].steps,
-      { sequenceNo: draftRows[rowIndex].steps.length + 1, keyword: 'AND', name: '', description: '', expectation: '' }
-    ];
-  }
-
-  function moveEditStep(index: number, direction: -1 | 1) {
-    const next = [...editSteps];
-    const target = index + direction;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    editSteps = next.map((step, idx) => ({ ...step, sequenceNo: idx + 1 }));
-  }
-
-  function addEditStep() {
-    editSteps = [...editSteps, { sequenceNo: editSteps.length + 1, keyword: 'AND', name: '', description: '', expectation: '' }];
+  function openNodeModal(parentId: string | null) {
+    nodeParentId = parentId;
+    nodeName = '';
+    showNodeModal = true;
   }
 
   async function runAction(work: () => Promise<void>) {
@@ -210,104 +166,51 @@
     e.preventDefault();
     if (!nodeName.trim()) return;
     await runAction(async () => {
-      const node = await createNode(data.projectKey, { parentId: null, nodeType, name: nodeName.trim() });
+      const node = await createNode(data.projectKey, { parentId: nodeParentId, nodeType: 'DIRECTORY', name: nodeName.trim() });
       selectedNodeId = node.id;
+      expandedIds = new Set([...expandedIds, nodeParentId ?? node.id]);
+      showNodeModal = false;
       nodeName = '';
     });
   }
 
-  async function handleRenameNode(e: SubmitEvent) {
-    e.preventDefault();
-    if (!selectedNodeId || !renameValue.trim()) return;
-    await runAction(async () => renameNode(data.projectKey, selectedNodeId as string, renameValue.trim()).then());
-  }
-
-  async function handleDeleteNode() {
-    if (!selectedNodeId) return;
+  async function handleBulkApprove() {
+    if (selectedScenarioIds.length === 0) return;
     await runAction(async () => {
-      await deleteNode(data.projectKey, selectedNodeId as string);
-      selectedNodeId = null;
-      selectedScenarioId = null;
-    });
-  }
-
-  async function handleBulkCreate(e: SubmitEvent) {
-    e.preventDefault();
-    if (!selectedNodeId) return;
-    const rows = draftRows.filter(row => row.name.trim());
-    if (rows.length === 0) return;
-    await runAction(async () => {
-      for (const row of rows) {
-        await createScenario(data.projectKey, {
-          nodeId: selectedNodeId as string,
-          name: row.name.trim(),
-          priority: row.priority,
-          automatable: row.automatable,
-          notes: row.notes.trim() || undefined,
-          steps: row.steps
-            .filter(step => step.name.trim())
-            .map((step, index) => ({ ...step, sequenceNo: index + 1, name: step.name.trim() }))
-        });
-      }
-      setReviewMode('DRAFT');
-      selectedDraftIds = [];
-    });
-  }
-
-  async function handleSaveScenario() {
-    if (!selectedScenario) return;
-    await runAction(async () => {
-      await updateScenario(data.projectKey, selectedScenario.id, {
-        name: editScenarioName.trim(),
-        priority: selectedScenario.priority ?? undefined,
-        automatable: selectedScenario.automatable,
-        automationStatus: editAutomationStatus,
-        manualNotes: editManualNotes.trim() || undefined,
-        steps: editSteps
-          .filter(step => step.name.trim())
-          .map((step, index) => ({ ...step, sequenceNo: index + 1, name: step.name.trim() }))
-      });
-    });
-  }
-
-  async function handleArchiveScenario() {
-    if (!selectedScenario) return;
-    await runAction(async () => {
-      await archiveScenario(data.projectKey, selectedScenario.id);
-      selectedScenarioId = null;
-    });
-  }
-
-  async function handleApproveDrafts() {
-    if (selectedDraftIds.length === 0) return;
-    await runAction(async () => {
-      await approveDraftScenarios(data.projectKey, selectedDraftIds);
-      selectedDraftIds = [];
+      await approveDraftScenarios(data.projectKey, selectedScenarioIds);
       setReviewMode('LIVE');
     });
   }
 
-  async function handleRejectDrafts() {
-    if (selectedDraftIds.length === 0) return;
+  async function handleBulkReject() {
+    if (selectedScenarioIds.length === 0) return;
     await runAction(async () => {
-      await rejectDraftScenarios(data.projectKey, selectedDraftIds);
-      selectedDraftIds = [];
+      await rejectDraftScenarios(data.projectKey, selectedScenarioIds);
+      selectedScenarioIds = [];
     });
   }
 
-  async function handleManualExecution(e: SubmitEvent) {
-    e.preventDefault();
-    if (!selectedScenario) return;
+  async function handleBulkArchive() {
+    if (selectedScenarioIds.length === 0) return;
+    if (!confirm(`Archive ${selectedScenarioIds.length} scenarios?`)) return;
     await runAction(async () => {
-      await createManualExecution(data.projectKey, selectedScenario.id, {
-        status: manualStatus,
-        executedBy: manualExecutor.trim() || undefined,
-        environment: manualEnvironment.trim() || undefined,
-        notes: manualNotes.trim() || undefined,
-        startedAt: new Date().toISOString()
-      });
-      manualNotes = '';
+      for (const scenarioId of selectedScenarioIds) {
+        await archiveScenario(data.projectKey, scenarioId);
+      }
+      selectedScenarioIds = [];
     });
+  }
+
+  async function copyText(value: string, label: string, e?: MouseEvent) {
+    e?.stopPropagation();
+    await navigator.clipboard.writeText(value);
+    copyMessage = `${label} copied`;
+    setTimeout(() => copyMessage = '', 1800);
+  }
+
+  function createScenarioUrl(nodeId: string | null): string {
+    const query = nodeId ? `?nodeId=${encodeURIComponent(nodeId)}` : '';
+    return `/projects/${data.projectKey}/repository/scenarios/new${query}`;
   }
 </script>
 
@@ -327,210 +230,177 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Test Repository</h1>
-      <p class="page-subtitle">Draft, review, approve, and execute scenarios with cucumber-style steps.</p>
+      <p class="page-subtitle">Browse directories, review drafts, and manage scenario scope.</p>
     </div>
   </div>
 
   {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
   {#if actionError}<div class="error-banner">{actionError}</div>{/if}
+  {#if copyMessage}<div class="toast">{copyMessage}</div>{/if}
 
   <div class="repo-layout">
     <aside class="tree-panel">
       <div class="panel-header">
-        <span class="panel-title">Tree</span>
-        <button class:active={selectedNodeId === null} onclick={() => selectNode(null)}>All</button>
+        <div>
+          <span class="panel-title">Directories</span>
+          <p class="panel-subtitle">{reviewMode === 'LIVE' ? data.scenarios.length : data.draftScenarios.length} scenarios</p>
+        </div>
+        <button onclick={() => openNodeModal(null)}>+ Dir</button>
       </div>
 
-      <form class="compact-form" onsubmit={handleCreateNode}>
-        <input bind:value={nodeName} placeholder="New node name" disabled={busy} />
-        <select bind:value={nodeType} disabled={busy}>
-          <option value="DIRECTORY">Directory</option>
-          <option value="FEATURE">Feature</option>
-        </select>
-        <button type="submit" disabled={busy || !nodeName.trim()}>Create</button>
-      </form>
+      <button class="tree-item all-item" class:active={selectedNodeId === null} onclick={() => selectNode(null)}>
+        <span class="node-icon">A</span>
+        <span><strong>All Scenarios</strong><small>{scopedScenarios.length} total</small></span>
+      </button>
 
       <div class="tree-list">
-        {#each data.nodes as node}
-          <button class="tree-item" class:active={selectedNodeId === node.id} onclick={() => selectNode(node.id)}>
-            <span class="node-icon">{node.nodeType === 'FEATURE' ? 'F' : 'D'}</span>
-            <span>
-              <strong>{node.name}</strong>
-              <small>{node.directoryId ?? node.path}</small>
-            </span>
-          </button>
-        {:else}
-          <p class="muted">No nodes yet.</p>
-        {/each}
+        {#snippet treeRows(nodes: TreeNode[], level = 0)}
+          {#each nodes as node}
+            <div class="tree-row" style={`--level: ${level}`}>
+              <div class="tree-item-wrap">
+                <button class="twisty" onclick={(e) => toggleExpand(node.id, e)} aria-label="Toggle directory">
+                  {node.children.length ? (expandedIds.has(node.id) ? '⌄' : '›') : ''}
+                </button>
+                <button class="tree-item" class:active={selectedNodeId === node.id} onclick={() => selectNode(node.id)}>
+                  <span class="node-icon">D</span>
+                  <span class="node-main">
+                    <strong>{node.name}</strong>
+                    <small>{node.totalCount} scenarios</small>
+                  </span>
+                </button>
+              </div>
+              <div class="tree-actions">
+                <button title="Copy directory id" onclick={(e) => copyText(node.directoryId ?? node.id, 'Directory id', e)}>Copy</button>
+                <button title="Add sub directory" onclick={(e) => { e.stopPropagation(); openNodeModal(node.id); }}>+ Dir</button>
+                <button title="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(node.id)); }}>+ Scenario</button>
+              </div>
+            </div>
+            {#if expandedIds.has(node.id)}
+              {@render treeRows(node.children, level + 1)}
+            {/if}
+          {/each}
+        {/snippet}
+        {@render treeRows(tree)}
       </div>
-
-      {#if selectedNode}
-        <form class="compact-form edit-node" onsubmit={handleRenameNode}>
-          <input bind:value={renameValue} disabled={busy} />
-          <button type="submit" disabled={busy || !renameValue.trim()}>Rename</button>
-          <button type="button" class="danger" onclick={handleDeleteNode} disabled={busy}>Delete</button>
-        </form>
-      {/if}
     </aside>
 
     <section class="scenario-panel">
-      <div class="panel-header">
+      <div class="panel-header scenario-header">
         <div>
           <span class="panel-title">{selectedNode ? selectedNode.name : 'All Scenarios'}</span>
           <p class="panel-subtitle">{sortedScenarios.length} {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios</p>
         </div>
-        <div class="segmented">
-          <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
-          <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Review Drafts</button>
+        <div class="header-actions">
+          <div class="segmented">
+            <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
+            <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
+          </div>
+          <button onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>+ Scenario</button>
         </div>
       </div>
 
-      <form class="sheet" onsubmit={handleBulkCreate}>
-        <div class="sheet-head">
-          <strong>Bulk Scenario Drafting</strong>
-          <button type="button" onclick={addDraftRow}>+ Row</button>
-        </div>
-        <div class="sheet-table">
-          <div class="sheet-row sheet-row--head">
-            <span>Scenario</span><span>Priority</span><span>Auto</span><span>Notes</span><span>Steps</span>
-          </div>
-          {#each draftRows as row, rowIndex}
-            <div class="sheet-row">
-              <input bind:value={row.name} placeholder="Scenario name" disabled={busy || !selectedNodeId} />
-              <select bind:value={row.priority} disabled={busy || !selectedNodeId}>
-                <option>CRITICAL</option><option>HIGH</option><option>MEDIUM</option><option>LOW</option>
-              </select>
-              <label class="mini-check"><input type="checkbox" bind:checked={row.automatable} disabled={busy || !selectedNodeId} /></label>
-              <textarea bind:value={row.notes} placeholder="Review notes" disabled={busy || !selectedNodeId}></textarea>
-              <div class="step-sheet">
-                {#each row.steps as step}
-                  <div class="step-row">
-                    <select bind:value={step.keyword} disabled={busy || !selectedNodeId}>
-                      <option>GIVEN</option><option>WHEN</option><option>THEN</option><option>AND</option><option>BUT</option>
-                    </select>
-                    <textarea bind:value={step.name} placeholder="Step name" disabled={busy || !selectedNodeId}></textarea>
-                    <textarea bind:value={step.description} placeholder="Description" disabled={busy || !selectedNodeId}></textarea>
-                    <textarea bind:value={step.expectation} placeholder="Expectation" disabled={busy || !selectedNodeId}></textarea>
-                  </div>
-                {/each}
-                <button type="button" onclick={() => addStep(rowIndex)} disabled={busy || !selectedNodeId}>+ Step</button>
-              </div>
-            </div>
-          {/each}
-        </div>
-        <button type="submit" disabled={busy || !selectedNodeId}>Create Drafts</button>
-      </form>
-
-      {#if reviewMode === 'DRAFT' && visibleScenarios.length > 0}
-        <div class="bulk-actions">
-          <span>{selectedDraftIds.length} selected</span>
-          <button onclick={handleApproveDrafts} disabled={busy || selectedDraftIds.length === 0}>Approve</button>
-          <button class="danger" onclick={handleRejectDrafts} disabled={busy || selectedDraftIds.length === 0}>Reject</button>
-        </div>
-      {/if}
-
-      <div class="scenario-list">
-        {#if sortedScenarios.length === 0}
-          <div class="empty-state">No {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this scope.</div>
+      <div class="bulk-bar">
+        <span>{selectedScenarioIds.length} selected</span>
+        {#if reviewMode === 'DRAFT'}
+          <button onclick={handleBulkApprove} disabled={busy || selectedScenarioIds.length === 0}>Approve</button>
+          <button class="danger" onclick={handleBulkReject} disabled={busy || selectedScenarioIds.length === 0}>Reject</button>
         {:else}
-          <DataTable>
-            {#snippet head()}
-              <tr>
-                {#if reviewMode === 'DRAFT'}<th></th>{/if}
-                <th><button class="sort-button" onclick={() => sortScenarios('scenarioKey')}>Key <span class="sort-indicator">{scenarioIndicator('scenarioKey')}</span></button></th>
-                <th><button class="sort-button" onclick={() => sortScenarios('name')}>Scenario <span class="sort-indicator">{scenarioIndicator('name')}</span></button></th>
-                <th><button class="sort-button" onclick={() => sortScenarios('status')}>Status <span class="sort-indicator">{scenarioIndicator('status')}</span></button></th>
-                <th><button class="sort-button" onclick={() => sortScenarios('automationStatus')}>Automation <span class="sort-indicator">{scenarioIndicator('automationStatus')}</span></button></th>
-              </tr>
-            {/snippet}
-            {#snippet body()}
-              {#each sortedScenarios as scenario}
-                <tr class:active-row={selectedScenario?.id === scenario.id} onclick={() => selectedScenarioId = scenario.id}>
-                  {#if reviewMode === 'DRAFT'}
-                    <td><input type="checkbox" checked={selectedDraftIds.includes(scenario.id)} onclick={(e) => { e.stopPropagation(); toggleDraft(scenario.id); }} /></td>
-                  {/if}
-                  <td class="scenario-key">{scenario.scenarioKey}</td>
-                  <td class="scenario-name">{scenario.name}</td>
-                  <td><Badge text={scenario.status} variant={statusVariant(scenario.status)} /></td>
-                  <td><Badge text={scenario.automationStatus} variant={statusVariant(scenario.automationStatus)} /></td>
-                </tr>
-              {/each}
-            {/snippet}
-          </DataTable>
+          <button class="danger" onclick={handleBulkArchive} disabled={busy || selectedScenarioIds.length === 0}>Archive</button>
         {/if}
       </div>
-    </section>
 
-    <aside class="detail-panel">
-      {#if selectedScenario}
-        <div class="detail-header">
-          <div>
-            <span class="scenario-key">{selectedScenario.scenarioKey}</span>
-            <h2>{selectedScenario.name}</h2>
-          </div>
-          <Badge text={selectedScenario.status} variant={statusVariant(selectedScenario.status)} />
-        </div>
-
-        <div class="detail-grid">
-          <span>Source</span><strong>{selectedScenario.source}</strong>
-          <span>Priority</span><strong>{selectedScenario.priority ?? 'UNSET'}</strong>
-          <span>Steps</span><strong>{selectedScenario.steps?.length ?? 0}</strong>
-          <span>Automatable</span><strong>{selectedScenario.automatable ? 'Yes' : 'No'}</strong>
-        </div>
-
-        <label class="field"><span>Name</span><input bind:value={editScenarioName} disabled={busy} /></label>
-        <label class="field">
-          <span>Automation Status</span>
-          <select bind:value={editAutomationStatus} disabled={busy}>
-            <option>AUTOMATED</option><option>AUTOMATABLE</option><option>MANUAL_ONLY</option>
-          </select>
-        </label>
-        <label class="field"><span>Manual Notes</span><textarea bind:value={editManualNotes} disabled={busy}></textarea></label>
-
-        <div class="detail-steps">
-          <div class="sheet-head">
-            <strong>Steps</strong>
-            <button type="button" onclick={addEditStep}>+ Step</button>
-          </div>
-          {#each editSteps as step, index}
-            <div class="edit-step">
-              <select bind:value={step.keyword} disabled={busy}>
-                <option>GIVEN</option><option>WHEN</option><option>THEN</option><option>AND</option><option>BUT</option>
-              </select>
-              <textarea bind:value={step.name} placeholder="Step name" disabled={busy}></textarea>
-              <textarea bind:value={step.description} placeholder="Description" disabled={busy}></textarea>
-              <textarea bind:value={step.expectation} placeholder="Expectation" disabled={busy}></textarea>
-              <div class="step-actions">
-                <button type="button" onclick={() => moveEditStep(index, -1)} disabled={busy || index === 0}>↑</button>
-                <button type="button" onclick={() => moveEditStep(index, 1)} disabled={busy || index === editSteps.length - 1}>↓</button>
-              </div>
-            </div>
-          {/each}
-        </div>
-
-        <div class="actions">
-          <button onclick={handleSaveScenario} disabled={busy}>Save</button>
-          <button class="danger" onclick={handleArchiveScenario} disabled={busy}>Archive</button>
-        </div>
-
-        {#if selectedScenario.status === 'ACTIVE'}
-          <form class="manual-form" onsubmit={handleManualExecution}>
-            <h3>Manual Execution</h3>
-            <select bind:value={manualStatus} disabled={busy}>
-              <option>PASSED</option><option>FAILED</option><option>BLOCKED</option><option>SKIPPED</option>
-            </select>
-            <input bind:value={manualExecutor} placeholder="Executed by" disabled={busy} />
-            <input bind:value={manualEnvironment} placeholder="Environment" disabled={busy} />
-            <textarea bind:value={manualNotes} placeholder="Execution notes" disabled={busy}></textarea>
-            <button type="submit" disabled={busy}>Record Result</button>
-          </form>
-        {/if}
+      {#if sortedScenarios.length === 0}
+        <div class="empty-state">No {reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.</div>
       {:else}
-        <div class="empty-state">Select a scenario to view details.</div>
+        <DataTable>
+          {#snippet head()}
+            <tr>
+              <th><input type="checkbox" checked={selectedScenarioIds.length === sortedScenarios.length} onchange={toggleAllVisible} /></th>
+              <th><button class="sort-button" onclick={() => sortScenarios('key')}>ID <span class="sort-indicator">{sortIndicator('key')}</span></button></th>
+              <th><button class="sort-button" onclick={() => sortScenarios('name')}>Scenario <span class="sort-indicator">{sortIndicator('name')}</span></button></th>
+              <th><button class="sort-button" onclick={() => sortScenarios('priority')}>Priority <span class="sort-indicator">{sortIndicator('priority')}</span></button></th>
+              <th><button class="sort-button" onclick={() => sortScenarios('automation')}>Automation <span class="sort-indicator">{sortIndicator('automation')}</span></button></th>
+              <th>Status</th>
+              <th></th>
+            </tr>
+          {/snippet}
+          {#snippet body()}
+            {#each sortedScenarios as scenario}
+              <tr class="click-row" onclick={() => detailScenario = scenario}>
+                <td><input type="checkbox" checked={selectedScenarioIds.includes(scenario.id)} onclick={(e) => { e.stopPropagation(); toggleScenario(scenario.id); }} /></td>
+                <td class="scenario-key">{scenario.scenarioKey}</td>
+                <td class="scenario-name">{scenario.name}</td>
+                <td>{scenario.priority ?? 'UNSET'}</td>
+                <td><Badge text={scenario.automationStatus} variant={statusVariant(scenario.automationStatus)} /></td>
+                <td><Badge text={scenario.status} variant={statusVariant(scenario.status)} /></td>
+                <td><button onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>Copy ID</button></td>
+              </tr>
+            {/each}
+          {/snippet}
+        </DataTable>
       {/if}
-    </aside>
+    </section>
   </div>
 </div>
+
+<Modal
+  open={showNodeModal}
+  title="Create Directory"
+  onclose={() => showNodeModal = false}
+>
+  <form class="modal-form" onsubmit={handleCreateNode}>
+    <label>
+      <span>Name</span>
+      <input bind:value={nodeName} placeholder="Directory name" disabled={busy} required />
+    </label>
+    <div class="form-actions">
+      <button type="button" onclick={() => showNodeModal = false} disabled={busy}>Cancel</button>
+      <button class="primary-btn" type="submit" disabled={busy || !nodeName.trim()}>Create</button>
+    </div>
+  </form>
+</Modal>
+
+<Modal
+  open={detailScenario !== null}
+  title={detailScenario?.name ?? 'Scenario'}
+  onclose={() => detailScenario = null}
+>
+  {#if detailScenario}
+    <div class="scenario-detail">
+      <div class="detail-meta">
+        <span>ID</span>
+        <strong>{detailScenario.scenarioKey}</strong>
+        <button onclick={(e) => detailScenario && copyText(detailScenario.id, 'Scenario id', e)}>Copy ID</button>
+      </div>
+      <div class="detail-grid">
+        <span>Priority</span><strong>{detailScenario.priority ?? 'UNSET'}</strong>
+        <span>Automatable</span><strong>{detailScenario.automatable ? 'Yes' : 'No'}</strong>
+        <span>Automation</span><strong>{detailScenario.automationStatus}</strong>
+        <span>Status</span><strong>{detailScenario.status}</strong>
+      </div>
+      {#if detailScenario.manualNotes || detailScenario.automationNotes}
+        <div class="notes">
+          {#if detailScenario.manualNotes}<p>{detailScenario.manualNotes}</p>{/if}
+          {#if detailScenario.automationNotes}<p>{detailScenario.automationNotes}</p>{/if}
+        </div>
+      {/if}
+      <div class="steps">
+        {#each [...(detailScenario.steps ?? [])].sort((a, b) => a.sequenceNo - b.sequenceNo) as step, index}
+          <div class="step-item">
+            <span class="step-no">{index + 1}</span>
+            <div>
+              <strong>{step.keyword} {step.name}</strong>
+              {#if step.description}<p>{step.description}</p>{/if}
+              {#if step.expectation}<small>{step.expectation}</small>{/if}
+            </div>
+          </div>
+        {:else}
+          <div class="empty-state compact">No steps recorded.</div>
+        {/each}
+      </div>
+    </div>
+  {/if}
+</Modal>
 
 <style>
   .page { max-width: 1320px; }
@@ -541,58 +411,59 @@
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
   .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
-  .repo-layout { display: grid; grid-template-columns: 240px minmax(500px, 1fr) 360px; border: 1px solid var(--color-border); border-radius: var(--radius); min-height: 680px; overflow: hidden; background: var(--color-surface); }
-  .tree-panel, .scenario-panel, .detail-panel { min-width: 0; }
-  .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-bg); }
-  .detail-panel { border-left: 1px solid var(--color-border); background: var(--color-bg); padding: 16px; overflow: auto; }
-  .panel-header, .sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--color-border); }
+  .toast { position: fixed; right: 24px; bottom: 24px; background: var(--color-text); color: var(--color-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; z-index: 120; }
+  .repo-layout { display: grid; grid-template-columns: 360px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: var(--radius); min-height: 680px; overflow: hidden; background: var(--color-surface); }
+  .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-bg); min-width: 0; }
+  .scenario-panel { min-width: 0; padding: 0 0 14px; }
+  .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--color-border); }
   .panel-title { font-size: 0.82rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
   .panel-subtitle { margin: 3px 0 0; font-size: 0.76rem; color: var(--color-text-muted); }
-  button, input, select, textarea { font: inherit; }
+  button, input { font: inherit; }
   button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
   button:hover:not(:disabled), button.active { border-color: var(--color-accent); color: var(--color-accent); }
   button:disabled { opacity: 0.55; cursor: not-allowed; }
   button.danger { color: var(--color-danger); }
-  input, select, textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
-  textarea { resize: vertical; min-height: 58px; }
-  .compact-form, .manual-form { display: grid; gap: 8px; padding: 12px; border-bottom: 1px solid var(--color-border); }
-  .edit-node { border-top: 1px solid var(--color-border); border-bottom: 0; }
+  .primary-btn { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
+  input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
+  input[type='checkbox'] { width: auto; }
   .tree-list { padding: 8px; }
-  .tree-item { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; margin-bottom: 6px; }
+  .tree-row { padding-left: calc(var(--level) * 18px); display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; margin-bottom: 6px; }
+  .tree-item-wrap { display: grid; grid-template-columns: 24px minmax(0, 1fr); gap: 4px; }
+  .tree-item { width: 100%; display: flex; align-items: center; gap: 8px; text-align: left; }
+  .all-item { margin: 10px; width: calc(100% - 20px); }
+  .tree-actions { display: flex; gap: 4px; padding-left: 38px; }
+  .tree-actions button { padding: 4px 7px; font-size: 0.72rem; }
+  .twisty { width: 24px; min-height: 34px; padding: 0; color: var(--color-text-muted); }
   .tree-item small { display: block; color: var(--color-text-muted); font-size: 0.72rem; margin-top: 2px; }
   .node-icon { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 5px; background: var(--color-accent-subtle); color: var(--color-accent); font-size: 0.72rem; font-weight: 800; flex-shrink: 0; }
-  .segmented { display: flex; gap: 6px; }
-  .sheet { border-bottom: 1px solid var(--color-border); }
-  .sheet-table { overflow-x: auto; padding: 10px; }
-  .sheet-row { display: grid; grid-template-columns: 180px 112px 52px 160px minmax(360px, 1fr); gap: 8px; min-width: 900px; align-items: start; margin-bottom: 8px; }
-  .sheet-row--head { color: var(--color-text-muted); font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
-  .mini-check { display: grid; place-items: center; padding-top: 8px; }
-  .mini-check input, .scenario-list input { width: auto; }
-  .step-sheet, .detail-steps { display: grid; gap: 8px; }
-  .step-row, .edit-step { display: grid; grid-template-columns: 92px 1fr 1fr 1fr; gap: 8px; }
-  .sheet > button { margin: 0 10px 12px; }
-  .bulk-actions { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--color-border); color: var(--color-text-muted); font-size: 0.82rem; }
-  .scenario-list { padding: 10px; }
-  .scenario-list :global(tr) { cursor: pointer; }
-  .scenario-list :global(tr.active-row td) { background: var(--color-accent-subtle); }
+  .node-main { min-width: 0; }
+  .scenario-header { flex-wrap: wrap; }
+  .header-actions, .segmented, .bulk-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .bulk-bar { padding: 10px 16px; color: var(--color-text-muted); font-size: 0.82rem; border-bottom: 1px solid var(--color-border); }
+  .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
+  .click-row { cursor: pointer; }
   .scenario-key { font-family: ui-monospace, monospace; font-size: 0.76rem; color: var(--color-text-muted); }
-  .scenario-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .detail-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .detail-header h2 { font-size: 1rem; margin: 5px 0 0; line-height: 1.35; }
-  .detail-grid { display: grid; grid-template-columns: 88px 1fr; gap: 8px 12px; padding: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); margin-bottom: 14px; font-size: 0.8rem; }
-  .detail-grid span, .field span { color: var(--color-text-muted); }
-  .field { display: grid; gap: 5px; margin-bottom: 10px; font-size: 0.8rem; }
-  .detail-steps { margin: 12px 0; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); }
-  .detail-steps .sheet-head { padding: 0 0 10px; border-bottom: 0; }
-  .edit-step { grid-template-columns: 84px 1fr; border-top: 1px solid var(--color-border); padding-top: 8px; }
-  .edit-step textarea { grid-column: span 2; }
-  .step-actions { display: flex; gap: 6px; }
-  .actions { display: flex; gap: 8px; margin-bottom: 18px; }
-  .manual-form { padding: 14px 0 0; border: 0; border-top: 1px solid var(--color-border); }
-  .manual-form h3 { font-size: 0.9rem; margin: 0 0 4px; }
-  .empty-state, .muted { color: var(--color-text-muted); font-size: 0.875rem; padding: 24px; text-align: center; }
-  @media (max-width: 1100px) {
+  .scenario-name { font-weight: 600; }
+  .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
+  .empty-state.compact { padding: 16px; }
+  .modal-form { display: grid; gap: 14px; }
+  .modal-form label { display: grid; gap: 5px; font-size: 0.78rem; color: var(--color-text-muted); }
+  .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
+  .scenario-detail { display: grid; gap: 14px; }
+  .detail-meta { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .detail-grid { display: grid; grid-template-columns: 100px 1fr; gap: 8px 12px; padding: 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); font-size: 0.82rem; }
+  .detail-grid span, .detail-meta span { color: var(--color-text-muted); }
+  .notes { border: 1px solid var(--color-border); border-radius: 6px; padding: 10px 12px; color: var(--color-text-muted); line-height: 1.5; }
+  .notes p { margin: 0 0 8px; }
+  .notes p:last-child { margin-bottom: 0; }
+  .steps { display: grid; gap: 10px; }
+  .step-item { display: grid; grid-template-columns: 28px 1fr; gap: 10px; }
+  .step-no { display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 800; font-size: 0.75rem; }
+  .step-item strong { display: block; font-size: 0.88rem; }
+  .step-item p { margin: 4px 0; color: var(--color-text-muted); font-size: 0.82rem; line-height: 1.45; }
+  .step-item small { color: var(--color-text-muted); font-size: 0.76rem; }
+  @media (max-width: 1000px) {
     .repo-layout { grid-template-columns: 1fr; }
-    .tree-panel, .detail-panel { border: 0; border-bottom: 1px solid var(--color-border); }
+    .tree-panel { border-right: 0; border-bottom: 1px solid var(--color-border); }
   }
 </style>

@@ -12,8 +12,14 @@
   let creating = $state(false);
   let keyError = $state('');
   let newKeyName = $state('');
-  let newKeyScopes = $state('automation:write');
+  let newKeyScopes = $state<string[]>(['execution:write']);
   let revealedKey = $state('');
+
+  const scopeOptions = [
+    { value: 'execution:read', label: 'Read execution data' },
+    { value: 'execution:write', label: 'Push automation results' },
+    { value: 'execution:finish', label: 'Finish automation runs' }
+  ];
 
   function formatDate(iso: string | null): string {
     if (!iso) return '—';
@@ -29,10 +35,11 @@
     try {
       const result = await createApiKey(data.projectKey, {
         name: newKeyName.trim(),
-        scopes: newKeyScopes.split(',').map((s: string) => s.trim()).filter(Boolean)
+        scopes: newKeyScopes
       });
       revealedKey = result.rawKey;
       newKeyName = '';
+      newKeyScopes = ['execution:write'];
       await invalidateAll();
     } catch (err) {
       keyError = (err as Error).message;
@@ -61,6 +68,12 @@
     } catch (err) {
       alert((err as Error).message);
     }
+  }
+
+  function toggleScope(scope: string) {
+    newKeyScopes = newKeyScopes.includes(scope)
+      ? newKeyScopes.filter((item) => item !== scope)
+      : [...newKeyScopes, scope];
   }
 </script>
 
@@ -169,15 +182,29 @@
       </label>
       <label class="field">
         <span class="label">Scopes</span>
-        <input class="input" type="text" bind:value={newKeyScopes} placeholder="automation:write"/>
-        <span class="hint">Comma-separated. Default: automation:write</span>
+        <div class="scope-menu">
+          {#each scopeOptions as scope}
+            <label class="scope-option">
+              <input
+                type="checkbox"
+                checked={newKeyScopes.includes(scope.value)}
+                onchange={() => toggleScope(scope.value)}
+              />
+              <span>
+                <strong>{scope.value}</strong>
+                <small>{scope.label}</small>
+              </span>
+            </label>
+          {/each}
+        </div>
+        <span class="hint">Select one or more permissions for this key.</span>
       </label>
       {#if keyError}
         <div class="form-error">{keyError}</div>
       {/if}
       <div class="form-actions">
         <Button variant="secondary" onclick={() => showModal = false}>Cancel</Button>
-        <Button variant="primary" type="submit" disabled={creating}>
+        <Button variant="primary" type="submit" disabled={creating || newKeyScopes.length === 0}>
           {creating ? 'Creating…' : 'Create Key'}
         </Button>
       </div>
@@ -243,6 +270,35 @@
     transition: border-color 0.15s;
   }
   .input:focus { border-color: var(--color-accent); }
+  .scope-menu {
+    display: grid;
+    gap: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 8px;
+    background: var(--color-bg);
+  }
+  .scope-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  .scope-option:hover { background: var(--color-accent-subtle); }
+  .scope-option input { width: auto; }
+  .scope-option strong {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-text);
+  }
+  .scope-option small {
+    display: block;
+    color: var(--color-text-muted);
+    margin-top: 2px;
+  }
   .form-error {
     background: #fee2e2; color: var(--color-danger);
     border: 1px solid #fecaca; border-radius: 6px;

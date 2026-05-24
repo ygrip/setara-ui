@@ -1,5 +1,9 @@
 import { listProjects, type Project } from '$lib/api/projects';
-import { listProjectStatistics, type ProjectStatistic } from '$lib/api/statistics';
+import {
+  listProjectStatisticHistory,
+  listProjectStatistics,
+  type ProjectStatistic
+} from '$lib/api/statistics';
 
 export async function load() {
   try {
@@ -7,8 +11,23 @@ export async function load() {
       listProjects(undefined, undefined, 'createdAt', 'desc'),
       listProjectStatistics()
     ]);
-    return { projects: projectsResult.items, statistics, nextCursor: projectsResult.nextCursor, error: null };
+    const histories = await Promise.all(
+      statistics.map((row) => listProjectStatisticHistory(row.projectKey, 30).catch(() => []))
+    );
+    return {
+      projects: projectsResult.items.slice(0, 5),
+      statistics,
+      statisticHistory: histories.flat(),
+      nextCursor: projectsResult.nextCursor,
+      error: null
+    };
   } catch (e) {
-    return { projects: [] as Project[], statistics: [] as ProjectStatistic[], nextCursor: null, error: (e as Error).message };
+    return {
+      projects: [] as Project[],
+      statistics: [] as ProjectStatistic[],
+      statisticHistory: [] as ProjectStatistic[],
+      nextCursor: null,
+      error: (e as Error).message
+    };
   }
 }
