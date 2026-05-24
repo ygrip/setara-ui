@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [~] Scenario execution detail + centralized WS done; dashboard WS updates pending
+UI: [~] Directory rename/move/delete, bulk copy/delete, scenario sorting/filter done; dashboard WS updates pending
 ```
 
 - [x] Git repository initialized on `main`.
@@ -67,6 +67,14 @@ UI: [~] Scenario execution detail + centralized WS done; dashboard WS updates pe
 - [x] Centralized WebSocket manager (`stores/websocket.svelte.ts`) with auto-reconnect + multi-subscriber.
 - [x] Scenario execution detail panel — slide-in from right: status, meta, exception, steps (lazy-fetched).
 - [x] Clickable scenario result rows in run detail (keyboard + mouse, selected row highlight).
+- [x] Directory rename modal (pre-fills current name, cascades path to all descendants via backend).
+- [x] Directory move modal (searchable picker with "Root level" option, excludes self and descendants).
+- [x] Directory delete confirmation modal (backend rejects non-empty directories).
+- [x] Repository filter bar — filter by automation status and priority, clear button, filter badge.
+- [x] Scenario sort includes `status` column in addition to name/priority/automationStatus/createdAt/updatedAt.
+- [x] Bulk copy scenarios — searchable target dir picker, per-scenario existence preview (green/amber), duplicate strategy dropdown, result summary.
+- [x] Bulk hard delete scenarios — confirm dialog, cascading delete via backend.
+- [x] `testcases.ts`: added `moveDirectory`, `checkScenarioExists`, `bulkCopyScenarios`, `bulkDeleteScenarios`, `getScenario`; updated `listScenarios` with `sortBy`/`sortDir`.
 - [x] Plans detail page.
 - [x] Plan scenario add/remove workflow.
 - [x] Plan execution evidence selection workflow.
@@ -78,7 +86,8 @@ UI: [~] Scenario execution detail + centralized WS done; dashboard WS updates pe
 ## Latest Commits
 
 ```text
+Add directory rename/move/delete and bulk scenario copy/delete with filters
+94a9240 Sync UI tracker — scenario execution detail and centralized WS complete
 8e7251f Add scenario execution detail panel and centralize WebSocket handling
 82475ac Add async polling, import history, and error report download to import wizard
-6181b66 Add Excel scenario import UI
 ```
