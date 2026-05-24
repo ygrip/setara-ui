@@ -3,7 +3,7 @@
 Last synced with parent tracker: 2026-05-24
 
 ```text
-UI: [~] Directory rename/move/delete, bulk copy/delete, scenario sorting/filter done; dashboard WS updates pending
+UI: [~] Execution list/detail consume secured live automation events; dashboard WS updates pending
 ```
 
 - [x] Git repository initialized on `main`.
@@ -67,6 +67,8 @@ UI: [~] Directory rename/move/delete, bulk copy/delete, scenario sorting/filter 
 - [x] Centralized WebSocket manager (`stores/websocket.svelte.ts`) with auto-reconnect + multi-subscriber.
 - [x] Scenario execution detail panel — slide-in from right: status, meta, exception, steps (lazy-fetched).
 - [x] Clickable scenario result rows in run detail (keyboard + mouse, selected row highlight).
+- [x] Execution list inserts live runs from `RUN_STARTED` and updates discovery/finish counters from WebSocket events.
+- [x] Execution detail refreshes persisted scenario results after processed worker events.
 - [x] Directory rename modal (pre-fills current name, cascades path to all descendants via backend).
 - [x] Directory move modal (searchable picker with "Root level" option, excludes self and descendants).
 - [x] Directory delete confirmation modal (backend rejects non-empty directories).
@@ -86,8 +88,8 @@ UI: [~] Directory rename/move/delete, bulk copy/delete, scenario sorting/filter 
 ## Latest Commits
 
 ```text
+Update executions UI for live ingestion events
 Add directory rename/move/delete and bulk scenario copy/delete with filters
 94a9240 Sync UI tracker — scenario execution detail and centralized WS complete
-8e7251f Add scenario execution detail panel and centralize WebSocket handling
 82475ac Add async polling, import history, and error report download to import wizard
 ```

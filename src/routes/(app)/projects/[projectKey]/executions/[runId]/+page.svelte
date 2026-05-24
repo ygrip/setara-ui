@@ -6,6 +6,7 @@
   import ScenarioResultDetail from '$lib/components/ScenarioResultDetail.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
+  import { listRunResults } from '$lib/api/runs';
   import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
 
   let { data }: {
@@ -21,6 +22,7 @@
   let run = $state<AutomationRun | null>(null);
   let results = $state<ScenarioRunResult[]>([]);
   let events = $state<ExecutionEvent[]>([]);
+  let refreshingResults = false;
 
   // Detail panel state
   let selectedResult = $state<ScenarioRunResult | null>(null);
@@ -78,17 +80,38 @@
 
   // ── WebSocket event handler ─────────────────────────────────────────────────
 
+  async function refreshResults() {
+    if (refreshingResults) return;
+    refreshingResults = true;
+    try {
+      results = await listRunResults(data.projectKey, data.runId);
+      if (selectedResult) {
+        selectedResult = results.find(r => r.id === selectedResult?.id) ?? selectedResult;
+      }
+    } catch {
+      // Live placeholders still keep the page moving; persisted data remains authoritative.
+    } finally {
+      refreshingResults = false;
+    }
+  }
+
+  function applyRunEvent(event: ExecutionEvent) {
+    if (!run) return;
+    run = {
+      ...run,
+      status: event.status ?? run.status,
+      totalScenarios: event.totalScenarios ?? run.totalScenarios,
+      durationMs: event.durationMs ?? run.durationMs,
+      finishedAt: event.type === 'RUN_FINISHED' ? event.occurredAt : run.finishedAt
+    };
+  }
+
   function applyEvent(event: ExecutionEvent) {
+    if (event.projectKey !== data.projectKey || event.runId !== data.runId) return;
     events = [event, ...events].slice(0, 8);
 
-    if (event.type === 'RUN_FINISHED' && run) {
-      run = {
-        ...run,
-        status: event.status ?? run.status,
-        finishedAt: event.occurredAt,
-        totalScenarios: event.totalScenarios ?? run.totalScenarios,
-        durationMs: event.durationMs ?? run.durationMs
-      };
+    if (event.type === 'RUN_STARTED' || event.type === 'RUN_DISCOVERED' || event.type === 'RUN_FINISH_ACCEPTED' || event.type === 'RUN_FINISHED') {
+      applyRunEvent(event);
     }
 
     if (event.type === 'SCENARIO_RESULT_PROCESSED' && event.resultId) {
@@ -121,6 +144,7 @@
       if (selectedResult?.id === event.resultId) {
         selectedResult = results.find(r => r.id === event.resultId) ?? null;
       }
+      void refreshResults();
     }
   }
 

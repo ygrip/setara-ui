@@ -4,6 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
+  import { listRuns } from '$lib/api/runs';
   import type { AutomationRun } from '$lib/api/runs';
 
   let { data }: {
@@ -17,6 +18,7 @@
 
   let runs = $state<AutomationRun[]>([]);
   let liveEvents = $state<ExecutionEvent[]>([]);
+  let refreshingRuns = false;
 
   $effect(() => {
     runs = data.runs;
@@ -46,9 +48,74 @@
     return `${Math.floor(s / 60)}m ${s % 60}s`;
   }
 
+  function liveRunFromEvent(event: ExecutionEvent): AutomationRun {
+    return {
+      id: event.runId,
+      projectId: '',
+      projectKey: event.projectKey,
+      runnerId: 'pending snapshot',
+      jobName: null,
+      environment: null,
+      branch: null,
+      commitSha: null,
+      framework: null,
+      status: event.status ?? 'RUNNING',
+      startedAt: event.occurredAt,
+      finishedAt: event.type === 'RUN_FINISHED' ? event.occurredAt : null,
+      createdAt: event.occurredAt,
+      totalScenarios: event.totalScenarios,
+      durationMs: event.durationMs
+    };
+  }
+
+  async function refreshRuns() {
+    if (refreshingRuns) return;
+    refreshingRuns = true;
+    try {
+      const page = await listRuns(data.projectKey);
+      runs = page.items;
+    } catch {
+      // The live row remains visible until the next successful list fetch.
+    } finally {
+      refreshingRuns = false;
+    }
+  }
+
   function applyEvent(event: ExecutionEvent) {
     liveEvents = [event, ...liveEvents].slice(0, 5);
+    if (event.projectKey !== data.projectKey) return;
+
+    if (event.type === 'RUN_STARTED') {
+      const exists = runs.some(r => r.id === event.runId);
+      if (!exists) runs = [liveRunFromEvent(event), ...runs];
+      void refreshRuns();
+      return;
+    }
+
+    if (event.type === 'RUN_DISCOVERED' || event.type === 'SCENARIO_RESULT_ACCEPTED' || event.type === 'RUN_FINISH_ACCEPTED') {
+      const exists = runs.some(r => r.id === event.runId);
+      if (!exists) {
+        runs = [liveRunFromEvent(event), ...runs];
+        void refreshRuns();
+        return;
+      }
+      runs = runs.map(run => run.id === event.runId
+        ? {
+            ...run,
+            status: event.status ?? run.status,
+            totalScenarios: event.totalScenarios ?? run.totalScenarios,
+            durationMs: event.durationMs ?? run.durationMs
+          }
+        : run);
+      return;
+    }
+
     if (event.type === 'RUN_FINISHED') {
+      const exists = runs.some(r => r.id === event.runId);
+      if (!exists) {
+        runs = [liveRunFromEvent(event), ...runs];
+        return;
+      }
       runs = runs.map(run => run.id === event.runId
         ? {
             ...run,
@@ -56,15 +123,8 @@
             finishedAt: event.occurredAt,
             totalScenarios: event.totalScenarios ?? run.totalScenarios,
             durationMs: event.durationMs ?? run.durationMs
-          }
+        }
         : run);
-    }
-    if (event.type === 'RUN_STARTED') {
-      // Surface newly started runs at the top if not already in the list.
-      const exists = runs.some(r => r.id === event.runId);
-      if (!exists) {
-        // Re-fetch on next navigation; for now just promote via event indicator.
-      }
     }
   }
 
