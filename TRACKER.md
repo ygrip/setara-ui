@@ -72,7 +72,7 @@ UI: [~] Repository uses directory contract with scenario counts
 ## Latest Commits
 
 ```text
+8fe2136 Use directory contract in repository UI
+271c19c Sync UI tracker
 f39dda5 Revamp dashboard repository and release plan UI
-a584172 Sync UI tracker after plan workflow
-ba1d1bd Implement release plan quality gate workflow
 ```
