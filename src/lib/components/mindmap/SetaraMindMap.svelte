@@ -1,14 +1,37 @@
 <script lang="ts">
   import type { SetaraMap, MapNode } from '$lib/api/mindmaps';
 
-  let { map }: { map: SetaraMap } = $props();
+  type PositionedNode = MapNode & { x: number; y: number; cx: number; cy: number };
+
+  let { map, onnodeclick }: { map: SetaraMap; onnodeclick?: (node: MapNode) => void } = $props();
+  let positionOverrides = $state<Record<string, { x: number; y: number }>>({});
+  let drag = $state<{
+    nodeId: string;
+    startClientX: number;
+    startClientY: number;
+    startX: number;
+    startY: number;
+    moved: boolean;
+  } | null>(null);
 
   const nodeById = $derived(new Map(map.nodes.map(node => [node.id, node])));
   const childrenById = $derived(buildChildren(map));
   const levels = $derived(buildLevels(map.rootNodeId, childrenById, nodeById));
-  const positioned = $derived(positionNodes(levels));
-  const canvasWidth = $derived(Math.max(960, levels.length * 280 + 120));
+  const autoPositioned = $derived(positionNodes(levels));
+  const positioned = $derived(
+    autoPositioned.map(node => {
+      const override = positionOverrides[node.id];
+      if (!override) return node;
+      return { ...node, x: override.x, y: override.y, cx: override.x + 120, cy: override.y + 54 };
+    })
+  );
+  const canvasWidth = $derived(Math.max(960, levels.length * 280 + 120, Math.max(...positioned.map(item => item.x + 300), 960)));
   const canvasHeight = $derived(Math.max(520, Math.max(...positioned.map(item => item.y + 150), 520)));
+
+  $effect(() => {
+    map.mapId;
+    positionOverrides = {};
+  });
 
   function buildChildren(map: SetaraMap): Map<string, string[]> {
     const children = new Map<string, string[]>();
@@ -34,8 +57,8 @@
     return result;
   }
 
-  function positionNodes(levels: MapNode[][]): Array<MapNode & { x: number; y: number; cx: number; cy: number }> {
-    const positioned: Array<MapNode & { x: number; y: number; cx: number; cy: number }> = [];
+  function positionNodes(levels: MapNode[][]): PositionedNode[] {
+    const positioned: PositionedNode[] = [];
     levels.forEach((level, levelIndex) => {
       const verticalGap = Math.max(118, Math.floor(460 / Math.max(level.length, 1)));
       const startY = Math.max(28, (520 - (level.length - 1) * verticalGap) / 2);
@@ -57,7 +80,54 @@
   function statusLabel(status: string): string {
     return status.replace(/_/g, ' ');
   }
+
+  function startDrag(node: PositionedNode, event: PointerEvent) {
+    if (event.button !== 0) return;
+    drag = {
+      nodeId: node.id,
+      startClientX: event.clientX,
+      startClientY: event.clientY,
+      startX: node.x,
+      startY: node.y,
+      moved: false
+    };
+    event.preventDefault();
+  }
+
+  function moveDrag(event: PointerEvent) {
+    if (!drag) return;
+    const dx = event.clientX - drag.startClientX;
+    const dy = event.clientY - drag.startClientY;
+    const moved = drag.moved || Math.abs(dx) + Math.abs(dy) > 4;
+    drag = { ...drag, moved };
+    positionOverrides = {
+      ...positionOverrides,
+      [drag.nodeId]: {
+        x: Math.max(8, drag.startX + dx),
+        y: Math.max(8, drag.startY + dy)
+      }
+    };
+  }
+
+  function endDrag() {
+    if (!drag) return;
+    const active = drag;
+    drag = null;
+    if (!active.moved) {
+      const node = nodeById.get(active.nodeId);
+      if (node) onnodeclick?.(node);
+    }
+  }
+
+  function keyNode(node: MapNode, event: KeyboardEvent) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onnodeclick?.(node);
+    }
+  }
 </script>
+
+<svelte:window onpointermove={moveDrag} onpointerup={endDrag} />
 
 <section class="map-shell" aria-label={map.summary.title}>
   <div class="map-summary">
@@ -90,7 +160,16 @@
       </svg>
 
       {#each positioned as node}
-        <article class="map-node status-{node.status.toLowerCase()}" class:risk={node.type === 'RISK'} style={`left:${node.x}px; top:${node.y}px;`}>
+        <button
+          type="button"
+          class="map-node status-{node.status.toLowerCase()}"
+          class:risk={node.type === 'RISK'}
+          class:dragging={drag?.nodeId === node.id}
+          style={`left:${node.x}px; top:${node.y}px;`}
+          title="Drag to rearrange. Click to open."
+          onpointerdown={(event) => startDrag(node, event)}
+          onkeydown={(event) => keyNode(node, event)}
+        >
           <div class="node-head">
             <span class="node-type">{node.type.replace(/_/g, ' ')}</span>
             <span class="severity severity-{node.severity.toLowerCase()}">{statusLabel(node.severity)}</span>
@@ -109,7 +188,7 @@
               {/each}
             </div>
           {/if}
-        </article>
+        </button>
       {/each}
     </div>
   </div>
@@ -210,6 +289,17 @@
     background: var(--color-surface);
     box-shadow: var(--shadow);
     padding: 12px;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    text-align: left;
+    color: var(--color-text);
+  }
+
+  .map-node.dragging {
+    cursor: grabbing;
+    z-index: 4;
+    box-shadow: 0 18px 40px color-mix(in srgb, #000, transparent 82%);
   }
 
   .map-node.status-healthy { border-color: color-mix(in srgb, var(--color-success), transparent 55%); }

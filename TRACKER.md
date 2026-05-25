@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (guest login and mindmap UI)
+Last synced with parent tracker: 2026-05-25 (draggable/clickable mindmap UI)
 
 ```text
 UI: [x] DonutChart bigger default (220px), reactive data updates, legend at bottom, legendPosition prop
@@ -17,6 +17,7 @@ UI: [x] MarkdownBlock renderer for Cucumber doc strings and data tables with scr
 UI: [x] Login now creates a guest session; role choice removed from login
 UI: [x] Admin Users page can assign project roles after sign-in
 UI: [x] Quality Map and Coverage Map routes with generic SetaraMindMap renderer
+UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map and scenario clicks open detail popup
 ```
 
 - [x] Git repository initialized on `main`.
@@ -147,6 +148,8 @@ UI: [x] Quality Map and Coverage Map routes with generic SetaraMindMap renderer
 - [x] Repository tree: IDE-style connected guide lines via nested `.tree-children` `border-left` containers.
 - [x] Repository directory toolbar links to directory Coverage Map.
 - [x] `SetaraMindMap.svelte` generic graph renderer for Setara map responses.
+- [x] `SetaraMindMap.svelte` supports local node drag/rearrange with edges following the node positions.
+- [x] Quality Map and Coverage Map nodes support click handling: directories drill down, scenarios open a detail modal.
 - [x] SetaraStepGridEditor: Delete/Move/Duplicate toolbar buttons functional from first render (default to row 0 when no cell focused).
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
