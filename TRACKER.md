@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (draggable/clickable mindmap UI)
+Last synced with parent tracker: 2026-05-26 (mindmap pan/zoom, execution filters, roles matrix)
 
 ```text
 UI: [x] DonutChart bigger default (220px), reactive data updates, legend at bottom, legendPosition prop
@@ -151,6 +151,10 @@ UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map an
 - [x] `SetaraMindMap.svelte` supports local node drag/rearrange with edges following the node positions.
 - [x] Quality Map and Coverage Map nodes support click handling: directories drill down, scenarios open a detail modal.
 - [x] SetaraStepGridEditor: Delete/Move/Duplicate toolbar buttons functional from first render (default to row 0 when no cell focused).
+- [x] SetaraMindMap: full pan+zoom viewport (drag canvas to pan, scroll to zoom anchored at cursor, Fit/Reset buttons, zoom % display).
+- [x] SetaraMindMap: node drag corrected for zoom level (delta / zoom), viewport overflow hidden with will-change transform.
+- [x] Executions list: functional client-side filters (status, environment, branch, free-text search), clear button, count indicator.
+- [x] Admin Roles page: role summary cards with color-coded badges; full permission matrix table across 5 roles × 5 feature areas.
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
 

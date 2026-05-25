@@ -20,6 +20,38 @@
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
 
+  // ── Client-side filters ─────────────────────────────────────────
+  let filterStatus = $state('');
+  let filterEnv = $state('');
+  let filterBranch = $state('');
+  let filterSearch = $state('');
+
+  const uniqueEnvs = $derived([...new Set(runs.map(r => r.environment).filter(Boolean))] as string[]);
+  const uniqueBranches = $derived([...new Set(runs.map(r => r.branch).filter(Boolean))] as string[]);
+
+  const filteredRuns = $derived(
+    runs.filter(run => {
+      if (filterStatus && run.status?.toUpperCase() !== filterStatus) return false;
+      if (filterEnv && run.environment !== filterEnv) return false;
+      if (filterBranch && run.branch !== filterBranch) return false;
+      if (filterSearch.trim()) {
+        const q = filterSearch.toLowerCase();
+        const haystack = `${run.runnerId} ${run.branch ?? ''} ${run.environment ?? ''} ${run.framework ?? ''} ${run.commitSha ?? ''}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      return true;
+    })
+  );
+
+  const hasActiveFilter = $derived(!!(filterStatus || filterEnv || filterBranch || filterSearch.trim()));
+
+  function clearFilters() {
+    filterStatus = '';
+    filterEnv = '';
+    filterBranch = '';
+    filterSearch = '';
+  }
+
   $effect(() => {
     runs = data.runs;
   });
@@ -165,22 +197,44 @@
 
   <!-- Filters bar -->
   <div class="filters-bar">
+    <input
+      class="filter-search"
+      type="search"
+      placeholder="Search runner, branch, commit…"
+      bind:value={filterSearch}
+    />
     <div class="filter-group">
       <label class="filter-label" for="filter-status">Status</label>
-      <select id="filter-status" class="filter-select" disabled>
-        <option>All</option>
-        <option>RUNNING</option>
-        <option>PASSED</option>
-        <option>FAILED</option>
+      <select id="filter-status" class="filter-select" bind:value={filterStatus}>
+        <option value="">All</option>
+        <option value="RUNNING">Running</option>
+        <option value="PASSED">Passed</option>
+        <option value="FAILED">Failed</option>
+        <option value="QUEUED">Queued</option>
       </select>
     </div>
-    <div class="filter-group">
-      <label class="filter-label" for="filter-env">Environment</label>
-      <select id="filter-env" class="filter-select" disabled>
-        <option>All</option>
-      </select>
-    </div>
-    <span class="filters-note">Filters coming soon</span>
+    {#if uniqueEnvs.length > 0}
+      <div class="filter-group">
+        <label class="filter-label" for="filter-env">Environment</label>
+        <select id="filter-env" class="filter-select" bind:value={filterEnv}>
+          <option value="">All</option>
+          {#each uniqueEnvs as env}<option value={env}>{env}</option>{/each}
+        </select>
+      </div>
+    {/if}
+    {#if uniqueBranches.length > 0}
+      <div class="filter-group">
+        <label class="filter-label" for="filter-branch">Branch</label>
+        <select id="filter-branch" class="filter-select" bind:value={filterBranch}>
+          <option value="">All</option>
+          {#each uniqueBranches as b}<option value={b}>{b}</option>{/each}
+        </select>
+      </div>
+    {/if}
+    {#if hasActiveFilter}
+      <button class="clear-filter-btn" onclick={clearFilters}>✕ Clear</button>
+      <span class="filter-count">{filteredRuns.length} of {runs.length}</span>
+    {/if}
   </div>
 
   {#if data.error}
@@ -192,6 +246,11 @@
       </svg>
       <p>No automation runs found for {data.projectKey}.</p>
       <p class="empty-sub">Set up an API key and run your automation suite to see executions here.</p>
+    </div>
+  {:else if filteredRuns.length === 0}
+    <div class="empty-state">
+      <p>No executions match the current filters.</p>
+      <button class="link-btn" onclick={clearFilters}>Clear filters</button>
     </div>
   {:else}
     <DataTable>
@@ -208,7 +267,7 @@
         </tr>
       {/snippet}
       {#snippet body()}
-        {#each runs as run}
+        {#each filteredRuns as run}
           <tr>
             <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
             <td class="mono">{run.runnerId}</td>
@@ -304,25 +363,68 @@
     letter-spacing: 0.04em;
   }
 
+  .filter-search {
+    font: inherit;
+    font-size: 0.85rem;
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    min-width: 200px;
+    flex: 1;
+    max-width: 320px;
+  }
+
+  .filter-search:focus { outline: none; border-color: var(--color-accent); }
+
   .filter-select {
     padding: 6px 10px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-bg);
     color: var(--color-text);
-    font-size: 0.875rem;
+    font: inherit;
+    font-size: 0.85rem;
     outline: none;
-    cursor: not-allowed;
-    opacity: 0.6;
-    min-width: 120px;
+    cursor: pointer;
+    min-width: 110px;
   }
 
-  .filters-note {
-    font-size: 0.75rem;
+  .filter-select:focus { border-color: var(--color-accent); }
+
+  .clear-filter-btn {
+    font: inherit;
+    font-size: 0.78rem;
+    padding: 5px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: transparent;
     color: var(--color-text-muted);
-    font-style: italic;
-    align-self: center;
-    padding-bottom: 2px;
+    cursor: pointer;
+    white-space: nowrap;
+    align-self: flex-end;
+  }
+
+  .clear-filter-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+
+  .filter-count {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    align-self: flex-end;
+    padding-bottom: 7px;
+    white-space: nowrap;
+  }
+
+  .link-btn {
+    font: inherit;
+    font-size: 0.85rem;
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    padding: 0;
+    margin-top: 8px;
   }
 
   .error-banner {
