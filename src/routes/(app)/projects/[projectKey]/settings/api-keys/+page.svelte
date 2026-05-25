@@ -213,7 +213,7 @@
 </Modal>
 
 <style>
-  .page { max-width: 1000px; }
+  .page { max-width: min(1520px, 100%); }
 
   .breadcrumb {
     display: flex; align-items: center; gap: 6px;

@@ -1,32 +1,28 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { clearSession, getValidSession, storeSession, type SetaraSession } from '$lib/auth';
 
-  let session = $state<{ email: string; name: string } | null>(null);
+  let session = $state<SetaraSession | null>(null);
   let editName = $state('');
   let saved = $state(false);
 
   onMount(() => {
-    const raw = localStorage.getItem('setara_session');
-    if (!raw) { goto('/login'); return; }
-    try {
-      session = JSON.parse(raw);
-      editName = session?.name ?? '';
-    } catch {
-      goto('/login');
-    }
+    session = getValidSession();
+    if (!session) { goto('/login'); return; }
+    editName = session.name;
   });
 
   function saveChanges() {
     if (!session) return;
     session = { ...session, name: editName };
-    localStorage.setItem('setara_session', JSON.stringify(session));
+    storeSession(session);
     saved = true;
     setTimeout(() => { saved = false; }, 2000);
   }
 
   function signOut() {
-    localStorage.removeItem('setara_session');
+    clearSession();
     goto('/login');
   }
 </script>
@@ -51,6 +47,7 @@
         <div class="avatar-info">
           <span class="avatar-name">{session.name}</span>
           <span class="avatar-email">{session.email}</span>
+          <span class="avatar-role">{session.role}</span>
         </div>
       </div>
 
@@ -79,6 +76,18 @@
             readonly
           />
           <span class="form-hint">Email cannot be changed here.</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="role">Role</label>
+          <input
+            id="role"
+            class="form-input form-input--readonly"
+            type="text"
+            value={session.role}
+            readonly
+          />
+          <span class="form-hint">Role comes from the active session.</span>
         </div>
 
         <div class="form-actions">
@@ -147,6 +156,17 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .avatar-role {
+    width: fit-content;
+    border-radius: 999px;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 3px 7px;
   }
 
   .divider {

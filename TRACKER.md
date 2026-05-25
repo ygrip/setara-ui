@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-25 (UI polish: charts, tree lines, step editor fixes)
+Last synced with parent tracker: 2026-05-25 (auth/session maturity and markdown code/table rendering)
 
 ```text
 UI: [x] DonutChart bigger default (220px), reactive data updates, legend at bottom, legendPosition prop
@@ -12,6 +12,8 @@ UI: [x] Mock plans expanded with 4 plans (ACTIVE, CLOSED, ARCHIVED, OPEN) for re
 UI: [x] Execution detail donut: size 240, includes Skipped, legend at bottom, improved visual-panel layout
 UI: [x] Repository tree: IDE-style connected guide lines via nested .tree-children border-left (no more disconnected ::before segments)
 UI: [x] SetaraStepGridEditor toolbar: Delete/Move/Duplicate buttons no longer always-disabled; use effective row 0 when no cell is focused
+UI: [x] Role-aware mock session with refresh behavior and Settings/Admin gating
+UI: [x] MarkdownBlock renderer for Cucumber doc strings and data tables with scroll/collapse behavior
 ```
 
 - [x] Git repository initialized on `main`.
@@ -58,8 +60,8 @@ UI: [x] SetaraStepGridEditor toolbar: Delete/Move/Duplicate buttons no longer al
 - [x] Project statistics API client and mock data support.
 - [x] Dashboard summary and aggregate history API clients.
 - [x] Squad coverage and squad-project drilldown API clients.
-- [ ] Permission/role-aware UI states.
-- [ ] Session refresh behavior.
+- [x] Permission/role-aware UI states.
+- [x] Session refresh behavior.
 - [x] Scenario tree view (live, connected to backend).
 - [x] Repository tree displays directory counts, scenario leaves, and copy buttons for directory/scenario IDs.
 - [x] Repository tree spacing widened, uses navbar-aligned surface color, and truncates parent/current long names cleanly.
@@ -113,6 +115,7 @@ UI: [x] SetaraStepGridEditor toolbar: Delete/Move/Duplicate buttons no longer al
 - [x] Quality gate dashboard for release plans.
 - [x] Per-project release plan list/create/status/archive workflow.
 - [x] `SetaraStepGridEditor.svelte` — RevoGrid-backed step editor with Edit/Preview modes, toolbar (add/delete/move/duplicate/normalize), markdown preview via marked+highlight.js.
+- [x] Cucumber doc strings and data tables render through `MarkdownBlock` with code/table styling, scroll, and expand/collapse controls.
 - [x] `SetaraStepGridEditor.svelte` keyword cells use a real dropdown editor for GIVEN/WHEN/THEN/AND/BUT.
 - [x] `StepPasteParseDialog.svelte` — paste & parse unstructured text (Gherkin, numbered, bullet, multiline) into step rows with live preview.
 - [x] `step-parser.ts` — frontend step text parser matching backend `StepCellParser` logic.

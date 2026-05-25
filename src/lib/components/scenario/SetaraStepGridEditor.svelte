@@ -13,7 +13,7 @@
   import type { ColumnRegular, EditorBase, EditorCtr, ColumnDataSchemaModel, EditCell } from '@revolist/revogrid';
   import { RevoGrid } from '@revolist/svelte-datagrid';
   import StepPasteParseDialog from './StepPasteParseDialog.svelte';
-  import { renderMarkdown } from '$lib/markdown';
+  import MarkdownBlock from '$lib/components/MarkdownBlock.svelte';
   import {
     type StepGridRow,
     type BackendStep,
@@ -192,16 +192,49 @@
       onchange(toBackendSteps(rows));
     }
 
+    function setFocusedRow(index: unknown) {
+      if (typeof index !== 'number' || Number.isNaN(index)) return;
+      focusedRowIndex = Math.max(0, Math.min(rows.length - 1, index));
+    }
+
+    function extractRowIndex(detail: Record<string, unknown> | undefined) {
+      if (!detail) return undefined;
+      const direct = detail.rowIndex ?? detail.row ?? detail.y;
+      if (typeof direct === 'number') return direct;
+      const cell = detail.cell as Record<string, unknown> | undefined;
+      if (typeof cell?.y === 'number') return cell.y;
+      if (typeof cell?.rowIndex === 'number') return cell.rowIndex;
+      return undefined;
+    }
+
     function handleAfterFocus(evt: Event) {
-      const { rowIndex } = (evt as CustomEvent<{ rowIndex: number }>).detail ?? {};
-      if (rowIndex != null) focusedRowIndex = rowIndex;
+      setFocusedRow(extractRowIndex((evt as CustomEvent<Record<string, unknown>>).detail));
+    }
+
+    function handlePointerDown(evt: Event) {
+      const pointer = evt as PointerEvent;
+      const root = el;
+      if (!root) return;
+      const grid = root.querySelector('revo-grid');
+      if (!grid || pointer.clientY == null) return;
+      const rect = grid.getBoundingClientRect();
+      const headerHeight = 36;
+      const y = pointer.clientY - rect.top - headerHeight;
+      if (y < 0) return;
+      setFocusedRow(Math.floor(y / Number(rowSize || 34)));
     }
 
     el.addEventListener('afteredit', handleAfterEdit);
     el.addEventListener('afterfocus', handleAfterFocus);
+    el.addEventListener('cellfocus', handleAfterFocus);
+    el.addEventListener('mousedown', handlePointerDown);
+    el.addEventListener('pointerdown', handlePointerDown);
     return () => {
       el.removeEventListener('afteredit', handleAfterEdit);
       el.removeEventListener('afterfocus', handleAfterFocus);
+      el.removeEventListener('cellfocus', handleAfterFocus);
+      el.removeEventListener('mousedown', handlePointerDown);
+      el.removeEventListener('pointerdown', handlePointerDown);
     };
   });
 
@@ -385,18 +418,18 @@
               </div>
               <div class="step-card-body">
                 <div class="step-text-preview md-content">
-                  {@html renderMarkdown(row.text)}
+                  <MarkdownBlock value={row.text} collapsedHeight={180} />
                 </div>
                 {#if row.description?.trim()}
                   <div class="step-section">
                     <span class="step-section-label">Description</span>
-                    <div class="md-content">{@html renderMarkdown(row.description)}</div>
+                    <div class="md-content"><MarkdownBlock value={row.description} collapsedHeight={220} /></div>
                   </div>
                 {/if}
                 {#if row.expectation?.trim()}
                   <div class="step-section">
                     <span class="step-section-label">Expected Result</span>
-                    <div class="md-content md-expectation">{@html renderMarkdown(row.expectation)}</div>
+                    <div class="md-content md-expectation"><MarkdownBlock value={row.expectation} collapsedHeight={180} /></div>
                   </div>
                 {/if}
               </div>
@@ -493,6 +526,8 @@
     min-height: 240px;
     max-height: 480px;
     overflow: hidden;
+    background: #f8fafc;
+    color: #0f172a;
   }
 
   /* Tells RevoGrid to fill the wrapper */
@@ -500,12 +535,21 @@
     height: 100%;
     min-height: 240px;
     max-height: 480px;
-    --revo-theme-background: var(--color-surface);
-    --revo-theme-header-background: var(--color-bg);
-    --revo-theme-border-color: var(--color-border);
-    --revo-theme-focus-color: var(--color-accent);
-    --revo-theme-selection-color: color-mix(in srgb, var(--color-accent), transparent 80%);
-    --revo-theme-text-color: var(--color-text);
+    color-scheme: light;
+    --revo-theme-background: #f8fafc;
+    --revo-theme-header-background: #e2e8f0;
+    --revo-theme-border-color: #cbd5e1;
+    --revo-theme-focus-color: #0d9488;
+    --revo-theme-selection-color: rgba(13, 148, 136, 0.18);
+    --revo-theme-text-color: #0f172a;
+    --revo-color: #0f172a;
+  }
+
+  .grid-wrap :global(revo-grid),
+  .grid-wrap :global(revo-grid *),
+  .grid-wrap :global(.rgCell),
+  .grid-wrap :global(.rgHeaderCell) {
+    color: #0f172a;
   }
 
   .grid-wrap :global(.keyword-select-editor) {
@@ -513,8 +557,8 @@
     height: 100%;
     border: 1px solid var(--color-accent);
     border-radius: 4px;
-    background: var(--color-surface);
-    color: var(--color-text);
+    background: #ffffff;
+    color: #0f172a;
     font: inherit;
     font-size: 0.8rem;
     font-weight: 800;

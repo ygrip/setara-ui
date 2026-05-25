@@ -1,7 +1,11 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import { goto } from '$app/navigation';
+  import { onMount } from 'svelte';
+  import { getValidSession, hasPermission, type SetaraSession } from '$lib/auth';
 
   let { children } = $props();
+  let session = $state<SetaraSession | null>(null);
 
   const navLinks = [
     { href: '/admin/tribes', label: 'Tribes' },
@@ -13,26 +17,35 @@
   function isActive(href: string): boolean {
     return page.url.pathname === href || page.url.pathname.startsWith(href + '/');
   }
+
+  onMount(() => {
+    session = getValidSession();
+    if (!hasPermission(session, 'settings:read')) {
+      goto('/profile', { replaceState: true });
+    }
+  });
 </script>
 
-<div class="admin-shell">
-  <nav class="admin-subnav">
-    {#each navLinks as link}
-      <a
-        href={link.href}
-        class="subnav-item"
-        class:subnav-item--active={isActive(link.href)}
-      >
-        {link.label}
-      </a>
-    {/each}
-  </nav>
-  {@render children()}
-</div>
+{#if hasPermission(session, 'settings:read')}
+  <div class="admin-shell">
+    <nav class="admin-subnav">
+      {#each navLinks as link}
+        <a
+          href={link.href}
+          class="subnav-item"
+          class:subnav-item--active={isActive(link.href)}
+        >
+          {link.label}
+        </a>
+      {/each}
+    </nav>
+    {@render children()}
+  </div>
+{/if}
 
 <style>
   .admin-shell {
-    max-width: 1100px;
+    max-width: min(1520px, 100%);
   }
 
   .admin-subnav {

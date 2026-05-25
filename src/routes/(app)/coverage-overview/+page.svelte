@@ -194,7 +194,7 @@
 </div>
 
 <style>
-  .page { max-width: 1100px; }
+  .page { max-width: min(1520px, 100%); }
   .page-header { margin-bottom: 24px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle, .section-subtitle, .muted { color: var(--color-text-muted); font-size: 0.875rem; }

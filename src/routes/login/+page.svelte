@@ -1,20 +1,19 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
+  import { createMockSession, getValidSession, storeSession, type SetaraRole } from '$lib/auth';
 
   let email = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
+  let role = $state<SetaraRole>('ADMIN');
 
   onMount(() => {
     // Already logged in? Go to workspace.
-    const raw = localStorage.getItem('setara_session');
-    if (raw) {
-      try {
-        JSON.parse(raw);
-        goto('/workspace', { replaceState: true });
-      } catch { /* ignore */ }
+    if (getValidSession()) {
+      goto('/workspace', { replaceState: true });
     }
   });
 
@@ -29,7 +28,7 @@
     // Mock authentication — any non-empty credentials pass
     await new Promise(r => setTimeout(r, 400));
     const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    localStorage.setItem('setara_session', JSON.stringify({ email: email.trim(), name }));
+    storeSession(createMockSession(email.trim(), name, role));
     goto('/workspace', { replaceState: true });
   }
 </script>
@@ -41,11 +40,8 @@
 <div class="login-page">
   <div class="login-card">
     <div class="login-brand">
-      <svg width="36" height="36" viewBox="0 0 36 36" fill="none" aria-hidden="true">
-        <rect width="36" height="36" rx="10" fill="var(--color-accent)"/>
-        <path d="M10 12h16M10 18h11M10 24h7" stroke="#fff" stroke-width="2.5" stroke-linecap="round"/>
-      </svg>
-      <span class="brand-name">Setara</span>
+      <SetaraLoader mode="orbit" size={54} label="Setara" />
+      <span class="brand-name">SETARA</span>
     </div>
 
     <h1 class="login-title">Sign in to your workspace</h1>
@@ -65,6 +61,15 @@
       </label>
 
       <label class="field">
+        <span class="label">Workspace role</span>
+        <select class="input" bind:value={role}>
+          <option value="ADMIN">Admin</option>
+          <option value="QA">QA</option>
+          <option value="VIEWER">Viewer</option>
+        </select>
+      </label>
+
+      <label class="field">
         <span class="label">Password</span>
         <input
           class="input"
@@ -81,11 +86,16 @@
       {/if}
 
       <button class="submit-btn" type="submit" disabled={loading}>
-        {loading ? 'Signing in…' : 'Sign in'}
+        {#if loading}
+          <SetaraLoader mode="progress" size={24} label="Signing in" />
+          <span>Signing in…</span>
+        {:else}
+          <span>Sign in</span>
+        {/if}
       </button>
     </form>
 
-    <p class="demo-note">Demo mode — no real authentication</p>
+    <p class="demo-note">Demo mode — sessions refresh locally and expire automatically</p>
   </div>
 </div>
 
@@ -117,10 +127,22 @@
   }
 
   .brand-name {
-    font-size: 1.4rem;
+    font-family: var(--font-sans, "Sora", sans-serif);
+    font-size: 1.24rem;
     font-weight: 700;
-    color: var(--color-accent);
-    letter-spacing: -0.02em;
+    letter-spacing: 0.16em;
+    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: brand-shimmer 5s ease-in-out infinite;
+  }
+
+  @keyframes brand-shimmer {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
   }
 
   .login-title {
@@ -192,6 +214,15 @@
     transition: background 0.15s, opacity 0.15s;
     width: 100%;
     margin-top: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .submit-btn :global(.loader) {
+    --loader-accent: #ffffff;
+    --loader-mint: #ffffff;
   }
 
   .submit-btn:hover:not(:disabled) {

@@ -47,7 +47,7 @@
 </svelte:head>
 
 <div class="section-wrap">
-  <h1 class="page-title">Administration</h1>
+  <h1 class="page-title">Settings</h1>
 
   {#if data.error}
     <div class="error-banner">Could not connect to backend — {data.error}</div>

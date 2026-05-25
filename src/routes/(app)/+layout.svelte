@@ -4,10 +4,11 @@
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import { clearSession, getValidSession, hasPermission, refreshSession, type SetaraSession } from '$lib/auth';
 
   let { children } = $props();
 
-  let session = $state<{ email: string; name: string } | null>(null);
+  let session = $state<SetaraSession | null>(null);
   let sidebarOpen = $state(false);
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
@@ -20,15 +21,10 @@
   const projectKey = $derived(page.params.projectKey ?? null);
 
   onMount(() => {
-    const raw = localStorage.getItem('setara_session');
-    if (!raw) {
+    session = getValidSession();
+    if (!session) {
       goto('/login');
       return;
-    }
-    try {
-      session = JSON.parse(raw);
-    } catch {
-      goto('/login');
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -48,24 +44,36 @@
       }
     }
 
+    function handleFocus() {
+      const refreshed = refreshSession();
+      if (refreshed) session = refreshed;
+      else goto('/login');
+    }
+
     const hintInterval = setInterval(() => {
       searchHintIndex = (searchHintIndex + 1) % searchHints.length;
       searchHintKey += 1;
     }, 3000);
 
     window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('focus', handleFocus);
     document.addEventListener('click', handleOutsideClick);
 
     return () => {
       clearInterval(hintInterval);
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('focus', handleFocus);
       document.removeEventListener('click', handleOutsideClick);
     };
   });
 
   function signOut() {
-    localStorage.removeItem('setara_session');
+    clearSession();
     goto('/login');
+  }
+
+  function can(permission: string) {
+    return hasPermission(session, permission);
   }
 
   function closeSidebar() {
@@ -235,15 +243,18 @@
 
       <!-- Admin section -->
       <a
-        href="/admin"
+        href={can('settings:read') ? '/admin' : '/profile'}
         class="nav-item"
         class:nav-item--active={isActive('/admin')}
+        class:nav-item--dimmed={!can('settings:read')}
+        aria-disabled={!can('settings:read')}
+        title={can('settings:read') ? 'Settings' : 'Settings require QA or Admin role'}
         onclick={closeSidebar}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
         </svg>
-        Administration
+        Settings
       </a>
     </nav>
 
@@ -309,6 +320,7 @@
                 <div class="dropdown-header">
                   <span class="dropdown-name">{session.name}</span>
                   <span class="dropdown-email">{session.email}</span>
+                  <span class="dropdown-role">{session.role}</span>
                 </div>
                 <div class="dropdown-divider"></div>
                 <a href="/profile" class="dropdown-item" onclick={() => userMenuOpen = false}>
@@ -333,6 +345,7 @@
                   <div class="user-popup-avatar">{session.name?.[0]?.toUpperCase() ?? '?'}</div>
                   <div class="user-popup-name">{session.name}</div>
                   <div class="user-popup-email">{session.email}</div>
+                  <div class="user-popup-role">{session.role}</div>
                   <div class="user-popup-actions">
                     <a href="/profile" class="popup-btn" onclick={() => userMenuOpen = false}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -741,6 +754,19 @@
     color: var(--color-text-muted);
   }
 
+  .dropdown-role,
+  .user-popup-role {
+    width: fit-content;
+    margin-top: 5px;
+    border-radius: 999px;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    padding: 3px 7px;
+  }
+
   /* ── Mobile user popup ── */
   /* Hidden on desktop — shown only via mobile media query */
   .user-popup-overlay {
@@ -1002,7 +1028,10 @@
     .user-popup-email {
       font-size: 0.78rem;
       color: var(--color-text-muted);
-      margin-bottom: 8px;
+    }
+
+    .user-popup-role {
+      margin: 8px auto 12px;
     }
 
     .user-popup-actions {

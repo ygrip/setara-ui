@@ -237,7 +237,14 @@
           <p class="visual-desc">{passedScenarios} passed · {failedScenarios} failed · {skippedScenarios} skipped</p>
           <p class="visual-desc">Pass rate: <strong>{passRate}%</strong></p>
         </div>
-        <DonutChart chartData={runDonut} size={240} legendPosition="bottom" />
+        <div class="chart-layout">
+          <DonutChart chartData={runDonut} size={460} />
+          <div class="chart-legend" aria-label="Execution result legend">
+            <span><i class="dot passed"></i>Passed <strong>{passedScenarios}</strong></span>
+            <span><i class="dot failed"></i>Failed <strong>{failedScenarios}</strong></span>
+            <span><i class="dot skipped"></i>Skipped <strong>{skippedScenarios}</strong></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -405,7 +412,7 @@
 </div>
 
 <style>
-  .page { max-width: 1000px; }
+  .page { max-width: min(1520px, 100%); }
 
   .breadcrumb {
     display: flex;
@@ -492,14 +499,44 @@
   }
 
   .visual-panel {
-    display: flex;
+    display: grid;
+    grid-template-columns: minmax(240px, 1fr) minmax(480px, auto);
     align-items: center;
-    justify-content: space-between;
     gap: 32px;
-    flex-wrap: wrap;
   }
 
   .visual-text { flex: 1; min-width: 160px; }
+
+  .chart-layout {
+    display: grid;
+    grid-template-columns: auto minmax(160px, 220px);
+    align-items: center;
+    justify-content: end;
+    gap: 24px;
+  }
+
+  .chart-legend {
+    display: grid;
+    gap: 10px;
+  }
+
+  .chart-legend span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
+  }
+
+  .chart-legend strong { color: var(--color-text); }
+  .dot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }
+  .dot.passed { background: #0d9488; }
+  .dot.failed { background: #dc2626; }
+  .dot.skipped { background: #f59e0b; }
 
   .visual-desc {
     margin: 4px 0 0;
@@ -734,5 +771,17 @@
     font-size: 0.85rem;
     padding: 32px !important;
     font-style: italic;
+  }
+
+  @media (max-width: 820px) {
+    .visual-panel,
+    .chart-layout {
+      grid-template-columns: 1fr;
+      justify-items: start;
+    }
+
+    .event-item {
+      grid-template-columns: 1fr;
+    }
   }
 </style>

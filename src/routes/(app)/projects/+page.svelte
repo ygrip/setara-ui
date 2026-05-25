@@ -133,7 +133,7 @@
 </Modal>
 
 <style>
-  .page { max-width: 1100px; }
+  .page { max-width: min(1520px, 100%); }
 
   .page-header {
     display: flex;

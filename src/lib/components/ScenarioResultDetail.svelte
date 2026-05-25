@@ -2,6 +2,8 @@
   import { getScenario, type Scenario } from '$lib/api/testcases';
   import type { ScenarioRunResult } from '$lib/api/runs';
   import Badge from './Badge.svelte';
+  import SetaraLoader from './SetaraLoader.svelte';
+  import MarkdownBlock from './MarkdownBlock.svelte';
 
   interface Props {
     result: ScenarioRunResult | null;
@@ -158,7 +160,10 @@
         </h3>
 
         {#if scenarioLoading}
-          <div class="steps-loading">Loading steps…</div>
+          <div class="steps-loading">
+            <SetaraLoader mode="progress" size={36} label="Loading steps" />
+            <span>Loading steps…</span>
+          </div>
         {:else if scenarioError}
           <div class="steps-error">Could not load steps — {scenarioError}</div>
         {:else if scenario && scenario.steps.length > 0}
@@ -169,7 +174,10 @@
                 <span class="step-keyword {keywordVariant(step.keyword)}">{step.keyword}</span>
                 <span class="step-name">{step.name}</span>
                 {#if step.description}
-                  <span class="step-desc">{step.description}</span>
+                  <span class="step-desc"><MarkdownBlock value={step.description} collapsedHeight={180} /></span>
+                {/if}
+                {#if step.expectation}
+                  <span class="step-desc step-desc--expectation"><MarkdownBlock value={step.expectation} collapsedHeight={160} /></span>
                 {/if}
               </li>
             {/each}
@@ -397,6 +405,12 @@
     font-size: 0.8rem;
     color: var(--color-text-muted);
     font-style: italic;
+  }
+
+  .steps-loading {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
   }
 
   .steps-error { color: var(--color-danger); font-style: normal; }

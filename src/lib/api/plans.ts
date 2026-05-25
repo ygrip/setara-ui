@@ -17,10 +17,13 @@ export interface ReleasePlan {
   updatedAt: string;
   openedAt?: string | null;
   openedBy?: string | null;
+  openedByUsers?: string[];
   inProgressAt?: string | null;
   inProgressBy?: string | null;
+  inProgressByUsers?: string[];
   signedOffAt?: string | null;
   signedOffBy?: string | null;
+  signedOffByUsers?: string[];
   signOffNotes?: string | null;
 }
 
@@ -95,6 +98,7 @@ export async function createPlan(projectKey: string, body: {
   passThreshold?: number;
   coverageThreshold?: number;
   openedBy?: string;
+  openedByUsers?: string[];
 }): Promise<ReleasePlan> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans`, {
     method: 'POST',
@@ -190,7 +194,6 @@ export async function selectPlanExecution(projectKey: string, planId: string, bo
 }
 
 export async function closePlan(projectKey: string, planId: string, body: {
-  signedOffBy?: string;
   notes?: string;
 } = {}): Promise<ReleasePlan> {
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/close`, {

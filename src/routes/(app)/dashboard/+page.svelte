@@ -161,7 +161,7 @@
   </div>
 
   <!-- Chart expand modal -->
-  <Modal open={showChartExpand} title="Overall Coverage Trend" onclose={() => showChartExpand = false}>
+  <Modal open={showChartExpand} title="Overall Coverage Trend" size="xl" onclose={() => showChartExpand = false}>
     <div class="expand-modal-content">
       <div class="expand-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -174,7 +174,7 @@
           </select>
         </label>
       </div>
-      <LineChart chartData={coverageTrend} height={400} />
+      <LineChart chartData={coverageTrend} height={520} />
       {#if chartBusy}<p class="chart-note">Refreshing…</p>{/if}
     </div>
   </Modal>
@@ -216,7 +216,9 @@
 </div>
 
 <style>
-  .page { max-width: 1100px; }
+  .page {
+    max-width: min(1520px, 100%);
+  }
 
   .page-header {
     display: flex;
@@ -328,7 +330,13 @@
   }
   .chart-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%); }
 
-  .expand-modal-content { display: flex; flex-direction: column; gap: 14px; min-width: min(760px, 90vw); }
+  .expand-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: min(1180px, 100%);
+    min-width: 0;
+  }
   .expand-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
   .expand-controls label {
     display: flex;
@@ -395,6 +403,18 @@
     color: var(--color-accent);
     font-size: 0.8rem;
     font-weight: 500;
+  }
+
+  @media (min-width: 1280px) {
+    .chart-card {
+      padding: 24px 28px;
+    }
+  }
+
+  @media (max-width: 720px) {
+    .chart-card {
+      padding: 14px;
+    }
   }
 
 </style>

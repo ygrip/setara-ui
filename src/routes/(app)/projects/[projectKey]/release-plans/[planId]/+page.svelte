@@ -33,7 +33,6 @@
   let detailScenarioId = $state('');
   let expandedDirectoryIds = $state<Set<string>>(new Set());
   let scenarioFilter = $state('');
-  let signoffBy = $state('');
   let signoffNotes = $state('');
   let manualActualByScenario = $state<Record<string, string>>({});
 
@@ -87,6 +86,11 @@
 
   function pct(value: number | undefined | null): string {
     return `${Number(value ?? 0).toFixed(0)}%`;
+  }
+
+  function actorText(actors?: string[] | null, fallback?: string | null): string {
+    if (actors && actors.length > 0) return actors.join(', ');
+    return fallback || 'System';
   }
 
   function parentChainOpen(directory: TestDirectory): boolean {
@@ -170,7 +174,6 @@
     if (!canClose) return;
     await runAction(async () => {
       await closePlan(data.projectKey, data.planId, {
-        signedOffBy: signoffBy.trim() || undefined,
         notes: signoffNotes.trim() || undefined
       });
     });
@@ -251,7 +254,6 @@
         <span>Skipped <strong>{data.metrics.skipped}</strong></span>
       </div>
       <div class="signoff-actions">
-        <input bind:value={signoffBy} placeholder="Signed off by" disabled={busy || data.plan.status === 'CLOSED'} />
         <input bind:value={signoffNotes} placeholder="Sign-off notes" disabled={busy || data.plan.status === 'CLOSED'} />
         <button class="primary-btn" onclick={signOffPlan} disabled={busy || !canClose || data.plan.status === 'CLOSED'}>Sign Off / Close Plan</button>
       </div>
@@ -318,7 +320,7 @@
   {/if}
 </div>
 
-<Modal open={showScenarioPicker} title="Add Manual Scenario" onclose={() => showScenarioPicker = false}>
+<Modal open={showScenarioPicker} title="Add Manual Scenario" size="xl" onclose={() => showScenarioPicker = false}>
   <div class="picker picker-split">
     <aside class="directory-picker">
       <input bind:value={scenarioFilter} placeholder="Search scenario key or name" />
@@ -349,7 +351,7 @@
   </div>
 </Modal>
 
-<Modal open={showRunPicker} title="Add From Last Run" onclose={() => showRunPicker = false}>
+<Modal open={showRunPicker} title="Add From Last Run" size="lg" onclose={() => showRunPicker = false}>
   <div class="picker">
     <label>
       <span>Selected by</span>
@@ -366,20 +368,20 @@
   </div>
 </Modal>
 
-<Modal open={showAudit} title="Lifecycle Audit Trail" onclose={() => showAudit = false}>
+<Modal open={showAudit} title="Lifecycle Audit Trail" size="lg" onclose={() => showAudit = false}>
   {#if data.plan}
     <div class="audit-steps">
       <div class="audit-step done">
         <span>1</span>
-        <div><strong>Opened</strong><p>{formatDate(data.plan.openedAt ?? data.plan.createdAt)} · {data.plan.openedBy ?? 'System'}</p></div>
+        <div><strong>Opened</strong><p>{formatDate(data.plan.openedAt ?? data.plan.createdAt)} · {actorText(data.plan.openedByUsers, data.plan.openedBy)}</p></div>
       </div>
       <div class="audit-step" class:done={!!data.plan.inProgressAt}>
         <span>2</span>
-        <div><strong>Moved to In Progress</strong><p>{formatDate(data.plan.inProgressAt ?? null)} · {data.plan.inProgressBy ?? (data.plan.inProgressAt ? 'System' : 'Not yet')}</p></div>
+        <div><strong>Moved to In Progress</strong><p>{formatDate(data.plan.inProgressAt ?? null)} · {data.plan.inProgressAt ? actorText(data.plan.inProgressByUsers, data.plan.inProgressBy) : 'Not yet'}</p></div>
       </div>
       <div class="audit-step" class:done={!!data.plan.signedOffAt}>
         <span>3</span>
-        <div><strong>Signed Off</strong><p>{formatDate(data.plan.signedOffAt ?? null)} · {data.plan.signedOffBy ?? (data.plan.signedOffAt ? 'System' : 'Not yet')}</p></div>
+        <div><strong>Signed Off</strong><p>{formatDate(data.plan.signedOffAt ?? null)} · {data.plan.signedOffAt ? actorText(data.plan.signedOffByUsers, data.plan.signedOffBy) : 'Not yet'}</p></div>
       </div>
       {#if data.plan.signOffNotes}
         <p class="audit-notes">{data.plan.signOffNotes}</p>
@@ -388,7 +390,7 @@
   {/if}
 </Modal>
 
-<Modal open={!!detailScenarioId} title={detailScenario?.name ?? 'Scenario Steps'} onclose={() => detailScenarioId = ''}>
+<Modal open={!!detailScenarioId} title={detailScenario?.name ?? 'Scenario Steps'} size="lg" onclose={() => detailScenarioId = ''}>
   {#if detailScenario}
     <div class="step-list">
       {#each detailScenario.steps as step}
@@ -406,7 +408,7 @@
 </Modal>
 
 <style>
-  .page { max-width: 1180px; }
+  .page { max-width: min(1520px, 100%); }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
@@ -435,7 +437,7 @@
   .gate-breakdown { display: flex; flex-wrap: wrap; gap: 8px; }
   .gate-breakdown span { border: 1px solid var(--color-border); border-radius: 6px; padding: 6px 9px; color: var(--color-text-muted); font-size: 0.8rem; }
   .gate-breakdown strong { color: var(--color-text); }
-  .signoff-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(180px, 0.8fr) minmax(220px, 1fr) auto; gap: 10px; align-items: center; }
+  .signoff-actions { grid-column: 1 / -1; display: grid; grid-template-columns: minmax(220px, 1fr) auto; gap: 10px; align-items: center; }
   button, select, input { font: inherit; }
   button, select, input { border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }
   button { padding: 7px 11px; cursor: pointer; }

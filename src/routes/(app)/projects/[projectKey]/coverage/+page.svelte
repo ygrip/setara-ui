@@ -103,7 +103,7 @@
     <div class="section">
       <h2 class="section-title">Automation Breakdown</h2>
       <div class="chart-card donut-card">
-        <DonutChart chartData={automationDonut} size={220} label="Scenario Automation Status" />
+        <DonutChart chartData={automationDonut} size={460} label="Scenario Automation Status" />
         <div class="donut-meta">
           <p class="donut-meta-line">Based on the latest coverage snapshot.</p>
           <p class="donut-meta-line"><strong>{latest.totalAutomated}</strong> automated out of <strong>{latest.totalScenarios}</strong> total scenarios.</p>
@@ -119,7 +119,7 @@
 </div>
 
 <style>
-  .page { max-width: 1100px; }
+  .page { max-width: min(1520px, 100%); }
 
   .breadcrumb {
     display: flex;
@@ -224,12 +224,22 @@
     gap: 40px;
     box-shadow: var(--shadow);
     flex-wrap: wrap;
+    justify-content: center;
   }
 
   .donut-meta {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    min-width: 240px;
+    max-width: 420px;
+  }
+
+  @media (max-width: 760px) {
+    .donut-card {
+      padding: 18px;
+      gap: 20px;
+    }
   }
 
   .donut-meta-line {

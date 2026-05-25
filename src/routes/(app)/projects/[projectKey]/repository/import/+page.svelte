@@ -12,6 +12,7 @@
     type ImportResult,
     type ImportValidationResult
   } from '$lib/api/testcases';
+  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
 
   let { data } = $props();
 
@@ -417,7 +418,7 @@
     <div class="importing-state glass">
       {#if pollingJobId}
         <!-- Async: polling -->
-        <div class="spinner"></div>
+        <SetaraLoader mode="progress" size={72} label="Import queued" />
         <h2>Import queued</h2>
         <p>Your file has <strong>more than 500 rows</strong> and is being processed in the background.</p>
         {#if polledJob}
@@ -441,7 +442,7 @@
         {/if}
       {:else}
         <!-- Sync: regular processing -->
-        <div class="spinner"></div>
+        <SetaraLoader mode="progress" size={72} label="Importing scenarios" />
         <h2>Importing scenarios…</h2>
         <p>Creating directories, parsing steps, and saving scenarios. This may take a moment.</p>
       {/if}
@@ -575,7 +576,7 @@
 </div>
 
 <style>
-  .page { max-width: 1100px; margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { max-width: min(1520px, 100%); margin: 0 auto; padding: 2rem 1.5rem; }
 
   .breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1.5rem; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
@@ -712,9 +713,6 @@
   .importing-state { display: flex; flex-direction: column; align-items: center; gap: 1rem; text-align: center; padding: 4rem 2rem; max-width: 520px; margin: 0 auto; }
   .importing-state h2 { font-family: var(--font-sans); font-size: 1.25rem; font-weight: 600; margin: 0; }
   .importing-state p { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
-  .spinner { width: 2.5rem; height: 2.5rem; border: 3px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-
   /* Poll progress */
   .poll-progress { display: flex; flex-direction: column; gap: 0.75rem; width: 100%; max-width: 360px; margin-top: 0.5rem; }
   .poll-row { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }

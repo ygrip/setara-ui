@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { createScenario, type TestDirectory } from '$lib/api/testcases';
+  import Modal from '$lib/components/Modal.svelte';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
 
@@ -9,6 +10,8 @@
   let busy = $state(false);
   let actionError = $state('');
   let nodeId = $state('');
+  let showDirectoryPicker = $state(false);
+  let directoryFilter = $state('');
   let name = $state('');
   let priority = $state('MEDIUM');
   let automationStatus = $state('AUTOMATABLE');
@@ -21,6 +24,9 @@
 
   const selectedNode = $derived(data.directories.find((node: TestDirectory) => node.id === nodeId) ?? null);
   const breadcrumbNodes = $derived(buildBreadcrumb(selectedNode));
+  const filteredDirectories = $derived(data.directories.filter((node: TestDirectory) =>
+    `${node.name} ${node.path}`.toLowerCase().includes(directoryFilter.trim().toLowerCase())
+  ));
 
   $effect(() => {
     if (!nodeId) nodeId = data.nodeId ?? data.directories[0]?.id ?? '';
@@ -108,14 +114,13 @@
       </div>
 
       <div class="form-grid">
-        <label class="wide">
+        <div class="field wide">
           <span>Directory</span>
-          <select bind:value={nodeId} required disabled={busy}>
-            {#each data.directories as node}
-              <option value={node.id}>{node.path}</option>
-            {/each}
-          </select>
-        </label>
+          <button type="button" class="directory-select" onclick={() => showDirectoryPicker = true} disabled={busy}>
+            <strong>{selectedNode?.name ?? 'Select directory'}</strong>
+            <span>{selectedNode?.path ?? 'Choose where this scenario belongs'}</span>
+          </button>
+        </div>
         <label class="wide">
           <span>Scenario Name</span>
           <input bind:value={name} placeholder="User can complete payment using saved card" required disabled={busy} />
@@ -162,8 +167,31 @@
   </form>
 </div>
 
+<Modal open={showDirectoryPicker} title="Select Directory" size="lg" onclose={() => showDirectoryPicker = false}>
+  <div class="directory-modal">
+    <input bind:value={directoryFilter} placeholder="Search directories..." />
+    <div class="directory-results">
+      {#if filteredDirectories.length === 0}
+        <p class="empty-picker">No matching directories.</p>
+      {:else}
+        {#each filteredDirectories as node}
+          <button
+            type="button"
+            class:directory-option--active={node.id === nodeId}
+            class="directory-option"
+            onclick={() => { nodeId = node.id; showDirectoryPicker = false; }}
+          >
+            <strong>{node.name}</strong>
+            <span>{node.path}</span>
+          </button>
+        {/each}
+      {/if}
+    </div>
+  </div>
+</Modal>
+
 <style>
-  .page { max-width: 1180px; }
+  .page { max-width: min(1520px, 100%); }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
@@ -177,7 +205,7 @@
   .path { display: flex; align-items: center; gap: 8px; color: var(--color-text); flex-wrap: wrap; }
   .form-grid { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
   .wide { grid-column: 1 / -1; }
-  label { display: grid; gap: 5px; font-size: 0.78rem; color: var(--color-text-muted); }
+  label, .field { display: grid; gap: 5px; font-size: 0.78rem; color: var(--color-text-muted); }
   button, input, select, textarea { font: inherit; }
   button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }
@@ -185,6 +213,22 @@
   .primary-btn { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
   input, select, textarea { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   textarea { min-height: 64px; resize: vertical; }
+  .directory-select {
+    display: grid;
+    gap: 3px;
+    text-align: left;
+    padding: 10px 12px;
+    background: var(--color-bg);
+  }
+  .directory-select strong { color: var(--color-text); }
+  .directory-select span { color: var(--color-text-muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .directory-modal { display: grid; gap: 12px; }
+  .directory-modal input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); padding: 9px 11px; }
+  .directory-results { display: grid; gap: 6px; max-height: min(58vh, 520px); overflow: auto; }
+  .directory-option { display: grid; gap: 3px; text-align: left; padding: 11px 12px; }
+  .directory-option--active { border-color: var(--color-accent); background: var(--color-accent-subtle); }
+  .directory-option span { color: var(--color-text-muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .empty-picker { margin: 0; color: var(--color-text-muted); font-size: 0.85rem; padding: 20px 0; text-align: center; }
   .steps-section { padding-bottom: 8px; }
   .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 12px; }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; }

@@ -85,12 +85,14 @@
         variant="info"
         icon="M22 12h-4l-3 9L9 3l-3 9H2"
       />
-      <MetricCard
-        label="Active API Keys"
-        value={activeApiKeys}
-        variant="default"
-        icon="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-      />
+      <a href="/projects/{data.projectKey}/settings/api-keys" class="metric-link" aria-label="Open project keys management">
+        <MetricCard
+          label="Active API Keys"
+          value={activeApiKeys}
+          variant="default"
+          icon="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+        />
+      </a>
       <div class="last-run-card">
         <span class="last-run-label">Last Run Status</span>
         {#if data.runs.length > 0}
@@ -121,7 +123,13 @@
             <span><strong>{data.statistic?.totalScenarios ?? 0}</strong> live scenarios</span>
           </div>
         </div>
-        <DonutChart chartData={automationDonut} size={300} />
+        <div class="chart-layout">
+          <DonutChart chartData={automationDonut} size={460} />
+          <div class="chart-legend" aria-label="Automation coverage legend">
+            <span><i class="dot automated"></i>Automated <strong>{data.statistic?.totalAutomated ?? 0}</strong></span>
+            <span><i class="dot remaining"></i>Remaining <strong>{Math.max((data.statistic?.totalAutomatable ?? data.statistic?.totalScenarios ?? 0) - (data.statistic?.totalAutomated ?? 0), 0)}</strong></span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -199,7 +207,7 @@
 </div>
 
 <style>
-  .page { max-width: 1100px; }
+  .page { max-width: min(1520px, 100%); }
 
   .breadcrumb {
     display: flex;
@@ -265,6 +273,18 @@
     margin-bottom: 28px;
   }
 
+  .metric-link {
+    color: inherit;
+    text-decoration: none;
+    display: block;
+    min-width: 0;
+  }
+
+  .metric-link:hover {
+    text-decoration: none;
+    filter: brightness(1.04);
+  }
+
   .last-run-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -326,10 +346,40 @@
 
   .visual-panel {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(260px, 1fr) minmax(480px, auto);
     align-items: center;
-    gap: 20px;
+    gap: 28px;
   }
+
+  .chart-layout {
+    display: grid;
+    grid-template-columns: auto minmax(170px, 240px);
+    align-items: center;
+    justify-content: end;
+    gap: 24px;
+  }
+
+  .chart-legend {
+    display: grid;
+    gap: 10px;
+  }
+
+  .chart-legend span {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: 10px 12px;
+    color: var(--color-text-muted);
+    font-size: 0.84rem;
+  }
+
+  .chart-legend strong { color: var(--color-text); }
+  .dot { width: 10px; height: 10px; border-radius: 999px; flex: 0 0 auto; }
+  .dot.automated { background: #0f766e; }
+  .dot.remaining { background: #d1d5db; }
 
   .coverage-copy { min-width: 0; }
   .coverage-breakdown { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
@@ -414,6 +464,10 @@
 
   @media (max-width: 760px) {
     .metrics-row { grid-template-columns: 1fr; }
-    .visual-panel { grid-template-columns: 1fr; justify-items: start; }
+    .visual-panel,
+    .chart-layout {
+      grid-template-columns: 1fr;
+      justify-items: start;
+    }
   }
 </style>

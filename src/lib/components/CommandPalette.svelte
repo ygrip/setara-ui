@@ -17,7 +17,7 @@
   const pages: NavPage[] = [
     { label: 'Dashboard', href: '/dashboard', type: 'page', icon: 'M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z' },
     { label: 'Projects', href: '/projects', type: 'page', icon: 'M3 7h18M3 12h18M3 17h18' },
-    { label: 'Administration', href: '/admin', type: 'page', icon: 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z' },
+    { label: 'Settings', href: '/admin', type: 'page', icon: 'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5z' },
     { label: 'Workspace', href: '/workspace', type: 'page', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
   ];
 
