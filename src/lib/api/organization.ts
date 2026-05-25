@@ -23,6 +23,14 @@ export interface User {
   createdAt: string;
 }
 
+export interface Membership {
+  id: string;
+  projectId: string;
+  userId: string;
+  role: string;
+  createdAt: string;
+}
+
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const res = await fetch(`${getApiBaseUrl()}${path}`, init);
   if (!res.ok) {
@@ -70,6 +78,24 @@ export async function listUsers(cursor?: string, limit?: number, sortBy?: string
 
 export async function createUser(body: { email: string; displayName: string }): Promise<User> {
   const res = await apiFetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' }): Promise<Membership> {
+  if (isMockMode()) {
+    return {
+      id: `membership-${Date.now()}`,
+      projectId: projectKey,
+      userId: body.email,
+      role: body.role,
+      createdAt: new Date().toISOString()
+    };
+  }
+  const res = await apiFetch(`/api/projects/${projectKey}/memberships`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)

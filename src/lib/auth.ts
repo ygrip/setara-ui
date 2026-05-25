@@ -1,4 +1,4 @@
-export type SetaraRole = 'ADMIN' | 'QA' | 'VIEWER';
+export type SetaraRole = 'GUEST' | 'ADMIN' | 'QA' | 'VIEWER';
 
 export type SetaraSession = {
   email: string;
@@ -16,12 +16,13 @@ const ACCESS_TTL_MS = 30 * 60 * 1000;
 const REFRESH_TTL_MS = 8 * 60 * 60 * 1000;
 
 const ROLE_PERMISSIONS: Record<SetaraRole, string[]> = {
+  GUEST: ['project:read', 'scenario:read', 'execution:read', 'plan:read'],
   ADMIN: ['project:read', 'project:write', 'scenario:read', 'scenario:write', 'execution:read', 'plan:read', 'plan:write', 'settings:read', 'settings:write', 'user:read', 'user:write'],
   QA: ['project:read', 'scenario:read', 'scenario:write', 'execution:read', 'plan:read', 'plan:write', 'settings:read'],
   VIEWER: ['project:read', 'scenario:read', 'execution:read', 'plan:read']
 };
 
-export function createMockSession(email: string, name: string, role: SetaraRole = 'ADMIN'): SetaraSession {
+export function createMockSession(email: string, name: string, role: SetaraRole = 'GUEST'): SetaraSession {
   const now = Date.now();
   return {
     email,
@@ -86,7 +87,7 @@ export function hasPermission(session: SetaraSession | null, permission: string)
 }
 
 function normalizeSession(raw: Partial<SetaraSession>): SetaraSession {
-  const role = raw.role ?? 'ADMIN';
+  const role = raw.role && ROLE_PERMISSIONS[raw.role] ? raw.role : 'GUEST';
   const now = Date.now();
   return {
     email: raw.email ?? '',

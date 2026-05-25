@@ -2,13 +2,12 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
-  import { createMockSession, getValidSession, storeSession, type SetaraRole } from '$lib/auth';
+  import { createMockSession, getValidSession, storeSession } from '$lib/auth';
 
   let email = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
-  let role = $state<SetaraRole>('ADMIN');
 
   onMount(() => {
     // Already logged in? Go to workspace.
@@ -28,7 +27,7 @@
     // Mock authentication — any non-empty credentials pass
     await new Promise(r => setTimeout(r, 400));
     const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    storeSession(createMockSession(email.trim(), name, role));
+    storeSession(createMockSession(email.trim(), name));
     goto('/workspace', { replaceState: true });
   }
 </script>
@@ -58,15 +57,6 @@
           placeholder="you@example.com"
           required
         />
-      </label>
-
-      <label class="field">
-        <span class="label">Workspace role</span>
-        <select class="input" bind:value={role}>
-          <option value="ADMIN">Admin</option>
-          <option value="QA">QA</option>
-          <option value="VIEWER">Viewer</option>
-        </select>
       </label>
 
       <label class="field">

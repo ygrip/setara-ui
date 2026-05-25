@@ -640,6 +640,7 @@
           {#if selectedDirectory}
             <div class="directory-toolbar" aria-label="Directory actions">
               <button class="dir-action-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()} <span>Copy ID</span></button>
+              <a class="dir-action-btn" title="Open coverage map" aria-label="Open coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Coverage Map</span></a>
               <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
               <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
               <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
@@ -1118,6 +1119,7 @@
   .icon-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
   .directory-toolbar { margin-top: 10px; max-width: min(100%, 760px); }
   .dir-action-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 6px 10px; font-size: 0.76rem; font-weight: 760; line-height: 1; white-space: nowrap; color: var(--color-text-muted); }
+  a.dir-action-btn { text-decoration: none; }
   .dir-action-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
   .dir-action-btn.danger { color: var(--color-danger, #ef4444); }
   /* Import button */

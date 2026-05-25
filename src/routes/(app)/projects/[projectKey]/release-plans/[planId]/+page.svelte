@@ -205,6 +205,7 @@
         {#if data.plan.description}<p class="page-subtitle">{data.plan.description}</p>{/if}
       </div>
       <div class="header-actions">
+        <a class="action-link" href="/projects/{data.projectKey}/release-plans/{data.planId}/quality-map">Quality Map</a>
         <button onclick={() => showAudit = true}>Audit Trail</button>
         <Badge text={data.plan.status} variant={statusVariant(data.plan.status)} />
       </div>
@@ -417,6 +418,8 @@
   .page-subtitle, .eyebrow { color: var(--color-text-muted); font-size: 0.85rem; margin: 6px 0 0; }
   .eyebrow { text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; }
   .header-actions { display: flex; align-items: center; gap: 10px; }
+  .action-link { display: inline-flex; align-items: center; justify-content: center; border: 1px solid color-mix(in srgb, var(--color-accent), transparent 55%); border-radius: 6px; background: color-mix(in srgb, var(--color-accent), transparent 92%); color: var(--color-accent); padding: 7px 11px; text-decoration: none; font-size: 0.86rem; font-weight: 750; }
+  .action-link:hover { border-color: var(--color-accent); }
   .metrics-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px; }
   .panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
   .visual-panel { display: grid; gap: 18px; margin-bottom: 18px; }
