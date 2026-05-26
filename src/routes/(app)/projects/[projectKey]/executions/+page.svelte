@@ -24,6 +24,16 @@
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
 
+  // ── Heatmap period selector ─────────────────────────────────────
+  const PERIODS = [
+    { label: '1M', weeks: 5,  title: '1 month'  },
+    { label: '3M', weeks: 13, title: '3 months' },
+    { label: '6M', weeks: 26, title: '6 months' },
+  ] as const;
+  type PeriodLabel = typeof PERIODS[number]['label'];
+  let activePeriod = $state<PeriodLabel>('3M');
+  const heatmapWeeks = $derived(PERIODS.find(p => p.label === activePeriod)!.weeks);
+
   // ── Client-side filters ─────────────────────────────────────────
   let filterStatus = $state('');
   let filterEnv = $state('');
@@ -226,10 +236,23 @@
     <!-- Heatmap card -->
     <section class="card chart-section" aria-label="Execution activity heatmap">
       <div class="card-header">
-        <h2 class="card-title">Execution Activity</h2>
-        <span class="card-subtitle">Last 26 weeks · color = pass rate</span>
+        <div class="card-header-left">
+          <h2 class="card-title">Execution Activity</h2>
+          <span class="card-subtitle">Color = pass rate</span>
+        </div>
+        <div class="period-toggle" role="group" aria-label="Time range">
+          {#each PERIODS as p}
+            <button
+              class="period-btn"
+              class:period-btn--active={activePeriod === p.label}
+              onclick={() => activePeriod = p.label}
+              title={p.title}
+              aria-pressed={activePeriod === p.label}
+            >{p.label}</button>
+          {/each}
+        </div>
       </div>
-      <HeatmapCalendar days={heatmap} weeks={26} />
+      <HeatmapCalendar days={heatmap} weeks={heatmapWeeks} />
     </section>
 
     <!-- Pass-rate chart card -->
@@ -462,10 +485,17 @@
 
   .card-header {
     display: flex;
-    align-items: baseline;
+    align-items: flex-start;
+    justify-content: space-between;
     gap: 10px;
     margin-bottom: 14px;
     flex-wrap: wrap;
+  }
+
+  .card-header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
   }
 
   .card-title {
@@ -478,6 +508,40 @@
   .card-subtitle {
     font-size: 0.75rem;
     color: var(--color-text-muted);
+  }
+
+  /* ── Period toggle ──────────────────────────────────── */
+  .period-toggle {
+    display: flex;
+    gap: 2px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 2px;
+    flex-shrink: 0;
+  }
+
+  .period-btn {
+    font: inherit;
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 3px 9px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    letter-spacing: 0.03em;
+    transition: background 0.15s, color 0.15s;
+    white-space: nowrap;
+  }
+  .period-btn:hover:not(.period-btn--active) {
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+    color: var(--color-accent);
+  }
+  .period-btn--active {
+    background: var(--color-accent);
+    color: #fff;
   }
 
   /* ── Chart empty state ──────────────────────────────── */
