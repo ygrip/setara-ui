@@ -256,19 +256,15 @@
     </section>
 
     <!-- Pass-rate chart card -->
-    <section class="card chart-section" aria-label="Pass rate trend">
+    <section class="card chart-section chart-section--flex" aria-label="Pass rate trend">
       <div class="card-header">
         <h2 class="card-title">Pass Rate</h2>
         <span class="card-subtitle">Scenario pass rate per day</span>
       </div>
 
       {#if passRateTrend.labels.length > 0}
-        <LineChart chartData={passRateTrend} height={180} showLegend={false} />
-        <div class="chart-legend">
-          <span class="legend-dot legend-dot--pass"></span>
-          <span class="chart-legend-label">Pass Rate %</span>
-          <span class="legend-dot legend-dot--fail"></span>
-          <span class="chart-legend-label">Failed Scenarios</span>
+        <div class="chart-fill">
+          <LineChart chartData={passRateTrend} showLegend={true} />
         </div>
       {:else}
         <div class="chart-empty">No data yet</div>
@@ -483,6 +479,19 @@
     padding: 20px 24px 16px;
   }
 
+  /* Flex variant: pass-rate card stretches to full grid-row height */
+  .chart-section--flex {
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Grows to fill the remaining card height */
+  .chart-fill {
+    flex: 1;
+    min-height: 140px;
+    position: relative;
+  }
+
   .card-header {
     display: flex;
     align-items: flex-start;
@@ -554,31 +563,6 @@
     color: var(--color-text-muted);
     opacity: 0.6;
   }
-
-  /* ── Chart legend ───────────────────────────────────── */
-  .chart-legend {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-top: 10px;
-  }
-
-  .chart-legend-label {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    margin-right: 10px;
-  }
-
-  .legend-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .legend-dot--pass { background: #10b981; }
-  .legend-dot--fail { background: rgba(239, 68, 68, 0.7); }
 
   /* ── Sections ───────────────────────────────────────── */
   .section {
@@ -805,10 +789,6 @@
       flex-direction: column;
       gap: 4px;
       align-items: flex-start;
-    }
-
-    .chart-legend {
-      margin-top: 2px;
     }
   }
 </style>

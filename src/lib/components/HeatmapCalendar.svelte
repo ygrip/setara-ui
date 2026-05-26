@@ -7,9 +7,10 @@
 
   let { days = [], weeks = 26 }: { days: HeatmapDay[]; weeks?: number } = $props();
 
-  const CELL   = 11;           // visible cell size (px)
-  const GAP    = 3;            // gap between cells
-  const CT     = CELL + GAP;  // cell total = 14
+  const GAP = 2; // gap between cells (fixed)
+
+  // ── Container width binding for responsive cell sizing ───────────
+  let containerWidth = $state(0);
 
   // ── Date range ──────────────────────────────────────────────────
   // startDate: Sunday at the beginning of our `weeks`-week window
@@ -31,10 +32,19 @@
 
   const numWeeks = $derived(timeWeek.count(startDate, endDate) + 1);
 
-  // Chart container height: 7 rows of cells + top padding for month labels
+  // ── Responsive cell size: fills container width ──────────────────
   const TOP_PAD  = 20;
   const LEFT_PAD = 28;
-  const CHART_H  = $derived(TOP_PAD + 7 * CT); // ≈ 118 px
+
+  // CT = cell+gap, derived from actual container width so cells fill the card.
+  // Falls back to 14 during SSR / before first measure.
+  const CT = $derived.by(() => {
+    if (containerWidth <= LEFT_PAD + 20) return 14;
+    const available = containerWidth - LEFT_PAD - 4;
+    return Math.max(9, Math.floor(available / numWeeks));
+  });
+  const CELL    = $derived(CT - GAP);
+  const CHART_H = $derived(TOP_PAD + 7 * CT);
 
   // ── Data ────────────────────────────────────────────────────────
   // Parse YYYY-MM-DD as local midnight so d3's InternMap lookup matches
@@ -104,8 +114,8 @@
 </script>
 
 <div class="heatmap-root">
-  <!-- Chart fills the container width; fixed height for 7 rows + month labels -->
-  <div class="chart-wrap" style="height: {CHART_H}px">
+  <!-- Chart fills the container width; height = 7 rows of CT-sized cells + month label area -->
+  <div class="chart-wrap" style="height: {CHART_H}px" bind:clientWidth={containerWidth}>
     <Chart
       data={chartData}
       x={(d: { date: Date }) => d.date}
@@ -196,7 +206,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    margin-top: 10px;
+    margin-top: 16px;
     flex-wrap: wrap;
   }
 

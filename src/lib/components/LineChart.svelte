@@ -9,14 +9,14 @@
 
   let {
     chartData,
-    height = 200,
+    height = undefined,
     label = '',
     showLegend = true
   }: {
     chartData: { labels: string[]; datasets: object[] };
+    /** Fixed height in px. Omit (or leave undefined) to fill the parent via CSS height:100%. */
     height?: number;
     label?: string;
-    /** Pass false when you have an external HTML legend to avoid Chart.js doubling up */
     showLegend?: boolean;
   } = $props();
 
@@ -64,13 +64,14 @@
   });
 </script>
 
-<div class="chart-wrap" style="height: {height}px">
+<div class="chart-wrap" style={height !== undefined ? `height: ${height}px` : undefined}>
   {#if label}<p class="chart-label">{label}</p>{/if}
   <canvas bind:this={canvas}></canvas>
 </div>
 
 <style>
-  .chart-wrap { position: relative; width: 100%; }
+  /* height: 100% fills parent when no inline height is set; overridden by inline style when height prop is provided */
+  .chart-wrap { position: relative; width: 100%; height: 100%; }
   .chart-label {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.06em; color: var(--color-text-muted);
