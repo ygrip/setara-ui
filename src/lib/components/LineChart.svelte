@@ -10,11 +10,14 @@
   let {
     chartData,
     height = 200,
-    label = ''
+    label = '',
+    showLegend = true
   }: {
     chartData: { labels: string[]; datasets: object[] };
     height?: number;
     label?: string;
+    /** Pass false when you have an external HTML legend to avoid Chart.js doubling up */
+    showLegend?: boolean;
   } = $props();
 
   let canvas: HTMLCanvasElement;
@@ -28,7 +31,7 @@
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { display: true, labels: { color: '#7d9589', boxWidth: 12 } },
+          legend: { display: showLegend, labels: { color: '#7d9589', boxWidth: 12 } },
           tooltip: { mode: 'index', intersect: false }
         },
         scales: {

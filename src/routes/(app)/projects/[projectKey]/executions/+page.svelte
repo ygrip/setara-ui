@@ -240,7 +240,7 @@
       </div>
 
       {#if passRateTrend.labels.length > 0}
-        <LineChart chartData={passRateTrend} height={180} label="Pass Rate & Failed Scenarios" />
+        <LineChart chartData={passRateTrend} height={180} showLegend={false} />
         <div class="chart-legend">
           <span class="legend-dot legend-dot--pass"></span>
           <span class="chart-legend-label">Pass Rate %</span>
@@ -437,7 +437,7 @@
   /* ── Charts grid ────────────────────────────────────── */
   .charts-grid {
     display: grid;
-    grid-template-columns: 55fr 45fr;
+    grid-template-columns: 40fr 60fr;
     gap: 20px;
     margin-bottom: 28px;
   }
