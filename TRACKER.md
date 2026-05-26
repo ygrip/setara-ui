@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-26 (GUEST enforcement, forbidden page, CI env detection)
+Last synced with parent tracker: 2026-05-26 (build-centric release structure phase 1)
 
 ```text
 UI: [x] GUEST role enforcement: forbidden page (/forbidden), route guards in layout ($effect), write buttons hidden for GUEST on projects/release-plans/repository pages
@@ -19,6 +19,7 @@ UI: [x] Login now creates a guest session; role choice removed from login
 UI: [x] Admin Users page can assign project roles after sign-in
 UI: [x] Quality Map and Coverage Map routes with generic SetaraMindMap renderer
 UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map and scenario clicks open detail popup
+UI: [x] Project Builds routes added with build list, create modal, build readiness chart, scenario status table, audit modal, and execution build links
 ```
 
 - [x] Git repository initialized on `main`.
@@ -28,7 +29,7 @@ UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map an
 - [x] API config/client foundation added.
 - [x] Dockerfile added.
 - [x] Apache-2.0 license and docs added.
-- [x] `npm run check` passes (0 errors, 0 warnings).
+- [x] `npm run check` passes (0 errors; existing dashboard/executions state-init warnings remain).
 - [x] `npm run build` passes.
 - [x] Added headless UI foundations for repository evolution: Melt UI tree, Bits UI dialog/drawer, TanStack table core, Zod/Superforms/Formsnap dependencies.
 - [x] CSS variable / design token foundation (no Tailwind — using plain CSS with `--color-*` tokens).
@@ -41,6 +42,9 @@ UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map an
 - [x] Dashboard page (`/dashboard`) — cross-project metrics, recent projects table, and configurable aggregate combo coverage chart.
 - [x] Dashboard coverage trend chart updates when aggregate history changes.
 - [x] Project detail page rewritten as rich dashboard — MetricCard row, larger coverage chart, recent runs, quick links, visible settings entry.
+- [x] Project Builds page (`/projects/{key}/builds`) — list/create project builds with readiness charts and build status table.
+- [x] Project Build detail page (`/projects/{key}/builds/{buildId}`) — large doughnut chart, scenario status table, verification action, and audit trail modal.
+- [x] Execution detail page displays build association and links to the build when an automation run is assigned.
 - [x] Executions list page (`/projects/{key}/executions`) — replaces `runs/`. Filters bar (static, coming soon note).
 - [x] Execution detail page (`/projects/{key}/executions/{runId}`) — MetricCard row, metadata grid, live indicator, scenario results placeholder.
 - [x] Test Repository page (`/projects/{key}/repository`) — split-pane tree and selectable scenario table with editable detail modal.
@@ -61,7 +65,7 @@ UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map an
 - [x] Old `runs/` pages converted to redirects to `executions/`.
 - [x] Old `plans/` page converted to redirect to `/projects`.
 - [x] Shared components: Badge, Button, Card, Modal, DataTable, ThemeToggle, MetricCard, QualityGateBadge.
-- [x] Typed API clients: projects.ts, organization.ts, runs.ts, apikeys.ts, testcases.ts, plans.ts.
+- [x] Typed API clients: projects.ts, organization.ts, runs.ts, apikeys.ts, testcases.ts, plans.ts, builds.ts.
 - [x] Cursor page API client support.
 - [x] Project statistics API client and mock data support.
 - [x] Dashboard summary and aggregate history API clients.
@@ -156,13 +160,14 @@ UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map an
 - [x] SetaraMindMap: node drag corrected for zoom level (delta / zoom), viewport overflow hidden with will-change transform.
 - [x] Executions list: functional client-side filters (status, environment, branch, free-text search), clear button, count indicator.
 - [x] Admin Roles page: role summary cards with color-coded badges; full permission matrix table across 5 roles × 5 feature areas.
+- [x] Browser smoke checked `/projects/PAYMENT/builds` and `/projects/PAYMENT/builds/build-payment-rc1` in mock mode.
 - [ ] End-to-end smoke tests.
 - [ ] Frontend container smoke test.
 
 ## Latest Commits
 
 ```text
-(pending) UI polish: charts, tree guide lines, step editor toolbar, plan status, groupedBy mock fix
+(pending) Add project build pages and build-aware execution links
 f2d569c Fix repository UI: drawer layout, RevoGrid double-numbering, preview, row height, error page
 7486116 Add RevoGrid step editor, paste-parse, markdown preview, and API alignment fixes
 Add directory rename/move/delete and bulk scenario copy/delete with filters

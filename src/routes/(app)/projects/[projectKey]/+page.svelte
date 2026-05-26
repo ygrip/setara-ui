@@ -187,6 +187,13 @@
           <span class="ql-label">Release Plans</span>
           <span class="ql-arrow">→</span>
         </a>
+        <a href="/projects/{data.projectKey}/builds" class="quick-link-card">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
+          </svg>
+          <span class="ql-label">Builds</span>
+          <span class="ql-arrow">→</span>
+        </a>
         <a href="/projects/{data.projectKey}/coverage" class="quick-link-card">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>

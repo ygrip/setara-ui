@@ -21,6 +21,9 @@ export interface AutomationRun {
   branch: string | null;
   commitSha: string | null;
   framework: string | null;
+  buildId?: string | null;
+  buildKey?: string | null;
+  buildName?: string | null;
   status: string;
   startedAt: string;
   finishedAt: string | null;

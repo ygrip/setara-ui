@@ -288,6 +288,16 @@
             <span class="meta-value">{run.jobName ?? '—'}</span>
           </div>
           <div class="meta-item">
+            <span class="meta-label">Build</span>
+            {#if run.buildId}
+              <a class="meta-value link" href="/projects/{data.projectKey}/builds/{run.buildId}">
+                {run.buildName ?? run.buildKey ?? run.buildId}
+              </a>
+            {:else}
+              <span class="meta-value">Unassigned</span>
+            {/if}
+          </div>
+          <div class="meta-item">
             <span class="meta-label">Started At</span>
             <span class="meta-value">{formatDate(run.startedAt)}</span>
           </div>

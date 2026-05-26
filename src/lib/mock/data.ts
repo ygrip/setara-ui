@@ -4,6 +4,7 @@ import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
+import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
 
 export const mockProjects: Project[] = [
   { id: '1', squadId: 'squad-3', projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
@@ -19,8 +20,8 @@ export const mockProjects: Project[] = [
 
 export const mockRunsByProject: Record<string, AutomationRun[]> = {
   PAYMENT: [
-    { id: 'run-001', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-01', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'a1b2c3d4', jobName: 'regression', startedAt: '2026-05-23T08:00:00Z', finishedAt: '2026-05-23T08:12:34Z', createdAt: '2026-05-23T08:00:00Z', totalScenarios: 145, passedScenarios: 138, failedScenarios: 5, skippedScenarios: 2 },
-    { id: 'run-002', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-02', status: 'FAILED', branch: 'feature/refund', environment: 'staging', framework: 'cucumber', commitSha: 'e5f6g7h8', jobName: 'smoke', startedAt: '2026-05-22T14:00:00Z', finishedAt: '2026-05-22T14:05:11Z', createdAt: '2026-05-22T14:00:00Z', totalScenarios: 120, passedScenarios: 92, failedScenarios: 28, skippedScenarios: 0 },
+    { id: 'run-001', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-01', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', buildId: 'build-payment-rc1', buildKey: 'payment-rc1', buildName: 'Payment May RC1', commitSha: 'a1b2c3d4', jobName: 'regression', startedAt: '2026-05-23T08:00:00Z', finishedAt: '2026-05-23T08:12:34Z', createdAt: '2026-05-23T08:00:00Z', totalScenarios: 145, passedScenarios: 138, failedScenarios: 5, skippedScenarios: 2 },
+    { id: 'run-002', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-02', status: 'FAILED', branch: 'feature/refund', environment: 'staging', framework: 'cucumber', buildId: 'build-payment-rc1', buildKey: 'payment-rc1', buildName: 'Payment May RC1', commitSha: 'e5f6g7h8', jobName: 'smoke', startedAt: '2026-05-22T14:00:00Z', finishedAt: '2026-05-22T14:05:11Z', createdAt: '2026-05-22T14:00:00Z', totalScenarios: 120, passedScenarios: 92, failedScenarios: 28, skippedScenarios: 0 },
     { id: 'run-003', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-01', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'i9j0k1l2', jobName: 'smoke', startedAt: '2026-05-21T09:00:00Z', finishedAt: '2026-05-21T09:08:45Z', createdAt: '2026-05-21T09:00:00Z', totalScenarios: 145, passedScenarios: 143, failedScenarios: 1, skippedScenarios: 1 },
     { id: 'run-007', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-01', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'p1q2r3s4', jobName: 'regression', startedAt: '2026-05-20T08:30:00Z', finishedAt: '2026-05-20T08:42:10Z', createdAt: '2026-05-20T08:30:00Z', totalScenarios: 142, passedScenarios: 129, failedScenarios: 10, skippedScenarios: 3 },
     { id: 'run-008', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 't5u6v7w8', jobName: 'regression', startedAt: '2026-05-19T07:00:00Z', finishedAt: '2026-05-19T07:14:22Z', createdAt: '2026-05-19T07:00:00Z', totalScenarios: 140, passedScenarios: 136, failedScenarios: 3, skippedScenarios: 1 },
@@ -28,7 +29,7 @@ export const mockRunsByProject: Record<string, AutomationRun[]> = {
     { id: 'run-010', projectId: '1', projectKey: 'PAYMENT', runnerId: 'ci-runner-01', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'b3c4d5e6', jobName: 'smoke', startedAt: '2026-05-17T09:00:00Z', finishedAt: '2026-05-17T09:09:12Z', createdAt: '2026-05-17T09:00:00Z', totalScenarios: 145, passedScenarios: 144, failedScenarios: 0, skippedScenarios: 1 },
   ],
   AUTH: [
-    { id: 'run-004', projectId: '2', projectKey: 'AUTH', runnerId: 'ci-runner-03', status: 'RUNNING', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: null, jobName: 'regression', startedAt: '2026-05-23T09:30:00Z', finishedAt: null, createdAt: '2026-05-23T09:30:00Z', totalScenarios: null, passedScenarios: null, failedScenarios: null, skippedScenarios: null },
+    { id: 'run-004', projectId: '2', projectKey: 'AUTH', runnerId: 'ci-runner-03', status: 'RUNNING', branch: 'main', environment: 'staging', framework: 'cucumber', buildId: 'build-auth-rc1', buildKey: 'auth-rc1', buildName: 'Auth OAuth Hardening', commitSha: null, jobName: 'regression', startedAt: '2026-05-23T09:30:00Z', finishedAt: null, createdAt: '2026-05-23T09:30:00Z', totalScenarios: null, passedScenarios: null, failedScenarios: null, skippedScenarios: null },
     { id: 'run-005', projectId: '2', projectKey: 'AUTH', runnerId: 'ci-runner-03', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'm3n4o5p6', jobName: 'regression', startedAt: '2026-05-22T10:00:00Z', finishedAt: '2026-05-22T10:22:00Z', createdAt: '2026-05-22T10:00:00Z', totalScenarios: 200, passedScenarios: 193, failedScenarios: 5, skippedScenarios: 2 },
     { id: 'run-011', projectId: '2', projectKey: 'AUTH', runnerId: 'ci-runner-03', status: 'FAILED', branch: 'feature/oauth2', environment: 'staging', framework: 'cucumber', commitSha: 'f7g8h9i0', jobName: 'regression', startedAt: '2026-05-21T11:00:00Z', finishedAt: '2026-05-21T11:18:44Z', createdAt: '2026-05-21T11:00:00Z', totalScenarios: 200, passedScenarios: 174, failedScenarios: 26, skippedScenarios: 0 },
     { id: 'run-012', projectId: '2', projectKey: 'AUTH', runnerId: 'ci-runner-03', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'j1k2l3m4', jobName: 'regression', startedAt: '2026-05-20T10:00:00Z', finishedAt: '2026-05-20T10:20:15Z', createdAt: '2026-05-20T10:00:00Z', totalScenarios: 196, passedScenarios: 190, failedScenarios: 4, skippedScenarios: 2 },
@@ -733,6 +734,120 @@ export const mockPlansByProject: Record<string, ReleasePlan[]> = {
       createdAt: '2026-05-25T08:00:00Z',
       updatedAt: '2026-05-25T08:00:00Z'
     }
+  ]
+};
+
+export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
+  PAYMENT: [
+    {
+      id: 'build-payment-rc1',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      projectName: 'Payment Service',
+      squadId: 'squad-3',
+      squadName: 'Payments',
+      name: 'Payment 2026.06 RC1',
+      buildKey: 'PAY-2026-06-RC1',
+      version: '2026.06.0-rc1',
+      description: 'Sprint verification build for payment release readiness.',
+      status: 'IN_PROGRESS',
+      initiatedAt: '2026-05-24T08:00:00Z',
+      inProgressAt: '2026-05-24T09:15:00Z',
+      verifiedAt: null,
+      createdBy: 'qa-payment@example.com',
+      verifiedBy: null,
+      createdAt: '2026-05-24T08:00:00Z',
+      updatedAt: '2026-05-25T10:30:00Z',
+      metrics: { buildId: 'build-payment-rc1', totalScenarios: 6, passed: 4, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 83.33 }
+    },
+    {
+      id: 'build-payment-hotfix',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      projectName: 'Payment Service',
+      squadId: 'squad-3',
+      squadName: 'Payments',
+      name: 'Payment Hotfix 2026.05.1',
+      buildKey: 'PAY-2026-05-HF1',
+      version: '2026.05.1',
+      description: 'Closed hotfix verification build.',
+      status: 'VERIFIED',
+      initiatedAt: '2026-05-10T07:00:00Z',
+      inProgressAt: '2026-05-10T07:20:00Z',
+      verifiedAt: '2026-05-10T13:40:00Z',
+      createdBy: 'qa-payment@example.com',
+      verifiedBy: 'lead-payment@example.com',
+      createdAt: '2026-05-10T07:00:00Z',
+      updatedAt: '2026-05-10T13:40:00Z',
+      metrics: { buildId: 'build-payment-hotfix', totalScenarios: 3, passed: 3, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
+    }
+  ],
+  AUTH: [
+    {
+      id: 'build-auth-rc1',
+      projectId: '2',
+      projectKey: 'AUTH',
+      projectName: 'Auth Service',
+      squadId: 'squad-1',
+      squadName: 'Identity',
+      name: 'Auth 2026.06 RC1',
+      buildKey: 'AUTH-2026-06-RC1',
+      version: '2026.06.0-rc1',
+      description: 'Identity dependency build for checkout release.',
+      status: 'INITIATED',
+      initiatedAt: '2026-05-25T08:30:00Z',
+      inProgressAt: null,
+      verifiedAt: null,
+      createdBy: 'qa-auth@example.com',
+      verifiedBy: null,
+      createdAt: '2026-05-25T08:30:00Z',
+      updatedAt: '2026-05-25T08:30:00Z',
+      metrics: { buildId: 'build-auth-rc1', totalScenarios: 2, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 2, passPercentage: 0, executionCoverage: 0 }
+    }
+  ],
+  CHECKOUT: [
+    {
+      id: 'build-checkout-rc1',
+      projectId: '4',
+      projectKey: 'CHECKOUT',
+      projectName: 'Checkout Flow',
+      squadId: 'squad-3',
+      squadName: 'Payments',
+      name: 'Checkout 2026.06 RC1',
+      buildKey: 'CHECKOUT-2026-06-RC1',
+      version: '2026.06.0-rc1',
+      description: 'Initiator squad build coordinating checkout release.',
+      status: 'IN_PROGRESS',
+      initiatedAt: '2026-05-24T08:30:00Z',
+      inProgressAt: '2026-05-24T09:00:00Z',
+      verifiedAt: null,
+      createdBy: 'qa-checkout@example.com',
+      verifiedBy: null,
+      createdAt: '2026-05-24T08:30:00Z',
+      updatedAt: '2026-05-25T08:45:00Z',
+      metrics: { buildId: 'build-checkout-rc1', totalScenarios: 3, passed: 2, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 66.67 }
+    }
+  ]
+};
+
+export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
+  'build-payment-rc1': [
+    { id: 'bs-pay-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:12:00Z', addedAt: '2026-05-24T08:05:00Z' },
+    { id: 'bs-pay-2', scenarioId: 'scenario-refund-partial', scenarioKey: 'SCN-REFUND2', name: 'Partial refund updates remaining capturable balance', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'FAILED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:18:00Z', addedAt: '2026-05-24T08:05:00Z' },
+    { id: 'bs-pay-3', scenarioId: 'scenario-capture-retry', scenarioKey: 'SCN-CAPTURE1', name: 'Capture retry after processor timeout', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'MANUAL', executedBy: 'qa-payment@example.com', executedAt: '2026-05-24T10:40:00Z', addedAt: '2026-05-24T08:06:00Z' }
+  ],
+  'build-payment-hotfix': [
+    { id: 'bs-pay-hf-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-10T11:12:00Z', addedAt: '2026-05-10T07:05:00Z' }
+  ],
+  'build-auth-rc1': [],
+  'build-checkout-rc1': []
+};
+
+export const mockBuildAuditByBuild: Record<string, BuildAuditEvent[]> = {
+  'build-payment-rc1': [
+    { id: 'audit-pay-1', eventType: 'BUILD_OPENED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:00:00Z', metadata: { buildKey: 'PAY-2026-06-RC1' } },
+    { id: 'audit-pay-2', eventType: 'SCENARIO_ADDED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:05:00Z', metadata: { count: 6 } },
+    { id: 'audit-pay-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-01', occurredAt: '2026-05-24T09:12:00Z', metadata: { runId: 'run-001' } }
   ]
 };
 

@@ -68,6 +68,23 @@ export interface PlanSelection {
   selectedAt: string;
 }
 
+export interface PlanBuild {
+  id: string;
+  buildId: string;
+  buildKey: string;
+  buildName: string;
+  projectId: string;
+  projectKey: string;
+  projectName: string;
+  squadId: string | null;
+  squadName: string | null;
+  status: string;
+  createdAt: string;
+  verifiedAt: string | null;
+  addedAt: string;
+  addedBy: string | null;
+}
+
 export interface AddRunResultBulk {
   planId: string;
   runId: string;
@@ -171,6 +188,24 @@ export async function addPlanScenariosFromRun(projectKey: string, planId: string
 
 export async function removePlanScenario(projectKey: string, planId: string, scenarioId: string): Promise<void> {
   await apiFetch(`/api/projects/${projectKey}/plans/${planId}/scenarios/${scenarioId}`, { method: 'DELETE' });
+}
+
+export async function listPlanBuilds(projectKey: string, planId: string): Promise<PlanBuild[]> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/builds`);
+  return res.json();
+}
+
+export async function addPlanBuild(projectKey: string, planId: string, buildId: string, addedBy?: string): Promise<PlanBuild> {
+  const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/builds`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ buildId, addedBy })
+  });
+  return res.json();
+}
+
+export async function removePlanBuild(projectKey: string, planId: string, buildId: string): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/plans/${planId}/builds/${buildId}`, { method: 'DELETE' });
 }
 
 export async function getPlanMetrics(projectKey: string, planId: string): Promise<PlanMetrics> {

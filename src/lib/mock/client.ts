@@ -1,13 +1,15 @@
 import {
   mockProjects, mockRunsByProject, mockApiKeysByProject,
   mockTribes, mockSquads, mockUsers, mockNodesByProject,
-  mockScenariosByProject, mockPlansByProject
+  mockScenariosByProject, mockPlansByProject,
+  mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanMetrics, PlanScenario, ReleasePlan } from '$lib/api/plans';
+import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
@@ -203,6 +205,137 @@ export async function mockGetPlanMetrics(projectKey: string, planId: string): Pr
     automationCoverage: scenarios.length ? Number(((scenarios.filter(s => s.automationStatus === 'AUTOMATED').length / scenarios.length) * 100).toFixed(2)) : 0,
     qualityGate: selectedExecutions === scenarios.length ? 'PASS' : 'WARNING'
   };
+}
+
+export async function mockListBuilds(projectKey: string): Promise<ProjectBuild[]> {
+  await delay(120);
+  return structuredClone(mockBuildsByProject[projectKey] ?? []);
+}
+
+export async function mockGetBuild(projectKey: string, buildId: string): Promise<ProjectBuild> {
+  await delay(100);
+  const build = mockBuildsByProject[projectKey]?.find(item => item.id === buildId);
+  if (!build) throw new Error(`Build ${buildId} not found`);
+  return structuredClone(build);
+}
+
+export async function mockCreateBuild(
+  projectKey: string,
+  body: { name: string; buildKey?: string; version?: string; description?: string; createdBy?: string }
+): Promise<ProjectBuild> {
+  await delay(180);
+  const project = mockProjects.find(item => item.projectKey === projectKey);
+  if (!project) throw new Error(`Project ${projectKey} not found`);
+  const build: ProjectBuild = {
+    id: `build-${projectKey.toLowerCase()}-${Date.now()}`,
+    projectId: project.id,
+    projectKey,
+    projectName: project.name,
+    squadId: project.squadId,
+    squadName: null,
+    name: body.name,
+    buildKey: body.buildKey || body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
+    version: body.version ?? null,
+    description: body.description ?? null,
+    status: 'INITIATED',
+    initiatedAt: new Date().toISOString(),
+    inProgressAt: null,
+    verifiedAt: null,
+    createdBy: body.createdBy ?? 'mock.user@setara.local',
+    verifiedBy: null,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    metrics: {
+      buildId: `build-${projectKey.toLowerCase()}-${Date.now()}`,
+      totalScenarios: 0,
+      passed: 0,
+      failed: 0,
+      blocked: 0,
+      skipped: 0,
+      notExecuted: 0,
+      passPercentage: 0,
+      executionCoverage: 0
+    }
+  };
+  build.metrics.buildId = build.id;
+  mockBuildsByProject[projectKey] = [build, ...(mockBuildsByProject[projectKey] ?? [])];
+  mockBuildScenariosByBuild[build.id] = [];
+  mockBuildAuditByBuild[build.id] = [{
+    id: `audit-${build.id}-opened`,
+    eventType: 'BUILD_OPENED',
+    actor: build.createdBy,
+    occurredAt: build.createdAt,
+    metadata: { name: build.name, buildKey: build.buildKey }
+  }];
+  return structuredClone(build);
+}
+
+export async function mockListBuildScenarios(_projectKey: string, buildId: string): Promise<BuildScenario[]> {
+  await delay(120);
+  return structuredClone(mockBuildScenariosByBuild[buildId] ?? []);
+}
+
+export async function mockAddBuildScenario(
+  projectKey: string,
+  buildId: string,
+  body: { scenarioId: string; source?: string; addedBy?: string }
+): Promise<BuildScenario> {
+  await delay(160);
+  const scenario = (mockScenariosByProject[projectKey] ?? []).find(item => item.id === body.scenarioId);
+  if (!scenario) throw new Error(`Scenario ${body.scenarioId} not found`);
+  const row: BuildScenario = {
+    id: `build-scenario-${Date.now()}`,
+    scenarioId: scenario.id,
+    scenarioKey: scenario.scenarioKey,
+    name: scenario.name,
+    priority: scenario.priority,
+    expectedStatus: 'PASSED',
+    latestStatus: 'NOT_EXECUTED',
+    source: body.source ?? 'MANUAL',
+    executedBy: null,
+    executedAt: null,
+    addedAt: new Date().toISOString()
+  };
+  mockBuildScenariosByBuild[buildId] = [row, ...(mockBuildScenariosByBuild[buildId] ?? [])];
+  const build = mockBuildsByProject[projectKey]?.find(item => item.id === buildId);
+  if (build) {
+    build.status = 'IN_PROGRESS';
+    build.inProgressAt ??= new Date().toISOString();
+    build.updatedAt = new Date().toISOString();
+    build.metrics.totalScenarios += 1;
+    build.metrics.notExecuted += 1;
+  }
+  mockBuildAuditByBuild[buildId] = [{
+    id: `audit-${buildId}-${Date.now()}`,
+    eventType: 'SCENARIO_ADDED',
+    actor: body.addedBy ?? 'mock.user@setara.local',
+    occurredAt: new Date().toISOString(),
+    metadata: { scenarioKey: scenario.scenarioKey, source: row.source }
+  }, ...(mockBuildAuditByBuild[buildId] ?? [])];
+  return structuredClone(row);
+}
+
+export async function mockVerifyBuild(projectKey: string, buildId: string, body: { verifiedBy?: string; notes?: string } = {}): Promise<ProjectBuild> {
+  await delay(180);
+  const build = mockBuildsByProject[projectKey]?.find(item => item.id === buildId);
+  if (!build) throw new Error(`Build ${buildId} not found`);
+  build.status = 'VERIFIED';
+  build.verifiedAt = new Date().toISOString();
+  build.verifiedBy = body.verifiedBy ?? 'qa.lead@setara.local';
+  build.updatedAt = build.verifiedAt;
+  mockBuildAuditByBuild[buildId] = [{
+    id: `audit-${buildId}-verified-${Date.now()}`,
+    eventType: 'BUILD_VERIFIED',
+    actor: build.verifiedBy,
+    occurredAt: build.verifiedAt,
+    metadata: { notes: body.notes ?? null }
+  }, ...(mockBuildAuditByBuild[buildId] ?? [])];
+  return structuredClone(build);
+}
+
+export async function mockListBuildAudit(_projectKey: string, buildId: string): Promise<BuildAuditEvent[]> {
+  await delay(100);
+  return structuredClone(mockBuildAuditByBuild[buildId] ?? []);
 }
 
 export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {

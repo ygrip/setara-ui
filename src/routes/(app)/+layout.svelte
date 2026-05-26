@@ -181,6 +181,17 @@
       <!-- Project-contextual section -->
       {#if projectKey}
         <a
+          href="/projects/{projectKey}/builds"
+          class="nav-item"
+          class:nav-item--active={isActive(`/projects/${projectKey}/builds`)}
+          onclick={closeSidebar}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
+          </svg>
+          Builds
+        </a>
+        <a
           href="/projects/{projectKey}/release-plans"
           class="nav-item"
           class:nav-item--active={isActive(`/projects/${projectKey}/release-plans`)}
@@ -225,6 +236,12 @@
           Coverage
         </a>
       {:else}
+        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
+          </svg>
+          Builds
+        </a>
         <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
