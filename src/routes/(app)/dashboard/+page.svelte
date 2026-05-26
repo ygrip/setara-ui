@@ -1,12 +1,16 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { listAggregateStatisticHistory, type AggregateStatisticPoint } from '$lib/api/statistics';
+  import { wsManager } from '$lib/stores/websocket.svelte';
+  import type { ExecutionEvent } from '$lib/api/realtime';
+  import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
 
   let { data } = $props();
 
+  // ── Aggregate chart state ─────────────────────────────────────
   let initialized = false;
   let chartStart = $state('');
   let chartEnd = $state('');
@@ -22,21 +26,74 @@
     chartEnd = data.chartEnd;
     groupedBy = data.groupedBy;
     aggregateHistory = data.aggregateHistory;
+    summary = data.summary;
     initialized = true;
   });
 
-  function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    });
+  // ── Live summary (updated by WS RUN_FINISHED events) ─────────
+  let summary = $state<DashboardSummary | null>(null);
+  let refreshingSummary = false;
+
+  // ── WebSocket live state ──────────────────────────────────────
+  let liveRuns = $state(new Map<string, ExecutionEvent>());
+  let recentActivity = $state<ExecutionEvent[]>([]);
+  let unsub: (() => void) | null = null;
+
+  onMount(() => {
+    // Connect to the first project we have — for cross-project coverage a
+    // global WS endpoint would be ideal; this demonstrates the pattern.
+    if (data.projects.length > 0) {
+      wsManager.connect(data.projects[0].projectKey);
+      unsub = wsManager.addHandler(handleWsEvent);
+    }
+  });
+
+  onDestroy(() => {
+    unsub?.();
+    wsManager.disconnect();
+  });
+
+  function handleWsEvent(event: ExecutionEvent) {
+    recentActivity = [event, ...recentActivity].slice(0, 8);
+
+    if (event.type === 'RUN_STARTED') {
+      liveRuns = new Map(liveRuns).set(event.runId, event);
+    } else if (
+      event.type === 'RUN_DISCOVERED' ||
+      event.type === 'SCENARIO_RESULT_ACCEPTED'
+    ) {
+      if (liveRuns.has(event.runId)) {
+        liveRuns = new Map(liveRuns).set(event.runId, {
+          ...liveRuns.get(event.runId)!,
+          ...event
+        });
+      }
+    } else if (
+      event.type === 'RUN_FINISHED' ||
+      event.type === 'RUN_FINISH_ACCEPTED'
+    ) {
+      const next = new Map(liveRuns);
+      next.delete(event.runId);
+      liveRuns = next;
+      void refreshSummary();
+    }
   }
 
-  function compactDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short'
-    });
+  async function refreshSummary() {
+    if (refreshingSummary) return;
+    refreshingSummary = true;
+    try {
+      summary = await getDashboardSummary();
+    } catch {
+      // keep stale summary
+    } finally {
+      refreshingSummary = false;
+    }
   }
 
+  const liveRunCount = $derived(liveRuns.size);
+
+  // ── Charts ────────────────────────────────────────────────────
   const coverageTrend = $derived({
     labels: aggregateHistory.map(row => compactDate(row.bucketDate)),
     datasets: [
@@ -63,11 +120,24 @@
         label: 'Coverage %',
         data: aggregateHistory.map(row => row.automationCoveragePercentage),
         borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245, 158, 11, 0.1)',
+        backgroundColor: 'rgba(245, 158, 11, 0.08)',
         tension: 0.4,
-        pointRadius: 3,
+        pointRadius: 2,
         pointBackgroundColor: '#f59e0b',
         borderWidth: 2,
+        yAxisID: 'y1'
+      },
+      {
+        type: 'line',
+        label: 'Pass Rate %',
+        data: aggregateHistory.map(row => row.overallPassRatePercentage),
+        borderColor: '#10b981',
+        backgroundColor: 'rgba(16, 185, 129, 0.0)',
+        tension: 0.4,
+        pointRadius: 2,
+        pointBackgroundColor: '#10b981',
+        borderWidth: 2,
+        borderDash: [5, 3],
         yAxisID: 'y1'
       }
     ]
@@ -85,6 +155,43 @@
       chartBusy = false;
     }
   }
+
+  // ── Helpers ───────────────────────────────────────────────────
+  function formatDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric'
+    });
+  }
+
+  function compactDate(iso: string): string {
+    return new Date(iso).toLocaleDateString('en-GB', {
+      day: '2-digit', month: 'short'
+    });
+  }
+
+  function eventLabel(type: string): string {
+    switch (type) {
+      case 'RUN_STARTED': return 'Run started';
+      case 'RUN_FINISHED': return 'Run finished';
+      case 'RUN_FINISH_ACCEPTED': return 'Run closed';
+      case 'RUN_DISCOVERED': return 'Scenarios discovered';
+      case 'SCENARIO_RESULT_ACCEPTED': return 'Result accepted';
+      default: return type.replace(/_/g, ' ').toLowerCase();
+    }
+  }
+
+  function eventVariantClass(type: string): string {
+    if (type === 'RUN_STARTED' || type === 'RUN_DISCOVERED') return 'ev-info';
+    if (type === 'RUN_FINISHED' || type === 'RUN_FINISH_ACCEPTED') return 'ev-success';
+    return 'ev-neutral';
+  }
+
+  function timeAgo(iso: string): string {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60) return `${diff}s ago`;
+    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+    return `${Math.floor(diff / 3600)}h ago`;
+  }
 </script>
 
 <svelte:head>
@@ -96,6 +203,19 @@
     <div>
       <h1 class="page-title">Dashboard</h1>
       <p class="page-subtitle">Quality overview across all projects</p>
+    </div>
+    <div class="header-right">
+      {#if liveRunCount > 0}
+        <span class="live-pill">
+          <span class="live-dot"></span>
+          {liveRunCount} run{liveRunCount > 1 ? 's' : ''} in progress
+        </span>
+      {/if}
+      {#if wsManager.state === 'live'}
+        <span class="ws-pill ws-pill--live">Live</span>
+      {:else if wsManager.state === 'connecting'}
+        <span class="ws-pill ws-pill--connecting">Connecting…</span>
+      {/if}
     </div>
   </div>
 
@@ -109,36 +229,37 @@
   <div class="metrics-row">
     <MetricCard
       label="Total Squads"
-      value={data.summary?.totalSquads ?? '—'}
+      value={summary?.totalSquads ?? '—'}
       variant="info"
       icon="M3 7h18M3 12h18M3 17h18"
     />
     <MetricCard
       label="Total Projects"
-      value={data.summary?.totalProjects ?? '—'}
+      value={summary?.totalProjects ?? '—'}
       variant="default"
       icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
     />
     <MetricCard
       label="Total Scenarios"
-      value={data.summary?.totalScenarios ?? '—'}
+      value={summary?.totalScenarios ?? '—'}
       variant="default"
       icon="M22 12h-4l-3 9L9 3l-3 9H2"
     />
     <MetricCard
       label="Overall Pass"
-      value={`${Number(data.summary?.overallPassPercentage ?? 0).toFixed(0)}%`}
-      sub={`automation ${Number(data.summary?.automationCoveragePercentage ?? 0).toFixed(0)}%`}
+      value={`${Number(summary?.overallPassPercentage ?? 0).toFixed(0)}%`}
+      sub={`automation ${Number(summary?.automationCoveragePercentage ?? 0).toFixed(0)}%`}
       variant="default"
       icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
     />
   </div>
 
+  <!-- Coverage + Pass-Rate Trend -->
   <div class="chart-section">
     <div class="section-heading">
       <div>
-        <h2 class="section-title">Overall Coverage Trend</h2>
-        <p class="section-subtitle">Scenarios, automation, and coverage percentage over time.</p>
+        <h2 class="section-title">Coverage &amp; Pass Rate Trend</h2>
+        <p class="section-subtitle">Scenarios, automation coverage %, and execution pass rate % over time.</p>
       </div>
       <div class="chart-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -153,7 +274,15 @@
         <button class="expand-btn" title="Expand chart" onclick={() => showChartExpand = true}>⛶ Expand</button>
       </div>
     </div>
-    <div class="chart-card" role="button" tabindex="0" title="Click to expand" onclick={() => showChartExpand = true} onkeydown={(e) => { if (e.key === 'Enter') showChartExpand = true; }}>
+    <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+    <div
+      class="chart-card"
+      role="button"
+      tabindex="0"
+      title="Click to expand"
+      onclick={() => showChartExpand = true}
+      onkeydown={(e) => { if (e.key === 'Enter') showChartExpand = true; }}
+    >
       <LineChart chartData={coverageTrend} height={290} />
       {#if chartBusy}<p class="chart-note">Refreshing chart…</p>{/if}
       {#if chartError}<p class="chart-error">{chartError}</p>{/if}
@@ -161,7 +290,7 @@
   </div>
 
   <!-- Chart expand modal -->
-  <Modal open={showChartExpand} title="Overall Coverage Trend" size="xl" onclose={() => showChartExpand = false}>
+  <Modal open={showChartExpand} title="Coverage &amp; Pass Rate Trend" size="xl" onclose={() => showChartExpand = false}>
     <div class="expand-modal-content">
       <div class="expand-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -179,40 +308,63 @@
     </div>
   </Modal>
 
-  <!-- Recent projects -->
-  <div class="section">
-    <h2 class="section-title">Recent Projects</h2>
-    {#if data.projects.length === 0 && !data.error}
-      <div class="empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
-          <path d="M3 7h18M3 12h18M3 17h18"/>
-        </svg>
-        <p>No projects yet — create your first project in the <a href="/projects">Projects section</a>.</p>
-      </div>
-    {:else}
-      <DataTable>
-        {#snippet head()}
-          <tr>
-            <th>Project Key</th>
-            <th>Name</th>
-            <th>Created</th>
-            <th></th>
-          </tr>
-        {/snippet}
-        {#snippet body()}
-          {#each data.projects as project (project.id)}
+  <div class="lower-grid">
+    <!-- Recent projects -->
+    <div class="section">
+      <h2 class="section-title">Recent Projects</h2>
+      {#if data.projects.length === 0 && !data.error}
+        <div class="empty-state">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
+            <path d="M3 7h18M3 12h18M3 17h18"/>
+          </svg>
+          <p>No projects yet — create your first project in the <a href="/projects">Projects section</a>.</p>
+        </div>
+      {:else}
+        <DataTable>
+          {#snippet head()}
             <tr>
-              <td><span class="key-badge">{project.projectKey}</span></td>
-              <td class="bold">{project.name}</td>
-              <td class="muted">{formatDate(project.createdAt)}</td>
-              <td><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
+              <th>Project Key</th>
+              <th>Name</th>
+              <th>Created</th>
+              <th></th>
             </tr>
+          {/snippet}
+          {#snippet body()}
+            {#each data.projects as project (project.id)}
+              <tr>
+                <td><span class="key-badge">{project.projectKey}</span></td>
+                <td class="bold">{project.name}</td>
+                <td class="muted">{formatDate(project.createdAt)}</td>
+                <td><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
+              </tr>
+            {/each}
+          {/snippet}
+        </DataTable>
+      {/if}
+    </div>
+
+    <!-- Live Activity Feed (shown when WS events arrive) -->
+    {#if recentActivity.length > 0}
+      <div class="section activity-section">
+        <h2 class="section-title">Live Activity</h2>
+        <div class="activity-feed">
+          {#each recentActivity as event (event.runId + event.type + event.occurredAt)}
+            <div class="activity-item {eventVariantClass(event.type)}">
+              <div class="activity-dot"></div>
+              <div class="activity-body">
+                <span class="activity-label">{eventLabel(event.type)}</span>
+                <span class="activity-project">{event.projectKey}</span>
+                {#if event.totalScenarios != null}
+                  <span class="activity-count">{event.totalScenarios} scenarios</span>
+                {/if}
+              </div>
+              <span class="activity-time">{timeAgo(event.occurredAt)}</span>
+            </div>
           {/each}
-        {/snippet}
-      </DataTable>
+        </div>
+      </div>
     {/if}
   </div>
-
 </div>
 
 <style>
@@ -226,6 +378,7 @@
     justify-content: space-between;
     gap: 16px;
     margin-bottom: 28px;
+    flex-wrap: wrap;
   }
 
   .page-title {
@@ -238,6 +391,63 @@
     color: var(--color-text-muted);
     margin: 0;
     font-size: 0.875rem;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-self: center;
+  }
+
+  .live-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 5px 12px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-success), transparent 85%);
+    border: 1px solid color-mix(in srgb, var(--color-success), transparent 55%);
+    color: var(--color-success);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 1.5s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(0.8); }
+  }
+
+  .ws-pill {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 4px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  .ws-pill--live {
+    color: var(--color-success);
+    border-color: color-mix(in srgb, var(--color-success), transparent 60%);
+    background: color-mix(in srgb, var(--color-success), transparent 90%);
+  }
+
+  .ws-pill--connecting {
+    color: #f59e0b;
+    border-color: color-mix(in srgb, #f59e0b, transparent 60%);
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
   }
 
   .error-banner {
@@ -257,15 +467,9 @@
     margin-bottom: 32px;
   }
 
-  .section {
+  /* ── Chart section ── */
+  .chart-section {
     margin-bottom: 32px;
-  }
-
-  .section-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 4px;
-    color: var(--color-text);
   }
 
   .section-heading {
@@ -275,6 +479,19 @@
     gap: 16px;
     margin-bottom: 14px;
     flex-wrap: wrap;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 0 0 4px;
+    color: var(--color-text);
+  }
+
+  .section-subtitle {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
   }
 
   .chart-controls {
@@ -300,16 +517,8 @@
     background: var(--color-bg);
     color: var(--color-text);
     padding: 7px 9px;
+    font: inherit;
   }
-
-  .chart-note,
-  .chart-error {
-    margin: 8px 0 0;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-  }
-
-  .chart-error { color: var(--color-danger); }
 
   .expand-btn {
     font: inherit;
@@ -325,11 +534,27 @@
   .expand-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
   .chart-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
     cursor: pointer;
     transition: box-shadow 0.15s;
   }
-  .chart-card:hover { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%); }
+  .chart-card:hover {
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%);
+  }
 
+  .chart-note,
+  .chart-error {
+    margin: 8px 0 0;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .chart-error { color: var(--color-danger); }
+
+  /* ── Expand modal ── */
   .expand-modal-content {
     display: flex;
     flex-direction: column;
@@ -356,12 +581,103 @@
     font: inherit;
   }
 
-  .section-subtitle {
-    margin: 0;
-    color: var(--color-text-muted);
-    font-size: 0.8rem;
+  /* ── Lower grid ── */
+  .lower-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
   }
 
+  @media (min-width: 1100px) {
+    .lower-grid {
+      grid-template-columns: 1fr 340px;
+      align-items: start;
+    }
+  }
+
+  .section {
+    margin-bottom: 0;
+  }
+
+  /* ── Activity feed ── */
+  .activity-section {
+    min-width: 0;
+  }
+
+  .activity-feed {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .activity-item {
+    display: grid;
+    grid-template-columns: 20px 1fr auto;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--color-border);
+    font-size: 0.8rem;
+    transition: background 0.1s;
+  }
+
+  .activity-item:last-child { border-bottom: none; }
+  .activity-item:hover { background: var(--color-bg); }
+
+  .activity-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    justify-self: center;
+    flex-shrink: 0;
+  }
+
+  .ev-info .activity-dot { background: #6366f1; }
+  .ev-success .activity-dot { background: var(--color-success); }
+  .ev-neutral .activity-dot { background: var(--color-border); }
+
+  .activity-body {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .activity-label {
+    font-weight: 600;
+    color: var(--color-text);
+    white-space: nowrap;
+  }
+
+  .activity-project {
+    padding: 1px 6px;
+    border-radius: 4px;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    font-size: 0.7rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .activity-count {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+  }
+
+  .activity-time {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+
+  /* ── Table ── */
   .empty-state {
     text-align: center;
     padding: 48px 20px;
@@ -370,20 +686,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
   }
-
   .empty-state p { margin: 12px 0 0; font-size: 0.875rem; }
-
-  .chart-section {
-    margin-bottom: 32px;
-  }
-
-  .chart-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px 24px;
-    box-shadow: var(--shadow);
-  }
 
   .bold { font-weight: 500; }
   .muted { color: var(--color-text-muted); font-size: 0.875rem; }
@@ -406,15 +709,10 @@
   }
 
   @media (min-width: 1280px) {
-    .chart-card {
-      padding: 24px 28px;
-    }
+    .chart-card { padding: 24px 28px; }
   }
-
   @media (max-width: 720px) {
-    .chart-card {
-      padding: 14px;
-    }
+    .chart-card { padding: 14px; }
+    .lower-grid { grid-template-columns: 1fr; }
   }
-
 </style>

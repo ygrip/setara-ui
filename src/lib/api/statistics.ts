@@ -4,7 +4,7 @@ import {
   mockListProjectStatistics,
   mockListProjectStatisticHistory
 } from '$lib/mock/client';
-import { mockSquads, mockTribes, mockProjects, mockScenariosByProject } from '$lib/mock/data';
+import { mockSquads, mockTribes, mockProjects, mockScenariosByProject, mockRunsByProject } from '$lib/mock/data';
 
 export interface ProjectStatistic {
   id: string;
@@ -33,6 +33,7 @@ export interface AggregateStatisticPoint {
   totalAutomated: number;
   totalAutomatable: number;
   automationCoveragePercentage: number;
+  overallPassRatePercentage: number;
 }
 
 export interface SquadCoverage {
@@ -109,22 +110,44 @@ export async function listAggregateStatisticHistory(start: string, end: string, 
     // Step size in days based on groupedBy
     const step = groupedBy === 'monthly' ? 30 : groupedBy === 'weekly' ? 7 : 1;
 
+    // Build a lookup of run pass-rate by start date for realistic pass-rate trend
+    const allRuns = Object.values(mockRunsByProject).flat().filter(r => r.finishedAt);
+
     const points: AggregateStatisticPoint[] = [];
     let currentDay = 0;
     let bucketIndex = 0;
     while (currentDay <= days && points.length < 60) {
       const date = new Date(start);
       date.setDate(date.getDate() + currentDay);
+      const bucketDateStr = date.toISOString().slice(0, 10);
       // Add realistic variation: gradual growth + small oscillation
       const growthFactor = Math.min(1, 0.75 + (currentDay / days) * 0.25);
       const oscillation = Math.sin(bucketIndex * 0.8) * totalAutomated * 0.04;
       const automated = Math.max(0, Math.round(totalAutomated * growthFactor + oscillation));
+      // Pass-rate: use actual runs if any fall in this bucket, else simulate
+      const bucketEnd = new Date(date);
+      bucketEnd.setDate(bucketEnd.getDate() + step);
+      const bucketRuns = allRuns.filter(r => {
+        const d = r.startedAt.slice(0, 10);
+        return d >= bucketDateStr && d < bucketEnd.toISOString().slice(0, 10);
+      });
+      let passRatePercentage: number;
+      if (bucketRuns.length > 0) {
+        const passed = bucketRuns.reduce((s, r) => s + (r.passedScenarios ?? 0), 0);
+        const total = bucketRuns.reduce((s, r) => s + (r.totalScenarios ?? 0), 0);
+        passRatePercentage = total > 0 ? Number(((passed / total) * 100).toFixed(1)) : 85;
+      } else {
+        // Simulate: gradual improvement with small oscillation around 85%
+        const base = 80 + (currentDay / Math.max(days, 1)) * 10;
+        passRatePercentage = Math.min(100, Math.max(50, Math.round(base + Math.sin(bucketIndex * 1.4) * 6)));
+      }
       points.push({
-        bucketDate: date.toISOString().slice(0, 10),
+        bucketDate: bucketDateStr,
         totalScenarios: Math.round(totalScenarios * growthFactor),
         totalAutomated: automated,
         totalAutomatable,
-        automationCoveragePercentage: totalAutomatable ? Number(((automated / totalAutomatable) * 100).toFixed(2)) : 0
+        automationCoveragePercentage: totalAutomatable ? Number(((automated / totalAutomatable) * 100).toFixed(2)) : 0,
+        overallPassRatePercentage: passRatePercentage
       });
       currentDay += step;
       bucketIndex++;
