@@ -27,6 +27,11 @@ function pruneUnusedSvelteKitServerImport() {
 
 export default defineConfig({
   plugins: [pruneUnusedSvelteKitServerImport(), sveltekit()],
+  ssr: {
+    // layercake ships uncompiled .svelte files in dist/; tell Vite to bundle
+    // them through the Svelte plugin instead of letting Node's ESM loader fail.
+    noExternal: ['layerchart', 'layercake']
+  },
   build: {
     chunkSizeWarningLimit: 1200,
     rollupOptions: {
