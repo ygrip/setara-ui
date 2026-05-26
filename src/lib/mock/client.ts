@@ -4,7 +4,7 @@ import {
   mockScenariosByProject, mockPlansByProject
 } from './data';
 import type { Project } from '$lib/api/projects';
-import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
+import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanMetrics, PlanScenario, ReleasePlan } from '$lib/api/plans';
@@ -247,4 +247,71 @@ export async function mockListProjectStatisticHistory(projectKey: string, days =
       updatedAt: date.toISOString()
     };
   });
+}
+
+export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {
+  await delay(100);
+  const today = new Date('2026-05-26T00:00:00Z');
+
+  // Build a date→runs lookup from actual mock runs for this project
+  const realRuns = mockRunsByProject[projectKey] ?? [];
+  const realByDate = new Map<string, AutomationRun[]>();
+  for (const r of realRuns) {
+    const d = r.startedAt.slice(0, 10);
+    if (!realByDate.has(d)) realByDate.set(d, []);
+    realByDate.get(d)!.push(r);
+  }
+
+  // Deterministic pseudo-random per project key (LCG seeded by char codes)
+  let seed = projectKey.split('').reduce((s, c) => (s * 31 + c.charCodeAt(0)) | 0, 17);
+  function rng(max: number): number {
+    seed = ((seed * 1664525 + 1013904223) | 0) >>> 0;
+    return seed % max;
+  }
+
+  const result: HeatmapDay[] = [];
+  const cur = new Date(today);
+  cur.setUTCDate(cur.getUTCDate() - days + 1);
+
+  while (cur <= today) {
+    const iso = cur.toISOString().slice(0, 10);
+    const dow = cur.getUTCDay(); // 0=Sun 6=Sat
+    const isWeekend = dow === 0 || dow === 6;
+
+    if (realByDate.has(iso)) {
+      // Use actual run data
+      const runs = realByDate.get(iso)!;
+      const finished = runs.filter(r => r.finishedAt);
+      const passed = finished.filter(r => r.status === 'PASSED').length;
+      const failed = finished.length - passed;
+      const passRate = finished.length > 0 ? (passed / finished.length) * 100 : 0;
+      result.push({ date: iso, runCount: runs.length, passedRuns: passed, failedRuns: failed, passRate });
+    } else {
+      // Simulate: weekdays ~65% chance of runs, weekends ~15%
+      const threshold = isWeekend ? 15 : 65;
+      const hasRuns = rng(100) < threshold;
+      if (hasRuns) {
+        const runCount = 1 + rng(isWeekend ? 2 : 4);
+        // Occasionally inject failures (realistic ~15% failure rate)
+        const allFail = rng(100) < 8; // 8% of days have all-fail runs
+        const someFail = !allFail && rng(100) < 20; // 20% of remaining days have mixed
+        let passedRuns: number;
+        if (allFail) {
+          passedRuns = 0;
+        } else if (someFail) {
+          passedRuns = Math.max(1, runCount - 1 - rng(Math.max(1, runCount - 1)));
+        } else {
+          passedRuns = runCount;
+        }
+        const failedRuns = runCount - passedRuns;
+        const passRate = runCount > 0 ? (passedRuns / runCount) * 100 : 0;
+        result.push({ date: iso, runCount, passedRuns, failedRuns, passRate });
+      } else {
+        result.push({ date: iso, runCount: 0, passedRuns: 0, failedRuns: 0, passRate: 0 });
+      }
+    }
+
+    cur.setUTCDate(cur.getUTCDate() + 1);
+  }
+  return result;
 }

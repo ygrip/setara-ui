@@ -11,27 +11,17 @@
   let { data } = $props();
 
   // ── Aggregate chart state ─────────────────────────────────────
-  let initialized = false;
-  let chartStart = $state('');
-  let chartEnd = $state('');
-  let groupedBy = $state<'daily' | 'weekly' | 'monthly'>('daily');
-  let aggregateHistory = $state<AggregateStatisticPoint[]>([]);
+  // Initialize directly from SvelteKit page data — no $effect needed.
+  let chartStart = $state(data.chartStart);
+  let chartEnd = $state(data.chartEnd);
+  let groupedBy = $state<'daily' | 'weekly' | 'monthly'>(data.groupedBy);
+  let aggregateHistory = $state<AggregateStatisticPoint[]>(data.aggregateHistory ?? []);
   let chartBusy = $state(false);
   let chartError = $state('');
   let showChartExpand = $state(false);
 
-  $effect(() => {
-    if (initialized) return;
-    chartStart = data.chartStart;
-    chartEnd = data.chartEnd;
-    groupedBy = data.groupedBy;
-    aggregateHistory = data.aggregateHistory;
-    summary = data.summary;
-    initialized = true;
-  });
-
   // ── Live summary (updated by WS RUN_FINISHED events) ─────────
-  let summary = $state<DashboardSummary | null>(null);
+  let summary = $state<DashboardSummary | null>(data.summary);
   let refreshingSummary = false;
 
   // ── WebSocket live state ──────────────────────────────────────
@@ -308,7 +298,9 @@
     </div>
   </Modal>
 
-  <div class="lower-grid">
+  <!-- Always render both columns so the DOM structure is stable.
+       The activity column is hidden via CSS when empty. -->
+  <div class="lower-grid" class:lower-grid--active={recentActivity.length > 0}>
     <!-- Recent projects -->
     <div class="section">
       <h2 class="section-title">Recent Projects</h2>
@@ -343,12 +335,12 @@
       {/if}
     </div>
 
-    <!-- Live Activity Feed (shown when WS events arrive) -->
-    {#if recentActivity.length > 0}
-      <div class="section activity-section">
+    <!-- Live Activity Feed — always in DOM, visible only when there are events -->
+    <div class="activity-col">
+      <div class="section">
         <h2 class="section-title">Live Activity</h2>
         <div class="activity-feed">
-          {#each recentActivity as event (event.runId + event.type + event.occurredAt)}
+          {#each recentActivity as event (`${event.runId}:${event.type}:${event.occurredAt}`)}
             <div class="activity-item {eventVariantClass(event.type)}">
               <div class="activity-dot"></div>
               <div class="activity-body">
@@ -363,7 +355,7 @@
           {/each}
         </div>
       </div>
-    {/if}
+    </div>
   </div>
 </div>
 
@@ -588,20 +580,24 @@
     gap: 24px;
   }
 
+  /* Activity column hidden when no events yet */
+  .activity-col { display: none; }
+
   @media (min-width: 1100px) {
-    .lower-grid {
+    .lower-grid--active {
       grid-template-columns: 1fr 340px;
       align-items: start;
     }
+    .lower-grid--active .activity-col { display: block; }
+  }
+
+  /* Show stacked on mobile when active */
+  .lower-grid--active .activity-col {
+    display: block;
   }
 
   .section {
     margin-bottom: 0;
-  }
-
-  /* ── Activity feed ── */
-  .activity-section {
-    min-width: 0;
   }
 
   .activity-feed {

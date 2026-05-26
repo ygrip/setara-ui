@@ -2,21 +2,25 @@
   import { onDestroy, onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import ExecutionHeatmap from '$lib/components/ExecutionHeatmap.svelte';
+  import LineChart from '$lib/components/LineChart.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRuns } from '$lib/api/runs';
-  import type { AutomationRun } from '$lib/api/runs';
+  import type { AutomationRun, HeatmapDay } from '$lib/api/runs';
 
   let { data }: {
     data: {
       projectKey: string;
       runs: AutomationRun[];
       nextCursor: string | null;
+      heatmap: HeatmapDay[];
       error: string | null;
     }
   } = $props();
 
-  let runs = $state<AutomationRun[]>([]);
+  let runs = $state<AutomationRun[]>(data.runs);
+  let heatmap = $state<HeatmapDay[]>(data.heatmap);
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
 
@@ -52,8 +56,44 @@
     filterSearch = '';
   }
 
-  $effect(() => {
-    runs = data.runs;
+  // Pass-rate trend: computed from runs that have scenario count data, grouped by date
+  const passRateTrend = $derived.by(() => {
+    const byDate = new Map<string, { passed: number; total: number }>();
+    for (const run of runs) {
+      if (run.startedAt && run.totalScenarios != null && run.totalScenarios > 0) {
+        const d = run.startedAt.slice(0, 10);
+        const existing = byDate.get(d) ?? { passed: 0, total: 0 };
+        byDate.set(d, {
+          passed: existing.passed + (run.passedScenarios ?? 0),
+          total: existing.total + (run.totalScenarios ?? 0)
+        });
+      }
+    }
+    const sorted = [...byDate.entries()].sort(([a], [b]) => a.localeCompare(b));
+    return {
+      labels: sorted.map(([d]) => d.slice(5)),
+      datasets: [
+        {
+          label: 'Pass Rate %',
+          data: sorted.map(([, v]) => v.total > 0 ? Number(((v.passed / v.total) * 100).toFixed(1)) : 0),
+          borderColor: '#10b981',
+          backgroundColor: 'rgba(16, 185, 129, 0.12)',
+          fill: true,
+          tension: 0.32,
+          yAxisID: 'y1'
+        },
+        {
+          type: 'bar' as const,
+          label: 'Failed Scenarios',
+          data: sorted.map(([d]) => {
+            const runs_on_day = runs.filter(r => r.startedAt?.startsWith(d));
+            return runs_on_day.reduce((sum, r) => sum + (r.failedScenarios ?? 0), 0);
+          }),
+          backgroundColor: 'rgba(239, 68, 68, 0.5)',
+          yAxisID: 'y'
+        }
+      ]
+    };
   });
 
   function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
@@ -195,6 +235,16 @@
     >{wsManager.state}</span>
   </div>
 
+  <!-- Execution heatmap -->
+  {#if heatmap.length > 0}
+    <div class="section section--heatmap">
+      <h2 class="section-title">Execution Activity</h2>
+      <div class="heatmap-card">
+        <ExecutionHeatmap days={heatmap} weeks={26} />
+      </div>
+    </div>
+  {/if}
+
   <!-- Filters bar -->
   <div class="filters-bar">
     <input
@@ -294,6 +344,20 @@
             <span class="event-time">{formatDate(event.occurredAt)}</span>
           </div>
         {/each}
+      </div>
+    </div>
+  {/if}
+
+  <!-- Pass-rate trend chart -->
+  {#if passRateTrend.labels.length > 0}
+    <div class="section section--chart">
+      <h2 class="section-title">Execution Pass Rate</h2>
+      <div class="chart-panel">
+        <LineChart chartData={passRateTrend} height={240} label="Pass Rate & Failed Scenarios" />
+        <div class="chart-legend">
+          <span class="pr-dot pr-dot--pass"></span><span class="chart-legend-label">Pass Rate %</span>
+          <span class="pr-dot pr-dot--fail"></span><span class="chart-legend-label">Failed Scenarios</span>
+        </div>
       </div>
     </div>
   {/if}
@@ -448,13 +512,59 @@
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
   .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; }
 
-  .live-panel { margin-top: 20px; }
+  .section {
+    margin-bottom: 28px;
+  }
 
   .section-title {
     font-size: 1rem;
     font-weight: 600;
     margin-bottom: 12px;
   }
+
+  .heatmap-card {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 18px 20px 14px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+  }
+
+  .chart-panel {
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 20px;
+    box-shadow: var(--shadow);
+  }
+
+  .chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 10px;
+    padding-left: 4px;
+  }
+
+  .chart-legend-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-right: 12px;
+  }
+
+  .pr-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  .pr-dot--pass { background: #10b981; }
+  .pr-dot--fail { background: rgba(239, 68, 68, 0.7); }
+
+  .live-panel { margin-top: 4px; }
 
   .event-feed { display: grid; gap: 8px; }
 

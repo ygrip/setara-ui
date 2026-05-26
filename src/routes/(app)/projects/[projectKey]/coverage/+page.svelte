@@ -4,9 +4,8 @@
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { ProjectStatistic } from '$lib/api/statistics';
-  import type { AutomationRun } from '$lib/api/runs';
 
-  let { data }: { data: { history: ProjectStatistic[]; runs: AutomationRun[] } } = $props();
+  let { data }: { data: { history: ProjectStatistic[] } } = $props();
 
   const projectKey = $derived(page.params.projectKey);
   const latest = $derived(data.history[0]);
@@ -37,56 +36,6 @@
       tension: 0.32,
       yAxisID: 'y1'
     }]
-  });
-
-  // Pass-rate chart derived from execution run history
-  const passRateRuns = $derived(
-    [...data.runs]
-      .filter(r => r.finishedAt && (r.totalScenarios ?? 0) > 0)
-      .slice(0, 15)
-      .reverse()
-  );
-
-  const passRateTrend = $derived({
-    labels: passRateRuns.map(r =>
-      new Date(r.startedAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
-    ),
-    datasets: [
-      {
-        type: 'line',
-        label: 'Pass Rate %',
-        data: passRateRuns.map(r => {
-          const total = r.totalScenarios ?? 0;
-          return total > 0 ? Number(((r.passedScenarios ?? 0) / total * 100).toFixed(1)) : 0;
-        }),
-        borderColor: '#0d9488',
-        backgroundColor: 'rgba(13, 148, 136, 0.09)',
-        tension: 0.35,
-        fill: true,
-        pointRadius: 4,
-        pointBackgroundColor: '#0d9488',
-        borderWidth: 2,
-        yAxisID: 'y1'
-      },
-      {
-        type: 'bar',
-        label: 'Failed',
-        data: passRateRuns.map(r => r.failedScenarios ?? 0),
-        backgroundColor: 'rgba(220, 38, 38, 0.55)',
-        borderColor: '#dc2626',
-        borderRadius: 3,
-        yAxisID: 'y'
-      },
-      {
-        type: 'bar',
-        label: 'Skipped',
-        data: passRateRuns.map(r => r.skippedScenarios ?? 0),
-        backgroundColor: 'rgba(245, 158, 11, 0.45)',
-        borderColor: '#f59e0b',
-        borderRadius: 3,
-        yAxisID: 'y'
-      }
-    ]
   });
 </script>
 
@@ -122,26 +71,6 @@
     {:else}
       <div class="chart-panel">
         <LineChart chartData={coverageTrend} height={260} label="Daily Coverage" />
-      </div>
-    {/if}
-  </div>
-
-  <!-- Execution Pass Rate chart -->
-  <div class="section">
-    <h2 class="section-title">Execution Pass Rate</h2>
-    {#if passRateRuns.length === 0}
-      <div class="empty-state">
-        <p>No completed runs with scenario counts yet. Pass-rate trend will appear here once executions are ingested.</p>
-      </div>
-    {:else}
-      <div class="chart-panel">
-        <div class="pass-rate-legend">
-          <span class="pr-legend-item"><i class="pr-dot pr-dot--pass"></i>Pass Rate % <em>(right axis)</em></span>
-          <span class="pr-legend-item"><i class="pr-dot pr-dot--fail"></i>Failed count</span>
-          <span class="pr-legend-item"><i class="pr-dot pr-dot--skip"></i>Skipped count</span>
-        </div>
-        <LineChart chartData={passRateTrend} height={260} />
-        <p class="chart-note">Showing last {passRateRuns.length} completed run{passRateRuns.length !== 1 ? 's' : ''}, oldest → newest.</p>
       </div>
     {/if}
   </div>
@@ -322,46 +251,6 @@
   }
 
   .donut-meta-line strong { color: var(--color-text); }
-
-  .pass-rate-legend {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    flex-wrap: wrap;
-    margin-bottom: 14px;
-  }
-
-  .pr-legend-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-  }
-
-  .pr-legend-item em {
-    font-style: normal;
-    opacity: 0.65;
-    font-size: 0.72rem;
-  }
-
-  .pr-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .pr-dot--pass { background: #0d9488; }
-  .pr-dot--fail { background: #dc2626; }
-  .pr-dot--skip { background: #f59e0b; }
-
-  .chart-note {
-    margin: 10px 0 0;
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    font-style: italic;
-  }
 
   .data-note {
     font-size: 0.8rem;
