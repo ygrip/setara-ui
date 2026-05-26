@@ -27,6 +27,7 @@
     "clsx": "^2.1.1",
     "formsnap": "^2.0.1",
     "highlight.js": "^11.11.1",
+    "layerchart": "^1.0.13",
     "marked": "^18.0.4",
     "svelte": "^5.17.3",
     "svelte-heatmap": "^1.0.2",

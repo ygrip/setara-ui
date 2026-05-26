@@ -3,8 +3,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
-  // @ts-ignore — svelte-heatmap is an untyped Svelte 3 library; works via Svelte 5 compat layer
-  import SvelteHeatmap from 'svelte-heatmap/src/SvelteHeatmap.svelte';
+  import HeatmapCalendar from '$lib/components/HeatmapCalendar.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRuns } from '$lib/api/runs';
@@ -24,32 +23,6 @@
   let heatmap = $state<HeatmapDay[]>(data.heatmap);
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
-
-  // Dark-mode detection for heatmap theming
-  let isDark = $state(false);
-  onMount(() => {
-    const check = () => { isDark = document.documentElement.dataset.theme === 'dark'; };
-    check();
-    const obs = new MutationObserver(check);
-    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
-    return () => obs.disconnect();
-  });
-
-  // ── Heatmap data ────────────────────────────────────────────────
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const heatmapStart = new Date(today);
-  heatmapStart.setDate(heatmapStart.getDate() - 181); // 26 weeks back
-
-  const heatmapData = $derived(
-    heatmap
-      .filter(d => d.runCount > 0)
-      .map(d => ({ date: new Date(d.date), value: Math.round(d.passRate) }))
-  );
-
-  // Colors: red → orange → yellow → light-green → dark-green (passRate 0→100)
-  const heatmapColors = ['#ef4444', '#fb923c', '#fde68a', '#4ade80', '#16a34a'];
-  const heatmapColorsDark = ['#7f1d1d', '#9a3412', '#78350f', '#14532d', '#4ade80'];
 
   // ── Client-side filters ─────────────────────────────────────────
   let filterStatus = $state('');
@@ -248,45 +221,39 @@
     </div>
   </div>
 
-  <!-- ── Execution activity heatmap ─────────────────────────── -->
-  {#if heatmap.length > 0}
-    <section class="section" aria-label="Execution activity heatmap">
-      <div class="section-header">
-        <h2 class="section-title">Execution Activity</h2>
-        <span class="section-subtitle">Last 26 weeks · color = pass rate</span>
+  <!-- ── Top charts grid ────────────────────────────────────────── -->
+  <div class="charts-grid">
+    <!-- Heatmap card -->
+    <section class="card chart-section" aria-label="Execution activity heatmap">
+      <div class="card-header">
+        <h2 class="card-title">Execution Activity</h2>
+        <span class="card-subtitle">Last 26 weeks · color = pass rate</span>
       </div>
-      <div class="card heatmap-card">
-        <div class="heatmap-inner">
-          <SvelteHeatmap
-            data={heatmapData}
-            startDate={heatmapStart}
-            endDate={today}
-            colors={isDark ? heatmapColorsDark : heatmapColors}
-            emptyColor={isDark ? '#1e293b' : '#e2e8f0'}
-            fontColor={isDark ? '#94a3b8' : '#64748b'}
-            cellSize={12}
-            cellGap={3}
-            cellRadius={2}
-            dayLabelWidth={24}
-            monthLabelHeight={14}
-            fontSize={9}
-          />
-        </div>
-        <div class="heatmap-legend">
-          <span class="legend-label">Low pass rate</span>
-          {#each (isDark ? heatmapColorsDark : heatmapColors) as color}
-            <span class="legend-swatch" style="background:{color}"></span>
-          {/each}
-          <span class="legend-label">High pass rate</span>
-          <span class="legend-sep"></span>
-          <span class="legend-swatch" style="background:{isDark ? '#1e293b' : '#e2e8f0'}"></span>
-          <span class="legend-label">No runs</span>
-        </div>
-      </div>
+      <HeatmapCalendar days={heatmap} weeks={26} />
     </section>
-  {/if}
 
-  <!-- ── Filters bar ─────────────────────────────────────────── -->
+    <!-- Pass-rate chart card -->
+    <section class="card chart-section" aria-label="Pass rate trend">
+      <div class="card-header">
+        <h2 class="card-title">Pass Rate</h2>
+        <span class="card-subtitle">Scenario pass rate per day</span>
+      </div>
+
+      {#if passRateTrend.labels.length > 0}
+        <LineChart chartData={passRateTrend} height={180} label="Pass Rate & Failed Scenarios" />
+        <div class="chart-legend">
+          <span class="legend-dot legend-dot--pass"></span>
+          <span class="chart-legend-label">Pass Rate %</span>
+          <span class="legend-dot legend-dot--fail"></span>
+          <span class="chart-legend-label">Failed Scenarios</span>
+        </div>
+      {:else}
+        <div class="chart-empty">No data yet</div>
+      {/if}
+    </section>
+  </div>
+
+  <!-- ── Filters bar ─────────────────────────────────────────────── -->
   <div class="filters-bar" role="search" aria-label="Filter executions">
     <div class="filter-search-wrap">
       <input
@@ -335,7 +302,7 @@
     </div>
   </div>
 
-  <!-- ── Runs table ──────────────────────────────────────────── -->
+  <!-- ── Runs table ──────────────────────────────────────────────── -->
   {#if data.error}
     <div class="error-banner" role="alert">Could not load executions — {data.error}</div>
   {:else if runs.length === 0}
@@ -384,7 +351,7 @@
     </div>
   {/if}
 
-  <!-- ── Live events feed ────────────────────────────────────── -->
+  <!-- ── Live events feed ────────────────────────────────────────── -->
   {#if liveEvents.length > 0}
     <section class="section section--live" aria-label="Live updates">
       <h2 class="section-title">Live Updates</h2>
@@ -396,24 +363,6 @@
             <span class="event-time">{formatDate(event.occurredAt)}</span>
           </div>
         {/each}
-      </div>
-    </section>
-  {/if}
-
-  <!-- ── Pass-rate trend chart ───────────────────────────────── -->
-  {#if passRateTrend.labels.length > 0}
-    <section class="section" aria-label="Pass rate trend">
-      <div class="section-header">
-        <h2 class="section-title">Execution Pass Rate</h2>
-        <div class="chart-legend">
-          <span class="legend-dot legend-dot--pass"></span>
-          <span class="chart-legend-label">Pass Rate %</span>
-          <span class="legend-dot legend-dot--fail"></span>
-          <span class="chart-legend-label">Failed Scenarios</span>
-        </div>
-      </div>
-      <div class="card chart-card">
-        <LineChart chartData={passRateTrend} height={240} label="Pass Rate & Failed Scenarios" />
       </div>
     </section>
   {/if}
@@ -435,7 +384,7 @@
     gap: 6px;
     font-size: 0.8rem;
     color: var(--color-text-muted);
-    margin-bottom: 24px;
+    margin-bottom: 20px;
     flex-wrap: wrap;
   }
   .breadcrumb a { color: var(--color-accent); }
@@ -447,7 +396,7 @@
     align-items: flex-start;
     justify-content: space-between;
     gap: 12px;
-    margin-bottom: 28px;
+    margin-bottom: 24px;
     flex-wrap: wrap;
   }
 
@@ -485,32 +434,18 @@
     background: color-mix(in srgb, #f59e0b, transparent 90%);
   }
 
-  /* ── Sections ───────────────────────────────────────── */
-  .section {
-    margin-bottom: 32px;
-  }
-  .section--live {
-    margin-top: 8px;
-  }
-
-  .section-header {
-    display: flex;
-    align-items: baseline;
-    gap: 12px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
+  /* ── Charts grid ────────────────────────────────────── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 55fr 45fr;
+    gap: 20px;
+    margin-bottom: 28px;
   }
 
-  .section-title {
-    font-size: 1rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin: 0;
-  }
-
-  .section-subtitle {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+  @media (max-width: 860px) {
+    .charts-grid {
+      grid-template-columns: 1fr;
+    }
   }
 
   /* ── Shared card ────────────────────────────────────── */
@@ -521,43 +456,79 @@
     box-shadow: var(--shadow);
   }
 
-  /* ── Heatmap ────────────────────────────────────────── */
-  .heatmap-card {
+  .chart-section {
     padding: 20px 24px 16px;
-    overflow-x: auto;
   }
 
-  .heatmap-inner {
-    min-width: 0;
-    /* Let svelte-heatmap's SVG be responsive */
-  }
-
-  .heatmap-legend {
+  .card-header {
     display: flex;
-    align-items: center;
-    gap: 5px;
-    margin-top: 14px;
+    align-items: baseline;
+    gap: 10px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
   }
 
-  .legend-label {
-    font-size: 0.68rem;
+  .card-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .card-subtitle {
+    font-size: 0.75rem;
     color: var(--color-text-muted);
-    white-space: nowrap;
-    margin: 0 2px;
   }
 
-  .legend-swatch {
-    display: inline-block;
-    width: 11px;
-    height: 11px;
-    border-radius: 2px;
-    flex-shrink: 0;
+  /* ── Chart empty state ──────────────────────────────── */
+  .chart-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 120px;
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+    opacity: 0.6;
   }
 
-  .legend-sep {
+  /* ── Chart legend ───────────────────────────────────── */
+  .chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+
+  .chart-legend-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-right: 10px;
+  }
+
+  .legend-dot {
     display: inline-block;
     width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-dot--pass { background: #10b981; }
+  .legend-dot--fail { background: rgba(239, 68, 68, 0.7); }
+
+  /* ── Sections ───────────────────────────────────────── */
+  .section {
+    margin-bottom: 24px;
+  }
+  .section--live {
+    margin-top: 8px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0 0 12px;
   }
 
   /* ── Filters bar ────────────────────────────────────── */
@@ -655,7 +626,7 @@
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
     border-radius: var(--radius);
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
 
   /* ── Error / empty states ───────────────────────────── */
@@ -673,7 +644,7 @@
     text-align: center;
     padding: 64px 24px;
     color: var(--color-text-muted);
-    margin-bottom: 32px;
+    margin-bottom: 24px;
   }
   .empty-icon { opacity: 0.25; margin-bottom: 16px; }
   .empty-title { margin: 0 0 8px; font-size: 0.925rem; color: var(--color-text); }
@@ -727,34 +698,6 @@
 
   .event-time { color: var(--color-text-muted); font-size: 0.72rem; white-space: nowrap; }
 
-  /* ── Chart ──────────────────────────────────────────── */
-  .chart-card {
-    padding: 20px 24px;
-  }
-
-  .chart-legend {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .chart-legend-label {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    margin-right: 10px;
-  }
-
-  .legend-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  .legend-dot--pass { background: #10b981; }
-  .legend-dot--fail { background: rgba(239, 68, 68, 0.7); }
-
   /* ── Responsive: tablet (≤900px) ───────────────────── */
   @media (max-width: 900px) {
     .col-hide-md { display: none; }
@@ -781,12 +724,8 @@
       min-width: 90px;
     }
 
-    .heatmap-card {
-      padding: 14px 14px 12px;
-    }
-
-    .chart-card {
-      padding: 14px 16px;
+    .chart-section {
+      padding: 14px 16px 12px;
     }
 
     .event-item {
@@ -798,7 +737,7 @@
       grid-column: 1 / -1;
     }
 
-    .section-header {
+    .card-header {
       flex-direction: column;
       gap: 4px;
       align-items: flex-start;
