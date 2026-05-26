@@ -203,6 +203,13 @@
         {/if}
       </div>
       <div class="plan-header-actions">
+        <a
+          href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map"
+          class="btn btn--secondary"
+          title="View release plan quality map"
+        >
+          Quality Map →
+        </a>
         {#if data.plan.status !== 'CLOSED'}
           <button class="btn btn--primary" onclick={openBuildPicker} disabled={busy}>
             + Add Build
@@ -460,7 +467,7 @@
   .plan-meta span:not(.muted)::before { content: ''; }
   .plan-desc { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; max-width: 640px; }
   .plan-header-actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
-  .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; }
+  .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; display: inline-flex; align-items: center; text-decoration: none; }
   .btn--primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
   .btn--primary:hover:not(:disabled) { opacity: 0.88; }
   .btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }

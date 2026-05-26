@@ -77,6 +77,12 @@ export async function getPlanQualityMap(projectKey: string, planId: string, opti
   return res.json();
 }
 
+export async function getSquadPlanQualityMap(squadId: string, planId: string): Promise<SetaraMap> {
+  if (isMockMode()) return mockSquadPlanQualityMap(squadId, planId);
+  const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/quality-map`);
+  return res.json();
+}
+
 export async function getDirectoryCoverageMap(projectKey: string, directoryId: string, options: {
   depth?: number;
   includeScenarios?: boolean;
@@ -122,6 +128,33 @@ function mockPlanQualityMap(projectKey: string, planId: string, options: { inclu
     }
   }
   return map('QUALITY_MAP', rootId, 'Quality Map', plan?.name ?? projectKey, nodes, edges);
+}
+
+function mockSquadPlanQualityMap(squadId: string, planId: string): SetaraMap {
+  const rootId = `plan:${planId}`;
+  const projectAId = `project:proj-alpha`;
+  const projectBId = `project:proj-beta`;
+  const buildA1 = `build:build-a1`;
+  const buildA2 = `build:build-a2`;
+  const buildB1 = `build:build-b1`;
+  const nodes: MapNode[] = [
+    node(rootId, 'PLAN', 'Sprint Release Plan', 'v24.06', 'WARNING', 'MEDIUM', { totalBuilds: 3, verifiedBuilds: 1, planReadiness: 33 }, ['IN_PROGRESS']),
+    node(projectAId, 'PROJECT', 'Project Alpha', 'PRJ-ALPHA', 'WARNING', 'MEDIUM', { totalBuilds: 2, verifiedBuilds: 1 }, ['project']),
+    node(projectBId, 'PROJECT', 'Project Beta', 'PRJ-BETA', 'NOT_EXECUTED', 'HIGH', { totalBuilds: 1, verifiedBuilds: 0 }, ['project']),
+    node(buildA1, 'BUILD', 'Build 24.06.1', 'PRJ-ALPHA-B001', 'PASSED', 'LOW', { status: 'VERIFIED', passPercentage: 95 }, ['VERIFIED']),
+    node(buildA2, 'BUILD', 'Build 24.06.2', 'PRJ-ALPHA-B002', 'IN_PROGRESS', 'MEDIUM', { status: 'IN_PROGRESS', passPercentage: 72 }, ['IN_PROGRESS']),
+    node(buildB1, 'BUILD', 'Build 24.06.1', 'PRJ-BETA-B001', 'NOT_EXECUTED', 'HIGH', { status: 'INITIATED', passPercentage: 0 }, ['INITIATED']),
+    node(`${rootId}:risk:unverified`, 'RISK', 'Unverified Builds', '2 build(s) still pending verification', 'AT_RISK', 'HIGH', { count: 2 }, ['risk'])
+  ];
+  const edges: MapEdge[] = [
+    edge(rootId, projectAId, 'COVERS', 'scope'),
+    edge(rootId, projectBId, 'COVERS', 'scope'),
+    edge(projectAId, buildA1, 'HAS_BUILD', 'build'),
+    edge(projectAId, buildA2, 'HAS_BUILD', 'build'),
+    edge(projectBId, buildB1, 'HAS_BUILD', 'build'),
+    edge(rootId, `${rootId}:risk:unverified`, 'HAS_RISK', 'critical')
+  ];
+  return map('SQUAD_PLAN_MAP', rootId, 'Release Plan Map', 'Sprint Release Plan', nodes, edges);
 }
 
 function mockDirectoryCoverageMap(projectKey: string, directoryId: string, options: { includeScenarios?: boolean; riskOnly?: boolean }): SetaraMap {
