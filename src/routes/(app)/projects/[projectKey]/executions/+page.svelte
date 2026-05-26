@@ -2,8 +2,9 @@
   import { onDestroy, onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import ExecutionHeatmap from '$lib/components/ExecutionHeatmap.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
+  // @ts-ignore — svelte-heatmap is an untyped Svelte 3 library; works via Svelte 5 compat layer
+  import SvelteHeatmap from 'svelte-heatmap/src/SvelteHeatmap.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRuns } from '$lib/api/runs';
@@ -23,6 +24,32 @@
   let heatmap = $state<HeatmapDay[]>(data.heatmap);
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
+
+  // Dark-mode detection for heatmap theming
+  let isDark = $state(false);
+  onMount(() => {
+    const check = () => { isDark = document.documentElement.dataset.theme === 'dark'; };
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  });
+
+  // ── Heatmap data ────────────────────────────────────────────────
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const heatmapStart = new Date(today);
+  heatmapStart.setDate(heatmapStart.getDate() - 181); // 26 weeks back
+
+  const heatmapData = $derived(
+    heatmap
+      .filter(d => d.runCount > 0)
+      .map(d => ({ date: new Date(d.date), value: Math.round(d.passRate) }))
+  );
+
+  // Colors: red → orange → yellow → light-green → dark-green (passRate 0→100)
+  const heatmapColors = ['#ef4444', '#fb923c', '#fde68a', '#4ade80', '#16a34a'];
+  const heatmapColorsDark = ['#7f1d1d', '#9a3412', '#78350f', '#14532d', '#4ade80'];
 
   // ── Client-side filters ─────────────────────────────────────────
   let filterStatus = $state('');
@@ -56,16 +83,17 @@
     filterSearch = '';
   }
 
-  // Pass-rate trend: computed from runs that have scenario count data, grouped by date
+  // ── Pass-rate trend chart ────────────────────────────────────────
   const passRateTrend = $derived.by(() => {
-    const byDate = new Map<string, { passed: number; total: number }>();
+    const byDate = new Map<string, { passed: number; total: number; failed: number }>();
     for (const run of runs) {
       if (run.startedAt && run.totalScenarios != null && run.totalScenarios > 0) {
         const d = run.startedAt.slice(0, 10);
-        const existing = byDate.get(d) ?? { passed: 0, total: 0 };
+        const existing = byDate.get(d) ?? { passed: 0, total: 0, failed: 0 };
         byDate.set(d, {
           passed: existing.passed + (run.passedScenarios ?? 0),
-          total: existing.total + (run.totalScenarios ?? 0)
+          total: existing.total + (run.totalScenarios ?? 0),
+          failed: existing.failed + (run.failedScenarios ?? 0)
         });
       }
     }
@@ -85,10 +113,7 @@
         {
           type: 'bar' as const,
           label: 'Failed Scenarios',
-          data: sorted.map(([d]) => {
-            const runs_on_day = runs.filter(r => r.startedAt?.startsWith(d));
-            return runs_on_day.reduce((sum, r) => sum + (r.failedScenarios ?? 0), 0);
-          }),
+          data: sorted.map(([, v]) => v.failed),
           backgroundColor: 'rgba(239, 68, 68, 0.5)',
           yAxisID: 'y'
         }
@@ -96,6 +121,7 @@
     };
   });
 
+  // ── Helpers ──────────────────────────────────────────────────────
   function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
       case 'PASSED': return 'success';
@@ -147,7 +173,7 @@
       const page = await listRuns(data.projectKey);
       runs = page.items;
     } catch {
-      // The live row remains visible until the next successful list fetch.
+      // keep live row until next successful fetch
     } finally {
       refreshingRuns = false;
     }
@@ -166,36 +192,18 @@
 
     if (event.type === 'RUN_DISCOVERED' || event.type === 'SCENARIO_RESULT_ACCEPTED' || event.type === 'RUN_FINISH_ACCEPTED') {
       const exists = runs.some(r => r.id === event.runId);
-      if (!exists) {
-        runs = [liveRunFromEvent(event), ...runs];
-        void refreshRuns();
-        return;
-      }
+      if (!exists) { runs = [liveRunFromEvent(event), ...runs]; void refreshRuns(); return; }
       runs = runs.map(run => run.id === event.runId
-        ? {
-            ...run,
-            status: event.status ?? run.status,
-            totalScenarios: event.totalScenarios ?? run.totalScenarios,
-            durationMs: event.durationMs ?? run.durationMs
-          }
+        ? { ...run, status: event.status ?? run.status, totalScenarios: event.totalScenarios ?? run.totalScenarios, durationMs: event.durationMs ?? run.durationMs }
         : run);
       return;
     }
 
     if (event.type === 'RUN_FINISHED') {
       const exists = runs.some(r => r.id === event.runId);
-      if (!exists) {
-        runs = [liveRunFromEvent(event), ...runs];
-        return;
-      }
+      if (!exists) { runs = [liveRunFromEvent(event), ...runs]; return; }
       runs = runs.map(run => run.id === event.runId
-        ? {
-            ...run,
-            status: event.status ?? run.status,
-            finishedAt: event.occurredAt,
-            totalScenarios: event.totalScenarios ?? run.totalScenarios,
-            durationMs: event.durationMs ?? run.durationMs
-        }
+        ? { ...run, status: event.status ?? run.status, finishedAt: event.occurredAt, totalScenarios: event.totalScenarios ?? run.totalScenarios, durationMs: event.durationMs ?? run.durationMs }
         : run);
     }
   }
@@ -218,362 +226,486 @@
 </svelte:head>
 
 <div class="page">
-  <nav class="breadcrumb">
+  <!-- Breadcrumb -->
+  <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="/projects">Projects</a>
-    <span class="sep">›</span>
+    <span class="sep" aria-hidden="true">›</span>
     <a href="/projects/{data.projectKey}">{data.projectKey}</a>
-    <span class="sep">›</span>
+    <span class="sep" aria-hidden="true">›</span>
     <span>Executions</span>
   </nav>
 
+  <!-- Page header -->
   <div class="page-header">
-    <h1 class="page-title">Executions</h1>
-    <span
-      class="socket-pill"
-      class:socket-pill--live={wsManager.state === 'live'}
-      class:socket-pill--reconnecting={wsManager.state === 'connecting'}
-    >{wsManager.state}</span>
+    <div class="page-header-left">
+      <h1 class="page-title">Executions</h1>
+      <span
+        class="socket-pill"
+        class:socket-pill--live={wsManager.state === 'live'}
+        class:socket-pill--reconnecting={wsManager.state === 'connecting'}
+        aria-label="WebSocket status: {wsManager.state}"
+      >{wsManager.state}</span>
+    </div>
   </div>
 
-  <!-- Execution heatmap -->
+  <!-- ── Execution activity heatmap ─────────────────────────── -->
   {#if heatmap.length > 0}
-    <div class="section section--heatmap">
-      <h2 class="section-title">Execution Activity</h2>
-      <div class="heatmap-card">
-        <ExecutionHeatmap days={heatmap} weeks={26} />
+    <section class="section" aria-label="Execution activity heatmap">
+      <div class="section-header">
+        <h2 class="section-title">Execution Activity</h2>
+        <span class="section-subtitle">Last 26 weeks · color = pass rate</span>
       </div>
-    </div>
+      <div class="card heatmap-card">
+        <div class="heatmap-inner">
+          <SvelteHeatmap
+            data={heatmapData}
+            startDate={heatmapStart}
+            endDate={today}
+            colors={isDark ? heatmapColorsDark : heatmapColors}
+            emptyColor={isDark ? '#1e293b' : '#e2e8f0'}
+            fontColor={isDark ? '#94a3b8' : '#64748b'}
+            cellSize={12}
+            cellGap={3}
+            cellRadius={2}
+            dayLabelWidth={24}
+            monthLabelHeight={14}
+            fontSize={9}
+          />
+        </div>
+        <div class="heatmap-legend">
+          <span class="legend-label">Low pass rate</span>
+          {#each (isDark ? heatmapColorsDark : heatmapColors) as color}
+            <span class="legend-swatch" style="background:{color}"></span>
+          {/each}
+          <span class="legend-label">High pass rate</span>
+          <span class="legend-sep"></span>
+          <span class="legend-swatch" style="background:{isDark ? '#1e293b' : '#e2e8f0'}"></span>
+          <span class="legend-label">No runs</span>
+        </div>
+      </div>
+    </section>
   {/if}
 
-  <!-- Filters bar -->
-  <div class="filters-bar">
-    <input
-      class="filter-search"
-      type="search"
-      placeholder="Search runner, branch, commit…"
-      bind:value={filterSearch}
-    />
-    <div class="filter-group">
-      <label class="filter-label" for="filter-status">Status</label>
-      <select id="filter-status" class="filter-select" bind:value={filterStatus}>
-        <option value="">All</option>
-        <option value="RUNNING">Running</option>
-        <option value="PASSED">Passed</option>
-        <option value="FAILED">Failed</option>
-        <option value="QUEUED">Queued</option>
-      </select>
+  <!-- ── Filters bar ─────────────────────────────────────────── -->
+  <div class="filters-bar" role="search" aria-label="Filter executions">
+    <div class="filter-search-wrap">
+      <input
+        class="filter-search"
+        type="search"
+        placeholder="Search runner, branch, commit…"
+        bind:value={filterSearch}
+        aria-label="Search executions"
+      />
     </div>
-    {#if uniqueEnvs.length > 0}
+    <div class="filter-controls">
       <div class="filter-group">
-        <label class="filter-label" for="filter-env">Environment</label>
-        <select id="filter-env" class="filter-select" bind:value={filterEnv}>
+        <label class="filter-label" for="filter-status">Status</label>
+        <select id="filter-status" class="filter-select" bind:value={filterStatus}>
           <option value="">All</option>
-          {#each uniqueEnvs as env}<option value={env}>{env}</option>{/each}
+          <option value="RUNNING">Running</option>
+          <option value="PASSED">Passed</option>
+          <option value="FAILED">Failed</option>
+          <option value="QUEUED">Queued</option>
         </select>
       </div>
-    {/if}
-    {#if uniqueBranches.length > 0}
-      <div class="filter-group">
-        <label class="filter-label" for="filter-branch">Branch</label>
-        <select id="filter-branch" class="filter-select" bind:value={filterBranch}>
-          <option value="">All</option>
-          {#each uniqueBranches as b}<option value={b}>{b}</option>{/each}
-        </select>
-      </div>
-    {/if}
-    {#if hasActiveFilter}
-      <button class="clear-filter-btn" onclick={clearFilters}>✕ Clear</button>
-      <span class="filter-count">{filteredRuns.length} of {runs.length}</span>
-    {/if}
+      {#if uniqueEnvs.length > 0}
+        <div class="filter-group">
+          <label class="filter-label" for="filter-env">Environment</label>
+          <select id="filter-env" class="filter-select" bind:value={filterEnv}>
+            <option value="">All</option>
+            {#each uniqueEnvs as env}<option value={env}>{env}</option>{/each}
+          </select>
+        </div>
+      {/if}
+      {#if uniqueBranches.length > 0}
+        <div class="filter-group">
+          <label class="filter-label" for="filter-branch">Branch</label>
+          <select id="filter-branch" class="filter-select" bind:value={filterBranch}>
+            <option value="">All</option>
+            {#each uniqueBranches as b}<option value={b}>{b}</option>{/each}
+          </select>
+        </div>
+      {/if}
+      {#if hasActiveFilter}
+        <div class="filter-group filter-group--inline">
+          <button class="clear-filter-btn" onclick={clearFilters}>✕ Clear</button>
+          <span class="filter-count">{filteredRuns.length} of {runs.length}</span>
+        </div>
+      {/if}
+    </div>
   </div>
 
+  <!-- ── Runs table ──────────────────────────────────────────── -->
   {#if data.error}
-    <div class="error-banner">Could not load executions — {data.error}</div>
+    <div class="error-banner" role="alert">Could not load executions — {data.error}</div>
   {:else if runs.length === 0}
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
+      <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
         <polygon points="5 3 19 12 5 21 5 3"/>
       </svg>
-      <p>No automation runs found for {data.projectKey}.</p>
+      <p class="empty-title">No runs yet for <strong>{data.projectKey}</strong></p>
       <p class="empty-sub">Set up an API key and run your automation suite to see executions here.</p>
     </div>
   {:else if filteredRuns.length === 0}
     <div class="empty-state">
-      <p>No executions match the current filters.</p>
+      <p class="empty-title">No executions match the current filters.</p>
       <button class="link-btn" onclick={clearFilters}>Clear filters</button>
     </div>
   {:else}
-    <DataTable>
-      {#snippet head()}
-        <tr>
-          <th>Status</th>
-          <th>Runner</th>
-          <th>Branch</th>
-          <th>Environment</th>
-          <th>Framework</th>
-          <th>Started</th>
-          <th>Duration</th>
-          <th></th>
-        </tr>
-      {/snippet}
-      {#snippet body()}
-        {#each filteredRuns as run}
+    <div class="table-wrap">
+      <DataTable>
+        {#snippet head()}
           <tr>
-            <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
-            <td class="mono">{run.runnerId}</td>
-            <td>{run.branch ?? '—'}</td>
-            <td>{run.environment ?? '—'}</td>
-            <td>{run.framework ?? '—'}</td>
-            <td>{formatDate(run.startedAt)}</td>
-            <td>{duration(run.startedAt, run.finishedAt)}</td>
-            <td><a href="/projects/{data.projectKey}/executions/{run.id}" class="link">View →</a></td>
+            <th>Status</th>
+            <th>Runner</th>
+            <th class="col-hide-sm">Branch</th>
+            <th class="col-hide-md">Environment</th>
+            <th class="col-hide-md">Framework</th>
+            <th>Started</th>
+            <th class="col-hide-sm">Duration</th>
+            <th></th>
           </tr>
-        {/each}
-      {/snippet}
-    </DataTable>
+        {/snippet}
+        {#snippet body()}
+          {#each filteredRuns as run}
+            <tr>
+              <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
+              <td class="mono">{run.runnerId}</td>
+              <td class="col-hide-sm">{run.branch ?? '—'}</td>
+              <td class="col-hide-md">{run.environment ?? '—'}</td>
+              <td class="col-hide-md">{run.framework ?? '—'}</td>
+              <td class="nowrap">{formatDate(run.startedAt)}</td>
+              <td class="col-hide-sm nowrap">{duration(run.startedAt, run.finishedAt)}</td>
+              <td><a href="/projects/{data.projectKey}/executions/{run.id}" class="link">View →</a></td>
+            </tr>
+          {/each}
+        {/snippet}
+      </DataTable>
+    </div>
   {/if}
 
+  <!-- ── Live events feed ────────────────────────────────────── -->
   {#if liveEvents.length > 0}
-    <div class="live-panel">
+    <section class="section section--live" aria-label="Live updates">
       <h2 class="section-title">Live Updates</h2>
       <div class="event-feed">
         {#each liveEvents as event}
           <div class="event-item">
             <span class="event-type">{event.type}</span>
-            <span>{event.message ?? event.status ?? event.runId}</span>
+            <span class="event-msg">{event.message ?? event.status ?? event.runId}</span>
             <span class="event-time">{formatDate(event.occurredAt)}</span>
           </div>
         {/each}
       </div>
-    </div>
+    </section>
   {/if}
 
-  <!-- Pass-rate trend chart -->
+  <!-- ── Pass-rate trend chart ───────────────────────────────── -->
   {#if passRateTrend.labels.length > 0}
-    <div class="section section--chart">
-      <h2 class="section-title">Execution Pass Rate</h2>
-      <div class="chart-panel">
-        <LineChart chartData={passRateTrend} height={240} label="Pass Rate & Failed Scenarios" />
+    <section class="section" aria-label="Pass rate trend">
+      <div class="section-header">
+        <h2 class="section-title">Execution Pass Rate</h2>
         <div class="chart-legend">
-          <span class="pr-dot pr-dot--pass"></span><span class="chart-legend-label">Pass Rate %</span>
-          <span class="pr-dot pr-dot--fail"></span><span class="chart-legend-label">Failed Scenarios</span>
+          <span class="legend-dot legend-dot--pass"></span>
+          <span class="chart-legend-label">Pass Rate %</span>
+          <span class="legend-dot legend-dot--fail"></span>
+          <span class="chart-legend-label">Failed Scenarios</span>
         </div>
       </div>
-    </div>
+      <div class="card chart-card">
+        <LineChart chartData={passRateTrend} height={240} label="Pass Rate & Failed Scenarios" />
+      </div>
+    </section>
   {/if}
 </div>
 
 <style>
-  .page { max-width: min(1520px, 100%); }
+  /* ── Page shell ─────────────────────────────────────── */
+  .page {
+    max-width: min(1520px, 100%);
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
 
+  /* ── Breadcrumb ─────────────────────────────────────── */
   .breadcrumb {
     display: flex;
     align-items: center;
     gap: 6px;
     font-size: 0.8rem;
     color: var(--color-text-muted);
-    margin-bottom: 20px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
   }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
 
+  /* ── Page header ────────────────────────────────────── */
   .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .page-header-left {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 16px;
+    flex-wrap: wrap;
   }
-  .page-title { font-size: 1.5rem; font-weight: 700; }
+
+  .page-title {
+    font-size: clamp(1.25rem, 4vw, 1.6rem);
+    font-weight: 700;
+    margin: 0;
+  }
 
   .socket-pill {
-    font-size: 0.72rem;
+    font-size: 0.7rem;
     color: var(--color-text-muted);
     border: 1px solid var(--color-border);
     border-radius: 999px;
-    padding: 3px 9px;
+    padding: 3px 10px;
     text-transform: uppercase;
-    letter-spacing: 0.04em;
+    letter-spacing: 0.05em;
+    align-self: center;
   }
-  .socket-pill.socket-pill--live {
+  .socket-pill--live {
     color: var(--color-success);
     border-color: color-mix(in srgb, var(--color-success), transparent 60%);
     background: color-mix(in srgb, var(--color-success), transparent 90%);
   }
-  .socket-pill.socket-pill--reconnecting {
+  .socket-pill--reconnecting {
     color: var(--color-warning, #f59e0b);
     border-color: color-mix(in srgb, #f59e0b, transparent 60%);
     background: color-mix(in srgb, #f59e0b, transparent 90%);
   }
 
-  .filters-bar {
+  /* ── Sections ───────────────────────────────────────── */
+  .section {
+    margin-bottom: 32px;
+  }
+  .section--live {
+    margin-top: 8px;
+  }
+
+  .section-header {
     display: flex;
-    align-items: flex-end;
-    gap: 16px;
+    align-items: baseline;
+    gap: 12px;
+    margin-bottom: 14px;
     flex-wrap: wrap;
-    margin-bottom: 20px;
-    padding: 14px 16px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .section-subtitle {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* ── Shared card ────────────────────────────────────── */
+  .card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
+    box-shadow: var(--shadow);
   }
 
-  .filter-group { display: flex; flex-direction: column; gap: 4px; }
+  /* ── Heatmap ────────────────────────────────────────── */
+  .heatmap-card {
+    padding: 20px 24px 16px;
+    overflow-x: auto;
+  }
 
-  .filter-label {
-    font-size: 0.72rem;
-    font-weight: 600;
+  .heatmap-inner {
+    min-width: 0;
+    /* Let svelte-heatmap's SVG be responsive */
+  }
+
+  .heatmap-legend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 14px;
+    flex-wrap: wrap;
+  }
+
+  .legend-label {
+    font-size: 0.68rem;
     color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    white-space: nowrap;
+    margin: 0 2px;
+  }
+
+  .legend-swatch {
+    display: inline-block;
+    width: 11px;
+    height: 11px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  .legend-sep {
+    display: inline-block;
+    width: 10px;
+  }
+
+  /* ── Filters bar ────────────────────────────────────── */
+  .filters-bar {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 16px 20px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+  }
+
+  .filter-search-wrap {
+    width: 100%;
   }
 
   .filter-search {
+    width: 100%;
+    max-width: 400px;
     font: inherit;
-    font-size: 0.85rem;
-    padding: 6px 10px;
+    font-size: 0.875rem;
+    padding: 8px 12px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-bg);
     color: var(--color-text);
-    min-width: 200px;
-    flex: 1;
-    max-width: 320px;
+  }
+  .filter-search:focus { outline: none; border-color: var(--color-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 85%); }
+
+  .filter-controls {
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
   }
 
-  .filter-search:focus { outline: none; border-color: var(--color-accent); }
+  .filter-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+  }
+
+  .filter-group--inline {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .filter-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
 
   .filter-select {
-    padding: 6px 10px;
+    padding: 7px 10px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-bg);
     color: var(--color-text);
     font: inherit;
-    font-size: 0.85rem;
+    font-size: 0.875rem;
     outline: none;
     cursor: pointer;
-    min-width: 110px;
+    min-width: 120px;
   }
-
   .filter-select:focus { border-color: var(--color-accent); }
 
   .clear-filter-btn {
     font: inherit;
-    font-size: 0.78rem;
-    padding: 5px 10px;
+    font-size: 0.8rem;
+    padding: 6px 12px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
     white-space: nowrap;
-    align-self: flex-end;
   }
-
   .clear-filter-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
 
   .filter-count {
-    font-size: 0.78rem;
+    font-size: 0.8rem;
     color: var(--color-text-muted);
-    align-self: flex-end;
-    padding-bottom: 7px;
     white-space: nowrap;
   }
 
-  .link-btn {
-    font: inherit;
-    font-size: 0.85rem;
-    background: none;
-    border: none;
-    color: var(--color-accent);
-    cursor: pointer;
-    padding: 0;
-    margin-top: 8px;
+  /* ── Table wrapper ──────────────────────────────────── */
+  .table-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius);
+    margin-bottom: 32px;
   }
 
+  /* ── Error / empty states ───────────────────────────── */
   .error-banner {
     background: color-mix(in srgb, var(--color-danger), transparent 90%);
     color: var(--color-danger);
     border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
     border-radius: var(--radius);
-    padding: 12px 16px;
+    padding: 14px 18px;
     font-size: 0.875rem;
-    margin-bottom: 16px;
+    margin-bottom: 24px;
   }
 
   .empty-state {
     text-align: center;
-    padding: 60px 20px;
+    padding: 64px 24px;
     color: var(--color-text-muted);
+    margin-bottom: 32px;
   }
-  .empty-state p { margin: 8px 0 0; font-size: 0.875rem; }
-  .empty-sub { font-size: 0.8rem !important; opacity: 0.7; }
+  .empty-icon { opacity: 0.25; margin-bottom: 16px; }
+  .empty-title { margin: 0 0 8px; font-size: 0.925rem; color: var(--color-text); }
+  .empty-title strong { color: var(--color-text); }
+  .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 
-  .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
-  .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; }
-
-  .section {
-    margin-bottom: 28px;
-  }
-
-  .section-title {
-    font-size: 1rem;
-    font-weight: 600;
-    margin-bottom: 12px;
-  }
-
-  .heatmap-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 18px 20px 14px;
-    box-shadow: var(--shadow);
-    overflow-x: auto;
-  }
-
-  .chart-panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px;
-    box-shadow: var(--shadow);
-  }
-
-  .chart-legend {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+  .link-btn {
+    font: inherit;
+    font-size: 0.875rem;
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    cursor: pointer;
+    padding: 0;
     margin-top: 10px;
-    padding-left: 4px;
+    text-decoration: underline;
   }
 
-  .chart-legend-label {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    margin-right: 12px;
-  }
+  /* ── Table cell helpers ─────────────────────────────── */
+  .mono { font-family: var(--font-mono); font-size: 0.78rem; }
+  .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; white-space: nowrap; }
+  .nowrap { white-space: nowrap; }
 
-  .pr-dot {
-    display: inline-block;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .pr-dot--pass { background: #10b981; }
-  .pr-dot--fail { background: rgba(239, 68, 68, 0.7); }
-
-  .live-panel { margin-top: 4px; }
-
+  /* ── Live events ────────────────────────────────────── */
   .event-feed { display: grid; gap: 8px; }
 
   .event-item {
     display: grid;
-    grid-template-columns: minmax(130px, auto) 1fr auto;
+    grid-template-columns: minmax(140px, auto) 1fr auto;
     gap: 12px;
     align-items: center;
-    padding: 9px 12px;
+    padding: 10px 14px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
@@ -581,9 +713,99 @@
   }
 
   .event-type {
-    font-family: ui-monospace, monospace;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
     color: var(--color-accent);
   }
 
-  .event-time { color: var(--color-text-muted); font-size: 0.75rem; }
+  .event-msg {
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .event-time { color: var(--color-text-muted); font-size: 0.72rem; white-space: nowrap; }
+
+  /* ── Chart ──────────────────────────────────────────── */
+  .chart-card {
+    padding: 20px 24px;
+  }
+
+  .chart-legend {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .chart-legend-label {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    margin-right: 10px;
+  }
+
+  .legend-dot {
+    display: inline-block;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .legend-dot--pass { background: #10b981; }
+  .legend-dot--fail { background: rgba(239, 68, 68, 0.7); }
+
+  /* ── Responsive: tablet (≤900px) ───────────────────── */
+  @media (max-width: 900px) {
+    .col-hide-md { display: none; }
+  }
+
+  /* ── Responsive: mobile (≤600px) ───────────────────── */
+  @media (max-width: 600px) {
+    .col-hide-sm { display: none; }
+
+    .filters-bar {
+      padding: 14px 16px;
+      gap: 10px;
+    }
+
+    .filter-search {
+      max-width: none;
+    }
+
+    .filter-controls {
+      gap: 10px;
+    }
+
+    .filter-select {
+      min-width: 90px;
+    }
+
+    .heatmap-card {
+      padding: 14px 14px 12px;
+    }
+
+    .chart-card {
+      padding: 14px 16px;
+    }
+
+    .event-item {
+      grid-template-columns: 1fr auto;
+      gap: 8px;
+    }
+
+    .event-type {
+      grid-column: 1 / -1;
+    }
+
+    .section-header {
+      flex-direction: column;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .chart-legend {
+      margin-top: 2px;
+    }
+  }
 </style>
