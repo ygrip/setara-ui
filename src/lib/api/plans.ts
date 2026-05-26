@@ -5,10 +5,13 @@ import { isMockMode, mockGetPlan, mockGetPlanMetrics, mockListPlans, mockListPla
 
 export interface ReleasePlan {
   id: string;
-  projectId: string;
-  projectKey: string;
+  projectId: string | null;
+  projectKey: string | null;
+  squadId?: string | null;
+  squadName?: string | null;
   name: string;
   releaseVersion: string | null;
+  releaseDate?: string | null;
   description: string | null;
   status: string;
   passThreshold: number;

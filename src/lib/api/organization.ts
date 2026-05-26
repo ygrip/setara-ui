@@ -12,6 +12,7 @@ export interface Tribe {
 export interface Squad {
   id: string;
   tribeId: string;
+  tribeName?: string | null;
   name: string;
   createdAt: string;
 }
@@ -73,6 +74,16 @@ export async function createSquad(tribeId: string, body: { name: string }): Prom
 export async function listUsers(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<User>> {
   if (isMockMode()) return mockListUsers(cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/users${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  return res.json();
+}
+
+export async function listAllSquads(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
+  const res = await apiFetch(`/api/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  return res.json();
+}
+
+export async function getSquad(squadId: string): Promise<Squad> {
+  const res = await apiFetch(`/api/squads/${squadId}`);
   return res.json();
 }
 

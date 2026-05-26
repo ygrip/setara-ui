@@ -19,6 +19,7 @@
   let searchHintKey = $state(0); // triggers {#key} re-mount for animation
 
   const projectKey = $derived(page.params.projectKey ?? null);
+  const squadId = $derived(page.params.squadId ?? null);
 
   onMount(() => {
     session = getValidSession();
@@ -265,6 +266,39 @@
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
           Coverage
+        </a>
+      {/if}
+
+      <!-- Squad section -->
+      <div class="nav-divider">
+        <span class="nav-divider-label">Squad</span>
+        {#if squadId}
+          <span class="nav-divider-key">{squadId.slice(0, 8)}…</span>
+        {:else}
+          <span class="nav-divider-hint">(select squad)</span>
+        {/if}
+      </div>
+
+      {#if squadId}
+        <a
+          href="/squads/{squadId}/release-plans"
+          class="nav-item"
+          class:nav-item--active={isActive(`/squads/${squadId}/release-plans`)}
+          onclick={closeSidebar}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            <path d="M9 12h6M9 16h4"/>
+          </svg>
+          Release Plans
+        </a>
+      {:else}
+        <a href="/coverage-overview" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+            <path d="M9 12h6M9 16h4"/>
+          </svg>
+          Release Plans
         </a>
       {/if}
 
