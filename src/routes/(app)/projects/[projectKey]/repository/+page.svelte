@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
+  import { onMount } from 'svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { Dialog } from 'bits-ui';
@@ -7,6 +8,7 @@
   import { z } from 'zod';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
+  import { getValidSession, hasPermission } from '$lib/auth';
   import {
     approveDraftScenarios,
     archiveScenario,
@@ -26,6 +28,8 @@
   } from '$lib/api/testcases';
 
   let { data } = $props();
+
+  let canWrite = $state(false);
 
   type TreeNode = TestDirectory & { children: TreeNode[]; directCount: number; totalCount: number };
 
@@ -160,6 +164,10 @@
   );
 
   // ── Init ─────────────────────────────────────────────────────
+  onMount(() => {
+    canWrite = hasPermission(getValidSession(), 'scenario:write');
+  });
+
   $effect(() => {
     if (data.directories.length && expandedIds.size === 0) {
       expandedIds = new Set(
@@ -643,9 +651,11 @@
               <a class="dir-action-btn" title="Open coverage map" aria-label="Open coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Coverage Map</span></a>
               <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
               <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
-              <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
-              <button class="dir-action-btn" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconMove()} <span>Move</span></button>
-              <button class="dir-action-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconTrash()} <span>Delete</span></button>
+              {#if canWrite}
+                <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
+                <button class="dir-action-btn" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconMove()} <span>Move</span></button>
+                <button class="dir-action-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconTrash()} <span>Delete</span></button>
+              {/if}
             </div>
           {/if}
         </div>
@@ -654,10 +664,12 @@
             <button class:active={reviewMode === 'LIVE'} onclick={() => setReviewMode('LIVE')}>Live</button>
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
-          <a class="import-btn" title="Import scenarios from Excel" aria-label="Import scenarios" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
-          <button class="primary-outline" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
-            + Scenario
-          </button>
+          {#if canWrite}
+            <a class="import-btn" title="Import scenarios from Excel" aria-label="Import scenarios" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
+            <button class="primary-outline" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
+              + Scenario
+            </button>
+          {/if}
         </div>
       </div>
 
@@ -701,14 +713,18 @@
       {#if selectedScenarioIds.length > 0}
         <div class="bulk-bar">
           <span class="bulk-count">{selectedScenarioIds.length} selected</span>
-          {#if reviewMode === 'DRAFT'}
-            <button onclick={handleBulkApprove} disabled={busy}>Approve</button>
-            <button class="danger" onclick={handleBulkReject} disabled={busy}>Reject</button>
-          {:else}
-            <button onclick={handleBulkArchive} disabled={busy}>Archive</button>
+          {#if canWrite}
+            {#if reviewMode === 'DRAFT'}
+              <button onclick={handleBulkApprove} disabled={busy}>Approve</button>
+              <button class="danger" onclick={handleBulkReject} disabled={busy}>Reject</button>
+            {:else}
+              <button onclick={handleBulkArchive} disabled={busy}>Archive</button>
+            {/if}
           {/if}
           <button onclick={openCopyModal} disabled={busy} title="Copy selected scenarios to another directory">Copy to…</button>
-          <button class="danger" onclick={handleBulkDelete} disabled={busy} title="Permanently delete selected scenarios">Delete</button>
+          {#if canWrite}
+            <button class="danger" onclick={handleBulkDelete} disabled={busy} title="Permanently delete selected scenarios">Delete</button>
+          {/if}
         </div>
       {/if}
 

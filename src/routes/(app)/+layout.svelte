@@ -83,6 +83,19 @@
   function isActive(href: string): boolean {
     return page.url.pathname.startsWith(href);
   }
+
+  $effect(() => {
+    const path = page.url.pathname;
+    if (!session) return;
+    if (path.startsWith('/admin') && !can('settings:read')) {
+      goto('/forbidden');
+      return;
+    }
+    if ((path.includes('/repository/scenarios/new') || path.includes('/repository/import')) && !can('scenario:write')) {
+      goto('/forbidden');
+      return;
+    }
+  });
 </script>
 
 <svelte:head>

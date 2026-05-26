@@ -1,12 +1,15 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
+  import { onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { archivePlan, createPlan, type ReleasePlan } from '$lib/api/plans';
+  import { getValidSession, hasPermission } from '$lib/auth';
 
   let { data } = $props();
 
+  let canWrite = $state(false);
   let busy = $state(false);
   let actionError = $state('');
   let showCreate = $state(false);
@@ -74,6 +77,10 @@
     return sortDir === 'asc' ? '↑' : '↓';
   }
 
+  onMount(() => {
+    canWrite = hasPermission(getValidSession(), 'plan:write');
+  });
+
   function resetForm() {
     name = '';
     releaseVersion = '';
@@ -137,7 +144,9 @@
       <h1 class="page-title">Release Plans</h1>
       <p class="page-subtitle">Track release readiness, scope, evidence, and quality gates.</p>
     </div>
-    <button class="primary-btn" onclick={() => showCreate = true}>+ New Plan</button>
+    {#if canWrite}
+      <button class="primary-btn" onclick={() => showCreate = true}>+ New Plan</button>
+    {/if}
   </div>
 
   {#if data.error}

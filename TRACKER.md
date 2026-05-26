@@ -1,8 +1,9 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-26 (mindmap pan/zoom, execution filters, roles matrix)
+Last synced with parent tracker: 2026-05-26 (GUEST enforcement, forbidden page, CI env detection)
 
 ```text
+UI: [x] GUEST role enforcement: forbidden page (/forbidden), route guards in layout ($effect), write buttons hidden for GUEST on projects/release-plans/repository pages
 UI: [x] DonutChart bigger default (220px), reactive data updates, legend at bottom, legendPosition prop
 UI: [x] Dashboard coverage trend chart: flat Setara-themed colors (teal/indigo/amber), height 290px, click-to-expand popup with filter controls
 UI: [x] Aggregate history mock respects groupedBy (daily/weekly/monthly buckets with realistic growth variation)

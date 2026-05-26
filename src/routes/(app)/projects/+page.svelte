@@ -1,12 +1,15 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
+  import { onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createProject, type Project } from '$lib/api/projects';
+  import { getValidSession, hasPermission } from '$lib/auth';
 
   let { data } = $props();
 
+  let canWrite = $state(false);
   let search = $state('');
   let showModal = $state(false);
   let creating = $state(false);
@@ -29,6 +32,10 @@
       day: '2-digit', month: 'short', year: 'numeric'
     });
   }
+
+  onMount(() => {
+    canWrite = hasPermission(getValidSession(), 'project:write');
+  });
 
   async function handleCreate(e: SubmitEvent) {
     e.preventDefault();
@@ -61,7 +68,9 @@
       <h1 class="page-title">Projects</h1>
       <p class="page-subtitle">Manage your test automation projects</p>
     </div>
-    <Button variant="primary" onclick={() => showModal = true}>+ New Project</Button>
+    {#if canWrite}
+      <Button variant="primary" onclick={() => showModal = true}>+ New Project</Button>
+    {/if}
   </div>
 
   <div class="search-bar">
