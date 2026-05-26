@@ -7,14 +7,23 @@
 
   let { days = [], weeks = 26 }: { days: HeatmapDay[]; weeks?: number } = $props();
 
-  const GAP = 2; // gap between cells (fixed)
+  const TOP_PAD  = 20;
+  const LEFT_PAD = 28;
 
-  // ── Container width binding for responsive cell sizing ───────────
+  // ── Fixed vertical metrics → card height NEVER changes ───────────
+  // Row height is constant regardless of selected period.
+  const CELL_H = 13;           // cell height (px), fixed
+  const GAP_H  = 3;            // vertical gap between rows, fixed
+  const CTH    = CELL_H + GAP_H; // row pitch = 16 px, fixed
+  const CHART_H = TOP_PAD + 7 * CTH; // = 132 px — constant for all periods
+
+  // ── Variable horizontal metrics → columns fill the card width ────
+  // Cell width expands/shrinks so that numWeeks columns fill the container.
+  // Only the column width changes when the period selector is toggled.
+  const GAP_W = 2; // horizontal gap between columns
   let containerWidth = $state(0);
 
   // ── Date range ──────────────────────────────────────────────────
-  // startDate: Sunday at the beginning of our `weeks`-week window
-  // endDate:   Saturday of the current week
   const startDate = $derived.by(() => {
     const t = new Date(); t.setHours(0, 0, 0, 0);
     const d = new Date(t);
@@ -32,22 +41,17 @@
 
   const numWeeks = $derived(timeWeek.count(startDate, endDate) + 1);
 
-  // ── Responsive cell size: fills container width ──────────────────
-  const TOP_PAD  = 20;
-  const LEFT_PAD = 28;
-
-  // CT = cell+gap, derived from actual container width so cells fill the card.
-  // Falls back to 14 during SSR / before first measure.
-  const CT = $derived.by(() => {
-    if (containerWidth <= LEFT_PAD + 20) return 14;
+  // CTW = column pitch derived from measured container width.
+  // Min 10 px so 6 M cells never become invisible.
+  // Falls back to 16 during SSR / before first measure.
+  const CTW = $derived.by(() => {
+    if (containerWidth <= LEFT_PAD + 20) return 16;
     const available = containerWidth - LEFT_PAD - 4;
-    return Math.max(9, Math.floor(available / numWeeks));
+    return Math.max(10, Math.floor(available / numWeeks));
   });
-  const CELL    = $derived(CT - GAP);
-  const CHART_H = $derived(TOP_PAD + 7 * CT);
+  const CELL_W = $derived(CTW - GAP_W);
 
   // ── Data ────────────────────────────────────────────────────────
-  // Parse YYYY-MM-DD as local midnight so d3's InternMap lookup matches
   function localDate(s: string): Date {
     const [y, m, d] = s.split('-').map(Number);
     return new Date(y, m - 1, d);
@@ -63,7 +67,7 @@
     }))
   );
 
-  // Month labels keyed to our startDate column positions
+  // Month labels — x position uses CTW, y is fixed in the top-pad area
   const monthLabels = $derived(
     timeMonths(startDate, endDate).map((md: Date) => ({
       label: format(md, 'MMM'),
@@ -105,7 +109,7 @@
     return `${ds}\n${d.runCount} run(s) · ${Math.round(d.passRate as number)}% pass`;
   }
 
-  // Day-of-week labels (Sun=0 … Sat=6); show Mon/Wed/Fri
+  // Day-of-week labels; show Mon/Wed/Fri only
   const DOW_LABELS = [
     { label: 'Mon', row: 1 },
     { label: 'Wed', row: 3 },
@@ -114,7 +118,10 @@
 </script>
 
 <div class="heatmap-root">
-  <!-- Chart fills the container width; height = 7 rows of CT-sized cells + month label area -->
+  <!--
+    CHART_H is a plain constant (132 px) so the card height is the same
+    for 1 M, 3 M and 6 M. Only the column width changes.
+  -->
   <div class="chart-wrap" style="height: {CHART_H}px" bind:clientWidth={containerWidth}>
     <Chart
       data={chartData}
@@ -122,10 +129,10 @@
       padding={{ top: TOP_PAD, left: LEFT_PAD, right: 2, bottom: 2 }}
     >
       <Svg>
-        <!-- Month labels (in chart padding area above cells) -->
+        <!-- Month labels — x keyed to CTW so they track column width -->
         {#each monthLabels as ml}
           <text
-            x={ml.col * CT + CT / 2}
+            x={ml.col * CTW + CTW / 2}
             y={-5}
             font-size="9"
             fill={FONT_CLR}
@@ -135,11 +142,11 @@
           >{ml.label}</text>
         {/each}
 
-        <!-- Day-of-week labels (in left padding area) -->
+        <!-- Day-of-week labels — y keyed to fixed CTH -->
         {#each DOW_LABELS as { label, row }}
           <text
             x={-5}
-            y={row * CT + CT / 2}
+            y={row * CTH + CTH / 2}
             font-size="9"
             fill={FONT_CLR}
             text-anchor="end"
@@ -148,19 +155,22 @@
           >{label}</text>
         {/each}
 
-        <!-- Calendar: provides data-keyed cells.
-             IMPORTANT: we ignore cell.x (year-relative) and recompute col
-             from startDate so cross-year ranges position correctly. -->
-        <Calendar start={startDate} end={endDate} cellSize={CT} let:cells>
+        <!--
+          Calendar provides the InternMap-keyed cells array.
+          We override every cell's position: col uses CTW (variable width),
+          row uses CTH (fixed height). Cross-year positioning is correct
+          because we count weeks from our own startDate, not timeYear(date).
+        -->
+        <Calendar start={startDate} end={endDate} cellSize={CTH} let:cells>
           {#each cells as cell}
             {@const d = (cell.data as Record<string, unknown>).date as Date}
             {@const col = Math.max(0, timeWeek.count(startDate, d))}
             {@const row = d.getDay()}
             <rect
-              x={col * CT + 1}
-              y={row * CT + 1}
-              width={CELL}
-              height={CELL}
+              x={col * CTW + 1}
+              y={row * CTH + 1}
+              width={CELL_W}
+              height={CELL_H}
               rx={2}
               ry={2}
               fill={cellColor(cell.data)}
