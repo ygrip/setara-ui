@@ -6,6 +6,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { verifyBuild, addBuildScenario, updateBuildScenarioResult, removeBuildScenarios, addAutomationToBuild, type ProjectBuild, type BuildScenario } from '$lib/api/builds';
   import type { AutomationRun } from '$lib/api/runs';
+  import { listDirectories, listScenarios, type TestDirectory, type Scenario } from '$lib/api/testcases';
 
   let { data } = $props();
 
@@ -16,10 +17,27 @@
   let verifyError = $state('');
   let verifyGateError = $state('');
 
-  // Add Scenario modal
-  let addScenarioOpen = $state(false);
-  let scenarioSearch = $state('');
-  let addingScenario = $state(false);
+  // Unified Add Scenario dropdown
+  let addScenarioMenuOpen = $state(false);
+  let addMode = $state<'menu' | 'automation' | 'manual'>('menu');
+
+  // Automation run mode
+  let selectedRunId = $state('');
+  let addingRun = $state(false);
+  let runSearch = $state('');
+  let runConfirmOpen = $state(false);
+  let runToConfirm = $state<AutomationRun | null>(null);
+
+  // Manual select mode
+  let manualDirectories = $state<TestDirectory[]>([]);
+  let manualScenarios = $state<Scenario[]>([]);
+  let manualDirFilter = $state('');
+  let manualScenarioFilter = $state('');
+  let selectedManualIds = $state<Set<string>>(new Set());
+  let selectedDirId = $state<string | null>(null);
+  let manualStep = $state<'select' | 'confirm'>('select');
+  let addingManual = $state(false);
+  let manualConfirmOpen = $state(false);
 
   // Update Result modal
   let updateResultOpen = $state(false);
@@ -63,10 +81,37 @@
     });
   });
 
-  // Add Automation Run modal
-  let addRunOpen = $state(false);
-  let selectedRunId = $state('');
-  let addingRun = $state(false);
+  // Manual scenario selection — runs filtered
+  const filteredRuns = $derived.by(() => {
+    const q = runSearch.toLowerCase();
+    return (data.runs ?? []).filter(r => {
+      if (!q) return true;
+      const label = (r.jobName ?? r.runnerId) + ' ' + (r.branch ?? '');
+      return label.toLowerCase().includes(q);
+    });
+  });
+
+  // Manual directory list filtered
+  const filteredDirs = $derived.by(() => {
+    const q = manualDirFilter.toLowerCase();
+    if (!q) return manualDirectories;
+    return manualDirectories.filter(d => d.name.toLowerCase().includes(q));
+  });
+
+  // Manual scenarios for selected directory
+  const filteredManualScenarios = $derived.by(() => {
+    const q = manualScenarioFilter.toLowerCase();
+    let result = manualScenarios;
+    if (q) result = result.filter(s => s.name.toLowerCase().includes(q) || s.scenarioKey.toLowerCase().includes(q));
+    return result;
+  });
+
+  const manualSelectedCount = $derived(selectedManualIds.size);
+
+  // Get selected scenario details for confirmation
+  const selectedManualScenarios = $derived.by(() => {
+    return manualScenarios.filter(s => selectedManualIds.has(s.id));
+  });
 
   let copiedVersion = $state(false);
   async function copyBuildVersion(version: string) {
@@ -93,12 +138,148 @@
     }]
   });
 
-  const filteredPool = $derived.by(() => {
-    const q = scenarioSearch.toLowerCase();
-    return (data.scenarios_pool ?? []).filter(s =>
-      !q || s.name.toLowerCase().includes(q) || s.scenarioKey.toLowerCase().includes(q)
-    );
-  });
+  function closeAddMenu() {
+    addScenarioMenuOpen = false;
+    addMode = 'menu';
+    selectedRunId = '';
+    runSearch = '';
+    runConfirmOpen = false;
+    runToConfirm = null;
+    selectedManualIds = new Set();
+    manualStep = 'select';
+    manualDirFilter = '';
+    manualScenarioFilter = '';
+    manualConfirmOpen = false;
+  }
+
+  function openAutomationMode() {
+    addScenarioMenuOpen = false;
+    addMode = 'automation';
+    selectedRunId = '';
+    runSearch = '';
+    runConfirmOpen = false;
+    runToConfirm = null;
+  }
+
+  async function openManualMode() {
+    addScenarioMenuOpen = false;
+    addMode = 'manual';
+    selectedManualIds = new Set();
+    manualStep = 'select';
+    manualDirFilter = '';
+    manualScenarioFilter = '';
+    manualConfirmOpen = false;
+    try {
+      manualDirectories = await listDirectories(data.projectKey, null, 'ACTIVE');
+      if (manualDirectories.length > 0) {
+        selectedDirId = manualDirectories[0].id;
+        manualScenarios = await listScenarios(data.projectKey, selectedDirId, 'ACTIVE');
+      } else {
+        selectedDirId = null;
+        manualScenarios = [];
+      }
+    } catch (e) {
+      manualDirectories = [];
+      manualScenarios = [];
+    }
+  }
+
+  async function selectManualDir(dirId: string) {
+    selectedDirId = dirId;
+    selectedManualIds = new Set();
+    manualScenarioFilter = '';
+    try {
+      manualScenarios = await listScenarios(data.projectKey, dirId, 'ACTIVE');
+    } catch {
+      manualScenarios = [];
+    }
+  }
+
+  function toggleManualScenario(id: string) {
+    const next = new Set(selectedManualIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    selectedManualIds = next;
+  }
+
+  function toggleAllManualScenarios() {
+    const visible = filteredManualScenarios;
+    const allSelected = visible.every(s => selectedManualIds.has(s.id));
+    const next = new Set(selectedManualIds);
+    if (allSelected) {
+      visible.forEach(s => next.delete(s.id));
+    } else {
+      visible.forEach(s => next.add(s.id));
+    }
+    selectedManualIds = next;
+  }
+
+  const manualAllSelected = $derived(filteredManualScenarios.length > 0 && filteredManualScenarios.every(s => selectedManualIds.has(s.id)));
+
+  function goToConfirmStep() {
+    manualStep = 'confirm';
+  }
+
+  function goBackToSelect() {
+    manualStep = 'select';
+  }
+
+  async function handleFinishManualAdd() {
+    if (!build || selectedManualIds.size === 0 || addingManual) return;
+    addingManual = true;
+    try {
+      let addedCount = 0;
+      for (const sid of selectedManualIds) {
+        try {
+          const newRow = await addBuildScenario(data.projectKey, build.id, { scenarioId: sid, source: 'MANUAL', addedBy: 'qa.user@setara.local' });
+          scenarios = [newRow, ...scenarios];
+          addedCount++;
+        } catch { /* skip individual failures */ }
+      }
+      const total = scenarios.length;
+      const passed = scenarios.filter(s => s.latestStatus === 'PASSED').length;
+      const failed = scenarios.filter(s => s.latestStatus === 'FAILED').length;
+      const blocked = scenarios.filter(s => s.latestStatus === 'BLOCKED').length;
+      const skipped = scenarios.filter(s => s.latestStatus === 'SKIPPED').length;
+      const notExecuted = scenarios.filter(s => s.latestStatus === 'NOT_EXECUTED').length;
+      build = {
+        ...build,
+        metrics: {
+          ...build.metrics,
+          totalScenarios: total,
+          passed, failed, blocked, skipped, notExecuted,
+          passPercentage: total > 0 ? Math.round((passed / total) * 100 * 100) / 100 : 0,
+          executionCoverage: total > 0 ? Math.round(((total - notExecuted) / total) * 100 * 100) / 100 : 0
+        }
+      };
+      closeAddMenu();
+    } catch (e) {
+      verifyError = (e as Error).message;
+    } finally {
+      addingManual = false;
+    }
+  }
+
+  function openRunConfirm(run: AutomationRun) {
+    runToConfirm = run;
+    runConfirmOpen = true;
+  }
+
+  async function confirmAddRun() {
+    if (!build || !runToConfirm || addingRun) return;
+    addingRun = true;
+    try {
+      await addAutomationToBuild(data.projectKey, build.id, { runId: runToConfirm.id });
+      const { listBuildScenarios: lbc, getBuild: gb } = await import('$lib/api/builds');
+      scenarios = await lbc(data.projectKey, build.id);
+      build = await gb(data.projectKey, build.id);
+      closeAddMenu();
+    } catch (e) {
+      verifyError = (e as Error).message;
+    } finally {
+      addingRun = false;
+    }
+  }
 
   const allSelected = $derived(scenarios.length > 0 && selectedIds.size === scenarios.length);
   const hasFailed = $derived(scenarios.some(s => s.latestStatus === 'FAILED'));
@@ -223,22 +404,6 @@
     updateResultOpen = true;
   }
 
-  async function handleAddScenario(scenarioId: string) {
-    if (!build || addingScenario) return;
-    addingScenario = true;
-    try {
-      const newRow = await addBuildScenario(data.projectKey, build.id, { scenarioId, source: 'MANUAL', addedBy: 'qa.user@setara.local' });
-      scenarios = [newRow, ...scenarios];
-      build = { ...build, metrics: { ...build.metrics, totalScenarios: build.metrics.totalScenarios + 1, notExecuted: build.metrics.notExecuted + 1 } };
-      addScenarioOpen = false;
-      scenarioSearch = '';
-    } catch (e) {
-      verifyError = (e as Error).message;
-    } finally {
-      addingScenario = false;
-    }
-  }
-
   async function handleUpdateResult() {
     if (!build || !updatingScenario || updatingResult) return;
     updatingResult = true;
@@ -286,24 +451,6 @@
       selectedIds = new Set();
     } catch (e) {
       verifyError = (e as Error).message;
-    }
-  }
-
-  async function handleAddRun() {
-    if (!build || !selectedRunId || addingRun) return;
-    addingRun = true;
-    try {
-      await addAutomationToBuild(data.projectKey, build.id, { runId: selectedRunId });
-      // Refresh scenarios
-      const { listBuildScenarios, getBuild } = await import('$lib/api/builds');
-      scenarios = await listBuildScenarios(data.projectKey, build.id);
-      build = await getBuild(data.projectKey, build.id);
-      addRunOpen = false;
-      selectedRunId = '';
-    } catch (e) {
-      verifyError = (e as Error).message;
-    } finally {
-      addingRun = false;
     }
   }
 
@@ -383,12 +530,26 @@
         <Button variant="secondary" onclick={() => auditOpen = true}
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
         >History</Button>
-        <Button variant="secondary" onclick={() => addRunOpen = true} disabled={build.status === 'VERIFIED'}
-          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
-        >Add Automation Run</Button>
-        <Button variant="secondary" onclick={() => addScenarioOpen = true} disabled={build.status === 'VERIFIED'}
-          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
-        >Add Scenario</Button>
+        <div class="add-scenario-wrap">
+          <Button variant="primary" disabled={build.status === 'VERIFIED'} onclick={() => addScenarioMenuOpen = !addScenarioMenuOpen}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+          >Add Scenario</Button>
+          {#if addScenarioMenuOpen}
+            <!-- svelte-ignore a11y_click_events_have_key_events -->
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div class="add-menu-backdrop" onclick={() => addScenarioMenuOpen = false}></div>
+            <div class="add-menu-dropdown">
+              <button class="add-menu-item" onclick={openAutomationMode}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                <div><strong>From Automation Run</strong><span>Link results from an existing execution run</span></div>
+              </button>
+              <button class="add-menu-item" onclick={openManualMode}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div><strong>Manually Select</strong><span>Browse repository and pick scenarios</span></div>
+              </button>
+            </div>
+          {/if}
+        </div>
         <Button variant="primary" disabled={verifying || build.status === 'VERIFIED'} onclick={handleVerifyClick}
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
         >
@@ -503,24 +664,6 @@
   </ol>
 </Modal>
 
-<!-- Add Scenario Modal -->
-<Modal open={addScenarioOpen} title="Add Scenario" size="md" onclose={() => { addScenarioOpen = false; scenarioSearch = ''; }}>
-  <div class="modal-body">
-    <input class="search-input" bind:value={scenarioSearch} placeholder="Search scenarios…" />
-    <div class="scenario-list">
-      {#each filteredPool as scenario}
-        <button class="scenario-row" onclick={() => handleAddScenario(scenario.id)} disabled={addingScenario}>
-          <strong>{scenario.scenarioKey}</strong>
-          <span class="muted">{scenario.name}</span>
-        </button>
-      {/each}
-      {#if filteredPool.length === 0}
-        <p class="empty">No scenarios available to add.</p>
-      {/if}
-    </div>
-  </div>
-</Modal>
-
 <!-- Update Result Modal -->
 <Modal open={updateResultOpen} title="Update Result" size="sm" onclose={() => updateResultOpen = false}>
   <div class="modal-body">
@@ -564,17 +707,14 @@
   </div>
 </Modal>
 
-<!-- Add Automation Run Modal -->
-<Modal open={addRunOpen} title="Add Automation Run" size="md" onclose={() => { addRunOpen = false; selectedRunId = ''; }}>
+<!-- Automation Run Selection Modal -->
+<Modal open={addMode === 'automation'} title="Add from Automation Run" size="md" onclose={closeAddMenu}>
   <div class="modal-body">
-    <p class="modal-sub">Select an automation run to link results to this build.</p>
+    <p class="modal-sub">Select an execution run to link its scenario results to this build.</p>
+    <input class="search-input" bind:value={runSearch} placeholder="Search runs…" />
     <div class="run-list">
-      {#each data.runs as run}
-        <button
-          class="run-row"
-          class:run-row--selected={selectedRunId === run.id}
-          onclick={() => selectedRunId = run.id}
-        >
+      {#each filteredRuns as run}
+        <button class="run-row" onclick={() => openRunConfirm(run)}>
           <div class="run-row-top">
             <Badge text={run.status} variant={run.status === 'PASSED' ? 'success' : run.status === 'FAILED' ? 'danger' : 'warning'} />
             <span class="run-job">{run.jobName ?? run.runnerId}</span>
@@ -586,16 +726,118 @@
           </div>
         </button>
       {/each}
-      {#if data.runs.length === 0}
-        <p class="empty">No automation runs available.</p>
+      {#if filteredRuns.length === 0}
+        <p class="empty">{runSearch ? 'No runs match your search.' : 'No automation runs available.'}</p>
       {/if}
     </div>
+  </div>
+</Modal>
+
+<!-- Run Confirm Dialog -->
+<Modal open={runConfirmOpen} title="Confirm Automation Run" size="sm" onclose={() => runConfirmOpen = false}>
+  <div class="modal-body">
+    {#if runToConfirm}
+      <p class="modal-sub">Link results from this run to the build?</p>
+      <div class="confirm-run-card">
+        <div class="run-row-top">
+          <Badge text={runToConfirm.status} variant={runToConfirm.status === 'PASSED' ? 'success' : runToConfirm.status === 'FAILED' ? 'danger' : 'warning'} />
+          <span class="run-job">{runToConfirm.jobName ?? runToConfirm.runnerId}</span>
+        </div>
+        <div class="run-row-bot">
+          <span>{(runToConfirm.passedScenarios ?? 0)}/{(runToConfirm.totalScenarios ?? 0)} passed</span>
+          <span>{formatDate(runToConfirm.startedAt)}</span>
+        </div>
+      </div>
+    {/if}
     <div class="modal-actions">
-      <Button variant="primary" size="sm" onclick={handleAddRun} disabled={!selectedRunId || addingRun}>
-        {addingRun ? 'Adding…' : 'Add Run'}
+      <Button variant="primary" size="sm" onclick={confirmAddRun} disabled={addingRun}>
+        {addingRun ? 'Adding…' : 'Confirm'}
       </Button>
-      <Button variant="secondary" size="sm" onclick={() => { addRunOpen = false; selectedRunId = ''; }}>Cancel</Button>
+      <Button variant="secondary" size="sm" onclick={() => runConfirmOpen = false}>Cancel</Button>
     </div>
+  </div>
+</Modal>
+
+<!-- Manual Scenario Selection Modal -->
+<Modal open={addMode === 'manual'} title="Select Scenarios" size="xl" onclose={closeAddMenu}>
+  <div class="manual-picker" class:manual-step-confirm={manualStep === 'confirm'}>
+    {#if manualStep === 'select'}
+      <!-- Step 1: Browse & select -->
+      <div class="picker-sidebar">
+        <input class="search-input" bind:value={manualDirFilter} placeholder="Filter directories…" />
+        <div class="dir-list">
+          {#each filteredDirs as dir}
+            <button class="dir-row" class:dir-row--active={selectedDirId === dir.id} onclick={() => selectManualDir(dir.id)}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
+              <span>{dir.name}</span>
+              <small>{dir.scenarioCount}</small>
+            </button>
+          {/each}
+          {#if filteredDirs.length === 0}
+            <p class="empty">No directories found.</p>
+          {/if}
+        </div>
+      </div>
+      <div class="picker-main">
+        <div class="picker-toolbar">
+          <input class="search-input" bind:value={manualScenarioFilter} placeholder="Search scenarios…" />
+          <span class="picker-count">{manualSelectedCount} selected</span>
+        </div>
+        <div class="scenario-check-list">
+          {#if filteredManualScenarios.length > 0}
+            <label class="check-all-row">
+              <input type="checkbox" checked={manualAllSelected} onchange={toggleAllManualScenarios} />
+              <span>Select all</span>
+            </label>
+          {/if}
+          {#each filteredManualScenarios as scenario}
+            <label class="check-row">
+              <input type="checkbox" checked={selectedManualIds.has(scenario.id)} onchange={() => toggleManualScenario(scenario.id)} />
+              <div class="check-row-info">
+                <strong>{scenario.scenarioKey}</strong>
+                <span class="muted">{scenario.name}</span>
+              </div>
+            </label>
+          {/each}
+          {#if filteredManualScenarios.length === 0}
+            <p class="empty">{manualScenarioFilter ? 'No scenarios match your search.' : 'No scenarios in this directory.'}</p>
+          {/if}
+        </div>
+        <div class="modal-actions">
+          <Button variant="secondary" size="sm" onclick={closeAddMenu}>Cancel</Button>
+          <Button variant="primary" size="sm" onclick={goToConfirmStep} disabled={manualSelectedCount === 0}>
+            Review ({manualSelectedCount})
+          </Button>
+        </div>
+      </div>
+    {:else}
+      <!-- Step 2: Confirmation -->
+      <div class="confirm-section">
+        <h3>{selectedManualScenarios.length} scenarios to add</h3>
+        <div class="confirm-table-wrap">
+          <table class="confirm-table">
+            <thead><tr><th>Key</th><th>Name</th><th>Directory</th><th>Priority</th><th>Status</th></tr></thead>
+            <tbody>
+              {#each selectedManualScenarios as s}
+                <tr>
+                  <td><code>{s.scenarioKey}</code></td>
+                  <td>{s.name}</td>
+                  <td class="muted">{s.featureName ?? '—'}</td>
+                  <td>{s.priority ?? '—'}</td>
+                  <td><Badge text={s.status} variant={s.status === 'ACTIVE' ? 'success' : 'warning'} /></td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+        <div class="modal-actions">
+          <Button variant="secondary" size="sm" onclick={goBackToSelect}>Back</Button>
+          <Button variant="primary" size="sm" onclick={handleFinishManualAdd} disabled={addingManual}>
+            {addingManual ? 'Adding…' : 'Finish Adding'}
+          </Button>
+        </div>
+      </div>
+    {/if}
   </div>
 </Modal>
 
@@ -694,4 +936,64 @@
   :global([data-theme="dark"]) .cnt--pass { background: #14532d; color: #4ade80; }
   :global([data-theme="dark"]) .cnt--fail { background: #450a0a; color: #f87171; }
   :global([data-theme="dark"]) .cnt--block { background: #451a03; color: #fbbf24; }
+
+  /* Add Scenario dropdown */
+  .add-scenario-wrap { position: relative; }
+  .add-menu-backdrop { position: fixed; inset: 0; z-index: 49; }
+  .add-menu-dropdown { position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); min-width: 280px; overflow: hidden; }
+  .add-menu-item { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; color: var(--color-text); font: inherit; transition: background 0.1s; }
+  .add-menu-item:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  .add-menu-item + .add-menu-item { border-top: 1px solid var(--color-border); }
+  .add-menu-item svg { flex-shrink: 0; margin-top: 1px; color: var(--color-accent); }
+  .add-menu-item strong { display: block; font-size: 0.875rem; margin-bottom: 2px; }
+  .add-menu-item span { display: block; font-size: 0.75rem; color: var(--color-text-muted); }
+
+  /* Confirm run card */
+  .confirm-run-card { border: 1px solid var(--color-border); border-radius: 8px; padding: 14px; background: var(--color-bg); display: flex; flex-direction: column; gap: 8px; }
+
+  /* Manual picker layout */
+  .manual-picker { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: 420px; max-height: 65vh; }
+  .manual-step-confirm { grid-template-columns: 1fr; }
+  .picker-sidebar { border-right: 1px solid var(--color-border); padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+  .picker-sidebar .search-input { margin-bottom: 4px; }
+  .dir-list { display: flex; flex-direction: column; gap: 2px; }
+  .dir-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer; font: inherit; color: var(--color-text); font-size: 0.82rem; text-align: left; }
+  .dir-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  .dir-row--active { background: color-mix(in srgb, var(--color-accent), transparent 88%); font-weight: 700; }
+  .dir-row small { margin-left: auto; color: var(--color-text-muted); font-size: 0.72rem; }
+  .picker-main { padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
+  .picker-toolbar { display: flex; gap: 10px; align-items: center; }
+  .picker-toolbar .search-input { flex: 1; }
+  .picker-count { font-size: 0.78rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; }
+  .scenario-check-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+  .check-all-row, .check-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
+  .check-all-row { font-weight: 700; font-size: 0.82rem; border-bottom: 1px solid var(--color-border); margin-bottom: 4px; }
+  .check-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
+  .check-row-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .check-row-info strong { font-size: 0.82rem; }
+  .check-row-info .muted { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  /* Confirm step */
+  .confirm-section { padding: 4px 0; }
+  .confirm-section h3 { font-size: 1rem; margin: 0 0 12px; }
+  .confirm-table-wrap { max-height: 340px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; }
+  .confirm-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .confirm-table th { text-align: left; padding: 8px 10px; background: var(--color-bg); border-bottom: 1px solid var(--color-border); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: var(--color-text-muted); position: sticky; top: 0; z-index: 1; }
+  .confirm-table td { padding: 7px 10px; border-bottom: 1px solid var(--color-border); }
+  .confirm-table code { font-size: 0.75rem; background: var(--color-bg); padding: 2px 5px; border-radius: 3px; }
+
+  /* Responsive */
+  @media (max-width: 700px) {
+    .add-menu-dropdown { right: auto; left: 0; min-width: 240px; }
+    .manual-picker { grid-template-columns: 1fr; }
+    .picker-sidebar { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 180px; flex-shrink: 0; }
+    .picker-main { max-height: 320px; }
+    .confirm-table-wrap { max-height: 240px; }
+  }
+  @media (max-width: 480px) {
+    .add-menu-item { padding: 12px; gap: 8px; }
+    .add-menu-item svg { width: 14px; height: 14px; }
+    .confirm-table { font-size: 0.72rem; }
+    .confirm-table th, .confirm-table td { padding: 5px 6px; }
+  }
 </style>
