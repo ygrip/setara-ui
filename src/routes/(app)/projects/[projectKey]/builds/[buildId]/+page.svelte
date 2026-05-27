@@ -337,11 +337,21 @@
       </div>
       <div class="header-actions">
         <Badge text={build.status} variant={statusVariant(build.status)} />
-        <Button variant="secondary" size="sm" href="/projects/{data.projectKey}/builds/{data.buildId}/quality-map">Quality Map</Button>
-        <Button variant="secondary" size="sm" onclick={() => auditOpen = true}>History</Button>
-        <Button variant="secondary" size="sm" onclick={() => addRunOpen = true} disabled={build.status === 'VERIFIED'}>Add Automation Run</Button>
-        <Button variant="secondary" size="sm" onclick={() => addScenarioOpen = true} disabled={build.status === 'VERIFIED'}>Add Scenario</Button>
-        <Button variant="primary" size="sm" disabled={verifying || build.status === 'VERIFIED'} onclick={handleVerifyClick}>
+        <Button variant="secondary" href="/projects/{data.projectKey}/builds/{data.buildId}/quality-map"
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"/><path d="M2 12h20"/></svg>'
+        >Quality Map</Button>
+        <Button variant="secondary" onclick={() => auditOpen = true}
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
+        >History</Button>
+        <Button variant="secondary" onclick={() => addRunOpen = true} disabled={build.status === 'VERIFIED'}
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>'
+        >Add Automation Run</Button>
+        <Button variant="secondary" onclick={() => addScenarioOpen = true} disabled={build.status === 'VERIFIED'}
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+        >Add Scenario</Button>
+        <Button variant="primary" disabled={verifying || build.status === 'VERIFIED'} onclick={handleVerifyClick}
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>'
+        >
           {verifying ? 'Verifying…' : 'Verify Build'}
         </Button>
       </div>

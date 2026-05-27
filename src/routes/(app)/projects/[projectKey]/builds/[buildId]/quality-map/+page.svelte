@@ -33,9 +33,9 @@
       <h1 class="page-title">{data.build?.name ?? 'Build'}</h1>
       <span class="page-sub">Scenario status by directory, grouped for build readiness overview.</span>
     </div>
-    <Button variant="secondary" size="sm" href="/projects/{data.projectKey}/builds/{data.buildId}">
-      ← Back to Build
-    </Button>
+    <Button variant="secondary" href="/projects/{data.projectKey}/builds/{data.buildId}"
+      icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>'
+    >Back to Build</Button>
   </div>
 
   {#if data.error}

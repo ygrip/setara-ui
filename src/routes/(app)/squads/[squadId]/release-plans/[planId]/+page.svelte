@@ -236,18 +236,22 @@
         {/if}
       </div>
       <div class="plan-header-actions">
-        <Button variant="secondary" size="sm" href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map">
-          Quality Map →
+        <Button variant="secondary" href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map"
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"/><path d="M2 12h20"/></svg>'
+        >
+          Quality Map
         </Button>
         {#if data.plan.status !== 'CLOSED'}
-          <Button variant="primary" size="sm" onclick={openBuildPicker} disabled={busy}>
-            + Add Build
+          <Button variant="primary" onclick={openBuildPicker} disabled={busy}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
+          >
+            Add Build
           </Button>
           <Button
             variant="danger"
-            size="sm"
             onclick={() => { showClose = true; closeNotes = ''; }}
             disabled={!canClose || busy}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="9" x2="15" y2="15"/><line x1="15" y1="9" x2="9" y2="15"/></svg>'
           >
             Close Plan
           </Button>

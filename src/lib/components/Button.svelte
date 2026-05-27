@@ -5,6 +5,7 @@
     type = 'button',
     disabled = false,
     href = '',
+    icon = '',
     onclick,
     children
   }: {
@@ -13,6 +14,7 @@
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
     href?: string;
+    icon?: string;
     onclick?: (e: MouseEvent) => void;
     children?: import('svelte').Snippet;
   } = $props();
@@ -25,6 +27,7 @@
     class:btn--disabled={disabled}
     aria-disabled={disabled}
   >
+    {#if icon}<span class="btn-icon">{@html icon}</span>{/if}
     {@render children?.()}
   </a>
 {:else}
@@ -34,6 +37,7 @@
     class="btn btn--{variant} btn--{size}"
     {onclick}
   >
+    {#if icon}<span class="btn-icon">{@html icon}</span>{/if}
     {@render children?.()}
   </button>
 {/if}
@@ -47,9 +51,11 @@
     border-radius: var(--radius);
     cursor: pointer;
     font-weight: 500;
-    transition: background 0.15s, color 0.15s, opacity 0.15s;
+    font-family: var(--font-body);
+    transition: background 0.15s, color 0.15s, opacity 0.15s, box-shadow 0.15s;
     white-space: nowrap;
     text-decoration: none;
+    line-height: 1.4;
   }
 
   .btn:disabled,
@@ -59,13 +65,29 @@
     pointer-events: none;
   }
 
+  .btn-icon {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .btn-icon :global(svg) {
+    width: 16px;
+    height: 16px;
+  }
+
   .btn--sm {
-    padding: 5px 12px;
+    padding: 6px 12px;
     font-size: 0.8rem;
   }
 
+  .btn--sm .btn-icon :global(svg) {
+    width: 14px;
+    height: 14px;
+  }
+
   .btn--md {
-    padding: 8px 16px;
+    padding: 9px 18px;
     font-size: 0.875rem;
   }
 
@@ -76,6 +98,7 @@
 
   .btn--primary:hover:not(:disabled) {
     background: var(--color-accent-hover);
+    box-shadow: 0 2px 8px rgba(0, 175, 165, 0.25);
   }
 
   .btn--secondary {

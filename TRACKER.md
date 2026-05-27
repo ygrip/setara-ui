@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-27 (build-centric plan status synced; Button component enhanced; UI consistency pass)
+Last synced with parent tracker: 2026-05-27 (build tree map backend; Button icon prop + sizing pass; all plan/build pages updated)
 
 ```text
 UI: [x] GUEST role enforcement: forbidden page (/forbidden), route guards in layout ($effect), write buttons hidden for GUEST on projects/release-plans/repository pages
