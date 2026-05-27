@@ -2,6 +2,7 @@
   import { invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import LineChart from '$lib/components/LineChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import {
@@ -49,12 +50,43 @@
     builds.every(b => b.status === 'VERIFIED')
   );
 
-  const statusReadiness = $derived(() => {
+  const statusReadiness = $derived.by(() => {
     if (!metrics) return null;
-    const pct = metrics.totalBuilds > 0
+    return metrics.totalBuilds > 0
       ? Math.round((metrics.verifiedBuilds / metrics.totalBuilds) * 100)
       : 0;
-    return pct;
+  });
+
+  const trendChartData = $derived.by(() => {
+    if (!builds.length) return null;
+    const sorted = [...builds].sort((a, b) =>
+      (a.initiatedAt ?? '').localeCompare(b.initiatedAt ?? '')
+    );
+    return {
+      labels: sorted.map(b => b.buildName),
+      datasets: [
+        {
+          label: 'Pass %',
+          data: sorted.map(b => Math.round(b.metrics?.passPercentage ?? 0)),
+          borderColor: '#00AFA5',
+          backgroundColor: 'rgba(0,175,165,0.1)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#00AFA5'
+        },
+        {
+          label: 'Coverage %',
+          data: sorted.map(b => Math.round(b.metrics?.executionCoverage ?? 0)),
+          borderColor: '#7c3aed',
+          backgroundColor: 'rgba(124,58,237,0.06)',
+          fill: true,
+          tension: 0.3,
+          pointRadius: 4,
+          pointBackgroundColor: '#7c3aed'
+        }
+      ]
+    };
   });
 
   function buildStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
@@ -258,11 +290,20 @@
           <MetricCard
             label="Pass Rate"
             value={`${Math.round(metrics.scenarioPassRate)}%`}
-            sub={`${metrics.passedScenarios}/${metrics.totalScenarios} scenarios`}
+            sub={`${metrics.passed}/${metrics.totalScenarios} scenarios`}
             variant={metrics.scenarioPassRate >= 90 ? 'success' : metrics.scenarioPassRate >= 70 ? 'warning' : 'danger'}
           />
         {/if}
       </div>
+    {/if}
+
+    {#if trendChartData && builds.length > 1}
+      <section class="chart-section">
+        <h2 class="chart-title">Build Trend</h2>
+        <div class="chart-wrap">
+          <LineChart chartData={trendChartData} height={180} />
+        </div>
+      </section>
     {/if}
 
     <!-- Builds table -->
@@ -290,6 +331,7 @@
                 <th>Squad</th>
                 <th>Created</th>
                 <th>Verified</th>
+                <th>Pass / Fail / Pending</th>
                 <th>Added</th>
                 <th></th>
               </tr>
@@ -308,8 +350,20 @@
                     <a href="/projects/{build.projectKey}" class="link-subtle">{build.projectName}</a>
                   </td>
                   <td class="muted">{build.squadName ?? '—'}</td>
-                  <td class="nowrap muted">{formatDate(build.createdAt)}</td>
+                  <td class="nowrap muted">{formatDate(build.initiatedAt)}</td>
                   <td class="nowrap muted">{formatDate(build.verifiedAt)}</td>
+                  <td class="results-cell">
+                    {#if build.metrics.totalScenarios > 0}
+                      <span class="res-pass" title="Passed">{build.metrics.passed}</span>
+                      <span class="res-sep">/</span>
+                      <span class="res-fail" title="Failed">{build.metrics.failed}</span>
+                      <span class="res-sep">/</span>
+                      <span class="res-pending" title="Not executed">{build.metrics.notExecuted}</span>
+                      <span class="res-total muted">of {build.metrics.totalScenarios}</span>
+                    {:else}
+                      <span class="muted">—</span>
+                    {/if}
+                  </td>
                   <td class="nowrap muted">{formatDateTime(build.addedAt)}</td>
                   <td>
                     {#if data.plan?.status !== 'CLOSED'}
@@ -342,20 +396,13 @@
           <div class="lc-item">
             <span class="lc-label">In Progress</span>
             <span class="lc-value">{formatDateTime(data.plan.inProgressAt)}</span>
-            {#if data.plan.inProgressBy}<span class="lc-actor">{data.plan.inProgressBy}</span>{/if}
           </div>
         {/if}
-        {#if data.plan.status === 'CLOSED' && data.plan.signedOffAt}
+        {#if data.plan.status === 'CLOSED' && data.plan.closedAt}
           <div class="lc-item">
             <span class="lc-label">Closed</span>
-            <span class="lc-value">{formatDateTime(data.plan.signedOffAt)}</span>
-            {#if data.plan.signedOffBy}<span class="lc-actor">{data.plan.signedOffBy}</span>{/if}
-          </div>
-        {/if}
-        {#if data.plan.signOffNotes}
-          <div class="lc-item lc-item--full">
-            <span class="lc-label">Notes</span>
-            <span class="lc-value">{data.plan.signOffNotes}</span>
+            <span class="lc-value">{formatDateTime(data.plan.closedAt)}</span>
+            {#if data.plan.closedBy}<span class="lc-actor">{data.plan.closedBy}</span>{/if}
           </div>
         {/if}
       </div>
@@ -494,13 +541,18 @@
   .remove-btn { font: inherit; font-size: 0.75rem; padding: 3px 8px; border-radius: 4px; border: 1px solid var(--color-border); background: transparent; color: var(--color-text-muted); cursor: pointer; }
   .remove-btn:hover:not(:disabled) { border-color: var(--color-danger); color: var(--color-danger); }
   .remove-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .results-cell { white-space: nowrap; font-size: 0.8rem; font-variant-numeric: tabular-nums; }
+  .res-pass { color: #15803d; font-weight: 600; }
+  .res-fail { color: var(--color-danger); font-weight: 600; }
+  .res-pending { color: var(--color-text-muted); }
+  .res-sep { color: var(--color-text-muted); margin: 0 2px; }
+  .res-total { font-size: 0.72rem; margin-left: 4px; }
   .empty-state { text-align: center; padding: 48px 24px; color: var(--color-text-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
   .empty-title { font-size: 0.925rem; margin: 0 0 8px; color: var(--color-text); }
   .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
   /* Lifecycle */
   .lifecycle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
   .lc-item { display: flex; flex-direction: column; gap: 3px; }
-  .lc-item--full { grid-column: 1 / -1; }
   .lc-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
   .lc-value { font-size: 0.875rem; color: var(--color-text); }
   .lc-actor { font-size: 0.75rem; color: var(--color-text-muted); font-family: var(--font-mono); }
@@ -536,4 +588,7 @@
     .picker-layout { grid-template-columns: 1fr; }
     .picker-col--projects { border-right: none; border-bottom: 1px solid var(--color-border); padding-right: 0; padding-bottom: 12px; }
   }
+  .chart-section { margin: 20px 0; }
+  .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 12px; }
+  .chart-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 16px; }
 </style>

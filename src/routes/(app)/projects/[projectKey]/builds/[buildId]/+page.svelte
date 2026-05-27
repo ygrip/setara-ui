@@ -52,6 +52,27 @@
     return `${Number(value || 0).toFixed(0)}%`;
   }
 
+  // Group scenarios by directory for tree map
+  const directoryGroups = $derived.by(() => {
+    const groups = new Map<string, { path: string; label: string; passed: number; failed: number; blocked: number; skipped: number; notExecuted: number; total: number }>();
+    for (const s of data.scenarios) {
+      const path = s.directoryPath ?? 'Uncategorized';
+      const label = s.featureName ?? s.directoryPath?.split('/').pop() ?? 'Uncategorized';
+      if (!groups.has(path)) {
+        groups.set(path, { path, label, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, total: 0 });
+      }
+      const g = groups.get(path)!;
+      g.total++;
+      const st = s.latestStatus?.toUpperCase() ?? 'NOT_EXECUTED';
+      if (st === 'PASSED') g.passed++;
+      else if (st === 'FAILED') g.failed++;
+      else if (st === 'BLOCKED') g.blocked++;
+      else if (st === 'SKIPPED') g.skipped++;
+      else g.notExecuted++;
+    }
+    return [...groups.values()].sort((a, b) => b.total - a.total);
+  });
+
   async function handleVerify() {
     if (!build) return;
     verifying = true;
@@ -140,6 +161,37 @@
         {/snippet}
       </DataTable>
     </section>
+
+    {#if directoryGroups.length > 0 && directoryGroups.some(g => g.path !== 'Uncategorized')}
+    <section class="section tree-section">
+      <h2 class="section-title">Directory Breakdown</h2>
+      <div class="tree-grid">
+        {#each directoryGroups as group}
+          <div class="tree-row">
+            <div class="tree-path">
+              <span class="tree-label">{group.label}</span>
+              <span class="tree-sub">{group.path}</span>
+            </div>
+            <div class="tree-counts">
+              {#if group.passed > 0}<span class="cnt cnt--pass">✓ {group.passed}</span>{/if}
+              {#if group.failed > 0}<span class="cnt cnt--fail">✗ {group.failed}</span>{/if}
+              {#if group.blocked > 0}<span class="cnt cnt--block">⊘ {group.blocked}</span>{/if}
+              {#if group.notExecuted > 0}<span class="cnt cnt--pending">◌ {group.notExecuted}</span>{/if}
+            </div>
+            <div class="tree-bar-wrap">
+              <div class="tree-bar">
+                {#if group.passed > 0}<div class="tree-bar-seg seg--pass" style="width:{(group.passed/group.total)*100}%"></div>{/if}
+                {#if group.failed > 0}<div class="tree-bar-seg seg--fail" style="width:{(group.failed/group.total)*100}%"></div>{/if}
+                {#if group.blocked > 0}<div class="tree-bar-seg seg--block" style="width:{(group.blocked/group.total)*100}%"></div>{/if}
+                {#if group.notExecuted + group.skipped > 0}<div class="tree-bar-seg seg--pending" style="width:{((group.notExecuted+group.skipped)/group.total)*100}%"></div>{/if}
+              </div>
+              <span class="tree-pct">{group.total > 0 ? Math.round((group.passed/group.total)*100) : 0}%</span>
+            </div>
+          </div>
+        {/each}
+      </div>
+    </section>
+    {/if}
   {/if}
 </div>
 
@@ -186,4 +238,28 @@
     .page-header, .visual-panel { grid-template-columns: 1fr; flex-direction: column; }
     .header-actions { justify-content: flex-start; }
   }
+  .tree-section { margin-top: 28px; }
+  .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 14px; color: var(--color-text); }
+  .tree-grid { display: flex; flex-direction: column; gap: 10px; }
+  .tree-row { display: grid; grid-template-columns: 1fr auto auto; gap: 16px; align-items: center; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 8px; padding: 10px 14px; }
+  .tree-path { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .tree-label { font-weight: 600; font-size: 0.875rem; color: var(--color-text); }
+  .tree-sub { font-size: 0.7rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
+  .tree-counts { display: flex; gap: 6px; flex-shrink: 0; }
+  .cnt { font-size: 0.72rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; }
+  .cnt--pass { background: #dcfce7; color: #15803d; }
+  .cnt--fail { background: #fee2e2; color: #dc2626; }
+  .cnt--block { background: #fef3c7; color: #d97706; }
+  .cnt--pending { background: var(--color-surface); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+  .tree-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 140px; flex-shrink: 0; }
+  .tree-bar { flex: 1; height: 8px; background: var(--color-border); border-radius: 4px; overflow: hidden; display: flex; }
+  .tree-bar-seg { height: 100%; }
+  .seg--pass { background: #16a34a; }
+  .seg--fail { background: #dc2626; }
+  .seg--block { background: #d97706; }
+  .seg--pending { background: #cbd5e1; }
+  .tree-pct { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); min-width: 32px; text-align: right; }
+  :global([data-theme="dark"]) .cnt--pass { background: #14532d; color: #4ade80; }
+  :global([data-theme="dark"]) .cnt--fail { background: #450a0a; color: #f87171; }
+  :global([data-theme="dark"]) .cnt--block { background: #451a03; color: #fbbf24; }
 </style>

@@ -2,6 +2,7 @@ import { getApiBaseUrl } from './config';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import type { ReleasePlan, PlanBuild, PlanMetrics } from './plans';
+import { isMockMode, mockGetSquadPlanMetrics, mockListAllPlans, mockGetSquadPlan, mockListSquadPlanBuilds, mockCreateSquadPlan } from '$lib/mock/client';
 
 // Re-export shared types for convenience
 export type { ReleasePlan, PlanBuild, PlanMetrics };
@@ -24,6 +25,7 @@ export async function listSquadPlans(
   sortBy?: string,
   sortDir?: string
 ): Promise<CursorPage<ReleasePlan>> {
+  if (isMockMode()) return mockListAllPlans(squadId, cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/squads/${squadId}/plans${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
@@ -38,6 +40,7 @@ export async function createSquadPlan(
     openedBy?: string | null;
   }
 ): Promise<ReleasePlan> {
+  if (isMockMode()) return mockCreateSquadPlan(squadId, body);
   const res = await apiFetch(`/api/squads/${squadId}/plans`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -47,6 +50,7 @@ export async function createSquadPlan(
 }
 
 export async function getSquadPlan(squadId: string, planId: string): Promise<ReleasePlan> {
+  if (isMockMode()) return mockGetSquadPlan(squadId, planId);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}`);
   return res.json();
 }
@@ -54,6 +58,7 @@ export async function getSquadPlan(squadId: string, planId: string): Promise<Rel
 // ── Build membership ────────────────────────────────────────────────────
 
 export async function listSquadPlanBuilds(squadId: string, planId: string): Promise<PlanBuild[]> {
+  if (isMockMode()) return mockListSquadPlanBuilds(squadId, planId);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/builds`);
   return res.json();
 }
@@ -80,7 +85,7 @@ export async function removeSquadPlanBuild(squadId: string, planId: string, buil
 export async function closeSquadPlan(
   squadId: string,
   planId: string,
-  body: { signedOffBy?: string | null; notes?: string | null } = {}
+  body: { closedBy?: string | null; notes?: string | null } = {}
 ): Promise<ReleasePlan> {
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/close`, {
     method: 'POST',
@@ -100,13 +105,19 @@ export interface SquadPlanMetrics {
   initiatedBuilds: number;
   totalProjects: number;
   totalScenarios: number;
-  passedScenarios: number;
-  failedScenarios: number;
+  passed: number;
+  failed: number;
+  blocked: number;
+  skipped: number;
+  notExecuted: number;
+  passPercentage: number;
+  executionCoverage: number;
   planReadiness: number;
   scenarioPassRate: number;
 }
 
 export async function getSquadPlanMetrics(squadId: string, planId: string): Promise<SquadPlanMetrics> {
+  if (isMockMode()) return mockGetSquadPlanMetrics(squadId, planId) as Promise<SquadPlanMetrics>;
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/metrics`);
   return res.json();
 }

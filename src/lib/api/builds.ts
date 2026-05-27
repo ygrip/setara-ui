@@ -47,6 +47,8 @@ export interface BuildScenario {
   executedBy: string | null;
   executedAt: string | null;
   addedAt: string;
+  featureName?: string | null;
+  directoryPath?: string | null;
 }
 
 export interface BuildAuditEvent {
@@ -66,9 +68,13 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
-export async function listBuilds(projectKey: string): Promise<ProjectBuild[]> {
+export async function listBuilds(projectKey: string, status?: string, sortBy?: string): Promise<ProjectBuild[]> {
   if (isMockMode()) return mockListBuilds(projectKey);
-  const res = await apiFetch(`/api/projects/${projectKey}/builds`);
+  const params = new URLSearchParams();
+  if (status) params.set('status', status);
+  if (sortBy) params.set('sort_by', sortBy);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/builds${qs}`);
   return res.json();
 }
 

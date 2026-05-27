@@ -1,14 +1,15 @@
 import {
   mockProjects, mockRunsByProject, mockApiKeysByProject,
   mockTribes, mockSquads, mockUsers, mockNodesByProject,
-  mockScenariosByProject, mockPlansByProject,
-  mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild
+  mockScenariosByProject,
+  mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild,
+  mockSquadPlans, mockPlanBuilds
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
-import type { PlanMetrics, PlanScenario, ReleasePlan } from '$lib/api/plans';
+import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic } from '$lib/api/statistics';
@@ -163,48 +164,82 @@ export async function mockUpdateScenario(
   return structuredClone(scenarios[index]);
 }
 
-export async function mockListPlans(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<ReleasePlan>> {
+export async function mockListAllPlans(squadId?: string, _cursor?: string, limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<ReleasePlan>> {
   await delay(120);
-  return { items: mockPlansByProject[projectKey] ?? [], nextCursor: null };
+  const plans = squadId
+    ? mockSquadPlans.filter(p => p.squadId === squadId)
+    : mockSquadPlans;
+  return { items: plans.slice(0, limit || 20), nextCursor: null };
 }
 
-export async function mockGetPlan(projectKey: string, planId: string): Promise<ReleasePlan> {
+export async function mockGetSquadPlan(squadId: string, planId: string): Promise<ReleasePlan> {
   await delay(100);
-  const plan = mockPlansByProject[projectKey]?.find(item => item.id === planId);
-  if (!plan) throw new Error(`Plan ${planId} not found`);
-  return plan;
+  return mockSquadPlans.find(p => p.id === planId && p.squadId === squadId) || mockSquadPlans[0];
 }
 
-export async function mockListPlanScenarios(projectKey: string, _planId: string): Promise<PlanScenario[]> {
+export async function mockListSquadPlanBuilds(_squadId: string, planId: string): Promise<PlanBuild[]> {
+  await delay(120);
+  return mockPlanBuilds[planId] || [];
+}
+
+export async function mockGetSquadPlanMetrics(_squadId: string, planId: string) {
   await delay(100);
-  return (mockScenariosByProject[projectKey] ?? []).filter(scenario => scenario.status === 'ACTIVE').map((scenario, index) => ({
-    id: `plan-scenario-${index}`,
-    scenarioId: scenario.id,
-    scenarioKey: scenario.scenarioKey,
-    name: scenario.name,
-    priority: scenario.priority,
-    automationStatus: scenario.automationStatus,
-    createdAt: scenario.createdAt
-  }));
-}
+  const builds = mockPlanBuilds[planId] || [];
+  const totalBuilds = builds.length;
+  const verifiedBuilds = builds.filter(b => b.status === 'VERIFIED').length;
+  const inProgressBuilds = builds.filter(b => b.status === 'IN_PROGRESS').length;
+  const initiatedBuilds = totalBuilds - verifiedBuilds - inProgressBuilds;
+  const plan = mockSquadPlans.find(p => p.id === planId);
+  const totalProjects = plan?.totalProjects ?? builds.length;
 
-export async function mockGetPlanMetrics(projectKey: string, planId: string): Promise<PlanMetrics> {
-  const scenarios = await mockListPlanScenarios(projectKey, planId);
-  const selectedExecutions = scenarios.length ? Math.max(1, scenarios.length - 1) : 0;
-  const passed = selectedExecutions;
+  // Aggregate scenario counts across builds
+  const totalScenarios = builds.reduce((s, b) => s + (b.metrics?.totalScenarios ?? 0), 0);
+  const passed = builds.reduce((s, b) => s + (b.metrics?.passed ?? 0), 0);
+  const failed = builds.reduce((s, b) => s + (b.metrics?.failed ?? 0), 0);
+  const blocked = builds.reduce((s, b) => s + (b.metrics?.blocked ?? 0), 0);
+  const skipped = builds.reduce((s, b) => s + (b.metrics?.skipped ?? 0), 0);
+  const notExecuted = Math.max(totalScenarios - passed - failed - blocked - skipped, 0);
+  const passPercentage = totalScenarios > 0 ? Math.round((passed / totalScenarios) * 100 * 100) / 100 : 0;
+  const executionCoverage = totalScenarios > 0 ? Math.round(((passed + failed + blocked + skipped) / totalScenarios) * 100 * 100) / 100 : 0;
+  const planReadiness = totalBuilds > 0 ? Math.round((verifiedBuilds / totalBuilds) * 100 * 100) / 100 : 0;
+  const scenarioPassRate = totalScenarios > 0 ? Math.round((passed / totalScenarios) * 100 * 100) / 100 : 0;
+
   return {
-    planId,
-    totalScenarios: scenarios.length,
-    selectedExecutions,
-    passed,
-    failed: 0,
-    blocked: 0,
-    skipped: 0,
-    executionCoverage: scenarios.length ? Number(((selectedExecutions / scenarios.length) * 100).toFixed(2)) : 0,
-    passPercentage: selectedExecutions ? 100 : 0,
-    automationCoverage: scenarios.length ? Number(((scenarios.filter(s => s.automationStatus === 'AUTOMATED').length / scenarios.length) * 100).toFixed(2)) : 0,
-    qualityGate: selectedExecutions === scenarios.length ? 'PASS' : 'WARNING'
+    planId, totalBuilds, verifiedBuilds, inProgressBuilds, initiatedBuilds,
+    totalProjects, totalScenarios, passed, failed, blocked, skipped, notExecuted,
+    passPercentage, executionCoverage, planReadiness, scenarioPassRate
   };
+}
+
+export async function mockCreateSquadPlan(
+  squadId: string,
+  body: { name: string; releaseVersion?: string | null; releaseDate?: string | null; description?: string | null; openedBy?: string | null }
+): Promise<ReleasePlan> {
+  await delay(200);
+  const allSquads = Object.values(mockSquads).flat();
+  const squad = allSquads.find(s => s.id === squadId);
+  const plan: ReleasePlan = {
+    id: `plan-${squadId}-${Date.now()}`,
+    squadId,
+    squadName: squad?.name ?? squadId,
+    name: body.name,
+    releaseVersion: body.releaseVersion ?? null,
+    releaseDate: body.releaseDate ?? null,
+    description: body.description ?? null,
+    status: 'OPEN',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    openedAt: new Date().toISOString(),
+    openedBy: body.openedBy ?? 'mock.user@setara.local',
+    inProgressAt: null,
+    closedAt: null,
+    closedBy: null,
+    totalBuilds: 0,
+    verifiedBuilds: 0,
+    totalProjects: 0
+  };
+  mockSquadPlans.push(plan);
+  return structuredClone(plan);
 }
 
 export async function mockListBuilds(projectKey: string): Promise<ProjectBuild[]> {
@@ -380,6 +415,28 @@ export async function mockListProjectStatisticHistory(projectKey: string, days =
       updatedAt: date.toISOString()
     };
   });
+}
+
+export async function mockGetSquad(squadId: string): Promise<Squad> {
+  await delay(80);
+  const allSquads = Object.values(mockSquads).flat();
+  const squad = allSquads.find(s => s.id === squadId);
+  if (!squad) {
+    // Return a minimal stub if not found
+    return { id: squadId, tribeId: '', tribeName: null, name: squadId, createdAt: new Date().toISOString() };
+  }
+  // Enrich with tribe name
+  const tribe = mockTribes.find(t => t.id === squad.tribeId);
+  return { ...squad, tribeName: tribe?.name ?? null };
+}
+
+export async function mockListAllSquads(_cursor?: string, limit?: number): Promise<CursorPage<Squad>> {
+  await delay(100);
+  const allSquads = Object.values(mockSquads).flat().map(squad => {
+    const tribe = mockTribes.find(t => t.id === squad.tribeId);
+    return { ...squad, tribeName: tribe?.name ?? null };
+  });
+  return { items: allSquads.slice(0, limit ?? 100), nextCursor: null };
 }
 
 export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {

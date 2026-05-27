@@ -2,7 +2,7 @@ import type { Project } from '$lib/api/projects';
 import type { AutomationRun } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
-import type { ReleasePlan } from '$lib/api/plans';
+import type { PlanBuild, ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
 
@@ -684,55 +684,54 @@ export const mockPlansByProject: Record<string, ReleasePlan[]> = {
   PAYMENT: [
     {
       id: 'plan-payment-2026-05',
-      projectId: '1',
-      projectKey: 'PAYMENT',
+      squadId: 'squad-3',
+      squadName: 'Payments',
       name: '2026.05 Regression',
       releaseVersion: '2026.05',
+      releaseDate: null,
       description: 'Regression scope for payment release readiness.',
-      status: 'ACTIVE',
-      passThreshold: 95,
-      coverageThreshold: 90,
+      status: 'IN_PROGRESS',
       createdAt: '2026-05-22T08:00:00Z',
-      updatedAt: '2026-05-22T08:00:00Z'
+      updatedAt: '2026-05-22T08:00:00Z',
+      openedAt: '2026-05-22T08:00:00Z',
+      openedBy: 'qa-payment@example.com',
+      inProgressAt: '2026-05-22T09:00:00Z',
+      closedAt: null,
+      closedBy: null
     },
     {
       id: 'plan-payment-2026-04',
-      projectId: '1',
-      projectKey: 'PAYMENT',
+      squadId: 'squad-3',
+      squadName: 'Payments',
       name: '2026.04 Hotfix Validation',
       releaseVersion: '2026.04.1',
+      releaseDate: null,
       description: 'Post-hotfix smoke and regression validation.',
       status: 'CLOSED',
-      passThreshold: 90,
-      coverageThreshold: 85,
       createdAt: '2026-04-10T08:00:00Z',
-      updatedAt: '2026-04-18T16:30:00Z'
-    },
-    {
-      id: 'plan-payment-2026-03',
-      projectId: '1',
-      projectKey: 'PAYMENT',
-      name: '2026.03 Feature Release',
-      releaseVersion: '2026.03',
-      description: null,
-      status: 'ARCHIVED',
-      passThreshold: 95,
-      coverageThreshold: 90,
-      createdAt: '2026-03-01T08:00:00Z',
-      updatedAt: '2026-03-28T12:00:00Z'
+      updatedAt: '2026-04-18T16:30:00Z',
+      openedAt: '2026-04-10T08:00:00Z',
+      openedBy: 'qa-payment@example.com',
+      inProgressAt: '2026-04-12T08:00:00Z',
+      closedAt: '2026-04-18T16:30:00Z',
+      closedBy: 'lead-payment@example.com'
     },
     {
       id: 'plan-payment-2026-06-prep',
-      projectId: '1',
-      projectKey: 'PAYMENT',
+      squadId: 'squad-3',
+      squadName: 'Payments',
       name: '2026.06 Prep',
       releaseVersion: null,
+      releaseDate: '2026-06-30',
       description: 'Early preparation for June release scope.',
       status: 'OPEN',
-      passThreshold: 95,
-      coverageThreshold: 90,
       createdAt: '2026-05-25T08:00:00Z',
-      updatedAt: '2026-05-25T08:00:00Z'
+      updatedAt: '2026-05-25T08:00:00Z',
+      openedAt: '2026-05-25T08:00:00Z',
+      openedBy: 'qa-payment@example.com',
+      inProgressAt: null,
+      closedAt: null,
+      closedBy: null
     }
   ]
 };
@@ -758,7 +757,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       verifiedBy: null,
       createdAt: '2026-05-24T08:00:00Z',
       updatedAt: '2026-05-25T10:30:00Z',
-      metrics: { buildId: 'build-payment-rc1', totalScenarios: 6, passed: 4, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 83.33 }
+      metrics: { buildId: 'build-payment-rc1', totalScenarios: 6, passed: 3, failed: 2, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 60, executionCoverage: 83.33 }
     },
     {
       id: 'build-payment-hotfix',
@@ -832,9 +831,12 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
 
 export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
   'build-payment-rc1': [
-    { id: 'bs-pay-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:12:00Z', addedAt: '2026-05-24T08:05:00Z' },
-    { id: 'bs-pay-2', scenarioId: 'scenario-refund-partial', scenarioKey: 'SCN-REFUND2', name: 'Partial refund updates remaining capturable balance', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'FAILED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:18:00Z', addedAt: '2026-05-24T08:05:00Z' },
-    { id: 'bs-pay-3', scenarioId: 'scenario-capture-retry', scenarioKey: 'SCN-CAPTURE1', name: 'Capture retry after processor timeout', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'MANUAL', executedBy: 'qa-payment@example.com', executedAt: '2026-05-24T10:40:00Z', addedAt: '2026-05-24T08:06:00Z' }
+    { id: 'bs-pay-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:12:00Z', addedAt: '2026-05-24T08:05:00Z', featureName: 'Refunds', directoryPath: 'payments/refunds' },
+    { id: 'bs-pay-2', scenarioId: 'scenario-refund-partial', scenarioKey: 'SCN-REFUND2', name: 'Partial refund updates remaining capturable balance', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'FAILED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:18:00Z', addedAt: '2026-05-24T08:05:00Z', featureName: 'Refunds', directoryPath: 'payments/refunds' },
+    { id: 'bs-pay-3', scenarioId: 'scenario-capture-timeout', scenarioKey: 'SCN-CAPTURE1', name: 'Capture retry after processor timeout', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'MANUAL', executedBy: 'qa-payment@example.com', executedAt: '2026-05-24T10:40:00Z', addedAt: '2026-05-24T08:06:00Z', featureName: 'Capture and Settlement', directoryPath: 'payments/capture-settlement' },
+    { id: 'bs-pay-4', scenarioId: 'scenario-webhook-retry', scenarioKey: 'SCN-WEBHOOK1', name: 'Webhook retry recovers from downstream 500', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:45:00Z', addedAt: '2026-05-24T08:07:00Z', featureName: 'Webhook Reconciliation', directoryPath: 'payments/webhook-reconciliation' },
+    { id: 'bs-pay-5', scenarioId: 'scenario-settlement-cutoff', scenarioKey: 'SCN-CAPTURE2', name: 'Settlement batch respects daily cutoff window', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'FAILED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-24T09:30:00Z', addedAt: '2026-05-24T08:06:00Z', featureName: 'Capture and Settlement', directoryPath: 'payments/capture-settlement' },
+    { id: 'bs-pay-6', scenarioId: 'scenario-dispute-evidence', scenarioKey: 'SCN-DISPUTE1', name: 'Evidence package can be submitted before dispute deadline', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-24T08:08:00Z', featureName: 'Disputes', directoryPath: 'risk-disputes/disputes' }
   ],
   'build-payment-hotfix': [
     { id: 'bs-pay-hf-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-10T11:12:00Z', addedAt: '2026-05-10T07:05:00Z' }
@@ -907,4 +909,128 @@ export const coverageByType = {
     backgroundColor: ['#0d9488', '#2563eb', '#d97706', '#6b7280'],
     borderWidth: 0,
   }]
+};
+
+export const mockSquadPlans: ReleasePlan[] = [
+  {
+    id: 'plan-squad3-may',
+    squadId: 'squad-3',
+    squadName: 'Payments',
+    name: 'May Release Sprint',
+    releaseVersion: 'v2.5.0',
+    releaseDate: '2026-05-30',
+    description: 'Payment and Checkout feature hardening for May release.',
+    status: 'IN_PROGRESS',
+    createdAt: '2026-05-01T09:00:00Z',
+    updatedAt: '2026-05-20T10:00:00Z',
+    openedAt: '2026-05-01T09:00:00Z',
+    openedBy: 'jane.smith',
+    inProgressAt: '2026-05-10T08:00:00Z',
+    closedAt: null,
+    closedBy: null,
+    totalBuilds: 2,
+    verifiedBuilds: 1,
+    totalProjects: 2
+  },
+  {
+    id: 'plan-squad1-q2',
+    squadId: 'squad-1',
+    squadName: 'Identity',
+    name: 'Q2 Auth Hardening',
+    releaseVersion: 'v3.1.0',
+    releaseDate: '2026-06-15',
+    description: 'OAuth2 and session security improvements.',
+    status: 'OPEN',
+    createdAt: '2026-05-15T11:00:00Z',
+    updatedAt: '2026-05-15T11:00:00Z',
+    openedAt: '2026-05-15T11:00:00Z',
+    openedBy: 'john.doe',
+    inProgressAt: null,
+    closedAt: null,
+    closedBy: null,
+    totalBuilds: 0,
+    verifiedBuilds: 0,
+    totalProjects: 0
+  },
+  {
+    id: 'plan-squad4-catalog',
+    squadId: 'squad-4',
+    squadName: 'Catalog & Search',
+    name: 'Catalog Search v2 Release',
+    releaseVersion: 'v1.8.0',
+    releaseDate: '2026-06-01',
+    description: 'Search ranking improvements and inventory sync.',
+    status: 'CLOSED',
+    createdAt: '2026-04-01T09:00:00Z',
+    updatedAt: '2026-05-15T14:00:00Z',
+    openedAt: '2026-04-01T09:00:00Z',
+    openedBy: 'alice.chen',
+    inProgressAt: '2026-04-10T08:00:00Z',
+    closedAt: '2026-05-15T14:00:00Z',
+    closedBy: 'alice.chen',
+    totalBuilds: 1,
+    verifiedBuilds: 1,
+    totalProjects: 1
+  }
+];
+
+export const mockPlanBuilds: Record<string, PlanBuild[]> = {
+  'plan-squad3-may': [
+    {
+      id: 'rpb-pay-rc1',
+      buildId: 'build-payment-rc1',
+      buildKey: 'PAYMENT-RC1',
+      buildName: 'Payment May RC1',
+      buildVersion: 'v2.5.0-rc1',
+      projectId: '1',
+      projectKey: 'PAYMENT',
+      projectName: 'Payment Service',
+      squadId: 'squad-3',
+      squadName: 'Payments',
+      status: 'IN_PROGRESS',
+      initiatedAt: '2026-05-05T09:00:00Z',
+      verifiedAt: null,
+      addedAt: '2026-05-05T09:00:00Z',
+      addedBy: 'jane.smith',
+      metrics: { totalScenarios: 145, passed: 138, failed: 5, blocked: 0, skipped: 2, notExecuted: 0, passPercentage: 95.17, executionCoverage: 100 }
+    },
+    {
+      id: 'rpb-checkout-rc1',
+      buildId: 'build-checkout-rc1',
+      buildKey: 'CHECKOUT-RC1',
+      buildName: 'Checkout May RC1',
+      buildVersion: 'v2.5.0-rc1',
+      projectId: '4',
+      projectKey: 'CHECKOUT',
+      projectName: 'Checkout Flow',
+      squadId: 'squad-3',
+      squadName: 'Payments',
+      status: 'VERIFIED',
+      initiatedAt: '2026-05-06T10:00:00Z',
+      verifiedAt: '2026-05-18T16:00:00Z',
+      addedAt: '2026-05-06T10:00:00Z',
+      addedBy: 'jane.smith',
+      metrics: { totalScenarios: 82, passed: 82, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
+    }
+  ],
+  'plan-squad4-catalog': [
+    {
+      id: 'rpb-catalog-v18',
+      buildId: 'build-catalog-v18',
+      buildKey: 'CATALOG-V18',
+      buildName: 'Catalog v1.8.0',
+      buildVersion: 'v1.8.0',
+      projectId: '3',
+      projectKey: 'CATALOG',
+      projectName: 'Product Catalog',
+      squadId: 'squad-4',
+      squadName: 'Catalog & Search',
+      status: 'VERIFIED',
+      initiatedAt: '2026-04-10T10:00:00Z',
+      verifiedAt: '2026-05-14T17:00:00Z',
+      addedAt: '2026-04-10T10:00:00Z',
+      addedBy: 'alice.chen',
+      metrics: { totalScenarios: 312, passed: 312, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
+    }
+  ]
 };
