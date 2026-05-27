@@ -1,7 +1,3 @@
-<svelte:head>
-  <title>Roles — Admin — Setara</title>
-</svelte:head>
-
 <script lang="ts">
   import { onMount } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -122,6 +118,10 @@
     return color || 'neutral';
   }
 </script>
+
+<svelte:head>
+  <title>Roles — Admin — Setara</title>
+</svelte:head>
 
 <div class="section-wrap">
   {#if error}<div class="error-banner">{error}</div>{/if}

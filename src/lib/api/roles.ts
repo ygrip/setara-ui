@@ -39,6 +39,12 @@ export async function getConfigRole(id: string): Promise<ConfigRole> {
 }
 
 export async function createConfigRole(body: { key: string; label: string; description?: string | null; color?: string | null }): Promise<ConfigRole> {
+  if (isMockMode()) {
+    const newRole: ConfigRole = { id: String(Date.now()), key: body.key, label: body.label, description: body.description ?? null, color: body.color ?? 'info', system: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    mockConfigRoles.push(newRole);
+    mockRolePermissions[body.key] = [];
+    return newRole;
+  }
   const res = await apiFetch('/api/admin/roles', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -48,6 +54,14 @@ export async function createConfigRole(body: { key: string; label: string; descr
 }
 
 export async function updateConfigRole(id: string, body: { label?: string; description?: string | null; color?: string | null }): Promise<ConfigRole> {
+  if (isMockMode()) {
+    const role = mockConfigRoles.find(r => r.id === id);
+    if (!role) throw new Error('Role not found');
+    if (body.label) role.label = body.label;
+    if (body.description !== undefined) role.description = body.description;
+    if (body.color) role.color = body.color;
+    return role;
+  }
   const res = await apiFetch(`/api/admin/roles/${id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
@@ -57,15 +71,29 @@ export async function updateConfigRole(id: string, body: { label?: string; descr
 }
 
 export async function deleteConfigRole(id: string): Promise<void> {
+  if (isMockMode()) {
+    const idx = mockConfigRoles.findIndex(r => r.id === id);
+    if (idx >= 0) mockConfigRoles.splice(idx, 1);
+    return;
+  }
   await apiFetch(`/api/admin/roles/${id}`, { method: 'DELETE' });
 }
 
 export async function getRolePermissions(id: string): Promise<string[]> {
+  if (isMockMode()) {
+    const role = mockConfigRoles.find(r => r.id === id);
+    return role ? (mockRolePermissions[role.key] ?? []) : [];
+  }
   const res = await apiFetch(`/api/admin/roles/${id}/permissions`);
   return res.json();
 }
 
 export async function setRolePermissions(id: string, entries: { area: string; permissionKey: string }[]): Promise<string[]> {
+  if (isMockMode()) {
+    const role = mockConfigRoles.find(r => r.id === id);
+    if (role) mockRolePermissions[role.key] = entries.map(e => `${e.area}:${e.permissionKey}`);
+    return role ? (mockRolePermissions[role.key] ?? []) : [];
+  }
   const res = await apiFetch(`/api/admin/roles/${id}/permissions`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
