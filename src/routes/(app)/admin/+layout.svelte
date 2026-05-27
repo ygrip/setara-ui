@@ -8,10 +8,10 @@
   let session = $state<SetaraSession | null>(null);
 
   const navLinks = [
-    { href: '/admin/tribes', label: 'Tribes' },
-    { href: '/admin/squads', label: 'Squads' },
-    { href: '/admin/users', label: 'Users' },
-    { href: '/admin/roles', label: 'Roles' }
+    { href: '/admin/tribes', label: 'Tribes', icon: '<path d="M3 7h18M3 12h18M3 17h18"/>' },
+    { href: '/admin/squads', label: 'Squads', icon: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>' },
+    { href: '/admin/users', label: 'Users', icon: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
+    { href: '/admin/roles', label: 'Roles', icon: '<path d="M12 1L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4z"/>' }
   ];
 
   function isActive(href: string): boolean {
@@ -28,13 +28,16 @@
 
 {#if hasPermission(session, 'settings:read')}
   <div class="admin-shell">
-    <nav class="admin-subnav">
+    <nav class="admin-tabs" role="tablist">
       {#each navLinks as link}
         <a
           href={link.href}
-          class="subnav-item"
-          class:subnav-item--active={isActive(link.href)}
+          class="admin-tab"
+          class:admin-tab--active={isActive(link.href)}
+          role="tab"
+          aria-selected={isActive(link.href)}
         >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">{@html link.icon}</svg>
           {link.label}
         </a>
       {/each}
@@ -48,43 +51,33 @@
     max-width: min(1520px, 100%);
   }
 
-  .admin-subnav {
+  .admin-tabs {
     display: flex;
-    gap: 4px;
+    gap: 0;
     margin-bottom: 24px;
-    flex-wrap: wrap;
+    border-bottom: 2px solid var(--color-border);
   }
 
-  .subnav-item {
+  .admin-tab {
     display: inline-flex;
     align-items: center;
-    padding: 6px 16px;
-    border-radius: 999px;
-    font-size: 0.85rem;
+    gap: 7px;
+    padding: 10px 20px;
+    font-size: 0.875rem;
     font-weight: 500;
     color: var(--color-text-muted);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
     text-decoration: none;
-    transition: background 0.12s, color 0.12s, border-color 0.12s;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: color 0.15s, border-color 0.15s;
+    white-space: nowrap;
   }
 
-  .subnav-item:hover {
-    background: var(--color-accent-subtle);
+  .admin-tab:hover { color: var(--color-text); }
+
+  .admin-tab--active {
     color: var(--color-accent);
-    border-color: var(--color-accent);
-    text-decoration: none;
-  }
-
-  .subnav-item--active {
-    background: var(--color-accent);
-    color: #fff;
-    border-color: var(--color-accent);
+    border-bottom-color: var(--color-accent);
     font-weight: 600;
-  }
-
-  .subnav-item--active:hover {
-    background: var(--color-accent-hover);
-    color: #fff;
   }
 </style>

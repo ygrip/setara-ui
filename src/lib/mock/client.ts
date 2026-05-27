@@ -23,7 +23,7 @@ const delay = (ms: number) => new Promise(r => setTimeout(r, ms));
 
 export async function mockListProjects(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Project>> {
   await delay(150);
-  return { items: mockProjects, nextCursor: null };
+  return { items: mockProjects, nextCursor: null, prevCursor: null };
 }
 
 export async function mockGetProject(projectKey: string): Promise<Project> {
@@ -35,7 +35,7 @@ export async function mockGetProject(projectKey: string): Promise<Project> {
 
 export async function mockListRuns(projectKey: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<AutomationRun>> {
   await delay(150);
-  return { items: mockRunsByProject[projectKey] ?? [], nextCursor: null };
+  return { items: mockRunsByProject[projectKey] ?? [], nextCursor: null, prevCursor: null };
 }
 
 export async function mockGetRun(projectKey: string, runId: string): Promise<AutomationRun> {
@@ -96,17 +96,17 @@ export async function mockRotateApiKey(_projectKey: string, _apiKeyId: string): 
 
 export async function mockListTribes(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Tribe>> {
   await delay(120);
-  return { items: mockTribes, nextCursor: null };
+  return { items: mockTribes, nextCursor: null, prevCursor: null };
 }
 
 export async function mockListSquads(tribeId: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Squad>> {
   await delay(100);
-  return { items: mockSquads[tribeId] ?? [], nextCursor: null };
+  return { items: mockSquads[tribeId] ?? [], nextCursor: null, prevCursor: null };
 }
 
 export async function mockListUsers(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<User>> {
   await delay(100);
-  return { items: mockUsers, nextCursor: null };
+  return { items: mockUsers, nextCursor: null, prevCursor: null };
 }
 
 export async function mockListDirectories(projectKey: string, parentId?: string | null, status = 'ACTIVE'): Promise<TestDirectory[]> {
@@ -169,7 +169,7 @@ export async function mockListAllPlans(squadId?: string, _cursor?: string, limit
   const plans = squadId
     ? mockSquadPlans.filter(p => p.squadId === squadId)
     : mockSquadPlans;
-  return { items: plans.slice(0, limit || 20), nextCursor: null };
+  return { items: plans.slice(0, limit || 20), nextCursor: null, prevCursor: null };
 }
 
 export async function mockGetSquadPlan(squadId: string, planId: string): Promise<ReleasePlan> {
@@ -577,7 +577,7 @@ export async function mockListAllSquads(_cursor?: string, limit?: number): Promi
     const tribe = mockTribes.find(t => t.id === squad.tribeId);
     return { ...squad, tribeName: tribe?.name ?? null };
   });
-  return { items: allSquads.slice(0, limit ?? 100), nextCursor: null };
+  return { items: allSquads.slice(0, limit ?? 100), nextCursor: null, prevCursor: null };
 }
 
 export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {

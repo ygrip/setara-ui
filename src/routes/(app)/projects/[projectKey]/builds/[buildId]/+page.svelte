@@ -35,10 +35,43 @@
   // Bulk remove
   let selectedIds = $state<Set<string>>(new Set());
 
+  // Scenario table search & sort
+  let scenarioFilter = $state('');
+  let scenarioSortBy = $state<'scenarioKey' | 'executedAt'>('scenarioKey');
+  let scenarioSortDir = $state<'asc' | 'desc'>('asc');
+
+  function toggleScenarioSort(col: 'scenarioKey' | 'executedAt') {
+    if (scenarioSortBy === col) scenarioSortDir = scenarioSortDir === 'asc' ? 'desc' : 'asc';
+    else { scenarioSortBy = col; scenarioSortDir = 'asc'; }
+  }
+  function scenarioSortIcon(col: string): string {
+    if (scenarioSortBy !== col) return '';
+    return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  const filteredScenarios = $derived.by(() => {
+    let result = scenarios;
+    const q = scenarioFilter.toLowerCase();
+    if (q) result = result.filter(s => s.scenarioKey.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+    return [...result].sort((a, b) => {
+      let va = '', vb = '';
+      if (scenarioSortBy === 'executedAt') { va = a.executedAt ?? ''; vb = b.executedAt ?? ''; }
+      else { va = a.scenarioKey; vb = b.scenarioKey; }
+      if (va < vb) return scenarioSortDir === 'asc' ? -1 : 1;
+      if (va > vb) return scenarioSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
+
   // Add Automation Run modal
   let addRunOpen = $state(false);
   let selectedRunId = $state('');
   let addingRun = $state(false);
+
+  let copiedVersion = $state(false);
+  async function copyBuildVersion(version: string) {
+    try { await navigator.clipboard.writeText(version); copiedVersion = true; setTimeout(() => copiedVersion = false, 1500); } catch {}
+  }
 
   $effect(() => {
     build = data.build;
@@ -333,7 +366,14 @@
     <header class="page-header">
       <div>
         <h1>{build.name}</h1>
-        <p>{build.projectName} · {build.buildKey}{build.version ? ` · ${build.version}` : ''}</p>
+        <p>{build.projectName} · {build.buildKey}{build.version ? ` · ${build.version}` : ''}
+          {#if build.version}
+            {@const ver = build.version}
+            <button class="copy-inline-btn" onclick={() => copyBuildVersion(ver)} title="Copy version" aria-label="Copy build version">
+              {copiedVersion ? '✓' : '⧉'}
+            </button>
+          {/if}
+        </p>
       </div>
       <div class="header-actions">
         <Badge text={build.status} variant={statusVariant(build.status)} />
@@ -375,6 +415,12 @@
     <section class="section">
       <h2>Scenario Status</h2>
 
+      <div class="filters-bar" style="margin-bottom:12px;">
+        <div class="search-wrap">
+          <input class="search-input" type="search" placeholder="Search scenarios…" bind:value={scenarioFilter} aria-label="Search scenarios" />
+        </div>
+      </div>
+
       {#if selectedIds.size > 0}
         <div class="bulk-bar">
           <span>{selectedIds.size} selected</span>
@@ -389,17 +435,17 @@
             <th class="checkbox-col">
               <input type="checkbox" checked={allSelected} onchange={toggleSelectAll} />
             </th>
-            <th>Scenario</th>
+            <th class="th-sort" onclick={() => toggleScenarioSort('scenarioKey')}>Scenario{scenarioSortIcon('scenarioKey')}</th>
             <th>Expected</th>
             <th>Actual</th>
             <th>Source</th>
             <th>Executed By</th>
-            <th>Executed At</th>
+            <th class="th-sort" onclick={() => toggleScenarioSort('executedAt')}>Executed At{scenarioSortIcon('executedAt')}</th>
             <th>Action</th>
           </tr>
         {/snippet}
         {#snippet body()}
-          {#each scenarios as scenario (scenario.id)}
+          {#each filteredScenarios as scenario (scenario.id)}
             <tr>
               <td class="checkbox-col">
                 <input type="checkbox" checked={selectedIds.has(scenario.id)} onchange={() => toggleSelect(scenario.id)} />
@@ -410,7 +456,7 @@
               </td>
               <td><Badge text={scenario.expectedStatus} variant="neutral" /></td>
               <td><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
-              <td>{scenario.source}</td>
+              <td><Badge text={scenario.source} variant={scenario.source === 'AUTOMATION' ? 'automated' : 'manual'} /></td>
               <td>{scenario.executedBy ?? '—'}</td>
               <td>{formatDate(scenario.executedAt)}</td>
               <td>
@@ -419,7 +465,9 @@
                   Update Result
                 </button>
                 {:else}
-                <span class="muted" style="font-size:0.75rem">auto</span>
+                <span class="auto-lock" title="Automation-sourced — cannot manually update">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                </span>
                 {/if}
               </td>
             </tr>
@@ -569,6 +617,12 @@
   .section { margin-top: 22px; }
   .inline-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .inline-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+  .auto-lock { display: inline-flex; align-items: center; color: var(--color-text-muted); opacity: 0.45; }
+  .th-sort { cursor: pointer; user-select: none; }
+  .th-sort:hover { color: var(--color-accent); }
+  .filters-bar { display: flex; gap: .75rem; align-items: center; }
+  .search-wrap { position: relative; display: flex; align-items: center; flex: 1; max-width: 320px; }
+  .copy-inline-btn { display: inline-flex; align-items: center; background: none; border: 1px solid var(--color-border); border-radius: 3px; cursor: pointer; color: var(--color-text-muted); font-size: 0.65rem; padding: 1px 4px; margin-left: 2px; vertical-align: middle; }
   .checkbox-col { width: 36px; text-align: center; }
   .error { border: 1px solid #fecaca; background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: var(--radius); margin-bottom: 16px; }
   .bulk-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--color-accent), transparent 90%); border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 10px; font-size: 0.875rem; font-weight: 600; }

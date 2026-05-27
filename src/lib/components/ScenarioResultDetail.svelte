@@ -78,7 +78,7 @@
         <span class="panel-title">{result.scenarioName}</span>
       </div>
       <button class="close-btn" onclick={onclose} aria-label="Close detail panel">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
           <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
         </svg>
       </button>
@@ -267,17 +267,28 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    background: transparent;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
     color: var(--color-text-muted);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.15s, color 0.15s;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
   }
-  .close-btn:hover { background: var(--color-border); color: var(--color-text); }
+  .close-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.35); color: var(--color-text); }
+
+  :global([data-theme="dark"]) .close-btn {
+    border-color: rgba(255,255,255,0.1);
+    background: rgba(255,255,255,0.05);
+  }
+  :global([data-theme="dark"]) .close-btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.25);
+  }
 
   /* ── Body ──────────────────────────────────────────────────── */
   .panel-body {

@@ -172,13 +172,27 @@
               </svg>
               {opt.label}
               <button class="pin-toggle" title="Unpin" onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(href); }} aria-label="Unpin {opt.label}">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2z"/></svg>
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" opacity="0.7"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
               </button>
             </a>
           {/if}
         {/each}
       {/if}
       <div class="nav-section-label">Browse</div>
+      <a
+        href="/dashboard"
+        class="nav-item"
+        class:nav-item--active={isActive('/dashboard')}
+        onclick={closeSidebar}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+        </svg>
+        Dashboard
+        <button class="pin-btn" title={isPinned('/dashboard') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/dashboard'); }} aria-label={isPinned('/dashboard') ? 'Unpin Dashboard' : 'Pin Dashboard'}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/dashboard') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
+        </button>
+      </a>
       <a
         href="/projects"
         class="nav-item"
@@ -190,7 +204,7 @@
         </svg>
         Projects
         <button class="pin-btn" title={isPinned('/projects') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/projects'); }} aria-label={isPinned('/projects') ? 'Unpin Projects' : 'Pin Projects'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/projects') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/projects') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
         </button>
       </a>
       <a
@@ -204,7 +218,7 @@
         </svg>
         Plans
         <button class="pin-btn" title={isPinned('/plans') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/plans'); }} aria-label={isPinned('/plans') ? 'Unpin Plans' : 'Pin Plans'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/plans') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/plans') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
         </button>
       </a>
       <a
@@ -218,7 +232,7 @@
         </svg>
         Coverage Overview
         <button class="pin-btn" title={isPinned('/coverage-overview') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/coverage-overview'); }} aria-label={isPinned('/coverage-overview') ? 'Unpin Coverage' : 'Pin Coverage'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
         </button>
       </a>
 
