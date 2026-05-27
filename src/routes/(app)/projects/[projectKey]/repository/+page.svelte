@@ -1009,7 +1009,9 @@
           <Dialog.Title class="drawer-title">{detailDraft?.name ?? detailScenario?.name ?? 'Scenario'}</Dialog.Title>
           <p class="drawer-subtitle">{detailDraft?.scenarioKey ?? detailScenario?.scenarioKey ?? 'Loading...'}</p>
         </div>
-        <Dialog.Close class="drawer-close" aria-label="Close">×</Dialog.Close>
+        <Dialog.Close class="drawer-close" aria-label="Close">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </Dialog.Close>
       </div>
 
       {#if detailBusy && !detailDraft}
@@ -1289,7 +1291,35 @@
   .drawer-header { flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 18px 24px; border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
   :global(.drawer-title) { margin: 0; font-size: 1.15rem; font-weight: 850; line-height: 1.25; }
   .drawer-subtitle { margin: 4px 0 0; color: var(--color-text-muted); font-family: ui-monospace, monospace; font-size: 0.8rem; }
-  :global(.drawer-close) { width: 34px; height: 34px; display: inline-grid; place-items: center; border-radius: 8px; font-size: 1.3rem; line-height: 1; }
+  :global(.drawer-close) {
+    width: 34px; height: 34px;
+    display: inline-grid; place-items: center;
+    border-radius: 50%;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    flex-shrink: 0;
+  }
+  :global(.drawer-close:hover) {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: scale(1.05);
+  }
+  :global([data-theme="dark"]) :global(.drawer-close) {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.3);
+  }
+  :global([data-theme="dark"]) :global(.drawer-close:hover) {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.25);
+    color: #fff;
+  }
   .sync-pill { border-radius: 999px; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); padding: 3px 9px; font-size: 0.7rem; font-weight: 800; white-space: nowrap; }
   /* Scrollable body */
   .scenario-editor { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 20px; padding: 20px 24px 8px; }

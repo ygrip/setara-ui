@@ -3,163 +3,253 @@
 </svelte:head>
 
 <script lang="ts">
-  const ROLES = [
-    {
-      key: 'ADMIN',
-      color: 'danger',
-      label: 'Admin',
-      desc: 'Full platform access — organization settings, user management, API keys, and all project operations.'
-    },
-    {
-      key: 'QA_LEAD',
-      color: 'warning',
-      label: 'QA Lead',
-      desc: 'Manages test repository, release plans, evidence sign-off, and can approve draft scenarios.'
-    },
-    {
-      key: 'QA',
-      color: 'info',
-      label: 'QA Engineer',
-      desc: 'Full access to executions, test cases, coverage, and release plans. Cannot approve drafts or modify org settings.'
-    },
-    {
-      key: 'DEVELOPER',
-      color: 'success',
-      label: 'Developer',
-      desc: 'Read access to executions and coverage. Can trigger manual runs via API key.'
-    },
-    {
-      key: 'VIEWER',
-      color: 'neutral',
-      label: 'Viewer',
-      desc: 'Read-only access to dashboards, execution results, and coverage views.'
+  import { onMount } from 'svelte';
+  import Modal from '$lib/components/Modal.svelte';
+  import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
+  import { isMockMode } from '$lib/mock/client';
+
+  let roles = $state<ConfigRole[]>([]);
+  let permissions = $state<AvailablePermission[]>([]);
+  let rolePermissions = $state<Map<string, Set<string>>>(new Map());
+  let loading = $state(true);
+  let error = $state('');
+
+  // Create modal
+  let showCreate = $state(false);
+  let createForm = $state({ key: '', label: '', description: '', color: 'info' });
+  let createBusy = $state(false);
+  let createError = $state('');
+
+  // Edit permission modal
+  let showPermModal = $state(false);
+  let editingRole = $state<ConfigRole | null>(null);
+  let editingPerms = $state<Set<string>>(new Set());
+  let permBusy = $state(false);
+
+  onMount(async () => {
+    try {
+      roles = await listConfigRoles();
+      permissions = await listAvailablePermissions();
+      for (const role of roles) {
+        const perms = await getRolePermissions(role.id);
+        rolePermissions.set(role.id, new Set(perms));
+      }
+      rolePermissions = new Map(rolePermissions); // trigger reactivity
+    } catch (e) {
+      if (isMockMode()) {
+        roles = mockConfigRoles;
+        permissions = mockPermissions;
+      } else {
+        error = (e as Error).message;
+      }
+    } finally {
+      loading = false;
     }
-  ] as const;
+  });
 
-  type RoleKey = typeof ROLES[number]['key'];
+  function hasPerm(roleId: string, area: string, key: string): boolean {
+    return rolePermissions.get(roleId)?.has(`${area}:${key}`) ?? false;
+  }
 
-  // Permission matrix: area → permission → which roles have it
-  type Permission = { label: string; roles: RoleKey[] };
-  type Area = { area: string; permissions: Permission[] };
+  function permKey(area: string, key: string): string { return `${area}:${key}`; }
 
-  const MATRIX: Area[] = [
-    {
-      area: 'Organization',
-      permissions: [
-        { label: 'View tribes & squads', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] },
-        { label: 'Create / edit tribes & squads', roles: ['ADMIN'] },
-        { label: 'Manage users & assignments', roles: ['ADMIN'] },
-        { label: 'Manage project API keys', roles: ['ADMIN'] },
-        { label: 'View admin panel', roles: ['ADMIN'] }
-      ]
-    },
-    {
-      area: 'Projects',
-      permissions: [
-        { label: 'View project dashboard', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] },
-        { label: 'Create new projects', roles: ['ADMIN'] },
-        { label: 'Edit project settings', roles: ['ADMIN', 'QA_LEAD'] },
-        { label: 'View coverage metrics', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] }
-      ]
-    },
-    {
-      area: 'Test Repository',
-      permissions: [
-        { label: 'View scenarios & directories', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] },
-        { label: 'Create / edit scenarios', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'Approve / reject draft scenarios', roles: ['ADMIN', 'QA_LEAD'] },
-        { label: 'Archive scenarios', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'Create / rename / delete directories', roles: ['ADMIN', 'QA_LEAD'] },
-        { label: 'Bulk import scenarios (Excel)', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'View quality / coverage maps', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] }
-      ]
-    },
-    {
-      area: 'Executions',
-      permissions: [
-        { label: 'View execution list & detail', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] },
-        { label: 'Trigger manual run', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER'] },
-        { label: 'Ingest via API key', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER'] }
-      ]
-    },
-    {
-      area: 'Release Plans',
-      permissions: [
-        { label: 'View release plans', roles: ['ADMIN', 'QA_LEAD', 'QA', 'DEVELOPER', 'VIEWER'] },
-        { label: 'Create / edit plans', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'Add / remove scenario scope', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'Select execution evidence', roles: ['ADMIN', 'QA_LEAD', 'QA'] },
-        { label: 'Sign off (close) plan', roles: ['ADMIN', 'QA_LEAD'] },
-        { label: 'Archive plan', roles: ['ADMIN', 'QA_LEAD'] }
-      ]
+  async function handleCreate() {
+    if (!createForm.key.trim() || !createForm.label.trim()) { createError = 'Key and label required'; return; }
+    createBusy = true; createError = '';
+    try {
+      const created = await createConfigRole(createForm);
+      roles = [...roles, created];
+      showCreate = false;
+      createForm = { key: '', label: '', description: '', color: 'info' };
+    } catch (e) { createError = (e as Error).message; }
+    finally { createBusy = false; }
+  }
+
+  async function handleDelete(role: ConfigRole) {
+    if (!confirm(`Delete role "${role.label}"?`)) return;
+    try {
+      await deleteConfigRole(role.id);
+      roles = roles.filter(r => r.id !== role.id);
+    } catch (e) { error = (e as Error).message; }
+  }
+
+  function openPermEditor(role: ConfigRole) {
+    editingRole = role;
+    editingPerms = new Set(rolePermissions.get(role.id) ?? new Set());
+    showPermModal = true;
+  }
+
+  async function savePermissions() {
+    if (!editingRole) return;
+    permBusy = true;
+    try {
+      const entries: { area: string; permissionKey: string }[] = [];
+      for (const p of permissions) {
+        if (editingPerms.has(permKey(p.area, p.key))) {
+          entries.push({ area: p.area, permissionKey: p.key });
+        }
+      }
+      const saved = await setRolePermissions(editingRole.id, entries);
+      rolePermissions.set(editingRole.id, new Set(saved));
+      rolePermissions = new Map(rolePermissions);
+      showPermModal = false;
+    } catch (e) { error = (e as Error).message; }
+    finally { permBusy = false; }
+  }
+
+  function togglePerm(area: string, key: string) {
+    const pk = permKey(area, key);
+    const next = new Set(editingPerms);
+    if (next.has(pk)) next.delete(pk); else next.add(pk);
+    editingPerms = next;
+  }
+
+  // Group permissions by area
+  const permAreas = $derived.by(() => {
+    const areas = new Map<string, AvailablePermission[]>();
+    for (const p of permissions) {
+      if (!areas.has(p.area)) areas.set(p.area, []);
+      areas.get(p.area)!.push(p);
     }
-  ];
+    return areas;
+  });
 
-  function hasPermission(roles: readonly RoleKey[], roleKey: string): boolean {
-    return (roles as string[]).includes(roleKey);
+  function badgeColor(color: string): string {
+    return color || 'neutral';
   }
 </script>
 
 <div class="section-wrap">
-  <!-- Role summary cards -->
-  <div class="roles-grid">
-    {#each ROLES as role}
-      <div class="role-card role-{role.color}">
-        <div class="role-card-head">
-          <span class="role-badge role-badge-{role.color}">{role.key.replace('_', ' ')}</span>
+  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if loading}
+    <p class="muted">Loading roles…</p>
+  {:else}
+    <!-- Role cards -->
+    <div class="section-header">
+      <h2 class="section-title">Roles</h2>
+      <button class="btn-create" onclick={() => { showCreate = true; createError = ''; createForm = { key: '', label: '', description: '', color: 'info' }; }}>+ New Role</button>
+    </div>
+    <div class="roles-grid">
+      {#each roles as role (role.id)}
+        <div class="role-card">
+          <div class="role-card-head">
+            <span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span>
+            {#if role.system}<span class="system-tag">system</span>{/if}
+          </div>
+          <span class="role-display">{role.label}</span>
+          <p class="role-desc">{role.description ?? ''}</p>
+          <div class="role-card-actions">
+            <button class="role-action-btn" onclick={() => openPermEditor(role)} title="Edit permissions">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+              Permissions
+            </button>
+            {#if !role.system}
+              <button class="role-action-btn danger" onclick={() => handleDelete(role)} title="Delete role">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+              </button>
+            {/if}
+          </div>
         </div>
-        <span class="role-display">{role.label}</span>
-        <p class="role-desc">{role.desc}</p>
-      </div>
-    {/each}
-  </div>
+      {/each}
+    </div>
 
-  <!-- Permission matrix -->
-  <div class="panel">
-    <h2 class="panel-title">Permission Matrix</h2>
-    <div class="matrix-wrap">
-      <table class="matrix-table">
-        <thead>
-          <tr>
-            <th class="area-col">Permission</th>
-            {#each ROLES as role}
-              <th class="role-col">
-                <span class="role-badge role-badge-{role.color}">{role.key}</span>
-              </th>
-            {/each}
-          </tr>
-        </thead>
-        <tbody>
-          {#each MATRIX as section}
-            <tr class="area-header-row">
-              <td colspan={ROLES.length + 1} class="area-header">{section.area}</td>
+    <!-- Permission matrix -->
+    <div class="panel">
+      <h2 class="panel-title">Permission Matrix</h2>
+      <div class="matrix-wrap">
+        <table class="matrix-table">
+          <thead>
+            <tr>
+              <th class="area-col">Permission</th>
+              {#each roles as role}
+                <th class="role-col"><span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span></th>
+              {/each}
             </tr>
-            {#each section.permissions as perm}
-              <tr>
-                <td class="perm-label">{perm.label}</td>
-                {#each ROLES as role}
-                  <td class="perm-cell">
-                    {#if hasPermission(perm.roles, role.key)}
-                      <span class="check" title="{role.key} has this permission" aria-label="Allowed">✓</span>
-                    {:else}
-                      <span class="cross" title="{role.key} does not have this permission" aria-label="Denied">—</span>
-                    {/if}
-                  </td>
-                {/each}
+          </thead>
+          <tbody>
+            {#each [...permAreas.entries()] as [area, perms]}
+              <tr class="area-header-row">
+                <td colspan={roles.length + 1} class="area-header">{area}</td>
               </tr>
+              {#each perms as perm}
+                <tr>
+                  <td class="perm-label">{perm.label}</td>
+                  {#each roles as role}
+                    <td class="perm-cell">
+                      {#if hasPerm(role.id, perm.area, perm.key)}
+                        <span class="check" title="Has permission" aria-label="Allowed">✓</span>
+                      {:else}
+                        <span class="cross" aria-label="Denied">—</span>
+                      {/if}
+                    </td>
+                  {/each}
+                </tr>
+              {/each}
             {/each}
-          {/each}
-        </tbody>
-      </table>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  {/if}
+
+  <p class="note">System roles (ADMIN, VIEWER) cannot be modified or deleted. Role assignments are managed via <strong>Admin → Users</strong>.</p>
+</div>
+
+<!-- Create role modal -->
+<Modal open={showCreate} title="Create Role" size="sm" onclose={() => showCreate = false}>
+  <div class="modal-body">
+    {#if createError}<div class="error-banner">{createError}</div>{/if}
+    <label class="field">
+      <span>Key <span class="req">*</span></span>
+      <input bind:value={createForm.key} placeholder="QA_LEAD" />
+    </label>
+    <label class="field">
+      <span>Label <span class="req">*</span></span>
+      <input bind:value={createForm.label} placeholder="QA Lead" />
+    </label>
+    <label class="field">
+      <span>Description</span>
+      <textarea bind:value={createForm.description} rows={2} placeholder="Role description…"></textarea>
+    </label>
+    <label class="field">
+      <span>Color</span>
+      <select bind:value={createForm.color}>
+        <option value="info">Blue</option>
+        <option value="success">Green</option>
+        <option value="warning">Amber</option>
+        <option value="danger">Red</option>
+        <option value="neutral">Gray</option>
+      </select>
+    </label>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick={() => showCreate = false}>Cancel</button>
+      <button class="btn-submit" onclick={handleCreate} disabled={createBusy}>{createBusy ? 'Creating…' : 'Create'}</button>
     </div>
   </div>
+</Modal>
 
-  <!-- Note -->
-  <p class="note">
-    Role assignments are managed per-project via the <strong>Admin → Users</strong> panel.
-    Global system roles (ADMIN) apply across all projects.
-  </p>
-</div>
+<!-- Permission editor modal -->
+<Modal open={showPermModal} title="Edit Permissions — {editingRole?.label}" size="lg" onclose={() => showPermModal = false}>
+  <div class="modal-body perm-editor">
+    {#each [...permAreas.entries()] as [area, perms]}
+      <div class="perm-area-group">
+        <h3 class="perm-area-title">{area}</h3>
+        <div class="perm-checks">
+          {#each perms as perm}
+            <label class="perm-check">
+              <input type="checkbox" checked={editingPerms.has(permKey(perm.area, perm.key))} onchange={() => togglePerm(perm.area, perm.key)} />
+              <span>{perm.label}</span>
+            </label>
+          {/each}
+        </div>
+      </div>
+    {/each}
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick={() => showPermModal = false}>Cancel</button>
+      <button class="btn-submit" onclick={savePermissions} disabled={permBusy}>{permBusy ? 'Saving…' : 'Save'}</button>
+    </div>
+  </div>
+</Modal>
 
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
@@ -214,7 +304,178 @@
     color: var(--color-text-muted);
     line-height: 1.5;
     margin: 0;
+    flex: 1;
   }
+
+  .role-card-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .role-action-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    border-radius: 4px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-size: 0.72rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .role-action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .role-action-btn.danger:hover { border-color: var(--color-danger); color: var(--color-danger); }
+
+  .system-tag {
+    display: inline-flex;
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.6rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .section-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    margin: 0;
+  }
+
+  .btn-create {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--color-accent);
+    background: var(--color-accent);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+  }
+
+  .field input, .field select, .field textarea {
+    font: inherit;
+    font-size: 0.875rem;
+    padding: 8px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font-weight: 400;
+  }
+
+  .req { color: var(--color-danger); }
+
+  .modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+
+  .btn-cancel {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .btn-submit {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--color-accent);
+    background: var(--color-accent);
+    color: #fff;
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .perm-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .perm-area-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .perm-area-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    margin: 0 0 2px;
+  }
+
+  .perm-checks {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 4px;
+  }
+
+  .perm-check {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    cursor: pointer;
+  }
+
+  .error-banner {
+    background: color-mix(in srgb, var(--color-danger), transparent 90%);
+    color: var(--color-danger);
+    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    font-size: 0.85rem;
+  }
+
+  .muted { color: var(--color-text-muted); }
 
   /* Badges */
   .role-badge {

@@ -627,7 +627,7 @@
   }
 
   .pin-btn {
-    display: none;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 22px;
@@ -639,23 +639,26 @@
     cursor: pointer;
     flex-shrink: 0;
     margin-left: auto;
-    opacity: 0;
-    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+    opacity: 0.35;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
   }
 
-  .nav-item:hover .pin-btn { opacity: 1; }
+  .nav-item:hover .pin-btn { opacity: 0.75; }
 
   .pin-btn:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.2);
+    opacity: 1;
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.25);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: var(--color-accent);
   }
 
+  :global([data-theme="dark"]) .pin-btn { color: rgba(255,255,255,0.5); }
   :global([data-theme="dark"]) .pin-btn:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
+    color: var(--color-accent-mint);
   }
 
   .pin-toggle {
@@ -671,20 +674,22 @@
     cursor: pointer;
     flex-shrink: 0;
     margin-left: auto;
+    opacity: 0.6;
     transition: background 0.15s, border-color 0.15s, color 0.15s;
   }
 
   .pin-toggle:hover {
-    background: rgba(255,255,255,0.12);
-    border-color: rgba(255,255,255,0.2);
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.25);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     color: var(--color-danger);
   }
 
+  :global([data-theme="dark"]) .pin-toggle { color: rgba(255,255,255,0.6); }
   :global([data-theme="dark"]) .pin-toggle:hover {
-    background: rgba(255,255,255,0.08);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(255,255,255,0.1);
+    border-color: rgba(255,255,255,0.2);
   }
 
   .sidebar-footer {
