@@ -19,7 +19,6 @@
   let searchHintKey = $state(0); // triggers {#key} re-mount for animation
 
   const projectKey = $derived(page.params.projectKey ?? null);
-  const squadId = $derived(page.params.squadId ?? null);
 
   onMount(() => {
     session = getValidSession();
@@ -158,6 +157,17 @@
         Projects
       </a>
       <a
+        href="/plans"
+        class="nav-item"
+        class:nav-item--active={isActive('/plans')}
+        onclick={closeSidebar}
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
+        </svg>
+        Plans
+      </a>
+      <a
         href="/coverage-overview"
         class="nav-item"
         class:nav-item--active={isActive('/coverage-overview')}
@@ -191,17 +201,6 @@
             <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
           </svg>
           Builds
-        </a>
-        <a
-          href="/projects/{projectKey}/release-plans"
-          class="nav-item"
-          class:nav-item--active={isActive(`/projects/${projectKey}/release-plans`)}
-          onclick={closeSidebar}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          Release Plans
         </a>
         <a
           href="/projects/{projectKey}/repository"
@@ -245,12 +244,6 @@
         </a>
         <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          Release Plans
-        </a>
-        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
           </svg>
           Test Repository
@@ -269,39 +262,6 @@
         </a>
       {/if}
 
-      <!-- Squad section -->
-      <div class="nav-divider">
-        <span class="nav-divider-label">Squad</span>
-        {#if squadId}
-          <span class="nav-divider-key">{squadId.slice(0, 8)}…</span>
-        {:else}
-          <span class="nav-divider-hint">(select squad)</span>
-        {/if}
-      </div>
-
-      {#if squadId}
-        <a
-          href="/squads/{squadId}/release-plans"
-          class="nav-item"
-          class:nav-item--active={isActive(`/squads/${squadId}/release-plans`)}
-          onclick={closeSidebar}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            <path d="M9 12h6M9 16h4"/>
-          </svg>
-          Release Plans
-        </a>
-      {:else}
-        <a href="/coverage-overview" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-            <path d="M9 12h6M9 16h4"/>
-          </svg>
-          Release Plans
-        </a>
-      {/if}
-
       <!-- Divider -->
       <div class="nav-divider nav-divider--simple"></div>
 
@@ -316,7 +276,8 @@
         onclick={closeSidebar}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>
+          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
         </svg>
         Settings
       </a>

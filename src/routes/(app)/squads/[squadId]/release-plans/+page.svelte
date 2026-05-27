@@ -18,12 +18,39 @@
   let releaseDate = $state('');
   let description = $state('');
 
-  const plans = $derived(
-    (data.plans as ReleasePlan[]).filter((p) => {
+  let statusFilter = $state('');
+  let sortBy = $state<'name' | 'releaseDate' | 'createdAt'>('createdAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
+
+  function toggleSort(col: typeof sortBy) {
+    if (sortBy === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortBy = col;
+      sortDir = col === 'createdAt' ? 'desc' : 'asc';
+    }
+  }
+
+  function sortIndicator(col: string): string {
+    if (sortBy !== col) return '';
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  const plans = $derived.by(() => {
+    const source = data.plans as ReleasePlan[];
+    const q = filterText.toLowerCase();
+    let result = source.filter((p) => {
       const text = `${p.name} ${p.releaseVersion ?? ''} ${p.status}`.toLowerCase();
-      return text.includes(filterText.toLowerCase());
-    })
-  );
+      return text.includes(q) && (!statusFilter || p.status === statusFilter);
+    });
+    return [...result].sort((a, b) => {
+      const va = (sortBy === 'name' ? a.name : sortBy === 'releaseDate' ? a.releaseDate : a.createdAt) ?? '';
+      const vb = (sortBy === 'name' ? b.name : sortBy === 'releaseDate' ? b.releaseDate : b.createdAt) ?? '';
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
@@ -109,6 +136,12 @@
       bind:value={filterText}
       aria-label="Filter release plans"
     />
+    <select class="filter-select" bind:value={statusFilter} aria-label="Filter by status">
+      <option value="">All statuses</option>
+      <option value="OPEN">Open</option>
+      <option value="IN_PROGRESS">In Progress</option>
+      <option value="CLOSED">Closed</option>
+    </select>
     <span class="filter-count">{plans.length} plan{plans.length !== 1 ? 's' : ''}</span>
   </div>
 
@@ -124,24 +157,47 @@
         {#snippet head()}
           <tr>
             <th>Status</th>
-            <th>Name</th>
-            <th>Version</th>
-            <th>Release Date</th>
-            <th>Created</th>
-            <th></th>
+            <th class="th-sort" onclick={() => toggleSort('name')}>Name{sortIndicator('name')}</th>
+            <th class="th-sort" onclick={() => toggleSort('releaseDate')}>Release date{sortIndicator('releaseDate')}</th>
+            <th>Builds</th>
+            <th>Projects</th>
+            <th class="th-sort" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
+            <th>Closed</th>
           </tr>
         {/snippet}
         {#snippet body()}
           {#each plans as plan (plan.id)}
-            <tr>
+            <tr
+              class="plan-row"
+              onclick={() => window.location.href = `/squads/${data.squadId}/release-plans/${plan.id}`}
+            >
               <td><Badge text={plan.status} variant={statusVariant(plan.status)} /></td>
-              <td class="plan-name">{plan.name}</td>
-              <td class="muted">{plan.releaseVersion ?? '—'}</td>
-              <td class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '—'}</td>
-              <td class="nowrap muted">{formatDate(plan.createdAt)}</td>
-              <td>
-                <a href="/squads/{data.squadId}/release-plans/{plan.id}" class="link">View →</a>
+              <td class="plan-name-cell">
+                <span class="plan-name">{plan.name}</span>
+                {#if plan.releaseVersion}
+                  <span class="plan-version">{plan.releaseVersion}</span>
+                {/if}
               </td>
+              <td class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '—'}</td>
+              <td>
+                {#if (plan.totalBuilds ?? 0) > 0}
+                  <div class="builds-cell">
+                    <span class="builds-text">{plan.verifiedBuilds ?? 0} / {plan.totalBuilds}</span>
+                    <div class="builds-bar">
+                      <div
+                        class="builds-bar-fill"
+                        class:all-verified={(plan.verifiedBuilds ?? 0) === plan.totalBuilds}
+                        style="width:{Math.round(((plan.verifiedBuilds ?? 0) / (plan.totalBuilds ?? 1)) * 100)}%"
+                      ></div>
+                    </div>
+                  </div>
+                {:else}
+                  <span class="muted">—</span>
+                {/if}
+              </td>
+              <td class="muted">{(plan.totalProjects ?? 0) > 0 ? plan.totalProjects : '—'}</td>
+              <td class="nowrap muted">{formatDate(plan.createdAt)}</td>
+              <td class="nowrap muted">{formatDate(plan.closedAt)}</td>
             </tr>
           {/each}
         {/snippet}
@@ -197,15 +253,26 @@
   .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
   .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 20px; }
-  .filter-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
-  .filter-input { flex: 1; max-width: 320px; font: inherit; font-size: 0.875rem; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }
+  .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+  .filter-input { flex: 1; max-width: 260px; font: inherit; font-size: 0.875rem; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }
   .filter-input:focus { outline: none; border-color: var(--color-accent); }
-  .filter-count { font-size: 0.8rem; color: var(--color-text-muted); }
+  .filter-select { font: inherit; font-size: 0.875rem; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); cursor: pointer; }
+  .filter-count { font-size: 0.8rem; color: var(--color-text-muted); margin-left: auto; }
   .table-wrap { overflow-x: auto; border-radius: var(--radius); margin-bottom: 24px; }
-  .plan-name { font-weight: 500; }
+  .th-sort { cursor: pointer; user-select: none; }
+  .th-sort:hover { color: var(--color-accent); }
+  .plan-row { cursor: pointer; }
+  .plan-row:hover td { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
+  .plan-name-cell { display: flex; flex-direction: column; gap: 2px; }
+  .plan-name { font-weight: 600; }
+  .plan-version { font-size: 0.72rem; color: var(--color-accent); font-family: var(--font-mono, monospace); }
   .muted { color: var(--color-text-muted); font-size: 0.875rem; }
   .nowrap { white-space: nowrap; }
-  .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; white-space: nowrap; }
+  .builds-cell { display: flex; flex-direction: column; gap: 3px; min-width: 80px; }
+  .builds-text { font-size: 0.8rem; color: var(--color-text); font-variant-numeric: tabular-nums; }
+  .builds-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; }
+  .builds-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; }
+  .builds-bar-fill.all-verified { background: #15803d; }
   .empty-state { text-align: center; padding: 64px 24px; color: var(--color-text-muted); }
   .empty-title { font-size: 0.925rem; margin: 0 0 8px; color: var(--color-text); }
   .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }

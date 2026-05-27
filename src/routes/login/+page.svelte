@@ -2,12 +2,26 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
-  import { createMockSession, getValidSession, storeSession } from '$lib/auth';
+  import { createMockSession, getValidSession, storeSession, type SetaraRole } from '$lib/auth';
 
   let email = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
+
+  const IS_MOCK = import.meta.env.VITE_MOCK === 'true';
+
+  const DEMO_ACCOUNTS: { label: string; email: string; role: SetaraRole; name: string }[] = [
+    { label: 'Admin',  email: 'admin@setara.dev',  role: 'ADMIN',  name: 'Admin User'  },
+    { label: 'QA',     email: 'qa@setara.dev',     role: 'QA',     name: 'QA Engineer' },
+    { label: 'Viewer', email: 'viewer@setara.dev', role: 'VIEWER', name: 'Viewer User' },
+    { label: 'Guest',  email: 'guest@setara.dev',  role: 'GUEST',  name: 'Guest User'  }
+  ];
+
+  // Map known demo emails → roles
+  const EMAIL_ROLE_MAP: Record<string, SetaraRole> = Object.fromEntries(
+    DEMO_ACCOUNTS.map(a => [a.email, a.role])
+  );
 
   onMount(() => {
     // Already logged in? Go to workspace.
@@ -24,10 +38,16 @@
       return;
     }
     loading = true;
-    // Mock authentication — any non-empty credentials pass
     await new Promise(r => setTimeout(r, 400));
+    const trimmed = email.trim().toLowerCase();
+    const role: SetaraRole = EMAIL_ROLE_MAP[trimmed] ?? 'GUEST';
     const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    storeSession(createMockSession(email.trim(), name));
+    storeSession(createMockSession(trimmed, name, role));
+    goto('/workspace', { replaceState: true });
+  }
+
+  function quickLogin(account: typeof DEMO_ACCOUNTS[number]) {
+    storeSession(createMockSession(account.email, account.name, account.role));
     goto('/workspace', { replaceState: true });
   }
 </script>
@@ -85,7 +105,19 @@
       </button>
     </form>
 
-    <p class="demo-note">Demo mode — sessions refresh locally and expire automatically</p>
+    {#if IS_MOCK}
+      <div class="demo-accounts">
+        <span class="demo-label">Quick login</span>
+        <div class="demo-chips">
+          {#each DEMO_ACCOUNTS as account}
+            <button class="demo-chip demo-chip--{account.role.toLowerCase()}" onclick={() => quickLogin(account)} type="button">
+              {account.label}
+            </button>
+          {/each}
+        </div>
+        <p class="demo-note">Demo mode · Password for manual login: <code>setara</code></p>
+      </div>
+    {/if}
   </div>
 </div>
 
@@ -224,11 +256,64 @@
     cursor: not-allowed;
   }
 
+  .demo-accounts {
+    margin-top: 24px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 20px;
+  }
+
+  .demo-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+  }
+
+  .demo-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .demo-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    font-family: inherit;
+  }
+
+  .demo-chip:hover { background: var(--color-accent-subtle); border-color: var(--color-accent); color: var(--color-accent); }
+  .demo-chip--admin  { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
+  .demo-chip--admin:hover  { background: #7c3aed18; border-color: #7c3aed; }
+  .demo-chip--qa     { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
+  .demo-chip--qa:hover { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
+  .demo-chip--viewer { border-color: #0284c740; color: #0284c7; background: #0284c70a; }
+  .demo-chip--viewer:hover { background: #0284c718; border-color: #0284c7; }
+  .demo-chip--guest  { border-color: var(--color-border); color: var(--color-text-muted); }
+
   .demo-note {
-    margin-top: 20px;
     text-align: center;
     font-size: 0.72rem;
     color: var(--color-text-muted);
     opacity: 0.7;
+  }
+
+  .demo-note code {
+    font-family: var(--font-mono, monospace);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-size: 0.72rem;
   }
 </style>

@@ -3,19 +3,55 @@
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import DonutChart from '$lib/components/DonutChart.svelte';
   import { createBuild, type ProjectBuild } from '$lib/api/builds';
 
   let { data } = $props();
 
-  let builds = $state<ProjectBuild[]>([]);
+  let allBuilds = $state<ProjectBuild[]>([]);
   let showCreate = $state(false);
   let creating = $state(false);
   let createError = $state('');
   let form = $state({ name: '', buildKey: '', version: '', description: '' });
+  let statusFilter = $state('');
+  let nameFilter = $state('');
+  let sortBy = $state<'name' | 'createdAt' | 'verifiedAt'>('createdAt');
+  let sortDir = $state<'asc' | 'desc'>('desc');
 
   $effect(() => {
-    builds = data.builds;
+    allBuilds = data.builds;
+  });
+
+  function toggleSort(col: typeof sortBy) {
+    if (sortBy === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortBy = col;
+      sortDir = col === 'name' ? 'asc' : 'desc';
+    }
+  }
+
+  function sortIndicator(col: string) {
+    if (sortBy !== col) return '';
+    return sortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
+  const builds = $derived.by(() => {
+    const q = nameFilter.trim().toLowerCase();
+    let result = allBuilds.filter(b => {
+      const matchStatus = !statusFilter || b.status === statusFilter;
+      const matchName = !q || b.name.toLowerCase().includes(q) || (b.buildKey ?? '').toLowerCase().includes(q) || (b.version ?? '').toLowerCase().includes(q);
+      return matchStatus && matchName;
+    });
+    return [...result].sort((a, b) => {
+      let va: string = '';
+      let vb: string = '';
+      if (sortBy === 'name') { va = a.name ?? ''; vb = b.name ?? ''; }
+      else if (sortBy === 'verifiedAt') { va = a.verifiedAt ?? ''; vb = b.verifiedAt ?? ''; }
+      else { va = a.createdAt ?? ''; vb = b.createdAt ?? ''; }
+      if (va < vb) return sortDir === 'asc' ? -1 : 1;
+      if (va > vb) return sortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
   });
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
@@ -36,23 +72,6 @@
     return `${Number(value || 0).toFixed(0)}%`;
   }
 
-  function buildDonut(build: ProjectBuild) {
-    return {
-      labels: ['Passed', 'Failed', 'Blocked', 'Skipped', 'Not executed'],
-      datasets: [{
-        data: [
-          build.metrics.passed,
-          build.metrics.failed,
-          build.metrics.blocked,
-          build.metrics.skipped,
-          build.metrics.notExecuted
-        ],
-        backgroundColor: ['#16a34a', '#dc2626', '#d97706', '#64748b', '#cbd5e1'],
-        borderWidth: 0
-      }]
-    };
-  }
-
   async function submitCreate() {
     if (!form.name.trim()) return;
     creating = true;
@@ -64,7 +83,7 @@
         version: form.version.trim() || undefined,
         description: form.description.trim() || undefined
       });
-      builds = [created, ...builds];
+      allBuilds = [created, ...allBuilds];
       showCreate = false;
       form = { name: '', buildKey: '', version: '', description: '' };
     } catch (error) {
@@ -96,70 +115,75 @@
     <button class="primary-btn" onclick={() => showCreate = true}>+ Build</button>
   </header>
 
-  <section class="build-grid">
-    {#each builds.slice(0, 3) as build}
-      <button class="build-card" onclick={() => goto(`/projects/${data.projectKey}/builds/${build.id}`)}>
-        <div class="build-card-top">
-          <div>
-            <strong>{build.name}</strong>
-            <span>{build.buildKey}{build.version ? ` · ${build.version}` : ''}</span>
-          </div>
-          <Badge text={build.status} variant={statusVariant(build.status)} />
-        </div>
-        <div class="build-card-body">
-          <DonutChart chartData={buildDonut(build)} size={180} />
-          <div class="build-stats">
-            <span><strong>{build.metrics.totalScenarios}</strong> scenarios</span>
-            <span><strong>{pct(build.metrics.passPercentage)}</strong> pass</span>
-            <span><strong>{pct(build.metrics.executionCoverage)}</strong> executed</span>
-          </div>
-        </div>
-      </button>
-    {/each}
-  </section>
+  <div class="filters-bar">
+    <div class="search-wrap">
+      <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+      </svg>
+      <input class="search-input" type="search" placeholder="Search builds…" bind:value={nameFilter} aria-label="Search builds" />
+    </div>
+    <select bind:value={statusFilter}>
+      <option value="">All statuses</option>
+      <option value="INITIATED">Initiated</option>
+      <option value="IN_PROGRESS">In Progress</option>
+      <option value="VERIFIED">Verified</option>
+    </select>
+    <span class="count">{builds.length} build{builds.length !== 1 ? 's' : ''}</span>
+  </div>
 
   <section class="section">
-    <DataTable>
-      {#snippet head()}
-        <tr>
-          <th>Name</th>
-          <th>Status</th>
-          <th>Scenarios</th>
-          <th>Pass</th>
-          <th>Execution</th>
-          <th>Created</th>
-          <th>Verified</th>
-          <th></th>
-        </tr>
-      {/snippet}
-      {#snippet body()}
-        {#each builds as build}
+    <div class="table-wrap">
+      <table class="builds-table">
+        <thead>
           <tr>
-            <td>
-              <strong>{build.name}</strong>
-              <div class="muted">{build.buildKey}{build.version ? ` · ${build.version}` : ''}</div>
-            </td>
-            <td><Badge text={build.status} variant={statusVariant(build.status)} /></td>
-            <td>{build.metrics.totalScenarios}</td>
-            <td>{pct(build.metrics.passPercentage)}</td>
-            <td>{pct(build.metrics.executionCoverage)}</td>
-            <td>{formatDate(build.createdAt)}</td>
-            <td>{formatDate(build.verifiedAt)}</td>
-            <td><a class="link" href="/projects/{data.projectKey}/builds/{build.id}">Open →</a></td>
+            <th class="th-sort" onclick={() => toggleSort('name')}>Build{sortIndicator('name')}</th>
+            <th>Status</th>
+            <th>Version</th>
+            <th>Scenarios</th>
+            <th>Pass</th>
+            <th>Execution</th>
+            <th class="th-sort" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
+            <th class="th-sort" onclick={() => toggleSort('verifiedAt')}>Verified{sortIndicator('verifiedAt')}</th>
           </tr>
-        {/each}
-      {/snippet}
-    </DataTable>
+        </thead>
+        <tbody>
+          {#each builds as build (build.id)}
+            <tr class="build-row" onclick={() => goto(`/projects/${data.projectKey}/builds/${build.id}`)}>
+              <td class="name-cell">
+                <span class="build-name">{build.name}</span>
+                <span class="build-key">{build.buildKey}</span>
+              </td>
+              <td><Badge text={build.status} variant={statusVariant(build.status)} /></td>
+              <td>
+                {#if build.version}
+                  <span class="version-chip">{build.version}</span>
+                {:else}
+                  <span class="muted">—</span>
+                {/if}
+              </td>
+              <td class="num">{build.metrics.totalScenarios}</td>
+              <td class="num">{pct(build.metrics.passPercentage)}</td>
+              <td class="num">{pct(build.metrics.executionCoverage)}</td>
+              <td class="nowrap muted">{formatDate(build.createdAt)}</td>
+              <td class="nowrap muted">{formatDate(build.verifiedAt)}</td>
+            </tr>
+          {/each}
+          {#if builds.length === 0}
+            <tr><td colspan="8" class="empty-cell">No builds found.</td></tr>
+          {/if}
+        </tbody>
+      </table>
+    </div>
   </section>
 </div>
 
 <Modal open={showCreate} title="Create Build" onclose={() => showCreate = false}>
   <form class="form" onsubmit={(event) => { event.preventDefault(); submitCreate(); }}>
     {#if createError}<div class="error">{createError}</div>{/if}
-    <label>Name<input bind:value={form.name} placeholder="Payment May RC2" /></label>
-    <label>Build key<input bind:value={form.buildKey} placeholder="payment-rc2" /></label>
-    <label>Version<input bind:value={form.version} placeholder="2026.05.2" /></label>
-    <label>Description<textarea bind:value={form.description} rows="3"></textarea></label>
+    <label>Name <span class="req">*</span><input bind:value={form.name} placeholder="Payment May RC2" /></label>
+    <label>Build key <span class="opt">(optional)</span><input bind:value={form.buildKey} placeholder="payment-rc2" /></label>
+    <label>Version <span class="opt">(optional)</span><input bind:value={form.version} placeholder="2026.05.2" /></label>
+    <label>Description <span class="opt">(optional)</span><textarea bind:value={form.description} rows="3"></textarea></label>
     <div class="modal-actions">
       <button type="button" class="secondary-btn" onclick={() => showCreate = false}>Cancel</button>
       <button type="submit" class="primary-btn" disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
@@ -170,19 +194,35 @@
 <style>
   .page { max-width: min(1560px, 100%); }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
-  .breadcrumb a, .link { color: var(--color-accent); text-decoration: none; font-weight: 700; }
-  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 22px; }
+  .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }
   .page-header h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .page-header p, .muted { color: var(--color-text-muted); margin: 0; font-size: 0.84rem; }
-  .build-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; margin-bottom: 24px; }
-  .build-card { text-align: left; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: var(--radius); padding: 18px; cursor: pointer; }
-  .build-card:hover { border-color: var(--color-accent); }
-  .build-card-top { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-  .build-card-top span { display: block; color: var(--color-text-muted); font-size: 0.78rem; margin-top: 4px; }
-  .build-card-body { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 18px; }
-  .build-stats { display: grid; gap: 10px; color: var(--color-text-muted); }
-  .build-stats strong { color: var(--color-text); font-size: 1.15rem; }
-  .section { margin-top: 16px; }
+  .filters-bar { display: flex; gap: .75rem; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  .filters-bar select { padding: .4rem .75rem; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: .875rem; cursor: pointer; font: inherit; }
+  .search-wrap { position: relative; display: flex; align-items: center; }
+  .search-icon { position: absolute; left: 10px; color: var(--color-text-muted); pointer-events: none; }
+  .search-input { padding: 7px 11px 7px 30px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.875rem; min-width: 200px; outline: none; }
+  .search-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0,175,165,0.1); }
+  .count { font-size: 0.8rem; color: var(--color-text-muted); margin-left: auto; }
+  .section { margin-top: 0; }
+  .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; overflow-x: auto; }
+  .builds-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .builds-table thead { background: var(--color-surface); }
+  .builds-table th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+  .builds-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+  .build-row:last-child td { border-bottom: none; }
+  .th-sort { cursor: pointer; user-select: none; }
+  .th-sort:hover { color: var(--color-accent); }
+  .build-row { cursor: pointer; }
+  .build-row:hover td { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
+  .name-cell { display: flex; flex-direction: column; gap: 2px; }
+  .build-name { font-weight: 600; color: var(--color-text); }
+  .build-key { font-size: 0.72rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
+  .version-chip { display: inline-block; font-family: var(--font-mono, monospace); font-size: 0.72rem; background: var(--color-accent-subtle); color: var(--color-accent); border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%); border-radius: 4px; padding: 1px 6px; }
+  .num { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
+  .nowrap { white-space: nowrap; }
+  .empty-cell { text-align: center; padding: 48px; color: var(--color-text-muted); font-size: 0.875rem; }
   .primary-btn, .secondary-btn { min-height: 38px; padding: 8px 14px; border-radius: 6px; font-weight: 800; cursor: pointer; }
   .primary-btn { border: 1px solid var(--color-accent); background: var(--color-accent); color: white; }
   .secondary-btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
@@ -191,8 +231,9 @@
   .form input, .form textarea { width: 100%; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); border-radius: 6px; padding: 10px 12px; font: inherit; text-transform: none; }
   .modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
   .error { color: var(--color-danger); font-weight: 700; }
+  .req { color: var(--color-danger); }
+  .opt { font-size: 0.7em; font-weight: 400; text-transform: none; color: var(--color-text-muted); }
   @media (max-width: 720px) {
-    .page-header, .build-card-top { flex-direction: column; }
-    .build-card-body { grid-template-columns: 1fr; justify-items: start; }
+    .page-header { flex-direction: column; }
   }
 </style>

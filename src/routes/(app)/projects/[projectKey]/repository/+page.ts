@@ -9,20 +9,24 @@ async function listRepositoryDirectories(projectKey: string, parentId: string | 
 }
 
 export async function load({ params }: { params: { projectKey: string } }) {
-  try {
-    const [directories, scenarios, draftScenarios] = await Promise.all([
-      listRepositoryDirectories(params.projectKey),
-      listScenarios(params.projectKey, null, 'ACTIVE'),
-      listScenarios(params.projectKey, null, 'DRAFT')
-    ]);
-    return { projectKey: params.projectKey, directories, scenarios, draftScenarios, error: null };
-  } catch (e) {
-    return {
-      projectKey: params.projectKey,
-      directories: [] as TestDirectory[],
-      scenarios: [] as Scenario[],
-      draftScenarios: [] as Scenario[],
-      error: (e as Error).message
-    };
-  }
+  const { projectKey } = params;
+
+  const [dirResult, scenariosResult, draftsResult] = await Promise.allSettled([
+    listRepositoryDirectories(projectKey),
+    listScenarios(projectKey, null, 'ACTIVE'),
+    listScenarios(projectKey, null, 'DRAFT')
+  ]);
+
+  const directories = dirResult.status === 'fulfilled' ? dirResult.value : ([] as TestDirectory[]);
+  const scenarios = scenariosResult.status === 'fulfilled' ? scenariosResult.value : ([] as Scenario[]);
+  const draftScenarios = draftsResult.status === 'fulfilled' ? draftsResult.value : ([] as Scenario[]);
+
+  // Surface the first error encountered so the page can show an informative banner
+  const firstError =
+    dirResult.status === 'rejected' ? (dirResult.reason as Error).message :
+    scenariosResult.status === 'rejected' ? (scenariosResult.reason as Error).message :
+    draftsResult.status === 'rejected' ? (draftsResult.reason as Error).message :
+    null;
+
+  return { projectKey, directories, scenarios, draftScenarios, error: firstError };
 }

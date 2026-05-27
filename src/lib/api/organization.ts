@@ -1,7 +1,7 @@
 import { getApiBaseUrl } from './config';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockListTribes, mockListSquads, mockListUsers } from '$lib/mock/client';
+import { isMockMode, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads } from '$lib/mock/client';
 
 export interface Tribe {
   id: string;
@@ -78,11 +78,13 @@ export async function listUsers(cursor?: string, limit?: number, sortBy?: string
 }
 
 export async function listAllSquads(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
+  if (isMockMode()) return mockListAllSquads(cursor, limit);
   const res = await apiFetch(`/api/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
   return res.json();
 }
 
 export async function getSquad(squadId: string): Promise<Squad> {
+  if (isMockMode()) return mockGetSquad(squadId);
   const res = await apiFetch(`/api/squads/${squadId}`);
   return res.json();
 }
