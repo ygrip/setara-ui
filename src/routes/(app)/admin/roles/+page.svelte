@@ -171,6 +171,24 @@
     gap: 12px;
   }
 
+  @media (max-width: 640px) {
+    .roles-grid {
+      display: flex;
+      overflow-x: auto;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+      gap: 12px;
+      padding-bottom: 8px;
+      grid-template-columns: none;
+    }
+
+    .role-card {
+      flex: 0 0 85vw;
+      max-width: 320px;
+      scroll-snap-align: start;
+    }
+  }
+
   .role-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);

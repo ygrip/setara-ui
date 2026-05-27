@@ -626,6 +626,67 @@
     pointer-events: none;
   }
 
+  .pin-btn {
+    display: none;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: auto;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s;
+  }
+
+  .nav-item:hover .pin-btn { opacity: 1; }
+
+  .pin-btn:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--color-accent);
+  }
+
+  :global([data-theme="dark"]) .pin-btn:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+  }
+
+  .pin-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    flex-shrink: 0;
+    margin-left: auto;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+  }
+
+  .pin-toggle:hover {
+    background: rgba(255,255,255,0.12);
+    border-color: rgba(255,255,255,0.2);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    color: var(--color-danger);
+  }
+
+  :global([data-theme="dark"]) .pin-toggle:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(255,255,255,0.15);
+  }
+
   .sidebar-footer {
     padding: 8px 16px;
     border-top: 1px solid var(--color-border);

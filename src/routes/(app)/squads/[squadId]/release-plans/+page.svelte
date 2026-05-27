@@ -283,4 +283,11 @@
   .field-textarea { resize: vertical; }
   .form-error { font-size: 0.8rem; color: var(--color-danger); margin: 0; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 4px; }
+
+  @media (max-width: 700px) {
+    .page-header { flex-direction: column; gap: 12px; }
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-input { max-width: none; }
+    .field-row { grid-template-columns: 1fr; }
+  }
 </style>

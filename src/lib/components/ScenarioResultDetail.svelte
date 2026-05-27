@@ -209,9 +209,14 @@
   .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.35);
+    background: rgba(0, 0, 0, 0.3);
     z-index: 200;
-    backdrop-filter: blur(1px);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+  }
+
+  :global([data-theme="dark"]) .overlay {
+    background: rgba(0, 0, 0, 0.5);
   }
 
   [role="dialog"] {
@@ -267,27 +272,34 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.08);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     flex-shrink: 0;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    transition: all 0.2s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
   }
-  .close-btn:hover { background: rgba(255,255,255,0.15); border-color: rgba(255,255,255,0.35); color: var(--color-text); }
+  .close-btn:hover {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    transform: scale(1.05);
+  }
 
   :global([data-theme="dark"]) .close-btn {
-    border-color: rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.12);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.2);
   }
   :global([data-theme="dark"]) .close-btn:hover {
     background: rgba(255,255,255,0.12);
     border-color: rgba(255,255,255,0.25);
+    color: #fff;
   }
 
   /* ── Body ──────────────────────────────────────────────────── */

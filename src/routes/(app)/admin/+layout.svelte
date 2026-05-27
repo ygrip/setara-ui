@@ -80,4 +80,21 @@
     border-bottom-color: var(--color-accent);
     font-weight: 600;
   }
+
+  @media (max-width: 640px) {
+    .admin-tabs {
+      gap: 0;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .admin-tab {
+      padding: 10px 14px;
+      font-size: 0.8rem;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+
+    .admin-tab svg { width: 14px; height: 14px; }
+  }
 </style>

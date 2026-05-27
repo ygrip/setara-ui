@@ -577,6 +577,20 @@
   .mono-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-family: var(--font-mono, monospace); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 6px; color: var(--color-text-muted); }
   .copy-btn { display: inline-flex; align-items: center; background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 0.7rem; padding: 0; }
 
+  @media (max-width: 800px) {
+    .visual-panel { grid-template-columns: 1fr; gap: 16px; }
+    .chart-layout { grid-template-columns: 1fr; justify-content: center; }
+    .chart-layout > :first-child { margin: 0 auto; max-width: 320px; }
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .latest-row { grid-template-columns: 1fr; }
+    .quick-links { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
+    .quick-links { grid-template-columns: 1fr; }
+    .project-header { flex-direction: column; }
+  }
+
   .latest-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }
   .latest-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
   .latest-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }

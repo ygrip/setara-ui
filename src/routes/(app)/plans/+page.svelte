@@ -319,4 +319,12 @@
   .cf-btn-cancel { padding: 8px 14px; background: none; border: 1px solid var(--color-border); border-radius: 6px; cursor: pointer; font: inherit; color: var(--color-text); }
   .cf-btn-submit { padding: 8px 16px; background: var(--color-accent); color: #fff; border: none; border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600; }
   .cf-btn-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  @media (max-width: 800px) {
+    .page-header { flex-direction: column; gap: 12px; }
+    .filters-bar { flex-direction: column; align-items: stretch; }
+    .filters-bar select { width: 100%; }
+    .search-wrap { width: 100%; }
+    .search-input { width: 100%; }
+  }
 </style>
