@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last synced with parent tracker: 2026-05-26 (build-centric release structure phase 1)
+Last synced with parent tracker: 2026-05-27 (build-centric plan status synced; Button component enhanced; UI consistency pass)
 
 ```text
 UI: [x] GUEST role enforcement: forbidden page (/forbidden), route guards in layout ($effect), write buttons hidden for GUEST on projects/release-plans/repository pages
@@ -20,6 +20,7 @@ UI: [x] Admin Users page can assign project roles after sign-in
 UI: [x] Quality Map and Coverage Map routes with generic SetaraMindMap renderer
 UI: [x] Mindmap nodes are draggable; directory clicks drill into Coverage Map and scenario clicks open detail popup
 UI: [x] Project Builds routes added with build list, create modal, build readiness chart, scenario status table, audit modal, and execution build links
+UI: [x] Button component enhanced with href support for navigation links; all plan/build pages migrated to Button component; unused CSS cleaned up (2026-05-27)
 ```
 
 - [x] Git repository initialized on `main`.

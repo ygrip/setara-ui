@@ -4,6 +4,7 @@
     size = 'md',
     type = 'button',
     disabled = false,
+    href = '',
     onclick,
     children
   }: {
@@ -11,19 +12,31 @@
     size?: 'sm' | 'md';
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
+    href?: string;
     onclick?: (e: MouseEvent) => void;
     children?: import('svelte').Snippet;
   } = $props();
 </script>
 
-<button
-  {type}
-  {disabled}
-  class="btn btn--{variant} btn--{size}"
-  {onclick}
->
-  {@render children?.()}
-</button>
+{#if href}
+  <a
+    {href}
+    class="btn btn--{variant} btn--{size}"
+    class:btn--disabled={disabled}
+    aria-disabled={disabled}
+  >
+    {@render children?.()}
+  </a>
+{:else}
+  <button
+    {type}
+    {disabled}
+    class="btn btn--{variant} btn--{size}"
+    {onclick}
+  >
+    {@render children?.()}
+  </button>
+{/if}
 
 <style>
   .btn {
@@ -36,11 +49,14 @@
     font-weight: 500;
     transition: background 0.15s, color 0.15s, opacity 0.15s;
     white-space: nowrap;
+    text-decoration: none;
   }
 
-  .btn:disabled {
+  .btn:disabled,
+  .btn--disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    pointer-events: none;
   }
 
   .btn--sm {
@@ -79,6 +95,10 @@
 
   .btn--danger:hover:not(:disabled) {
     background: #fecaca;
+  }
+
+  :global([data-theme="dark"]) .btn--secondary {
+    background: rgba(0, 175, 165, 0.08);
   }
 
   :global([data-theme="dark"]) .btn--danger {

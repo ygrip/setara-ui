@@ -1,5 +1,6 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -336,13 +337,13 @@
       </div>
       <div class="header-actions">
         <Badge text={build.status} variant={statusVariant(build.status)} />
-        <a href="/projects/{data.projectKey}/builds/{data.buildId}/quality-map" class="secondary-btn">Quality Map</a>
-        <button class="secondary-btn" onclick={() => auditOpen = true}>History</button>
-        <button class="secondary-btn" onclick={() => addRunOpen = true} disabled={build.status === 'VERIFIED'}>Add Automation Run</button>
-        <button class="secondary-btn" onclick={() => addScenarioOpen = true} disabled={build.status === 'VERIFIED'}>Add Scenario</button>
-        <button class="primary-btn" disabled={verifying || build.status === 'VERIFIED'} onclick={handleVerifyClick}>
+        <Button variant="secondary" size="sm" href="/projects/{data.projectKey}/builds/{data.buildId}/quality-map">Quality Map</Button>
+        <Button variant="secondary" size="sm" onclick={() => auditOpen = true}>History</Button>
+        <Button variant="secondary" size="sm" onclick={() => addRunOpen = true} disabled={build.status === 'VERIFIED'}>Add Automation Run</Button>
+        <Button variant="secondary" size="sm" onclick={() => addScenarioOpen = true} disabled={build.status === 'VERIFIED'}>Add Scenario</Button>
+        <Button variant="primary" size="sm" disabled={verifying || build.status === 'VERIFIED'} onclick={handleVerifyClick}>
           {verifying ? 'Verifying…' : 'Verify Build'}
-        </button>
+        </Button>
       </div>
     </header>
 
@@ -367,8 +368,8 @@
       {#if selectedIds.size > 0}
         <div class="bulk-bar">
           <span>{selectedIds.size} selected</span>
-          <button class="danger-btn" onclick={handleBulkRemove}>Remove from build</button>
-          <button class="secondary-btn-sm" onclick={() => selectedIds = new Set()}>Deselect all</button>
+          <Button variant="danger" size="sm" onclick={handleBulkRemove}>Remove from build</Button>
+          <Button variant="secondary" size="sm" onclick={() => selectedIds = new Set()}>Deselect all</Button>
         </div>
       {/if}
 
@@ -507,10 +508,10 @@
         <textarea bind:value={updateNotes} class="form-textarea" rows={3} placeholder="Add execution notes…"></textarea>
       </label>
       <div class="modal-actions">
-        <button class="primary-btn" onclick={handleUpdateResult} disabled={updatingResult}>
+        <Button variant="primary" size="sm" onclick={handleUpdateResult} disabled={updatingResult}>
           {updatingResult ? 'Saving…' : 'Save'}
-        </button>
-        <button class="secondary-btn" onclick={() => updateResultOpen = false}>Cancel</button>
+        </Button>
+        <Button variant="secondary" size="sm" onclick={() => updateResultOpen = false}>Cancel</Button>
       </div>
     {/if}
   </div>
@@ -524,10 +525,10 @@
       <textarea bind:value={verifyNotes} class="form-textarea" rows={4} placeholder="Explain why the build is being verified despite failures…"></textarea>
     </label>
     <div class="modal-actions">
-      <button class="primary-btn" onclick={() => handleVerify(verifyNotes)} disabled={verifying || !verifyNotes.trim()}>
+      <Button variant="primary" size="sm" onclick={() => handleVerify(verifyNotes)} disabled={verifying || !verifyNotes.trim()}>
         {verifying ? 'Verifying…' : 'Confirm Verify'}
-      </button>
-      <button class="secondary-btn" onclick={() => verifyNotesOpen = false}>Cancel</button>
+      </Button>
+      <Button variant="secondary" size="sm" onclick={() => verifyNotesOpen = false}>Cancel</Button>
     </div>
   </div>
 </Modal>
@@ -559,10 +560,10 @@
       {/if}
     </div>
     <div class="modal-actions">
-      <button class="primary-btn" onclick={handleAddRun} disabled={!selectedRunId || addingRun}>
+      <Button variant="primary" size="sm" onclick={handleAddRun} disabled={!selectedRunId || addingRun}>
         {addingRun ? 'Adding…' : 'Add Run'}
-      </button>
-      <button class="secondary-btn" onclick={() => { addRunOpen = false; selectedRunId = ''; }}>Cancel</button>
+      </Button>
+      <Button variant="secondary" size="sm" onclick={() => { addRunOpen = false; selectedRunId = ''; }}>Cancel</Button>
     </div>
   </div>
 </Modal>
@@ -583,12 +584,6 @@
   .metrics span { display: block; color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
   .metrics strong { font-size: 1.35rem; }
   .section { margin-top: 22px; }
-  .primary-btn, .secondary-btn { min-height: 38px; padding: 8px 14px; border-radius: 6px; font-weight: 800; cursor: pointer; font: inherit; font-size: 0.875rem; }
-  .primary-btn { border: 1px solid var(--color-accent); background: var(--color-accent); color: white; }
-  .secondary-btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); text-decoration: none; display: inline-flex; align-items: center; }
-  .primary-btn:disabled, .secondary-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-  .danger-btn { min-height: 32px; padding: 6px 12px; border-radius: 6px; font-weight: 700; cursor: pointer; font: inherit; font-size: 0.82rem; border: 1px solid #dc2626; background: #dc2626; color: white; }
-  .secondary-btn-sm { min-height: 32px; padding: 6px 10px; border-radius: 6px; font-weight: 600; cursor: pointer; font: inherit; font-size: 0.82rem; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
   .inline-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .inline-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .checkbox-col { width: 36px; text-align: center; }

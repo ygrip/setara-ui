@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { listAllPlans, type ReleasePlan } from '$lib/api/plans';
   import { listAllSquads, type Squad } from '$lib/api/organization';
@@ -134,9 +135,9 @@
       <h1 class="page-title">Release Plans</h1>
       <p class="subtitle">Sprint-level quality gates coordinated across squads and projects.</p>
     </div>
-    <button class="btn-create" onclick={() => { showCreate = true; createError = ''; createForm = { squadId: '', name: '', releaseDate: '', description: '' }; }}>
+    <Button variant="primary" size="sm" onclick={() => { showCreate = true; createError = ''; createForm = { squadId: '', name: '', releaseDate: '', description: '' }; }}>
       + New Plan
-    </button>
+    </Button>
   </div>
 
   <div class="filters-bar">
@@ -303,8 +304,6 @@
   .builds-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; }
   .builds-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width 0.3s; }
   .builds-bar-fill.all-verified { background: #15803d; }
-  .btn-create { padding: 8px 16px; background: var(--color-accent); color: #fff; border: none; border-radius: 8px; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
-  .btn-create:hover { opacity: 0.88; }
   .create-form { display: flex; flex-direction: column; gap: 14px; }
   .cf-field { display: flex; flex-direction: column; gap: 5px; }
   .cf-label { font-size: 0.8rem; font-weight: 600; color: var(--color-text); }

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createSquadPlan, type ReleasePlan } from '$lib/api/squadPlans';
@@ -118,9 +119,9 @@
         <span class="squad-meta">{data.squad.tribeName} › {data.squad.name}</span>
       {/if}
     </div>
-    <button class="btn btn--primary" onclick={() => { showCreate = true; resetCreate(); }}>
+    <Button variant="primary" size="sm" onclick={() => { showCreate = true; resetCreate(); }}>
       + New Plan
-    </button>
+    </Button>
   </div>
 
   {#if data.error}
@@ -229,10 +230,10 @@
     </div>
     {#if actionError}<p class="form-error">{actionError}</p>{/if}
     <div class="modal-actions">
-      <button class="btn btn--secondary" onclick={() => { showCreate = false; resetCreate(); }}>Cancel</button>
-      <button class="btn btn--primary" onclick={handleCreate} disabled={busy}>
+      <Button variant="secondary" size="sm" onclick={() => { showCreate = false; resetCreate(); }}>Cancel</Button>
+      <Button variant="primary" size="sm" onclick={handleCreate} disabled={busy}>
         {busy ? 'Creating…' : 'Create Plan'}
-      </button>
+      </Button>
     </div>
   </div>
 </Modal>
@@ -246,12 +247,6 @@
   .page-header-left { display: flex; flex-direction: column; gap: 2px; }
   .page-title { font-size: clamp(1.25rem, 4vw, 1.5rem); font-weight: 700; margin: 0; }
   .squad-meta { font-size: 0.8rem; color: var(--color-text-muted); }
-  .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; }
-  .btn--primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-  .btn--primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
-  .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 20px; }
   .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
   .filter-input { flex: 1; max-width: 260px; font: inherit; font-size: 0.875rem; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }

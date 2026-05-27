@@ -1,5 +1,6 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
@@ -89,7 +90,7 @@
         </div>
         <p class="header-sub">Squad detail — automation coverage and quality health overview.</p>
       </div>
-      <a href="/squads/{data.squadId}/release-plans" class="btn btn--primary">Release Plans →</a>
+      <Button variant="primary" size="sm" href="/squads/{data.squadId}/release-plans">Release Plans →</Button>
     </header>
 
     <!-- Charts row -->
@@ -184,8 +185,6 @@
   .header-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
   h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .header-sub { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
-  .btn { font: inherit; font-size: 0.875rem; padding: 9px 18px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; font-weight: 700; }
-  .btn--primary { background: var(--color-accent); color: white; border-color: var(--color-accent); }
   .charts-row { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-bottom: 28px; }
   .chart-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
   .chart-card--wide { display: flex; flex-direction: column; }

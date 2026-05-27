@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import Button from '$lib/components/Button.svelte';
   import type { MapNode } from '$lib/api/mindmaps';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
 
@@ -32,9 +33,9 @@
       <h1 class="page-title">{data.build?.name ?? 'Build'}</h1>
       <span class="page-sub">Scenario status by directory, grouped for build readiness overview.</span>
     </div>
-    <a href="/projects/{data.projectKey}/builds/{data.buildId}" class="btn btn--secondary">
+    <Button variant="secondary" size="sm" href="/projects/{data.projectKey}/builds/{data.buildId}">
       ← Back to Build
-    </a>
+    </Button>
   </div>
 
   {#if data.error}
@@ -55,9 +56,6 @@
   .page-eyebrow { margin: 0 0 4px; color: var(--color-accent); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; font-weight: 850; }
   .page-title { margin: 0; font-size: clamp(1.25rem, 4vw, 1.5rem); font-weight: 700; }
   .page-sub { color: var(--color-text-muted); font-size: 0.86rem; }
-  .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; }
-  .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
-  .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; }
   .empty-state { color: var(--color-text-muted); padding: 48px 24px; text-align: center; font-size: 0.875rem; }
 </style>

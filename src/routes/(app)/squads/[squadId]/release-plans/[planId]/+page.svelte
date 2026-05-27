@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
@@ -235,25 +236,21 @@
         {/if}
       </div>
       <div class="plan-header-actions">
-        <a
-          href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map"
-          class="btn btn--secondary"
-          title="View release plan quality map"
-        >
+        <Button variant="secondary" size="sm" href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map">
           Quality Map →
-        </a>
+        </Button>
         {#if data.plan.status !== 'CLOSED'}
-          <button class="btn btn--primary" onclick={openBuildPicker} disabled={busy}>
+          <Button variant="primary" size="sm" onclick={openBuildPicker} disabled={busy}>
             + Add Build
-          </button>
-          <button
-            class="btn btn--danger"
+          </Button>
+          <Button
+            variant="danger"
+            size="sm"
             onclick={() => { showClose = true; closeNotes = ''; }}
             disabled={!canClose || busy}
-            title={!canClose ? 'All builds must be VERIFIED before closing' : 'Close this plan'}
           >
             Close Plan
-          </button>
+          </Button>
         {/if}
       </div>
     </div>
@@ -478,7 +475,7 @@
   </div>
   {#if actionError}<p class="form-error">{actionError}</p>{/if}
   <div class="modal-actions">
-    <button class="btn btn--secondary" onclick={() => { showBuildPicker = false; }}>Close</button>
+    <Button variant="secondary" size="sm" onclick={() => { showBuildPicker = false; }}>Close</Button>
   </div>
 </Modal>
 
@@ -494,10 +491,10 @@
   </div>
   {#if actionError}<p class="form-error">{actionError}</p>{/if}
   <div class="modal-actions">
-    <button class="btn btn--secondary" onclick={() => { showClose = false; }}>Cancel</button>
-    <button class="btn btn--danger" onclick={handleClose} disabled={busy}>
+    <Button variant="secondary" size="sm" onclick={() => { showClose = false; }}>Cancel</Button>
+    <Button variant="danger" size="sm" onclick={handleClose} disabled={busy}>
       {busy ? 'Closing…' : 'Close Plan'}
-    </button>
+    </Button>
   </div>
 </Modal>
 
@@ -514,15 +511,6 @@
   .plan-meta span:not(.muted)::before { content: ''; }
   .plan-desc { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; max-width: 640px; }
   .plan-header-actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
-  .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; display: inline-flex; align-items: center; text-decoration: none; }
-  .btn--primary { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-  .btn--primary:hover:not(:disabled) { opacity: 0.88; }
-  .btn--primary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
-  .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  .btn--danger { background: transparent; color: var(--color-danger); border-color: var(--color-danger); }
-  .btn--danger:hover:not(:disabled) { background: color-mix(in srgb, var(--color-danger), transparent 90%); }
-  .btn--danger:disabled { opacity: 0.4; cursor: not-allowed; }
   .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 20px; }
   .metrics-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
   .section { margin-bottom: 28px; }

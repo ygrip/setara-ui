@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createBuild, type ProjectBuild } from '$lib/api/builds';
@@ -112,7 +113,7 @@
       <h1>Builds</h1>
       <p>Project verification units for automation and manual execution evidence.</p>
     </div>
-    <button class="primary-btn" onclick={() => showCreate = true}>+ Build</button>
+    <Button variant="primary" size="sm" onclick={() => showCreate = true}>+ Build</Button>
   </header>
 
   <div class="filters-bar">
@@ -185,8 +186,8 @@
     <label>Version <span class="opt">(optional)</span><input bind:value={form.version} placeholder="2026.05.2" /></label>
     <label>Description <span class="opt">(optional)</span><textarea bind:value={form.description} rows="3"></textarea></label>
     <div class="modal-actions">
-      <button type="button" class="secondary-btn" onclick={() => showCreate = false}>Cancel</button>
-      <button type="submit" class="primary-btn" disabled={creating}>{creating ? 'Creating…' : 'Create'}</button>
+      <Button variant="secondary" size="sm" onclick={() => showCreate = false}>Cancel</Button>
+      <Button variant="primary" size="sm" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create'}</Button>
     </div>
   </form>
 </Modal>
@@ -223,9 +224,6 @@
   .num { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
   .nowrap { white-space: nowrap; }
   .empty-cell { text-align: center; padding: 48px; color: var(--color-text-muted); font-size: 0.875rem; }
-  .primary-btn, .secondary-btn { min-height: 38px; padding: 8px 14px; border-radius: 6px; font-weight: 800; cursor: pointer; }
-  .primary-btn { border: 1px solid var(--color-accent); background: var(--color-accent); color: white; }
-  .secondary-btn { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); }
   .form { display: grid; gap: 14px; }
   .form label { display: grid; gap: 6px; color: var(--color-text-muted); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
   .form input, .form textarea { width: 100%; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); border-radius: 6px; padding: 10px 12px; font: inherit; text-transform: none; }
