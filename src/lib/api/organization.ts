@@ -100,18 +100,95 @@ export async function createUser(body: { email: string; displayName: string }): 
 
 export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' | 'QA_LEAD' | 'DEVELOPER' }): Promise<Membership> {
   if (isMockMode()) {
-    return {
-      id: `membership-${Date.now()}`,
-      projectId: projectKey,
-      userId: body.email,
-      role: body.role,
-      createdAt: new Date().toISOString()
-    };
+    return { id: `membership-${Date.now()}`, projectId: projectKey, userId: body.email, role: body.role, createdAt: new Date().toISOString() };
   }
   const res = await apiFetch(`/api/projects/${projectKey}/memberships`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
+  return res.json();
+}
+
+// ── Tribe detail / update / delete ──────────────────────────────
+
+export interface TribeDetail {
+  id: string; name: string; description: string | null;
+  leadId: string | null; leadName: string | null;
+  createdAt: string; updatedAt: string;
+}
+
+export async function getTribe(tribeId: string): Promise<TribeDetail> {
+  const res = await apiFetch(`/api/tribes/${tribeId}`);
+  return res.json();
+}
+
+export async function updateTribe(tribeId: string, body: { name?: string; description?: string | null; leadId?: string | null }): Promise<TribeDetail> {
+  const res = await apiFetch(`/api/tribes/${tribeId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function deleteTribe(tribeId: string): Promise<void> {
+  await apiFetch(`/api/tribes/${tribeId}`, { method: 'DELETE' });
+}
+
+// ── Squad detail / update / delete / members ─────────────────────
+
+export interface SquadDetail {
+  id: string; tribeId: string | null; tribeName: string | null;
+  name: string; description: string | null;
+  leadId: string | null; leadName: string | null;
+  createdAt: string; updatedAt: string;
+  members: SquadMember[];
+}
+
+export interface SquadMember {
+  id: string; userId: string; email: string; displayName: string; role: string; createdAt: string;
+}
+
+export async function getSquadDetail(squadId: string): Promise<SquadDetail> {
+  const res = await apiFetch(`/api/squads/${squadId}/detail`);
+  return res.json();
+}
+
+export async function updateSquad(squadId: string, body: { name?: string; description?: string | null; tribeId?: string | null; leadId?: string | null }): Promise<SquadDetail> {
+  const res = await apiFetch(`/api/squads/${squadId}`, {
+    method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function deleteSquad(squadId: string): Promise<void> {
+  await apiFetch(`/api/squads/${squadId}`, { method: 'DELETE' });
+}
+
+export async function addSquadMember(squadId: string, body: { email: string; role: string }): Promise<SquadMember> {
+  const res = await apiFetch(`/api/squads/${squadId}/members`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function removeSquadMember(squadId: string, userId: string): Promise<void> {
+  await apiFetch(`/api/squads/${squadId}/members/${userId}`, { method: 'DELETE' });
+}
+
+// ── User search ──────────────────────────────────────────────────
+
+export interface UserDetail {
+  id: string; email: string; displayName: string;
+  squads: SquadMember[];
+  createdAt: string;
+}
+
+export async function searchUsers(q?: string, cursor?: string, limit?: number): Promise<CursorPage<UserDetail>> {
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
+  const qs = params.toString();
+  const res = await apiFetch(`/api/users/search${qs ? '?' + qs : ''}`);
   return res.json();
 }
