@@ -98,7 +98,7 @@ export async function createUser(body: { email: string; displayName: string }): 
   return res.json();
 }
 
-export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' }): Promise<Membership> {
+export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' | 'QA_LEAD' | 'DEVELOPER' }): Promise<Membership> {
   if (isMockMode()) {
     return {
       id: `membership-${Date.now()}`,

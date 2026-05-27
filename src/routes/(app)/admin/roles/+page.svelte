@@ -98,21 +98,39 @@
   function hasPermission(roles: readonly RoleKey[], roleKey: string): boolean {
     return (roles as string[]).includes(roleKey);
   }
+
+  let activeRoleTab = $state<RoleKey>('ADMIN');
 </script>
 
 <div class="section-wrap">
-  <!-- Role summary cards -->
-  <div class="roles-grid">
+  <!-- Role tabs -->
+  <div class="role-tabs" role="tablist">
     {#each ROLES as role}
-      <div class="role-card role-{role.color}">
-        <div class="role-card-head">
-          <span class="role-badge role-badge-{role.color}">{role.key}</span>
-        </div>
-        <span class="role-display">{role.label}</span>
-        <p class="role-desc">{role.desc}</p>
-      </div>
+      <button
+        class="role-tab"
+        class:role-tab--active={activeRoleTab === role.key}
+        class:role-tab--danger={role.color === 'danger'}
+        class:role-tab--warning={role.color === 'warning'}
+        class:role-tab--info={role.color === 'info'}
+        class:role-tab--success={role.color === 'success'}
+        class:role-tab--neutral={role.color === 'neutral'}
+        role="tab"
+        aria-selected={activeRoleTab === role.key}
+        onclick={() => activeRoleTab = role.key}
+      >
+        <span class="role-tab-key">{role.key.replace('_', ' ')}</span>
+        <span class="role-tab-label">{role.label}</span>
+      </button>
     {/each}
   </div>
+
+  <!-- Active role detail -->
+  {#each ROLES.filter(r => r.key === activeRoleTab) as role}
+    <div class="role-detail-card">
+      <h2 class="role-detail-title">{role.label}</h2>
+      <p class="role-detail-desc">{role.desc}</p>
+    </div>
+  {/each}
 
   <!-- Permission matrix -->
   <div class="panel">
@@ -164,56 +182,75 @@
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
 
-  /* Role cards */
-  .roles-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-    gap: 12px;
+  /* Role tabs */
+  .role-tabs {
+    display: flex;
+    gap: 2px;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 4px;
+    overflow-x: auto;
   }
 
-  .role-card {
+  .role-tab {
+    flex: 1;
+    min-width: 100px;
+    padding: 10px 16px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    border-radius: calc(var(--radius) - 2px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .role-tab-key {
+    font-size: 0.68rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    opacity: 0.6;
+  }
+
+  .role-tab-label { font-weight: 600; }
+
+  .role-tab--active {
+    background: var(--color-surface);
+    color: var(--color-text);
+    box-shadow: var(--shadow);
+  }
+
+  .role-tab--active .role-tab-key { opacity: 1; }
+
+  .role-tab--active.role-tab--danger  { color: var(--color-danger); }
+  .role-tab--active.role-tab--warning { color: #b45309; }
+  .role-tab--active.role-tab--info    { color: #1d4ed8; }
+  .role-tab--active.role-tab--success { color: #15803d; }
+  .role-tab--active.role-tab--neutral { color: var(--color-text); }
+
+  /* Role detail card */
+  .role-detail-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
+    padding: 20px;
   }
 
-  .role-card-head { margin-bottom: 2px; }
+  .role-detail-title { font-size: 1rem; font-weight: 700; margin: 0 0 8px; color: var(--color-text); }
 
-  .role-display {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--color-text);
-  }
-
-  .role-desc {
-    font-size: 0.78rem;
+  .role-detail-desc {
+    font-size: 0.875rem;
     color: var(--color-text-muted);
-    line-height: 1.5;
+    line-height: 1.6;
     margin: 0;
   }
-
-  /* Badges */
-  .role-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 9px;
-    border-radius: 4px;
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    white-space: nowrap;
-  }
-
-  .role-badge-danger  { background: color-mix(in srgb, var(--color-danger), transparent 84%); color: var(--color-danger); }
-  .role-badge-warning { background: color-mix(in srgb, #f59e0b, transparent 84%); color: #b45309; }
-  .role-badge-info    { background: #dbeafe; color: #1d4ed8; }
-  .role-badge-success { background: #dcfce7; color: #15803d; }
-  .role-badge-neutral { background: var(--color-accent-subtle); color: var(--color-text-muted); }
 
   /* Matrix */
   .panel {

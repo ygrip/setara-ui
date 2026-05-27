@@ -648,7 +648,7 @@
           {#if selectedDirectory}
             <div class="directory-toolbar" aria-label="Directory actions">
               <button class="dir-action-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()} <span>Copy ID</span></button>
-              <a class="dir-action-btn" title="Open coverage map" aria-label="Open coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Coverage Map</span></a>
+              <a class="dir-action-btn" title="Open directory coverage map" aria-label="Open directory coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Directory Map</span></a>
               <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
               <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
               {#if canWrite}
@@ -665,10 +665,8 @@
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
           {#if canWrite}
-            <a class="import-btn" title="Import scenarios from Excel" aria-label="Import scenarios" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
-            <button class="primary-outline" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>
-              + Scenario
-            </button>
+            <a class="dir-action-btn import-action" title="Import scenarios from Excel" aria-label="Import scenarios from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
+            <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>{@render iconFilePlus()} Add Scenario</button>
           {/if}
         </div>
       </div>

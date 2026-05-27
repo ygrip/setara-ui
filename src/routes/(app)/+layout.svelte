@@ -12,6 +12,30 @@
   let sidebarOpen = $state(false);
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
+  let pinnedItems = $state<string[]>([]);
+
+  // ── Pin feature (localStorage) ──────────────────────────
+  function loadPins() {
+    try {
+      const stored = localStorage.getItem('setara_pinned');
+      if (stored) pinnedItems = JSON.parse(stored);
+    } catch { pinnedItems = []; }
+  }
+
+  function savePins() {
+    localStorage.setItem('setara_pinned', JSON.stringify(pinnedItems));
+  }
+
+  function togglePin(href: string) {
+    if (pinnedItems.includes(href)) {
+      pinnedItems = pinnedItems.filter(h => h !== href);
+    } else {
+      pinnedItems = [...pinnedItems, href];
+    }
+    savePins();
+  }
+
+  function isPinned(href: string) { return pinnedItems.includes(href); }
 
   // Topbar search hint cycling
   const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
@@ -20,7 +44,20 @@
 
   const projectKey = $derived(page.params.projectKey ?? null);
 
+  // Pin definitions: label, href, icon snippet
+  const pinOptions = $derived([
+    { label: 'Dashboard', href: '/dashboard', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
+    { label: 'Projects', href: '/projects', icon: '<path d="M3 7h18M3 12h18M3 17h18"/>' },
+    { label: 'Plans', href: '/plans', icon: '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>' },
+    { label: 'Coverage', href: '/coverage-overview', icon: '<path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>' },
+    { label: 'Settings', href: '/admin', icon: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>' },
+    ...(projectKey ? [{ label: 'Builds', href: `/projects/${projectKey}/builds`, icon: '<path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>' },
+                       { label: 'Repository', href: `/projects/${projectKey}/repository`, icon: '<path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>' },
+                       { label: 'Executions', href: `/projects/${projectKey}/executions`, icon: '<polygon points="5 3 19 12 5 21 5 3"/>' }] : [])
+  ]);
+
   onMount(() => {
+    loadPins();
     session = getValidSession();
     if (!session) {
       goto('/login');
@@ -118,31 +155,28 @@
     </div>
 
     <nav class="sidebar-nav">
-      <!-- Global section -->
-      <div class="nav-section-label">Pinned</div>
-      <a
-        href="/dashboard"
-        class="nav-item"
-        class:nav-item--active={isActive('/dashboard')}
-        onclick={closeSidebar}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-        </svg>
-        Dashboard
-      </a>
-      {#if projectKey}
-        <a
-          href="/projects/{projectKey}/repository"
-          class="nav-item nav-item--pinned"
-          class:nav-item--active={isActive(`/projects/${projectKey}/repository`)}
-          onclick={closeSidebar}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
-          </svg>
-          Repository
-        </a>
+      <!-- Pinned section -->
+      {#if pinnedItems.length > 0}
+        <div class="nav-section-label">Pinned</div>
+        {#each pinnedItems as href}
+          {@const opt = pinOptions.find(o => o.href === href)}
+          {#if opt}
+            <a
+              {href}
+              class="nav-item nav-item--pinned"
+              class:nav-item--active={isActive(href)}
+              onclick={closeSidebar}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                {@html opt.icon}
+              </svg>
+              {opt.label}
+              <button class="pin-toggle" title="Unpin" onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(href); }} aria-label="Unpin {opt.label}">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2z"/></svg>
+              </button>
+            </a>
+          {/if}
+        {/each}
       {/if}
       <div class="nav-section-label">Browse</div>
       <a
@@ -155,6 +189,9 @@
           <path d="M3 7h18M3 12h18M3 17h18"/>
         </svg>
         Projects
+        <button class="pin-btn" title={isPinned('/projects') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/projects'); }} aria-label={isPinned('/projects') ? 'Unpin Projects' : 'Pin Projects'}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/projects') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+        </button>
       </a>
       <a
         href="/plans"
@@ -166,6 +203,9 @@
           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
         </svg>
         Plans
+        <button class="pin-btn" title={isPinned('/plans') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/plans'); }} aria-label={isPinned('/plans') ? 'Unpin Plans' : 'Pin Plans'}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/plans') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+        </button>
       </a>
       <a
         href="/coverage-overview"
@@ -177,6 +217,9 @@
           <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
         </svg>
         Coverage Overview
+        <button class="pin-btn" title={isPinned('/coverage-overview') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/coverage-overview'); }} aria-label={isPinned('/coverage-overview') ? 'Unpin Coverage' : 'Pin Coverage'}>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2z"/></svg>
+        </button>
       </a>
 
       <!-- Divider with label -->

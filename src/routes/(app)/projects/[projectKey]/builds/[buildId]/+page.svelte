@@ -414,46 +414,19 @@
               <td>{scenario.executedBy ?? '—'}</td>
               <td>{formatDate(scenario.executedAt)}</td>
               <td>
+                {#if scenario.source !== 'AUTOMATION'}
                 <button class="inline-btn" onclick={() => openUpdateResult(scenario)} disabled={build?.status === 'VERIFIED'}>
                   Update Result
                 </button>
+                {:else}
+                <span class="muted" style="font-size:0.75rem">auto</span>
+                {/if}
               </td>
             </tr>
           {/each}
         {/snippet}
       </DataTable>
     </section>
-
-    {#if directoryGroups.length > 0 && directoryGroups.some(g => g.path !== 'Uncategorized')}
-    <section class="section tree-section">
-      <h2 class="section-title">Directory Breakdown</h2>
-      <div class="tree-grid">
-        {#each directoryGroups as group}
-          <div class="tree-row">
-            <div class="tree-path">
-              <span class="tree-label">{group.label}</span>
-              <span class="tree-sub">{group.path}</span>
-            </div>
-            <div class="tree-counts">
-              {#if group.passed > 0}<span class="cnt cnt--pass">✓ {group.passed}</span>{/if}
-              {#if group.failed > 0}<span class="cnt cnt--fail">✗ {group.failed}</span>{/if}
-              {#if group.blocked > 0}<span class="cnt cnt--block">⊘ {group.blocked}</span>{/if}
-              {#if group.notExecuted > 0}<span class="cnt cnt--pending">◌ {group.notExecuted}</span>{/if}
-            </div>
-            <div class="tree-bar-wrap">
-              <div class="tree-bar">
-                {#if group.passed > 0}<div class="tree-bar-seg seg--pass" style="width:{(group.passed/group.total)*100}%"></div>{/if}
-                {#if group.failed > 0}<div class="tree-bar-seg seg--fail" style="width:{(group.failed/group.total)*100}%"></div>{/if}
-                {#if group.blocked > 0}<div class="tree-bar-seg seg--block" style="width:{(group.blocked/group.total)*100}%"></div>{/if}
-                {#if group.notExecuted + group.skipped > 0}<div class="tree-bar-seg seg--pending" style="width:{((group.notExecuted+group.skipped)/group.total)*100}%"></div>{/if}
-              </div>
-              <span class="tree-pct">{group.total > 0 ? Math.round((group.passed/group.total)*100) : 0}%</span>
-            </div>
-          </div>
-        {/each}
-      </div>
-    </section>
-    {/if}
   {/if}
 </div>
 

@@ -9,12 +9,33 @@
   let { data } = $props();
 
   let projectSearch = $state('');
+  let squadSortBy = $state<'projectName' | 'coveragePercentage' | 'totalScenarios'>('coveragePercentage');
+  let squadSortDir = $state<'asc' | 'desc'>('asc');
+
+  function toggleSort(col: 'projectName' | 'coveragePercentage' | 'totalScenarios') {
+    if (squadSortBy === col) squadSortDir = squadSortDir === 'asc' ? 'desc' : 'asc';
+    else { squadSortBy = col; squadSortDir = col === 'coveragePercentage' ? 'asc' : 'desc'; }
+  }
+  function sortIcon(col: string): string {
+    if (squadSortBy !== col) return '';
+    return squadSortDir === 'asc' ? ' ↑' : ' ↓';
+  }
 
   const filteredProjects = $derived.by(() => {
     const q = projectSearch.toLowerCase();
-    return (data.projects as SquadProjectCoverage[]).filter(p =>
+    let result = (data.projects as SquadProjectCoverage[]).filter(p =>
       !q || p.projectName.toLowerCase().includes(q) || p.projectKey.toLowerCase().includes(q)
     );
+    return [...result].sort((a, b) => {
+      let va: string | number = '';
+      let vb: string | number = '';
+      if (squadSortBy === 'projectName') { va = a.projectName; vb = b.projectName; }
+      else if (squadSortBy === 'totalScenarios') { va = a.totalScenarios; vb = b.totalScenarios; }
+      else { va = a.coveragePercentage; vb = b.coveragePercentage; }
+      if (va < vb) return squadSortDir === 'asc' ? -1 : 1;
+      if (va > vb) return squadSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
   });
 
   const totalAutomated = $derived(
@@ -145,11 +166,11 @@
       <DataTable>
         {#snippet head()}
           <tr>
-            <th>Project</th>
-            <th>Total Scenarios</th>
+            <th class="th-sort" onclick={() => toggleSort('projectName')}>Project{sortIcon('projectName')}</th>
+            <th class="th-sort" onclick={() => toggleSort('totalScenarios')}>Total Scenarios{sortIcon('totalScenarios')}</th>
             <th>Automated</th>
             <th>Automatable</th>
-            <th>Coverage</th>
+            <th class="th-sort" onclick={() => toggleSort('coveragePercentage')}>Coverage{sortIcon('coveragePercentage')}</th>
           </tr>
         {/snippet}
         {#snippet body()}
@@ -188,6 +209,7 @@
   h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .header-sub { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
   .charts-row { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-bottom: 28px; }
+  @media (min-width: 1100px) { .charts-row { grid-template-columns: 280px 1fr; } }
   .chart-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
   .chart-card--wide { display: flex; flex-direction: column; }
   .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 14px; }

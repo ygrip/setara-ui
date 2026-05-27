@@ -115,14 +115,12 @@
         variant="info"
         icon="M22 12h-4l-3 9L9 3l-3 9H2"
       />
-      <a href="/projects/{data.projectKey}/settings/api-keys" class="metric-link" aria-label="Open project keys management">
-        <MetricCard
-          label="Active API Keys"
-          value={activeApiKeys}
-          variant="default"
-          icon="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
-        />
-      </a>
+      <MetricCard
+        label="Active API Keys"
+        value={activeApiKeys}
+        variant="default"
+        icon="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
+      />
       <div class="last-run-card">
         <span class="last-run-label">Last Run Status</span>
         {#if data.runs.length > 0}
@@ -138,21 +136,19 @@
         variant="default"
         icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
       />
-      <a href="/projects/{data.projectKey}/builds" class="metric-link" aria-label="Open builds">
-        <MetricCard
-          label="Total Builds"
-          value={data.builds.length}
-          variant="default"
-          icon="M4 7l8-4 8 4-8 4-8-4z M4 12l8 4 8-4 M4 17l8 4 8-4"
-        />
-      </a>
+      <MetricCard
+        label="Total Builds"
+        value={data.builds.length}
+        variant="default"
+        icon="M4 7l8-4 8 4-8 4-8-4z M4 12l8 4 8-4 M4 17l8 4 8-4"
+      />
     </div>
 
     <!-- Latest Build & Plan info -->
     {#if data.latestBuild || data.latestPlan}
     <div class="latest-row">
       {#if data.latestBuild}
-      <div class="latest-card">
+      <a href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" class="latest-card">
         <div class="latest-card-header">
           <span class="latest-label">Latest Build</span>
           <Badge text={data.latestBuild.status} variant={buildStatusVariant(data.latestBuild.status)} />
@@ -161,25 +157,24 @@
         <div class="latest-card-meta">
           <span class="mono-chip">
             {data.latestBuild.buildKey}
-            <button class="copy-btn" onclick={() => copyToClipboard(data.latestBuild!.buildKey, 'buildKey')} title="Copy build key">
+            <button class="copy-btn" onclick={(e) => { e.preventDefault(); copyToClipboard(data.latestBuild!.buildKey, 'buildKey'); }} title="Copy build key">
               {copiedField === 'buildKey' ? '✓' : '⧉'}
             </button>
           </span>
           {#if data.latestBuild.version}
           <span class="mono-chip">
             {data.latestBuild.version}
-            <button class="copy-btn" onclick={() => copyToClipboard(data.latestBuild!.version!, 'version')} title="Copy version">
+            <button class="copy-btn" onclick={(e) => { e.preventDefault(); copyToClipboard(data.latestBuild!.version!, 'version'); }} title="Copy version">
               {copiedField === 'version' ? '✓' : '⧉'}
             </button>
           </span>
           {/if}
         </div>
-        <a href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" class="latest-link">View →</a>
-      </div>
+      </a>
       {/if}
 
       {#if data.latestPlan}
-      <div class="latest-card">
+      <a href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" class="latest-card">
         <div class="latest-card-header">
           <span class="latest-label">Latest Plan</span>
           <Badge text={data.latestPlan.status} variant={planStatusVariant(data.latestPlan.status)} />
@@ -190,8 +185,7 @@
           <span class="mono-chip">{data.latestPlan.releaseVersion}</span>
         </div>
         {/if}
-        <a href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" class="latest-link">View →</a>
-      </div>
+      </a>
       {/if}
     </div>
     {/if}

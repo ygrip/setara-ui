@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
@@ -40,11 +41,23 @@
   let filterBranch = $state('');
   let filterSearch = $state('');
 
+  let execSortBy = $state<'runnerId' | 'startedAt' | 'durationMs'>('startedAt');
+  let execSortDir = $state<'asc' | 'desc'>('desc');
+
+  function toggleSort(col: 'runnerId' | 'startedAt' | 'durationMs') {
+    if (execSortBy === col) execSortDir = execSortDir === 'asc' ? 'desc' : 'asc';
+    else { execSortBy = col; execSortDir = 'desc'; }
+  }
+  function sortIcon(col: string): string {
+    if (execSortBy !== col) return '';
+    return execSortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
   const uniqueEnvs = $derived([...new Set(runs.map(r => r.environment).filter(Boolean))] as string[]);
   const uniqueBranches = $derived([...new Set(runs.map(r => r.branch).filter(Boolean))] as string[]);
 
-  const filteredRuns = $derived(
-    runs.filter(run => {
+  const filteredRuns = $derived.by(() => {
+    let result = runs.filter(run => {
       if (filterStatus && run.status?.toUpperCase() !== filterStatus) return false;
       if (filterEnv && run.environment !== filterEnv) return false;
       if (filterBranch && run.branch !== filterBranch) return false;
@@ -54,8 +67,17 @@
         if (!haystack.includes(q)) return false;
       }
       return true;
-    })
-  );
+    });
+    return [...result].sort((a, b) => {
+      let va = '', vb = '';
+      if (execSortBy === 'runnerId') { va = a.runnerId ?? ''; vb = b.runnerId ?? ''; }
+      else if (execSortBy === 'durationMs') { va = String(a.durationMs ?? 0); vb = String(b.durationMs ?? 0); }
+      else { va = a.startedAt ?? ''; vb = b.startedAt ?? ''; }
+      if (va < vb) return execSortDir === 'asc' ? -1 : 1;
+      if (va > vb) return execSortDir === 'asc' ? 1 : -1;
+      return 0;
+    });
+  });
 
   const hasActiveFilter = $derived(!!(filterStatus || filterEnv || filterBranch || filterSearch.trim()));
 
@@ -343,18 +365,17 @@
         {#snippet head()}
           <tr>
             <th>Status</th>
-            <th>Runner</th>
+            <th class="th-sort" onclick={() => toggleSort('runnerId')}>Runner{sortIcon('runnerId')}</th>
             <th class="col-hide-sm">Branch</th>
             <th class="col-hide-md">Environment</th>
             <th class="col-hide-md">Framework</th>
-            <th>Started</th>
-            <th class="col-hide-sm">Duration</th>
-            <th></th>
+            <th class="th-sort" onclick={() => toggleSort('startedAt')}>Started{sortIcon('startedAt')}</th>
+            <th class="col-hide-sm th-sort" onclick={() => toggleSort('durationMs')}>Duration{sortIcon('durationMs')}</th>
           </tr>
         {/snippet}
         {#snippet body()}
           {#each filteredRuns as run}
-            <tr>
+            <tr class="clickable-row" onclick={() => goto(`/projects/${data.projectKey}/executions/${run.id}`)}>
               <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
               <td class="mono">{run.runnerId}</td>
               <td class="col-hide-sm">{run.branch ?? '—'}</td>
@@ -362,7 +383,6 @@
               <td class="col-hide-md">{run.framework ?? '—'}</td>
               <td class="nowrap">{formatDate(run.startedAt)}</td>
               <td class="col-hide-sm nowrap">{duration(run.startedAt, run.finishedAt)}</td>
-              <td><a href="/projects/{data.projectKey}/executions/{run.id}" class="link">View →</a></td>
             </tr>
           {/each}
         {/snippet}

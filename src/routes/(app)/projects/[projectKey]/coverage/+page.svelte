@@ -1,11 +1,15 @@
 <script lang="ts">
   import { page } from '$app/state';
+  import Button from '$lib/components/Button.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { ProjectStatistic } from '$lib/api/statistics';
 
   let { data }: { data: { history: ProjectStatistic[] } } = $props();
+
+  let formulaOpen = $state(false);
 
   const projectKey = $derived(page.params.projectKey);
   const latest = $derived(data.history[0]);
@@ -75,9 +79,16 @@
     {/if}
   </div>
 
-  <!-- Coverage formulas -->
   <div class="section">
-    <h2 class="section-title">Coverage Formulas</h2>
+    <div class="section-header">
+      <h2 class="section-title">Coverage Information</h2>
+      <Button variant="secondary" onclick={() => formulaOpen = true}
+        icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
+      >Formulas</Button>
+    </div>
+  </div>
+
+  <Modal open={formulaOpen} title="Coverage Formulas" size="md" onclose={() => formulaOpen = false}>
     <div class="formula-card">
       <div class="formula-item">
         <span class="formula-name">Automation Coverage</span>
@@ -88,16 +99,16 @@
       <div class="formula-item">
         <span class="formula-name">Automatable Coverage</span>
         <code class="formula-expr">automated_count / automatable_count × 100%</code>
-        <span class="formula-desc">Percentage of automatable scenarios that are covered.</span>
+        <span class="formula-desc">Percentage of automatable scenarios that are covered by automation.</span>
       </div>
       <div class="formula-divider"></div>
       <div class="formula-item">
         <span class="formula-name">Manual Coverage</span>
         <code class="formula-expr">manual_count / total_count × 100%</code>
-        <span class="formula-desc">Percentage of scenarios executed only manually.</span>
+        <span class="formula-desc">Percentage of scenarios executed only via manual execution.</span>
       </div>
     </div>
-  </div>
+  </Modal>
 
   <!-- Coverage Breakdown Donut -->
   {#if latest}

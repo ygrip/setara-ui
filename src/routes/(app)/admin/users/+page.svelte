@@ -5,7 +5,7 @@
   let { data } = $props();
   let projectKey = $state('');
   let email = $state('');
-  let role = $state<'QA' | 'VIEWER' | 'ADMIN'>('VIEWER');
+  let role = $state<'QA' | 'VIEWER' | 'ADMIN' | 'QA_LEAD' | 'DEVELOPER'>('VIEWER');
   let busy = $state(false);
   let message = $state('');
   let error = $state('');
@@ -62,7 +62,9 @@
       <span>Role</span>
       <select bind:value={role}>
         <option value="VIEWER">Viewer</option>
-        <option value="QA">QA</option>
+        <option value="QA">QA Engineer</option>
+        <option value="QA_LEAD">QA Lead</option>
+        <option value="DEVELOPER">Developer</option>
         <option value="ADMIN">Admin</option>
       </select>
     </label>
