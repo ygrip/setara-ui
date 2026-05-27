@@ -665,6 +665,9 @@
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
           {#if canWrite}
+            <a class="dir-action-btn" title="Semantic search" aria-label="Semantic search" href="/projects/{data.projectKey}/repository/semantic-search">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> AI Search
+            </a>
             <a class="dir-action-btn import-action" title="Import scenarios from Excel" aria-label="Import scenarios from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
             <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>{@render iconFilePlus()} Add Scenario</button>
           {/if}
