@@ -1,10 +1,10 @@
-import { listTribes, type Tribe } from '$lib/api/organization';
+import { listTribes, listAllSquads, type Tribe, type Squad } from '$lib/api/organization';
 
 export async function load() {
   try {
-    const result = await listTribes();
-    return { tribes: result.items, nextCursor: result.nextCursor, error: null };
+    const [tribesResult, squadsResult] = await Promise.all([listTribes(), listAllSquads()]);
+    return { tribes: tribesResult.items, squads: squadsResult.items, error: null };
   } catch (e) {
-    return { tribes: [] as Tribe[], nextCursor: null, error: (e as Error).message };
+    return { tribes: [] as Tribe[], squads: [] as Squad[], error: (e as Error).message };
   }
 }
