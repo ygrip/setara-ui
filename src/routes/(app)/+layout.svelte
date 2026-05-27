@@ -230,7 +230,7 @@
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
         </svg>
-        Coverage Overview
+        Coverage
         <button class="pin-btn" title={isPinned('/coverage-overview') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/coverage-overview'); }} aria-label={isPinned('/coverage-overview') ? 'Unpin Coverage' : 'Pin Coverage'}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
         </button>
@@ -630,66 +630,85 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    border: 1px solid transparent;
-    background: transparent;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     flex-shrink: 0;
     margin-left: auto;
-    opacity: 0.35;
-    transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s;
+    opacity: 0.55;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   }
 
-  .nav-item:hover .pin-btn { opacity: 0.75; }
+  .nav-item:hover .pin-btn { opacity: 0.85; }
 
   .pin-btn:hover {
     opacity: 1;
-    background: rgba(255,255,255,0.15);
-    border-color: rgba(255,255,255,0.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
     color: var(--color-accent);
+    box-shadow: 0 2px 8px rgba(0,175,165,0.2);
   }
 
-  :global([data-theme="dark"]) .pin-btn { color: rgba(255,255,255,0.5); }
+  :global([data-theme="dark"]) .pin-btn {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.55);
+  }
   :global([data-theme="dark"]) .pin-btn:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.2);
+    background: rgba(0,175,165,0.15);
+    border-color: var(--color-accent);
     color: var(--color-accent-mint);
+    box-shadow: 0 2px 12px rgba(94,242,214,0.15);
   }
 
   .pin-toggle {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 22px;
-    height: 22px;
+    width: 24px;
+    height: 24px;
     border-radius: 50%;
-    border: 1px solid transparent;
-    background: transparent;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     flex-shrink: 0;
     margin-left: auto;
-    opacity: 0.6;
-    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    opacity: 0.7;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
   }
 
   .pin-toggle:hover {
-    background: rgba(255,255,255,0.15);
-    border-color: rgba(255,255,255,0.25);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    background: var(--color-accent-subtle);
+    border-color: var(--color-danger);
     color: var(--color-danger);
+    box-shadow: 0 2px 8px rgba(239,68,68,0.15);
   }
 
-  :global([data-theme="dark"]) .pin-toggle { color: rgba(255,255,255,0.6); }
+  :global([data-theme="dark"]) .pin-toggle {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.65);
+  }
   :global([data-theme="dark"]) .pin-toggle:hover {
-    background: rgba(255,255,255,0.1);
-    border-color: rgba(255,255,255,0.2);
+    background: rgba(239,68,68,0.12);
+    border-color: rgba(239,68,68,0.4);
+    color: #fca5a5;
+  }
+
+  @media (max-width: 768px) {
+    .pin-btn, .pin-toggle {
+      width: 28px;
+      height: 28px;
+      opacity: 0.6;
+    }
+    .nav-item:hover .pin-btn { opacity: 0.85; }
   }
 
   .sidebar-footer {

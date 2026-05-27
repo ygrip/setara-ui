@@ -5,7 +5,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
+  import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, mockRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
   import { isMockMode } from '$lib/mock/client';
 
   let roles = $state<ConfigRole[]>([]);
@@ -39,6 +39,10 @@
       if (isMockMode()) {
         roles = mockConfigRoles;
         permissions = mockPermissions;
+        for (const role of roles) {
+          rolePermissions.set(role.id, new Set(mockRolePermissions[role.key] ?? []));
+        }
+        rolePermissions = new Map(rolePermissions);
       } else {
         error = (e as Error).message;
       }

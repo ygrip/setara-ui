@@ -88,6 +88,56 @@ export const mockConfigRoles: ConfigRole[] = [
   { id: '5', key: 'VIEWER', label: 'Viewer', description: 'Read-only access to dashboards.', color: 'neutral', system: true, createdAt: null, updatedAt: null }
 ];
 
+// Default permission sets per role key (matching DB seed)
+export const mockRolePermissions: Record<string, string[]> = {
+  ADMIN: [
+    'Organization:org:read', 'Organization:org:write', 'Organization:org:admin',
+    'Organization:apikey:manage', 'Organization:admin:access',
+    'Projects:project:read', 'Projects:project:create', 'Projects:project:edit', 'Projects:coverage:read',
+    'Test Repository:scenario:read', 'Test Repository:scenario:write', 'Test Repository:scenario:approve',
+    'Test Repository:scenario:archive', 'Test Repository:directory:manage', 'Test Repository:scenario:import',
+    'Test Repository:map:read',
+    'Executions:execution:read', 'Executions:execution:trigger', 'Executions:execution:ingest',
+    'Release Plans:plan:read', 'Release Plans:plan:write', 'Release Plans:plan:close', 'Release Plans:plan:archive',
+    'Builds:build:read', 'Builds:build:write', 'Builds:build:verify'
+  ],
+  QA_LEAD: [
+    'Organization:org:read',
+    'Projects:project:read', 'Projects:project:edit', 'Projects:coverage:read',
+    'Test Repository:scenario:read', 'Test Repository:scenario:write', 'Test Repository:scenario:approve',
+    'Test Repository:scenario:archive', 'Test Repository:directory:manage', 'Test Repository:scenario:import',
+    'Test Repository:map:read',
+    'Executions:execution:read', 'Executions:execution:trigger', 'Executions:execution:ingest',
+    'Release Plans:plan:read', 'Release Plans:plan:write', 'Release Plans:plan:close', 'Release Plans:plan:archive',
+    'Builds:build:read', 'Builds:build:write', 'Builds:build:verify'
+  ],
+  QA: [
+    'Organization:org:read',
+    'Projects:project:read', 'Projects:coverage:read',
+    'Test Repository:scenario:read', 'Test Repository:scenario:write',
+    'Test Repository:scenario:archive', 'Test Repository:scenario:import', 'Test Repository:map:read',
+    'Executions:execution:read', 'Executions:execution:trigger', 'Executions:execution:ingest',
+    'Release Plans:plan:read', 'Release Plans:plan:write',
+    'Builds:build:read', 'Builds:build:write'
+  ],
+  DEVELOPER: [
+    'Organization:org:read',
+    'Projects:project:read', 'Projects:coverage:read',
+    'Test Repository:scenario:read', 'Test Repository:map:read',
+    'Executions:execution:read', 'Executions:execution:trigger', 'Executions:execution:ingest',
+    'Release Plans:plan:read',
+    'Builds:build:read'
+  ],
+  VIEWER: [
+    'Organization:org:read',
+    'Projects:project:read', 'Projects:coverage:read',
+    'Test Repository:scenario:read', 'Test Repository:map:read',
+    'Executions:execution:read',
+    'Release Plans:plan:read',
+    'Builds:build:read'
+  ]
+};
+
 export const mockPermissions: AvailablePermission[] = [
   { area: 'Organization', key: 'org:read', label: 'View tribes & squads' },
   { area: 'Organization', key: 'org:write', label: 'Create / edit tribes & squads' },
