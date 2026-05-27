@@ -1,6 +1,6 @@
 import { getApiBaseUrl } from './config';
 import { isMockMode } from '$lib/mock/client';
-import { mockNodesByProject, mockPlansByProject, mockScenariosByProject } from '$lib/mock/data';
+import { mockNodesByProject, mockPlansByProject, mockScenariosByProject, mockSquadPlans, mockPlanBuilds, mockBuildsByProject } from '$lib/mock/data';
 
 export interface SetaraMap {
   mapId: string;
@@ -130,31 +130,57 @@ function mockPlanQualityMap(projectKey: string, planId: string, options: { inclu
   return map('QUALITY_MAP', rootId, 'Quality Map', plan?.name ?? projectKey, nodes, edges);
 }
 
-function mockSquadPlanQualityMap(squadId: string, planId: string): SetaraMap {
+function mockSquadPlanQualityMap(_squadId: string, planId: string): SetaraMap {
+  const plan = mockSquadPlans.find(p => p.id === planId) ?? mockSquadPlans[0];
+  const planBuilds = mockPlanBuilds[planId] ?? [];
   const rootId = `plan:${planId}`;
-  const projectAId = `project:proj-alpha`;
-  const projectBId = `project:proj-beta`;
-  const buildA1 = `build:build-a1`;
-  const buildA2 = `build:build-a2`;
-  const buildB1 = `build:build-b1`;
+  const planStatus = plan?.status === 'CLOSED' ? 'HEALTHY' : plan?.status === 'IN_PROGRESS' ? 'WARNING' : 'NOT_EXECUTED';
+
   const nodes: MapNode[] = [
-    node(rootId, 'PLAN', 'Sprint Release Plan', 'v24.06', 'WARNING', 'MEDIUM', { totalBuilds: 3, verifiedBuilds: 1, planReadiness: 33 }, ['IN_PROGRESS']),
-    node(projectAId, 'PROJECT', 'Project Alpha', 'PRJ-ALPHA', 'WARNING', 'MEDIUM', { totalBuilds: 2, verifiedBuilds: 1 }, ['project']),
-    node(projectBId, 'PROJECT', 'Project Beta', 'PRJ-BETA', 'NOT_EXECUTED', 'HIGH', { totalBuilds: 1, verifiedBuilds: 0 }, ['project']),
-    node(buildA1, 'BUILD', 'Build 24.06.1', 'PRJ-ALPHA-B001', 'PASSED', 'LOW', { status: 'VERIFIED', passPercentage: 95 }, ['VERIFIED']),
-    node(buildA2, 'BUILD', 'Build 24.06.2', 'PRJ-ALPHA-B002', 'IN_PROGRESS', 'MEDIUM', { status: 'IN_PROGRESS', passPercentage: 72 }, ['IN_PROGRESS']),
-    node(buildB1, 'BUILD', 'Build 24.06.1', 'PRJ-BETA-B001', 'NOT_EXECUTED', 'HIGH', { status: 'INITIATED', passPercentage: 0 }, ['INITIATED']),
-    node(`${rootId}:risk:unverified`, 'RISK', 'Unverified Builds', '2 build(s) still pending verification', 'AT_RISK', 'HIGH', { count: 2 }, ['risk'])
+    node(rootId, 'PLAN', plan?.name ?? 'Release Plan', plan?.releaseVersion ?? planId, planStatus, 'MEDIUM',
+      { totalBuilds: planBuilds.length, verifiedBuilds: planBuilds.filter(b => b.status === 'VERIFIED').length },
+      [plan?.status ?? 'OPEN'])
   ];
-  const edges: MapEdge[] = [
-    edge(rootId, projectAId, 'COVERS', 'scope'),
-    edge(rootId, projectBId, 'COVERS', 'scope'),
-    edge(projectAId, buildA1, 'HAS_BUILD', 'build'),
-    edge(projectAId, buildA2, 'HAS_BUILD', 'build'),
-    edge(projectBId, buildB1, 'HAS_BUILD', 'build'),
-    edge(rootId, `${rootId}:risk:unverified`, 'HAS_RISK', 'critical')
-  ];
-  return map('SQUAD_PLAN_MAP', rootId, 'Release Plan Map', 'Sprint Release Plan', nodes, edges);
+  const edges: MapEdge[] = [];
+
+  // Group builds by projectKey
+  const byProject = new Map<string, typeof planBuilds>();
+  for (const pb of planBuilds) {
+    if (!byProject.has(pb.projectKey)) byProject.set(pb.projectKey, []);
+    byProject.get(pb.projectKey)!.push(pb);
+  }
+
+  for (const [projectKey, projBuilds] of byProject) {
+    const projId = `project:${projectKey}`;
+    const projVerified = projBuilds.filter(b => b.status === 'VERIFIED').length;
+    const projStatus = projVerified === projBuilds.length ? 'HEALTHY' : projVerified > 0 ? 'WARNING' : 'NOT_EXECUTED';
+    nodes.push(node(projId, 'PROJECT', projBuilds[0].projectName, projectKey, projStatus, 'MEDIUM',
+      { totalBuilds: projBuilds.length, verifiedBuilds: projVerified }, ['project']));
+    edges.push(edge(rootId, projId, 'COVERS', 'scope'));
+
+    for (const pb of projBuilds) {
+      const buildNodeId = `build:${pb.buildId}`;
+      const buildStatus = pb.status === 'VERIFIED' ? 'HEALTHY' : pb.status === 'IN_PROGRESS' ? 'WARNING' : 'NOT_EXECUTED';
+      const passLabel = pb.metrics ? `${pb.metrics.passPercentage.toFixed(0)}% pass` : '';
+      // Look up the actual build for the href
+      const actualBuild = (mockBuildsByProject[projectKey] ?? []).find(b => b.id === pb.buildId);
+      const href = actualBuild ? `/projects/${projectKey}/builds/${pb.buildId}` : null;
+      const n = node(buildNodeId, 'BUILD', pb.buildName, pb.buildKey, buildStatus, 'LOW',
+        { status: pb.status, passPercentage: pb.metrics?.passPercentage ?? 0 }, [pb.status, passLabel].filter(Boolean));
+      n.target = href ? { entityType: 'BUILD', entityId: pb.buildId, href } : null;
+      nodes.push(n);
+      edges.push(edge(projId, buildNodeId, 'HAS_BUILD', 'build'));
+    }
+  }
+
+  const unverified = planBuilds.filter(b => b.status !== 'VERIFIED').length;
+  if (unverified > 0) {
+    const riskId = `${rootId}:risk:unverified`;
+    nodes.push(node(riskId, 'RISK', 'Unverified Builds', `${unverified} build(s) still pending verification`, 'AT_RISK', 'HIGH', { count: unverified }, ['risk']));
+    edges.push(edge(rootId, riskId, 'HAS_RISK', 'critical'));
+  }
+
+  return map('SQUAD_PLAN_MAP', rootId, `${plan?.name ?? 'Release Plan'} Map`, plan?.name ?? planId, nodes, edges);
 }
 
 function mockDirectoryCoverageMap(projectKey: string, directoryId: string, options: { includeScenarios?: boolean; riskOnly?: boolean }): SetaraMap {

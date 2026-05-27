@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import DataTable from '$lib/components/DataTable.svelte';
   import { listSquadCoverage, listSquadProjectCoverage, type SquadCoverage, type SquadProjectCoverage } from '$lib/api/statistics';
 
@@ -135,7 +136,7 @@
             <tr
               class="click-row"
               class:row-selected={selectedSquad?.squadId === row.squadId}
-              onclick={() => selectSquad(row)}
+              onclick={() => goto('/squads/' + row.squadId)}
             >
               <td class="bold">{row.squadName}</td>
               <td>{row.tribeName ?? '—'}</td>

@@ -12,7 +12,7 @@ import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
 import type { Scenario, TestDirectory } from '$lib/api/testcases';
-import type { ProjectStatistic } from '$lib/api/statistics';
+import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
 
 export function isMockMode(): boolean {
@@ -371,6 +371,147 @@ export async function mockVerifyBuild(projectKey: string, buildId: string, body:
 export async function mockListBuildAudit(_projectKey: string, buildId: string): Promise<BuildAuditEvent[]> {
   await delay(100);
   return structuredClone(mockBuildAuditByBuild[buildId] ?? []);
+}
+
+function recomputeBuildMetrics(projectKey: string, buildId: string) {
+  const scenarios = mockBuildScenariosByBuild[buildId] ?? [];
+  const build = mockBuildsByProject[projectKey]?.find(b => b.id === buildId);
+  if (!build) return;
+  const total = scenarios.length;
+  const passed = scenarios.filter(s => s.latestStatus === 'PASSED').length;
+  const failed = scenarios.filter(s => s.latestStatus === 'FAILED').length;
+  const blocked = scenarios.filter(s => s.latestStatus === 'BLOCKED').length;
+  const skipped = scenarios.filter(s => s.latestStatus === 'SKIPPED').length;
+  const notExecuted = scenarios.filter(s => s.latestStatus === 'NOT_EXECUTED').length;
+  build.metrics.totalScenarios = total;
+  build.metrics.passed = passed;
+  build.metrics.failed = failed;
+  build.metrics.blocked = blocked;
+  build.metrics.skipped = skipped;
+  build.metrics.notExecuted = notExecuted;
+  build.metrics.passPercentage = total > 0 ? Number(((passed / total) * 100).toFixed(2)) : 0;
+  build.metrics.executionCoverage = total > 0 ? Number((((total - notExecuted) / total) * 100).toFixed(2)) : 0;
+  build.updatedAt = new Date().toISOString();
+}
+
+export async function mockUpdateBuildScenarioResult(
+  projectKey: string,
+  buildId: string,
+  buildScenarioId: string,
+  body: { status: string; notes?: string; executedBy?: string }
+): Promise<BuildScenario> {
+  await delay(150);
+  const scenarios = mockBuildScenariosByBuild[buildId] ?? [];
+  const index = scenarios.findIndex(s => s.id === buildScenarioId);
+  if (index < 0) throw new Error(`BuildScenario ${buildScenarioId} not found`);
+  const previousStatus = scenarios[index].latestStatus;
+  scenarios[index] = {
+    ...scenarios[index],
+    latestStatus: body.status,
+    executedBy: body.executedBy ?? 'mock.user@setara.local',
+    executedAt: new Date().toISOString()
+  };
+  recomputeBuildMetrics(projectKey, buildId);
+  mockBuildAuditByBuild[buildId] = [{
+    id: `audit-${buildId}-result-${Date.now()}`,
+    eventType: 'SCENARIO_RESULT_UPDATED',
+    actor: body.executedBy ?? 'mock.user@setara.local',
+    occurredAt: new Date().toISOString(),
+    metadata: {
+      scenarioKey: scenarios[index].scenarioKey,
+      previousStatus,
+      newStatus: body.status,
+      source: 'MANUAL',
+      notes: body.notes ?? null
+    }
+  }, ...(mockBuildAuditByBuild[buildId] ?? [])];
+  return structuredClone(scenarios[index]);
+}
+
+export async function mockRemoveBuildScenarios(
+  projectKey: string,
+  buildId: string,
+  buildScenarioIds: string[]
+): Promise<void> {
+  await delay(150);
+  const scenarios = mockBuildScenariosByBuild[buildId] ?? [];
+  mockBuildScenariosByBuild[buildId] = scenarios.filter(s => !buildScenarioIds.includes(s.id));
+  recomputeBuildMetrics(projectKey, buildId);
+  mockBuildAuditByBuild[buildId] = [{
+    id: `audit-${buildId}-removed-${Date.now()}`,
+    eventType: 'SCENARIOS_REMOVED',
+    actor: 'mock.user@setara.local',
+    occurredAt: new Date().toISOString(),
+    metadata: { count: buildScenarioIds.length }
+  }, ...(mockBuildAuditByBuild[buildId] ?? [])];
+}
+
+export async function mockAddAutomationToBuild(
+  projectKey: string,
+  buildId: string,
+  body: { runId: string; addedBy?: string }
+): Promise<{ merged: number; updated: number }> {
+  await delay(200);
+  const runs = mockRunsByProject[projectKey] ?? [];
+  const run = runs.find(r => r.id === body.runId);
+  if (!run) throw new Error(`Run ${body.runId} not found`);
+  const buildScenarios = mockBuildScenariosByBuild[buildId] ?? [];
+  let merged = 0;
+  let updated = 0;
+  const isRunPassed = run.status === 'PASSED';
+  for (const bs of buildScenarios) {
+    if (bs.latestStatus === 'NOT_EXECUTED') {
+      const newStatus = isRunPassed ? 'PASSED' : (merged % 4 === 0 ? 'FAILED' : 'PASSED');
+      bs.latestStatus = newStatus;
+      bs.executedBy = run.runnerId;
+      bs.executedAt = run.finishedAt ?? new Date().toISOString();
+      bs.source = 'AUTOMATION';
+      updated++;
+    } else {
+      merged++;
+    }
+  }
+  recomputeBuildMetrics(projectKey, buildId);
+  mockBuildAuditByBuild[buildId] = [{
+    id: `audit-${buildId}-automation-${Date.now()}`,
+    eventType: 'AUTOMATION_RUN_ADDED',
+    actor: body.addedBy ?? run.runnerId,
+    occurredAt: new Date().toISOString(),
+    metadata: { runId: body.runId, merged, updated }
+  }, ...(mockBuildAuditByBuild[buildId] ?? [])];
+  return { merged, updated };
+}
+
+export async function mockGetBuildByVersion(projectKey: string, version: string): Promise<ProjectBuild | null> {
+  await delay(80);
+  const builds = mockBuildsByProject[projectKey] ?? [];
+  const found = builds.find(b => b.version === version);
+  if (found) return structuredClone(found);
+  if (builds.length > 0) {
+    console.debug(`[mock] Build version "${version}" not found for ${projectKey}, falling back to latest`);
+    return structuredClone(builds[0]);
+  }
+  return null;
+}
+
+export async function mockListSquadProjectCoverage(squadId: string): Promise<SquadProjectCoverage[]> {
+  await delay(120);
+  const projects = Object.values(mockProjects).filter(p => p.squadId === squadId);
+  return projects.map(proj => {
+    const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
+    const totalScenarios = scenarios.length;
+    const totalAutomated = scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+    const totalAutomatable = scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+    return {
+      projectId: proj.id,
+      projectKey: proj.projectKey,
+      projectName: proj.name,
+      totalScenarios,
+      totalAutomated,
+      totalAutomatable,
+      coveragePercentage: totalAutomatable ? Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)) : 0
+    };
+  });
 }
 
 export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {

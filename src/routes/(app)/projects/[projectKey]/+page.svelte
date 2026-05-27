@@ -5,6 +5,36 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import { type ApiKey } from '$lib/api/apikeys';
 
+  let copiedField = $state<string | null>(null);
+
+  async function copyToClipboard(text: string, field: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      copiedField = field;
+      setTimeout(() => { copiedField = null; }, 1500);
+    } catch {
+      // fallback: ignore
+    }
+  }
+
+  function buildStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
+    switch (status) {
+      case 'VERIFIED': return 'success';
+      case 'IN_PROGRESS': return 'info';
+      case 'INITIATED': return 'warning';
+      default: return 'neutral';
+    }
+  }
+
+  function planStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
+    switch (status) {
+      case 'CLOSED': return 'success';
+      case 'IN_PROGRESS': return 'info';
+      case 'OPEN': return 'warning';
+      default: return 'neutral';
+    }
+  }
+
   let { data } = $props();
 
   function runStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
@@ -108,7 +138,63 @@
         variant="default"
         icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
       />
+      <a href="/projects/{data.projectKey}/builds" class="metric-link" aria-label="Open builds">
+        <MetricCard
+          label="Total Builds"
+          value={data.builds.length}
+          variant="default"
+          icon="M4 7l8-4 8 4-8 4-8-4z M4 12l8 4 8-4 M4 17l8 4 8-4"
+        />
+      </a>
     </div>
+
+    <!-- Latest Build & Plan info -->
+    {#if data.latestBuild || data.latestPlan}
+    <div class="latest-row">
+      {#if data.latestBuild}
+      <div class="latest-card">
+        <div class="latest-card-header">
+          <span class="latest-label">Latest Build</span>
+          <Badge text={data.latestBuild.status} variant={buildStatusVariant(data.latestBuild.status)} />
+        </div>
+        <div class="latest-card-name">{data.latestBuild.name}</div>
+        <div class="latest-card-meta">
+          <span class="mono-chip">
+            {data.latestBuild.buildKey}
+            <button class="copy-btn" onclick={() => copyToClipboard(data.latestBuild!.buildKey, 'buildKey')} title="Copy build key">
+              {copiedField === 'buildKey' ? '✓' : '⧉'}
+            </button>
+          </span>
+          {#if data.latestBuild.version}
+          <span class="mono-chip">
+            {data.latestBuild.version}
+            <button class="copy-btn" onclick={() => copyToClipboard(data.latestBuild!.version!, 'version')} title="Copy version">
+              {copiedField === 'version' ? '✓' : '⧉'}
+            </button>
+          </span>
+          {/if}
+        </div>
+        <a href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" class="latest-link">View →</a>
+      </div>
+      {/if}
+
+      {#if data.latestPlan}
+      <div class="latest-card">
+        <div class="latest-card-header">
+          <span class="latest-label">Latest Plan</span>
+          <Badge text={data.latestPlan.status} variant={planStatusVariant(data.latestPlan.status)} />
+        </div>
+        <div class="latest-card-name">{data.latestPlan.name}</div>
+        {#if data.latestPlan.releaseVersion}
+        <div class="latest-card-meta">
+          <span class="mono-chip">{data.latestPlan.releaseVersion}</span>
+        </div>
+        {/if}
+        <a href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" class="latest-link">View →</a>
+      </div>
+      {/if}
+    </div>
+    {/if}
 
     <div class="section">
       <div class="panel visual-panel">
@@ -468,6 +554,17 @@
     color: var(--color-text-muted);
     font-size: 0.8rem;
   }
+
+  .latest-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .latest-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
+  .latest-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .latest-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--color-text-muted); }
+  .latest-card-name { font-size: 0.95rem; font-weight: 700; color: var(--color-text); }
+  .latest-card-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  .mono-chip { display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, monospace; font-size: 0.78rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 8px; }
+  .copy-btn { border: 0; background: transparent; cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); padding: 0 2px; }
+  .copy-btn:hover { color: var(--color-accent); }
+  .latest-link { font-size: 0.8rem; font-weight: 600; color: var(--color-accent); text-decoration: none; margin-top: 4px; }
 
   @media (max-width: 760px) {
     .metrics-row { grid-template-columns: 1fr; }

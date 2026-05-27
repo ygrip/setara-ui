@@ -847,9 +847,10 @@ export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
 
 export const mockBuildAuditByBuild: Record<string, BuildAuditEvent[]> = {
   'build-payment-rc1': [
-    { id: 'audit-pay-1', eventType: 'BUILD_OPENED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:00:00Z', metadata: { buildKey: 'PAY-2026-06-RC1' } },
-    { id: 'audit-pay-2', eventType: 'SCENARIO_ADDED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:05:00Z', metadata: { count: 6 } },
-    { id: 'audit-pay-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-01', occurredAt: '2026-05-24T09:12:00Z', metadata: { runId: 'run-001' } }
+    { id: 'audit-pay-1', eventType: 'BUILD_OPENED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:00:00Z', metadata: { buildKey: 'PAY-2026-06-RC1', name: 'Payment May RC1' } },
+    { id: 'audit-pay-2', eventType: 'SCENARIO_ADDED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:05:00Z', metadata: { count: 6, source: 'MANUAL' } },
+    { id: 'audit-pay-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-01', occurredAt: '2026-05-24T09:12:00Z', metadata: { runId: 'run-001', merged: 4, updated: 3 } },
+    { id: 'audit-pay-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T10:40:00Z', metadata: { scenarioKey: 'SCN-CAPTURE1', previousStatus: 'NOT_EXECUTED', newStatus: 'PASSED', source: 'MANUAL', notes: 'Verified manually after environment fix' } }
   ]
 };
 

@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from './config';
-import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild } from '$lib/mock/client';
+import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion } from '$lib/mock/client';
 
 export interface ProjectBuild {
   id: string;
@@ -130,4 +130,57 @@ export async function listBuildAudit(projectKey: string, buildId: string): Promi
   if (isMockMode()) return mockListBuildAudit(projectKey, buildId);
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/audit`);
   return res.json();
+}
+
+export async function updateBuildScenarioResult(
+  projectKey: string,
+  buildId: string,
+  buildScenarioId: string,
+  body: { status: string; notes?: string; executedBy?: string }
+): Promise<BuildScenario> {
+  if (isMockMode()) return mockUpdateBuildScenarioResult(projectKey, buildId, buildScenarioId, body);
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios/${buildScenarioId}/result`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function removeBuildScenarios(
+  projectKey: string,
+  buildId: string,
+  buildScenarioIds: string[]
+): Promise<void> {
+  if (isMockMode()) return mockRemoveBuildScenarios(projectKey, buildId, buildScenarioIds);
+  await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios/bulk-remove`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ids: buildScenarioIds })
+  });
+}
+
+export async function addAutomationToBuild(
+  projectKey: string,
+  buildId: string,
+  body: { runId: string; addedBy?: string }
+): Promise<{ merged: number; updated: number }> {
+  if (isMockMode()) return mockAddAutomationToBuild(projectKey, buildId, body);
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/automation`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return res.json();
+}
+
+export async function getBuildByVersion(projectKey: string, version: string): Promise<ProjectBuild | null> {
+  if (isMockMode()) return mockGetBuildByVersion(projectKey, version);
+  try {
+    const res = await apiFetch(`/api/projects/${projectKey}/builds?version=${encodeURIComponent(version)}`);
+    const results: ProjectBuild[] = await res.json();
+    return results[0] ?? null;
+  } catch {
+    return null;
+  }
 }
