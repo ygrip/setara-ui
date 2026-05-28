@@ -323,6 +323,8 @@ export async function mockAddBuildScenario(
     scenarioId: scenario.id,
     scenarioKey: scenario.scenarioKey,
     name: scenario.name,
+    featureName: scenario.featureName ?? null,
+    directoryPath: null,
     priority: scenario.priority,
     expectedStatus: 'PASSED',
     latestStatus: 'NOT_EXECUTED',

@@ -1,6 +1,12 @@
 import { getApiBaseUrl } from './config';
 import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion } from '$lib/mock/client';
 
+export interface CursorPage<T> {
+  items: T[];
+  nextCursor: string | null;
+  prevCursor: string | null;
+}
+
 export interface ProjectBuild {
   id: string;
   projectId: string;
@@ -40,6 +46,8 @@ export interface BuildScenario {
   scenarioId: string;
   scenarioKey: string;
   name: string;
+  featureName: string | null;
+  directoryPath: string | null;
   priority: string | null;
   expectedStatus: string;
   latestStatus: string;
@@ -47,8 +55,18 @@ export interface BuildScenario {
   executedBy: string | null;
   executedAt: string | null;
   addedAt: string;
-  featureName?: string | null;
-  directoryPath?: string | null;
+}
+
+export interface RunScenarioView {
+  id: string;
+  scenarioId: string | null;
+  scenarioKey: string | null;
+  scenarioName: string;
+  status: string;
+  cucumberId: string | null;
+  featureName: string | null;
+  featureUri: string | null;
+  tags: string[] | null;
 }
 
 export interface BuildAuditEvent {
@@ -100,9 +118,18 @@ export async function getBuild(projectKey: string, buildId: string): Promise<Pro
   return res.json();
 }
 
-export async function listBuildScenarios(projectKey: string, buildId: string): Promise<BuildScenario[]> {
-  if (isMockMode()) return mockListBuildScenarios(projectKey, buildId);
-  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios`);
+export async function listBuildScenarios(projectKey: string, buildId: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<BuildScenario>> {
+  if (isMockMode()) {
+    const items = await mockListBuildScenarios(projectKey, buildId);
+    return { items, nextCursor: null, prevCursor: null };
+  }
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
+  if (sortBy) params.set('sort_by', sortBy);
+  if (sortDir) params.set('sort_dir', sortDir);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios${qs}`);
   return res.json();
 }
 
@@ -126,9 +153,16 @@ export async function verifyBuild(projectKey: string, buildId: string, body: { v
   return res.json();
 }
 
-export async function listBuildAudit(projectKey: string, buildId: string): Promise<BuildAuditEvent[]> {
-  if (isMockMode()) return mockListBuildAudit(projectKey, buildId);
-  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/audit`);
+export async function listBuildAudit(projectKey: string, buildId: string, cursor?: string, limit?: number): Promise<CursorPage<BuildAuditEvent>> {
+  if (isMockMode()) {
+    const items = await mockListBuildAudit(projectKey, buildId);
+    return { items, nextCursor: null, prevCursor: null };
+  }
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/audit${qs}`);
   return res.json();
 }
 
@@ -140,7 +174,7 @@ export async function updateBuildScenarioResult(
 ): Promise<BuildScenario> {
   if (isMockMode()) return mockUpdateBuildScenarioResult(projectKey, buildId, buildScenarioId, body);
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios/${buildScenarioId}/result`, {
-    method: 'PATCH',
+    method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
@@ -164,13 +198,19 @@ export async function addAutomationToBuild(
   projectKey: string,
   buildId: string,
   body: { runId: string; addedBy?: string }
-): Promise<{ merged: number; updated: number }> {
-  if (isMockMode()) return mockAddAutomationToBuild(projectKey, buildId, body);
-  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/automation`, {
+): Promise<ProjectBuild> {
+  if (isMockMode()) { await mockAddAutomationToBuild(projectKey, buildId, body); return {} as ProjectBuild; }
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/executions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
+  return res.json();
+}
+
+export async function listRunScenarios(projectKey: string, runId: string): Promise<RunScenarioView[]> {
+  if (isMockMode()) return [];
+  const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/scenarios`);
   return res.json();
 }
 

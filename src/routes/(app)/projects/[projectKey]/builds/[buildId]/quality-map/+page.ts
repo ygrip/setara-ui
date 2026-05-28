@@ -5,10 +5,11 @@ export async function load({ params }: { params: { projectKey: string; buildId: 
   const { projectKey, buildId } = params;
 
   try {
-    const [build, buildScenarios] = await Promise.all([
+    const [build, scenariosPage] = await Promise.all([
       getBuild(projectKey, buildId),
       listBuildScenarios(projectKey, buildId)
     ]);
+    const buildScenarios = scenariosPage.items;
 
     // Build the map client-side from scenarios grouped by directoryPath
     const dirMap = new Map<string, typeof buildScenarios>();

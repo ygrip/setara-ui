@@ -839,7 +839,7 @@ export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
     { id: 'bs-pay-6', scenarioId: 'scenario-dispute-evidence', scenarioKey: 'SCN-DISPUTE1', name: 'Evidence package can be submitted before dispute deadline', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-24T08:08:00Z', featureName: 'Disputes', directoryPath: 'risk-disputes/disputes' }
   ],
   'build-payment-hotfix': [
-    { id: 'bs-pay-hf-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-10T11:12:00Z', addedAt: '2026-05-10T07:05:00Z' }
+    { id: 'bs-pay-hf-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-10T11:12:00Z', addedAt: '2026-05-10T07:05:00Z', featureName: 'Refunds', directoryPath: 'payments/refunds' }
   ],
   'build-auth-rc1': [],
   'build-checkout-rc1': []

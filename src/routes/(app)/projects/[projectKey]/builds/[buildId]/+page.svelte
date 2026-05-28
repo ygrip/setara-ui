@@ -4,7 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { verifyBuild, addBuildScenario, updateBuildScenarioResult, removeBuildScenarios, addAutomationToBuild, type ProjectBuild, type BuildScenario } from '$lib/api/builds';
+  import { verifyBuild, addBuildScenario, updateBuildScenarioResult, removeBuildScenarios, addAutomationToBuild, listBuildScenarios, listBuildAudit, listRunScenarios, type ProjectBuild, type BuildScenario, type BuildAuditEvent, type RunScenarioView } from '$lib/api/builds';
   import type { AutomationRun } from '$lib/api/runs';
   import { listDirectories, listScenarios, type TestDirectory, type Scenario } from '$lib/api/testcases';
 
@@ -12,6 +12,12 @@
 
   let build = $state<ProjectBuild | null>(null);
   let scenarios = $state<BuildScenario[]>([]);
+  let scenarioNextCursor = $state<string | null>(null);
+  let scenarioPrevCursor = $state<string | null>(null);
+  let auditEvents = $state<BuildAuditEvent[]>([]);
+  let auditNextCursor = $state<string | null>(null);
+  let loadingMore = $state(false);
+
   let auditOpen = $state(false);
   let verifying = $state(false);
   let verifyError = $state('');
@@ -27,6 +33,8 @@
   let runSearch = $state('');
   let runConfirmOpen = $state(false);
   let runToConfirm = $state<AutomationRun | null>(null);
+  let runPreviewScenarios = $state<RunScenarioView[]>([]);
+  let loadingRunPreview = $state(false);
 
   // Manual select mode
   let manualDirectories = $state<TestDirectory[]>([]);
@@ -120,7 +128,11 @@
 
   $effect(() => {
     build = data.build;
-    scenarios = [...data.scenarios];
+    scenarios = data.scenariosPage?.items ?? [];
+    scenarioNextCursor = data.scenariosPage?.nextCursor ?? null;
+    scenarioPrevCursor = data.scenariosPage?.prevCursor ?? null;
+    auditEvents = data.auditPage?.items ?? [];
+    auditNextCursor = data.auditPage?.nextCursor ?? null;
   });
 
   const chartData = $derived({
@@ -145,6 +157,8 @@
     runSearch = '';
     runConfirmOpen = false;
     runToConfirm = null;
+    runPreviewScenarios = [];
+    loadingRunPreview = false;
     selectedManualIds = new Set();
     manualStep = 'select';
     manualDirFilter = '';
@@ -159,6 +173,8 @@
     runSearch = '';
     runConfirmOpen = false;
     runToConfirm = null;
+    runPreviewScenarios = [];
+    loadingRunPreview = false;
   }
 
   async function openManualMode() {
@@ -253,6 +269,9 @@
         }
       };
       closeAddMenu();
+      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20);
+      scenarios = page.items;
+      scenarioNextCursor = page.nextCursor;
     } catch (e) {
       verifyError = (e as Error).message;
     } finally {
@@ -260,25 +279,58 @@
     }
   }
 
-  function openRunConfirm(run: AutomationRun) {
+  async function openRunConfirm(run: AutomationRun) {
     runToConfirm = run;
     runConfirmOpen = true;
+    loadingRunPreview = true;
+    runPreviewScenarios = [];
+    try {
+      runPreviewScenarios = await listRunScenarios(data.projectKey, run.id);
+    } catch {
+      runPreviewScenarios = [];
+    } finally {
+      loadingRunPreview = false;
+    }
   }
 
   async function confirmAddRun() {
     if (!build || !runToConfirm || addingRun) return;
     addingRun = true;
     try {
-      await addAutomationToBuild(data.projectKey, build.id, { runId: runToConfirm.id });
-      const { listBuildScenarios: lbc, getBuild: gb } = await import('$lib/api/builds');
-      scenarios = await lbc(data.projectKey, build.id);
-      build = await gb(data.projectKey, build.id);
+      const updated = await addAutomationToBuild(data.projectKey, build.id, { runId: runToConfirm.id });
+      build = updated;
+      // Reload scenarios
+      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20);
+      scenarios = page.items;
+      scenarioNextCursor = page.nextCursor;
       closeAddMenu();
     } catch (e) {
       verifyError = (e as Error).message;
     } finally {
       addingRun = false;
     }
+  }
+
+  async function loadMoreScenarios() {
+    if (!build || loadingMore || !scenarioNextCursor) return;
+    loadingMore = true;
+    try {
+      const page = await listBuildScenarios(data.projectKey, build.id, scenarioNextCursor, 20);
+      scenarios = [...scenarios, ...page.items];
+      scenarioNextCursor = page.nextCursor;
+    } catch { /* ignore */ }
+    finally { loadingMore = false; }
+  }
+
+  async function loadMoreAudit() {
+    if (!build || loadingMore || !auditNextCursor) return;
+    loadingMore = true;
+    try {
+      const page = await listBuildAudit(data.projectKey, build.id, auditNextCursor, 20);
+      auditEvents = [...auditEvents, ...page.items];
+      auditNextCursor = page.nextCursor;
+    } catch { /* ignore */ }
+    finally { loadingMore = false; }
   }
 
   const allSelected = $derived(scenarios.length > 0 && selectedIds.size === scenarios.length);
@@ -614,6 +666,7 @@
               <td>
                 <strong>{scenario.scenarioKey}</strong>
                 <div class="muted">{scenario.name}</div>
+                {#if scenario.directoryPath}<div class="path-hint">{scenario.directoryPath}</div>{/if}
               </td>
               <td><Badge text={scenario.expectedStatus} variant="neutral" /></td>
               <td><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
@@ -635,6 +688,13 @@
           {/each}
         {/snippet}
       </DataTable>
+      {#if scenarioNextCursor}
+        <div class="load-more-wrap">
+          <button class="load-more-btn" onclick={loadMoreScenarios} disabled={loadingMore}>
+            {loadingMore ? 'Loading…' : 'Load more scenarios'}
+          </button>
+        </div>
+      {/if}
     </section>
   {/if}
 </div>
@@ -642,7 +702,7 @@
 <!-- History Modal (renamed from Audit) -->
 <Modal open={auditOpen} title="Build History" size="lg" onclose={() => auditOpen = false}>
   <ol class="audit-list">
-    {#each data.audit as event}
+    {#each auditEvents as event}
       <li>
         <strong>{formatEventLabel(event.eventType)}</strong>
         <span>{formatDate(event.occurredAt)} · {event.actor ?? 'system'}</span>
@@ -662,6 +722,13 @@
       </li>
     {/each}
   </ol>
+  {#if auditNextCursor}
+    <div class="load-more-wrap">
+      <button class="load-more-btn" onclick={loadMoreAudit} disabled={loadingMore}>
+        {loadingMore ? 'Loading…' : 'Load more'}
+      </button>
+    </div>
+  {/if}
 </Modal>
 
 <!-- Update Result Modal -->
@@ -734,23 +801,46 @@
 </Modal>
 
 <!-- Run Confirm Dialog -->
-<Modal open={runConfirmOpen} title="Confirm Automation Run" size="sm" onclose={() => runConfirmOpen = false}>
+<Modal open={runConfirmOpen} title="Confirm Automation Run" size="lg" onclose={() => runConfirmOpen = false}>
   <div class="modal-body">
     {#if runToConfirm}
-      <p class="modal-sub">Link results from this run to the build?</p>
+      <p class="modal-sub">Link scenario results from this run to the build.</p>
       <div class="confirm-run-card">
         <div class="run-row-top">
           <Badge text={runToConfirm.status} variant={runToConfirm.status === 'PASSED' ? 'success' : runToConfirm.status === 'FAILED' ? 'danger' : 'warning'} />
           <span class="run-job">{runToConfirm.jobName ?? runToConfirm.runnerId}</span>
+          <span class="run-branch">{runToConfirm.branch ?? '?'}</span>
         </div>
         <div class="run-row-bot">
           <span>{(runToConfirm.passedScenarios ?? 0)}/{(runToConfirm.totalScenarios ?? 0)} passed</span>
           <span>{formatDate(runToConfirm.startedAt)}</span>
         </div>
       </div>
+      {#if loadingRunPreview}
+        <p class="empty">Loading scenario preview…</p>
+      {:else if runPreviewScenarios.length > 0}
+        <h4 class="preview-heading">{runPreviewScenarios.length} scenarios will be linked</h4>
+        <div class="confirm-table-wrap">
+          <table class="confirm-table">
+            <thead><tr><th>Status</th><th>Scenario</th><th>Name</th><th>Feature</th></tr></thead>
+            <tbody>
+              {#each runPreviewScenarios as rp}
+                <tr>
+                  <td><Badge text={rp.status} variant={rp.status === 'PASSED' ? 'success' : rp.status === 'FAILED' ? 'danger' : 'warning'} /></td>
+                  <td><code>{rp.scenarioKey ?? '—'}</code></td>
+                  <td>{rp.scenarioName}</td>
+                  <td class="muted">{rp.featureName ?? '—'}</td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      {:else}
+        <p class="empty">No scenario results in this run.</p>
+      {/if}
     {/if}
     <div class="modal-actions">
-      <Button variant="primary" size="sm" onclick={confirmAddRun} disabled={addingRun}>
+      <Button variant="primary" size="sm" onclick={confirmAddRun} disabled={addingRun || loadingRunPreview}>
         {addingRun ? 'Adding…' : 'Confirm'}
       </Button>
       <Button variant="secondary" size="sm" onclick={() => runConfirmOpen = false}>Cancel</Button>
@@ -981,6 +1071,14 @@
   .confirm-table th { text-align: left; padding: 8px 10px; background: var(--color-bg); border-bottom: 1px solid var(--color-border); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: var(--color-text-muted); position: sticky; top: 0; z-index: 1; }
   .confirm-table td { padding: 7px 10px; border-bottom: 1px solid var(--color-border); }
   .confirm-table code { font-size: 0.75rem; background: var(--color-bg); padding: 2px 5px; border-radius: 3px; }
+
+  /* Load more */
+  .load-more-wrap { display: flex; justify-content: center; padding: 14px 0 4px; }
+  .load-more-btn { padding: 7px 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
+  .load-more-btn:hover { border-color: var(--color-accent); }
+  .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .preview-heading { font-size: 0.875rem; font-weight: 700; margin: 8px 0 4px; }
+  .path-hint { font-size: 0.68rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); margin-top: 1px; }
 
   /* Responsive */
   @media (max-width: 700px) {
