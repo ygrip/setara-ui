@@ -3,33 +3,28 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import { listScenarios, type Scenario, type TestDirectory } from '$lib/api/testcases';
   import { addBuildScenario } from '$lib/api/builds';
+  import type { Scenario, TestDirectory } from '$lib/api/testcases';
 
   let { data } = $props();
 
+  type TreeNode = TestDirectory & { children: TreeNode[]; directCount: number; totalCount: number };
   type ViewStep = 'select' | 'review';
 
   let step = $state<ViewStep>('select');
 
-  // Directory tree state
-  let dirFilter = $state('');
-  // Use a derived to pick initial dir, but then allow user override via selectDir()
-  const initialDirId: string | null = (data.directories as TestDirectory[]).length > 0 ? data.directories[0].id : null;
-  let selectedDirId = $state<string | null>(initialDirId);
+  // Tree state
+  let expandedIds = $state<Set<string>>(new Set());
+  let selectedDirId = $state<string | null>(null);
 
-  // Scenarios in current directory
-  let dirScenarios = $state<Scenario[]>([]);
-  let loadingScenarios = $state(false);
-
-  // Filters for main area
+  // Search
+  let dirSearch = $state('');
   let scenarioFilter = $state('');
   let typeFilter = $state('');
   let priorityFilter = $state('');
 
-  // Persisting selection across directories
+  // Selection — persists across dir switches
   let selectedIds = $state<Set<string>>(new Set());
-  // Map of id → Scenario for selected scenarios (accumulated as user selects)
   let selectedScenarios = $state<Map<string, Scenario>>(new Map());
 
   // Add progress
@@ -37,10 +32,48 @@
   let addProgress = $state('');
   let addError = $state('');
 
-  const filteredDirs = $derived.by(() => {
-    const q = dirFilter.toLowerCase();
-    if (!q) return data.directories as TestDirectory[];
-    return (data.directories as TestDirectory[]).filter((d: TestDirectory) => d.name.toLowerCase().includes(q));
+  // ── Tree builder (same as repository page) ──────────────────
+  function buildTree(nodes: TestDirectory[], scenarios: Scenario[]): TreeNode[] {
+    const byId = new Map<string, TreeNode>();
+    for (const node of nodes) {
+      byId.set(node.id, { ...node, children: [], directCount: 0, totalCount: 0 });
+    }
+    for (const scenario of scenarios) {
+      const node = byId.get(scenario.nodeId);
+      if (node) node.directCount += 1;
+    }
+    const roots: TreeNode[] = [];
+    for (const node of byId.values()) {
+      if (node.parentId && byId.has(node.parentId)) {
+        byId.get(node.parentId)?.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+    const count = (node: TreeNode): number => {
+      node.children.sort((a, b) => a.name.localeCompare(b.name));
+      node.totalCount = node.directCount + node.children.reduce((sum, child) => sum + count(child), 0);
+      return node.totalCount;
+    };
+    roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(count);
+    return roots;
+  }
+
+  // ── Derived ──────────────────────────────────────────────────
+  const tree = $derived(buildTree(data.directories as TestDirectory[], data.scenarios as Scenario[]));
+
+  // Filter tree nodes by search (flattened match — highlight matching nodes)
+  const dirSearchLower = $derived(dirSearch.toLowerCase());
+  function nodeMatchesSearch(node: TreeNode): boolean {
+    if (!dirSearchLower) return true;
+    return node.name.toLowerCase().includes(dirSearchLower);
+  }
+
+  // Scenarios visible in selected directory
+  const dirScenarios = $derived.by(() => {
+    const all = data.scenarios as Scenario[];
+    if (!selectedDirId) return all;
+    return all.filter(s => s.nodeId === selectedDirId);
   });
 
   const filteredScenarios = $derived.by(() => {
@@ -52,57 +85,55 @@
     return result;
   });
 
-  const uniquePriorities = $derived.by(() => {
-    const set = new Set(dirScenarios.map(s => s.priority).filter(Boolean) as string[]);
-    return [...set].sort();
-  });
-
-  const visibleSelectedCount = $derived(
-    filteredScenarios.filter(s => selectedIds.has(s.id)).length
+  const uniquePriorities = $derived(
+    [...new Set(dirScenarios.map(s => s.priority).filter(Boolean) as string[])].sort()
   );
 
-  const allVisibleSelected = $derived(
-    filteredScenarios.length > 0 && filteredScenarios.every(s => selectedIds.has(s.id))
-  );
-
+  const visibleSelectedCount = $derived(filteredScenarios.filter(s => selectedIds.has(s.id)).length);
+  const allVisibleSelected = $derived(filteredScenarios.length > 0 && filteredScenarios.every(s => selectedIds.has(s.id)));
   const selectedList = $derived([...selectedScenarios.values()]);
 
-  // Load first directory on mount
+  const selectedDir = $derived(
+    selectedDirId ? (data.directories as TestDirectory[]).find(d => d.id === selectedDirId) ?? null : null
+  );
+
+  // Auto-expand root nodes on load
   $effect(() => {
-    if (selectedDirId) {
-      void loadDir(selectedDirId);
+    if ((data.directories as TestDirectory[]).length && expandedIds.size === 0) {
+      expandedIds = new Set(
+        (data.directories as TestDirectory[])
+          .filter(n => n.parentId === null)
+          .map(n => n.id)
+      );
     }
   });
 
-  async function loadDir(dirId: string) {
-    loadingScenarios = true;
-    try {
-      dirScenarios = await listScenarios(data.projectKey, dirId, 'ACTIVE');
-    } catch {
-      dirScenarios = [];
-    } finally {
-      loadingScenarios = false;
-    }
-  }
-
-  async function selectDir(dirId: string) {
-    selectedDirId = dirId;
+  // ── Tree interaction ──────────────────────────────────────────
+  function selectDir(id: string) {
+    selectedDirId = id;
     scenarioFilter = '';
     typeFilter = '';
     priorityFilter = '';
-    await loadDir(dirId);
   }
 
+  function toggleExpand(id: string, e: MouseEvent) {
+    e.stopPropagation();
+    const next = new Set(expandedIds);
+    if (next.has(id)) next.delete(id); else next.add(id);
+    expandedIds = next;
+  }
+
+  function handleNodeClick(node: TreeNode, e: MouseEvent) {
+    selectDir(node.id);
+    if (node.children.length || node.directCount) toggleExpand(node.id, e);
+  }
+
+  // ── Scenario selection ────────────────────────────────────────
   function toggleScenario(s: Scenario) {
     const next = new Set(selectedIds);
     const nextMap = new Map(selectedScenarios);
-    if (next.has(s.id)) {
-      next.delete(s.id);
-      nextMap.delete(s.id);
-    } else {
-      next.add(s.id);
-      nextMap.set(s.id, s);
-    }
+    if (next.has(s.id)) { next.delete(s.id); nextMap.delete(s.id); }
+    else { next.add(s.id); nextMap.set(s.id, s); }
     selectedIds = next;
     selectedScenarios = nextMap;
   }
@@ -128,6 +159,7 @@
     selectedScenarios = nextMap;
   }
 
+  // ── Confirm add ───────────────────────────────────────────────
   async function handleConfirmAdd() {
     if (adding) return;
     adding = true;
@@ -157,6 +189,7 @@
     }
   }
 
+  // ── Helpers ───────────────────────────────────────────────────
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status?.toUpperCase()) {
       case 'ACTIVE': return 'success';
@@ -178,8 +211,15 @@
 </script>
 
 <svelte:head>
-  <title>Add Manually — {data.buildId} - Setara</title>
+  <title>Add Manually — {data.buildId} — Setara</title>
 </svelte:head>
+
+<!-- SVG icons (matching repository page) -->
+{#snippet iconFolder()}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>{/snippet}
+{#snippet iconFolderOpen()}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="2" y1="12" x2="22" y2="12"/></svg>{/snippet}
+{#snippet iconChevronRight()}<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>{/snippet}
+{#snippet iconChevronDown()}<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>{/snippet}
+{#snippet iconLayers()}<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>{/snippet}
 
 <div class="page">
   <nav class="breadcrumb">
@@ -200,22 +240,75 @@
 
   {#if step === 'select'}
     <div class="split-layout">
-      <!-- Left: directory tree -->
-      <aside class="sidebar">
-        <input class="search-input" type="search" bind:value={dirFilter} placeholder="Filter directories…" aria-label="Filter directories" />
-        <div class="dir-list">
-          {#each filteredDirs as dir (dir.id)}
-            <button class="dir-row" class:dir-row--active={selectedDirId === dir.id} onclick={() => selectDir(dir.id)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
-              </svg>
-              <span class="dir-name">{dir.name}</span>
-              <small class="dir-count">{dir.scenarioCount}</small>
-            </button>
-          {/each}
-          {#if filteredDirs.length === 0}
-            <p class="empty-sm">No directories found.</p>
-          {/if}
+      <!-- Left: directory tree (repository style) -->
+      <aside class="tree-panel">
+        <div class="tree-topbar">
+          <span class="panel-title">Directories</span>
+        </div>
+        <div class="tree-search-wrap">
+          <input class="tree-search" type="search" bind:value={dirSearch} placeholder="Filter directories…" aria-label="Filter directories" />
+        </div>
+
+        <div class="tree-scroll">
+          <!-- All scenarios entry -->
+          <button
+            class="tree-all-btn"
+            class:active={selectedDirId === null}
+            onclick={() => { selectedDirId = null; scenarioFilter = ''; typeFilter = ''; priorityFilter = ''; }}
+          >
+            {@render iconLayers()}
+            <span class="all-label">All Scenarios</span>
+            <span class="count-pill">{(data.scenarios as Scenario[]).length}</span>
+          </button>
+
+          <div class="tree-list">
+            {#snippet treeRows(nodes: TreeNode[])}
+              {#each nodes as node (node.id)}
+                {#if nodeMatchesSearch(node) || !dirSearchLower || node.children.some(c => c.name.toLowerCase().includes(dirSearchLower))}
+                  <div class="tree-row">
+                    <div class="tree-line">
+                      <button
+                        class="tree-caret-btn"
+                        onclick={(e) => toggleExpand(node.id, e)}
+                        aria-label={expandedIds.has(node.id) ? 'Collapse' : 'Expand'}
+                        tabindex="-1"
+                      >
+                        {#if node.children.length || node.directCount}
+                          {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
+                        {/if}
+                      </button>
+                      <button
+                        class="tree-node"
+                        class:active={selectedDirId === node.id}
+                        onclick={(e) => handleNodeClick(node, e)}
+                      >
+                        <span class="node-icon">{#if expandedIds.has(node.id)}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
+                        <span class="node-label">{node.name}</span>
+                        <span class="count-pill">{node.totalCount}</span>
+                        {#if selectedIds.size > 0}
+                          {@const nodeSelected = [...selectedIds].filter(id => {
+                            const s = (data.scenarios as Scenario[]).find(sc => sc.id === id);
+                            // check if scenario belongs to this subtree
+                            const sNode = (data.directories as TestDirectory[]).find(d => d.id === s?.nodeId);
+                            return sNode?.path === node.path || sNode?.path?.startsWith(node.path + '/');
+                          }).length}
+                          {#if nodeSelected > 0}
+                            <span class="sel-badge">{nodeSelected}</span>
+                          {/if}
+                        {/if}
+                      </button>
+                    </div>
+                  </div>
+                  {#if expandedIds.has(node.id)}
+                    <div class="tree-children">
+                      {@render treeRows(node.children)}
+                    </div>
+                  {/if}
+                {/if}
+              {/each}
+            {/snippet}
+            {@render treeRows(tree)}
+          </div>
         </div>
       </aside>
 
@@ -223,7 +316,7 @@
       <main class="main-area">
         <div class="main-subheader">
           <h2 class="dir-heading">
-            {filteredDirs.find((d: TestDirectory) => d.id === selectedDirId)?.name ?? 'Select a directory'}
+            {selectedDir?.name ?? 'All Scenarios'}
           </h2>
           {#if selectedIds.size > 0}
             <span class="selection-badge">{selectedIds.size} selected across all directories</span>
@@ -259,9 +352,7 @@
           </div>
         {/if}
 
-        {#if loadingScenarios}
-          <p class="empty">Loading scenarios…</p>
-        {:else if filteredScenarios.length === 0 && !selectedDirId}
+        {#if filteredScenarios.length === 0 && !selectedDirId && !scenarioFilter && !typeFilter && !priorityFilter}
           <p class="empty">Select a directory to browse scenarios.</p>
         {:else if filteredScenarios.length === 0}
           <p class="empty">{scenarioFilter || typeFilter || priorityFilter ? 'No scenarios match the current filters.' : 'No scenarios in this directory.'}</p>
@@ -331,7 +422,7 @@
           <tr>
             <th>Key</th>
             <th>Name</th>
-            <th>Feature</th>
+            <th>Directory</th>
             <th>Priority</th>
             <th>Status</th>
             <th></th>
@@ -339,10 +430,11 @@
         {/snippet}
         {#snippet body()}
           {#each selectedList as s (s.id)}
+            {@const sDir = (data.directories as TestDirectory[]).find(d => d.id === s.nodeId)}
             <tr>
               <td><code class="mono">{s.scenarioKey}</code></td>
               <td>{s.name}</td>
-              <td class="muted">{s.featureName ?? '—'}</td>
+              <td class="muted">{sDir?.name ?? s.featureName ?? '—'}</td>
               <td><span class="prio-badge {priorityVariant(s.priority)}">{s.priority ?? 'UNSET'}</span></td>
               <td><Badge text={s.status} variant={statusVariant(s.status)} /></td>
               <td>
@@ -381,40 +473,149 @@
   /* Split layout */
   .split-layout {
     display: grid;
-    grid-template-columns: 220px 1fr;
+    grid-template-columns: 240px 1fr;
     height: calc(100vh - 220px);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     overflow: hidden;
-    margin-bottom: 0;
   }
 
-  /* Sidebar */
-  .sidebar {
+  /* ── Tree panel (matches repository sidebar) ── */
+  .tree-panel {
     border-right: 1px solid var(--color-border);
-    overflow-y: auto;
-    padding: 12px;
     background: var(--color-bg);
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    overflow: hidden;
   }
-  .dir-list { display: flex; flex-direction: column; gap: 2px; }
-  .dir-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer; font: inherit; color: var(--color-text); font-size: 0.82rem; text-align: left; width: 100%; }
-  .dir-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
-  .dir-row--active { background: var(--color-accent-subtle); font-weight: 700; }
-  .dir-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .dir-count { color: var(--color-text-muted); font-size: 0.72rem; flex-shrink: 0; }
+  .tree-topbar {
+    padding: 10px 14px 6px;
+    border-bottom: 1px solid var(--color-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+  .panel-title { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--color-text-muted); }
+  .tree-search-wrap { padding: 8px 10px 4px; flex-shrink: 0; }
+  .tree-search {
+    width: 100%;
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+    padding: 6px 8px;
+    background: var(--color-bg);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.8rem;
+    box-sizing: border-box;
+  }
+  .tree-search:focus { outline: none; border-color: var(--color-accent); }
+
+  .tree-scroll { flex: 1; overflow-y: auto; padding: 4px 6px 8px; }
+
+  /* All Scenarios button */
+  .tree-all-btn {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    width: 100%;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    text-align: left;
+    margin-bottom: 4px;
+  }
+  .tree-all-btn:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); color: var(--color-text); }
+  .tree-all-btn.active { background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 700; }
+  .all-label { flex: 1; }
+
+  /* Tree rows */
+  .tree-list { display: flex; flex-direction: column; gap: 0; }
+  .tree-row { display: flex; flex-direction: column; }
+  .tree-line { display: flex; align-items: center; gap: 0; }
+  .tree-children { padding-left: 16px; }
+
+  .tree-caret-btn {
+    width: 20px;
+    height: 28px;
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-muted);
+    border-radius: 4px;
+    padding: 0;
+  }
+  .tree-caret-btn:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); }
+
+  .tree-node {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 1;
+    padding: 5px 8px 5px 2px;
+    border: none;
+    border-radius: 6px;
+    background: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    text-align: left;
+    overflow: hidden;
+  }
+  .tree-node:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  .tree-node.active { background: var(--color-accent-subtle); font-weight: 700; color: var(--color-accent); }
+  .tree-node.active .count-pill { background: color-mix(in srgb, var(--color-accent), transparent 80%); color: var(--color-accent); }
+
+  .node-icon { flex-shrink: 0; color: var(--color-text-muted); display: flex; align-items: center; }
+  .tree-node.active .node-icon { color: var(--color-accent); }
+
+  .node-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  .count-pill {
+    flex-shrink: 0;
+    font-size: 0.68rem;
+    font-weight: 700;
+    background: var(--color-border);
+    color: var(--color-text-muted);
+    border-radius: 10px;
+    padding: 1px 6px;
+    min-width: 18px;
+    text-align: center;
+  }
+
+  /* Selected badge on tree node */
+  .sel-badge {
+    flex-shrink: 0;
+    font-size: 0.62rem;
+    font-weight: 800;
+    background: var(--color-accent);
+    color: #fff;
+    border-radius: 10px;
+    padding: 1px 5px;
+    min-width: 16px;
+    text-align: center;
+  }
 
   /* Main area */
-  .main-area { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+  .main-area { overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: var(--color-surface); }
   .main-subheader { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-  .dir-heading { font-size: 1rem; margin: 0; }
+  .dir-heading { font-size: 1rem; margin: 0; font-weight: 700; }
   .selection-badge { font-size: 0.75rem; font-weight: 700; background: var(--color-accent-subtle); color: var(--color-accent); border-radius: 12px; padding: 2px 10px; }
 
   .filters-row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
   .flex-search { flex: 1; min-width: 180px; }
-  .search-input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; }
+  .search-input { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; }
+  .search-input:focus { outline: none; border-color: var(--color-accent); }
   .filter-select { border: 1px solid var(--color-border); border-radius: 5px; padding: 7px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.82rem; }
   .visible-count { font-size: 0.78rem; color: var(--color-text-muted); white-space: nowrap; margin-left: auto; }
 
@@ -459,7 +660,6 @@
     justify-content: space-between;
     align-items: center;
     z-index: 10;
-    margin-top: 0;
   }
   .footer-count { font-size: 0.875rem; font-weight: 600; color: var(--color-text-muted); }
   .footer-actions { display: flex; gap: 10px; align-items: center; }
@@ -472,8 +672,6 @@
   .muted { color: var(--color-text-muted); }
   .mono { font-family: var(--font-mono, monospace); font-size: 0.75rem; }
   .empty { color: var(--color-text-muted); font-size: 0.875rem; text-align: center; padding: 24px; }
-  .empty-sm { color: var(--color-text-muted); font-size: 0.8rem; padding: 8px 4px; margin: 0; }
-
   .remove-btn { background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 1rem; padding: 2px 6px; border-radius: 4px; }
   .remove-btn:hover { background: #fee2e2; color: #dc2626; }
 
@@ -488,7 +686,7 @@
   /* Responsive */
   @media (max-width: 700px) {
     .split-layout { grid-template-columns: 1fr; height: auto; }
-    .sidebar { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 200px; }
+    .tree-panel { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 200px; }
     .main-area { max-height: calc(100vh - 360px); }
     .filters-row { gap: 6px; }
   }
