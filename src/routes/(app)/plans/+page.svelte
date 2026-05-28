@@ -29,7 +29,8 @@
     try {
       const page = await listAllPlans(
         selectedSquad || undefined,
-        undefined, 200
+        undefined, 200,
+        sortBy, sortDir
       );
       plans = page.items;
     } catch (e) {
@@ -47,13 +48,14 @@
     await loadPlans();
   });
 
-  function toggleSort(col: typeof sortBy) {
+  async function toggleSort(col: typeof sortBy) {
     if (sortBy === col) {
       sortDir = sortDir === 'asc' ? 'desc' : 'asc';
     } else {
       sortBy = col;
       sortDir = col === 'createdAt' ? 'desc' : 'asc';
     }
+    await loadPlans();
   }
 
   function sortIndicator(col: string): string {
@@ -61,22 +63,13 @@
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
+  // Client-side filter only; order is backend-owned
   const filtered = $derived.by(() => {
     let result = plans;
     if (selectedStatus) result = result.filter(p => p.status === selectedStatus);
     const q = nameFilter.trim().toLowerCase();
     if (q) result = result.filter(p => p.name.toLowerCase().includes(q) || (p.releaseVersion ?? '').toLowerCase().includes(q));
-    return [...result].sort((a, b) => {
-      let va: string | number = '';
-      let vb: string | number = '';
-      if (sortBy === 'name') { va = a.name ?? ''; vb = b.name ?? ''; }
-      else if (sortBy === 'squadName') { va = a.squadName ?? ''; vb = b.squadName ?? ''; }
-      else if (sortBy === 'releaseDate') { va = a.releaseDate ?? ''; vb = b.releaseDate ?? ''; }
-      else { va = a.createdAt ?? ''; vb = b.createdAt ?? ''; }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
+    return result;
   });
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {

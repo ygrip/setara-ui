@@ -40,30 +40,35 @@
 
   // Scenario table search & sort
   let scenarioFilter = $state('');
-  let scenarioSortBy = $state<'scenarioKey' | 'executedAt'>('scenarioKey');
+  let scenarioSortBy = $state<'name' | 'addedAt'>('name');
   let scenarioSortDir = $state<'asc' | 'desc'>('asc');
+  let reloadingSort = $state(false);
 
-  function toggleScenarioSort(col: 'scenarioKey' | 'executedAt') {
-    if (scenarioSortBy === col) scenarioSortDir = scenarioSortDir === 'asc' ? 'desc' : 'asc';
-    else { scenarioSortBy = col; scenarioSortDir = 'asc'; }
+  async function toggleScenarioSort(col: 'name' | 'addedAt') {
+    const nextDir: 'asc' | 'desc' = scenarioSortBy === col ? (scenarioSortDir === 'asc' ? 'desc' : 'asc') : 'asc';
+    scenarioSortBy = col;
+    scenarioSortDir = nextDir;
+    // Reset pagination and reload from backend with new sort
+    if (!build) return;
+    reloadingSort = true;
+    try {
+      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20, col, nextDir);
+      scenarios = page.items;
+      scenarioNextCursor = page.nextCursor;
+    } catch { /* ignore */ }
+    finally { reloadingSort = false; }
   }
+
   function scenarioSortIcon(col: string): string {
     if (scenarioSortBy !== col) return '';
     return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
+  // Client-side search filter only; sort order comes from backend
   const filteredScenarios = $derived.by(() => {
-    let result = scenarios;
     const q = scenarioFilter.toLowerCase();
-    if (q) result = result.filter(s => s.scenarioKey.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
-    return [...result].sort((a, b) => {
-      let va = '', vb = '';
-      if (scenarioSortBy === 'executedAt') { va = a.executedAt ?? ''; vb = b.executedAt ?? ''; }
-      else { va = a.scenarioKey; vb = b.scenarioKey; }
-      if (va < vb) return scenarioSortDir === 'asc' ? -1 : 1;
-      if (va > vb) return scenarioSortDir === 'asc' ? 1 : -1;
-      return 0;
-    });
+    if (!q) return scenarios;
+    return scenarios.filter(s => s.scenarioKey.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
   });
 
   let copiedVersion = $state(false);
@@ -103,7 +108,7 @@
     if (!build || loadingMore || !scenarioNextCursor) return;
     loadingMore = true;
     try {
-      const page = await listBuildScenarios(data.projectKey, build.id, scenarioNextCursor, 20);
+      const page = await listBuildScenarios(data.projectKey, build.id, scenarioNextCursor, 20, scenarioSortBy, scenarioSortDir);
       scenarios = [...scenarios, ...page.items];
       scenarioNextCursor = page.nextCursor;
     } catch { /* ignore */ }
@@ -430,12 +435,12 @@
             <th class="checkbox-col">
               <input type="checkbox" checked={allSelected} onchange={toggleSelectAll} />
             </th>
-            <th class="th-sort" onclick={() => toggleScenarioSort('scenarioKey')}>Scenario{scenarioSortIcon('scenarioKey')}</th>
+            <th class="th-sort" onclick={() => toggleScenarioSort('name')}>Scenario{scenarioSortIcon('name')}{#if reloadingSort && scenarioSortBy === 'name'} …{/if}</th>
             <th>Expected</th>
             <th>Actual</th>
             <th>Source</th>
             <th>Executed By</th>
-            <th class="th-sort" onclick={() => toggleScenarioSort('executedAt')}>Executed At{scenarioSortIcon('executedAt')}</th>
+            <th class="th-sort" onclick={() => toggleScenarioSort('addedAt')}>Added{scenarioSortIcon('addedAt')}{#if reloadingSort && scenarioSortBy === 'addedAt'} …{/if}</th>
             <th>Action</th>
           </tr>
         {/snippet}

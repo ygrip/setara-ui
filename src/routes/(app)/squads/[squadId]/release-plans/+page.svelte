@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { goto, invalidateAll } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
@@ -23,13 +23,17 @@
   let sortBy = $state<'name' | 'releaseDate' | 'createdAt'>('createdAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
+  $effect(() => {
+    sortBy = (data.sortBy as 'name' | 'releaseDate' | 'createdAt') ?? 'createdAt';
+    sortDir = (data.sortDir as 'asc' | 'desc') ?? 'desc';
+  });
+
   function toggleSort(col: typeof sortBy) {
-    if (sortBy === col) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortBy = col;
-      sortDir = col === 'createdAt' ? 'desc' : 'asc';
-    }
+    const nextDir: 'asc' | 'desc' = sortBy === col ? (sortDir === 'asc' ? 'desc' : 'asc') : (col === 'createdAt' ? 'desc' : 'asc');
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort_by', col);
+    params.set('sort_dir', nextDir);
+    goto(`?${params.toString()}`);
   }
 
   function sortIndicator(col: string): string {
@@ -37,19 +41,13 @@
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
+  // Client-side text/status filter only; order is backend-owned
   const plans = $derived.by(() => {
     const source = data.plans as ReleasePlan[];
     const q = filterText.toLowerCase();
-    let result = source.filter((p) => {
+    return source.filter((p) => {
       const text = `${p.name} ${p.releaseVersion ?? ''} ${p.status}`.toLowerCase();
       return text.includes(q) && (!statusFilter || p.status === statusFilter);
-    });
-    return [...result].sort((a, b) => {
-      const va = (sortBy === 'name' ? a.name : sortBy === 'releaseDate' ? a.releaseDate : a.createdAt) ?? '';
-      const vb = (sortBy === 'name' ? b.name : sortBy === 'releaseDate' ? b.releaseDate : b.createdAt) ?? '';
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
-      return 0;
     });
   });
 

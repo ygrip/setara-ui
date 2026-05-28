@@ -86,11 +86,12 @@ async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   return res;
 }
 
-export async function listBuilds(projectKey: string, status?: string, sortBy?: string): Promise<ProjectBuild[]> {
+export async function listBuilds(projectKey: string, status?: string, sortBy?: string, sortDir?: string): Promise<ProjectBuild[]> {
   if (isMockMode()) return mockListBuilds(projectKey);
   const params = new URLSearchParams();
   if (status) params.set('status', status);
   if (sortBy) params.set('sort_by', sortBy);
+  if (sortDir) params.set('sort_dir', sortDir);
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/builds${qs}`);
   return res.json();

@@ -23,6 +23,10 @@
   let typeFilter = $state('');
   let priorityFilter = $state('');
 
+  // Scenario sort — client-side (all data loaded upfront)
+  let scenarioSortBy = $state<'name' | 'priority'>('name');
+  let scenarioSortDir = $state<'asc' | 'desc'>('asc');
+
   // Selection — persists across dir switches
   let selectedIds = $state<Set<string>>(new Set());
   let selectedScenarios = $state<Map<string, Scenario>>(new Map());
@@ -76,13 +80,33 @@
     return all.filter(s => s.nodeId === selectedDirId);
   });
 
+  const PRIORITY_ORDER: Record<string, number> = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
+
+  function toggleScenarioSort(col: 'name' | 'priority') {
+    if (scenarioSortBy === col) scenarioSortDir = scenarioSortDir === 'asc' ? 'desc' : 'asc';
+    else { scenarioSortBy = col; scenarioSortDir = 'asc'; }
+  }
+
+  function sortIcon(col: string): string {
+    if (scenarioSortBy !== col) return '';
+    return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
+  }
+
   const filteredScenarios = $derived.by(() => {
     const q = scenarioFilter.toLowerCase();
     let result = dirScenarios;
     if (q) result = result.filter(s => s.name.toLowerCase().includes(q) || s.scenarioKey.toLowerCase().includes(q));
     if (typeFilter) result = result.filter(s => s.automationStatus === typeFilter);
     if (priorityFilter) result = result.filter(s => s.priority === priorityFilter);
-    return result;
+    return [...result].sort((a, b) => {
+      const dir = scenarioSortDir === 'asc' ? 1 : -1;
+      if (scenarioSortBy === 'priority') {
+        const pa = PRIORITY_ORDER[a.priority ?? ''] ?? 99;
+        const pb = PRIORITY_ORDER[b.priority ?? ''] ?? 99;
+        return (pa - pb) * dir;
+      }
+      return (a.name ?? '').localeCompare(b.name ?? '') * dir;
+    });
   });
 
   const uniquePriorities = $derived(
@@ -363,10 +387,8 @@
                 <th class="checkbox-col">
                   <input type="checkbox" checked={allVisibleSelected} onchange={toggleAll} aria-label="Select all visible" />
                 </th>
-                <th>Scenario</th>
-                <th>Priority</th>
-                <th class="col-auto">Auto</th>
-                <th>Status</th>
+                <th class="th-sort" onclick={() => toggleScenarioSort('name')}>Scenario{sortIcon('name')}</th>
+                <th class="th-sort" onclick={() => toggleScenarioSort('priority')}>Priority{sortIcon('priority')}</th>
               </tr>
             {/snippet}
             {#snippet body()}
@@ -385,16 +407,6 @@
                   <td>
                     <span class="prio-badge {priorityVariant(scenario.priority)}">{scenario.priority ?? 'UNSET'}</span>
                   </td>
-                  <td class="col-auto">
-                    {#if scenario.automationStatus === 'AUTOMATED'}
-                      <span class="auto-badge auto-automated" title="Automated">A</span>
-                    {:else if scenario.automationStatus === 'AUTOMATABLE'}
-                      <span class="auto-badge auto-automatable" title="Automatable">A</span>
-                    {:else}
-                      <span class="auto-badge auto-manual" title="Manual only">M</span>
-                    {/if}
-                  </td>
-                  <td><Badge text={scenario.status} variant={statusVariant(scenario.status)} /></td>
                 </tr>
               {/each}
             {/snippet}
@@ -463,7 +475,7 @@
 </div>
 
 <style>
-  .page { max-width: 1200px; margin: 0 auto; padding-bottom: 80px; }
+  .page { max-width: none; padding: 0 24px 80px; }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .breadcrumb a:hover { text-decoration: underline; }
@@ -473,8 +485,8 @@
   /* Split layout */
   .split-layout {
     display: grid;
-    grid-template-columns: 240px 1fr;
-    height: calc(100vh - 220px);
+    grid-template-columns: 260px 1fr;
+    height: calc(100vh - 200px);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     overflow: hidden;
@@ -627,27 +639,22 @@
   .chip-remove:hover { color: var(--color-danger); }
 
   /* Scenario table */
+  .th-sort { cursor: pointer; user-select: none; white-space: nowrap; }
+  .th-sort:hover { color: var(--color-accent); }
   .click-row { cursor: pointer; }
   .click-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
   .checkbox-col { width: 36px; text-align: center; }
   .scenario-cell { display: flex; flex-direction: column; gap: 2px; }
   .scenario-key { font-size: 0.72rem; font-family: var(--font-mono, monospace); color: var(--color-text-muted); }
   .scenario-name { font-size: 0.84rem; font-weight: 600; }
-  .col-auto { width: 44px; text-align: center; }
 
   /* Priority badges */
-  .prio-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; white-space: nowrap; }
+  .prio-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 8px; border-radius: 4px; text-transform: uppercase; white-space: nowrap; }
   .prio-critical { background: #fee2e2; color: #dc2626; }
   .prio-high { background: #fef3c7; color: #d97706; }
   .prio-medium { background: #e0f2fe; color: #0284c7; }
   .prio-low { background: #f0fdf4; color: #16a34a; }
   .prio-unset { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
-
-  /* Auto badges */
-  .auto-badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; font-size: 0.62rem; font-weight: 800; }
-  .auto-automated { background: #dcfce7; color: #15803d; }
-  .auto-automatable { background: #fef3c7; color: #d97706; }
-  .auto-manual { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
 
   /* Footer bar */
   .footer-bar {
@@ -655,14 +662,15 @@
     bottom: 0;
     background: var(--color-surface);
     border-top: 1px solid var(--color-border);
-    padding: 12px 16px;
+    padding: 14px 20px;
     display: flex;
     justify-content: space-between;
     align-items: center;
     z-index: 10;
+    gap: 16px;
   }
-  .footer-count { font-size: 0.875rem; font-weight: 600; color: var(--color-text-muted); }
-  .footer-actions { display: flex; gap: 10px; align-items: center; }
+  .footer-count { font-size: 0.9rem; font-weight: 600; color: var(--color-text-muted); }
+  .footer-actions { display: flex; gap: 12px; align-items: center; }
 
   /* Review step */
   .review-section { display: flex; flex-direction: column; gap: 16px; }
@@ -680,14 +688,15 @@
   :global([data-theme="dark"]) .prio-high { background: #451a03; color: #fbbf24; }
   :global([data-theme="dark"]) .prio-medium { background: #0c1929; color: #38bdf8; }
   :global([data-theme="dark"]) .prio-low { background: #052e16; color: #4ade80; }
-  :global([data-theme="dark"]) .auto-automated { background: #14532d; color: #4ade80; }
-  :global([data-theme="dark"]) .auto-automatable { background: #451a03; color: #fbbf24; }
 
   /* Responsive */
   @media (max-width: 700px) {
+    .page { padding: 0 12px 80px; }
     .split-layout { grid-template-columns: 1fr; height: auto; }
-    .tree-panel { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 200px; }
-    .main-area { max-height: calc(100vh - 360px); }
+    .tree-panel { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 220px; }
+    .main-area { min-height: 300px; }
     .filters-row { gap: 6px; }
+    .footer-bar { padding: 12px 16px; flex-wrap: wrap; gap: 10px; }
+    .footer-actions { width: 100%; justify-content: flex-end; }
   }
 </style>

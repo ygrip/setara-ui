@@ -15,20 +15,22 @@
   let form = $state({ name: '', buildKey: '', version: '', description: '' });
   let statusFilter = $state('');
   let nameFilter = $state('');
+
   let sortBy = $state<'name' | 'createdAt' | 'verifiedAt'>('createdAt');
   let sortDir = $state<'asc' | 'desc'>('desc');
 
   $effect(() => {
     allBuilds = data.builds;
+    sortBy = (data.sortBy as 'name' | 'createdAt' | 'verifiedAt') ?? 'createdAt';
+    sortDir = (data.sortDir as 'asc' | 'desc') ?? 'desc';
   });
 
   function toggleSort(col: typeof sortBy) {
-    if (sortBy === col) {
-      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-    } else {
-      sortBy = col;
-      sortDir = col === 'name' ? 'asc' : 'desc';
-    }
+    const nextDir: 'asc' | 'desc' = sortBy === col ? (sortDir === 'asc' ? 'desc' : 'asc') : (col === 'name' ? 'asc' : 'desc');
+    const params = new URLSearchParams(window.location.search);
+    params.set('sort_by', col);
+    params.set('sort_dir', nextDir);
+    goto(`?${params.toString()}`);
   }
 
   function sortIndicator(col: string) {
@@ -36,22 +38,13 @@
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
+  // Client-side search/status filter only (sort is backend-owned)
   const builds = $derived.by(() => {
     const q = nameFilter.trim().toLowerCase();
-    let result = allBuilds.filter(b => {
+    return allBuilds.filter(b => {
       const matchStatus = !statusFilter || b.status === statusFilter;
       const matchName = !q || b.name.toLowerCase().includes(q) || (b.buildKey ?? '').toLowerCase().includes(q) || (b.version ?? '').toLowerCase().includes(q);
       return matchStatus && matchName;
-    });
-    return [...result].sort((a, b) => {
-      let va: string = '';
-      let vb: string = '';
-      if (sortBy === 'name') { va = a.name ?? ''; vb = b.name ?? ''; }
-      else if (sortBy === 'verifiedAt') { va = a.verifiedAt ?? ''; vb = b.verifiedAt ?? ''; }
-      else { va = a.createdAt ?? ''; vb = b.createdAt ?? ''; }
-      if (va < vb) return sortDir === 'asc' ? -1 : 1;
-      if (va > vb) return sortDir === 'asc' ? 1 : -1;
-      return 0;
     });
   });
 
