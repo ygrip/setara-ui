@@ -41,6 +41,8 @@
   let manualScenarios = $state<Scenario[]>([]);
   let manualDirFilter = $state('');
   let manualScenarioFilter = $state('');
+  let manualTypeFilter = $state('');
+  let manualPriorityFilter = $state('');
   let selectedManualIds = $state<Set<string>>(new Set());
   let selectedDirId = $state<string | null>(null);
   let manualStep = $state<'select' | 'confirm'>('select');
@@ -111,7 +113,14 @@
     const q = manualScenarioFilter.toLowerCase();
     let result = manualScenarios;
     if (q) result = result.filter(s => s.name.toLowerCase().includes(q) || s.scenarioKey.toLowerCase().includes(q));
+    if (manualTypeFilter) result = result.filter(s => s.automationStatus === manualTypeFilter);
+    if (manualPriorityFilter) result = result.filter(s => s.priority === manualPriorityFilter);
     return result;
+  });
+
+  const uniquePriorities = $derived.by(() => {
+    const set = new Set(manualScenarios.map(s => s.priority).filter(Boolean) as string[]);
+    return [...set].sort();
   });
 
   const manualSelectedCount = $derived(selectedManualIds.size);
@@ -163,6 +172,8 @@
     manualStep = 'select';
     manualDirFilter = '';
     manualScenarioFilter = '';
+    manualTypeFilter = '';
+    manualPriorityFilter = '';
     manualConfirmOpen = false;
   }
 
@@ -184,6 +195,8 @@
     manualStep = 'select';
     manualDirFilter = '';
     manualScenarioFilter = '';
+    manualTypeFilter = '';
+    manualPriorityFilter = '';
     manualConfirmOpen = false;
     try {
       manualDirectories = await listDirectories(data.projectKey, null, 'ACTIVE');
@@ -869,30 +882,82 @@
         </div>
       </div>
       <div class="picker-main">
+        <!-- Filter bar -->
         <div class="picker-toolbar">
-          <input class="search-input" bind:value={manualScenarioFilter} placeholder="Search scenarios…" />
+          <input class="search-input" bind:value={manualScenarioFilter} placeholder="Search by name or key…" />
+        </div>
+        <div class="picker-filters">
+          <label class="filter-group">
+            <span class="filter-label">Type</span>
+            <select class="filter-select" bind:value={manualTypeFilter}>
+              <option value="">All types</option>
+              <option value="MANUAL_ONLY">Manual Only</option>
+              <option value="AUTOMATABLE">Automatable</option>
+              <option value="AUTOMATED">Automated</option>
+            </select>
+          </label>
+          <label class="filter-group">
+            <span class="filter-label">Priority</span>
+            <select class="filter-select" bind:value={manualPriorityFilter}>
+              <option value="">All</option>
+              {#each uniquePriorities as p}
+                <option value={p}>{p}</option>
+              {/each}
+            </select>
+          </label>
           <span class="picker-count">{manualSelectedCount} selected</span>
         </div>
-        <div class="scenario-check-list">
-          {#if filteredManualScenarios.length > 0}
-            <label class="check-all-row">
-              <input type="checkbox" checked={manualAllSelected} onchange={toggleAllManualScenarios} />
-              <span>Select all</span>
-            </label>
-          {/if}
-          {#each filteredManualScenarios as scenario}
-            <label class="check-row">
-              <input type="checkbox" checked={selectedManualIds.has(scenario.id)} onchange={() => toggleManualScenario(scenario.id)} />
-              <div class="check-row-info">
-                <strong>{scenario.scenarioKey}</strong>
-                <span class="muted">{scenario.name}</span>
-              </div>
-            </label>
-          {/each}
-          {#if filteredManualScenarios.length === 0}
-            <p class="empty">{manualScenarioFilter ? 'No scenarios match your search.' : 'No scenarios in this directory.'}</p>
-          {/if}
-        </div>
+
+        <!-- Scenario table -->
+        {#if filteredManualScenarios.length === 0}
+          <p class="empty">{manualScenarioFilter || manualTypeFilter || manualPriorityFilter ? 'No scenarios match the current filters.' : 'No scenarios in this directory.'}</p>
+        {:else}
+          <div class="picker-table-wrap">
+            <DataTable>
+              {#snippet head()}
+                <tr>
+                  <th class="checkbox-col">
+                    <input type="checkbox" checked={manualAllSelected} onchange={toggleAllManualScenarios} />
+                  </th>
+                  <th>Scenario</th>
+                  <th>Priority</th>
+                  <th class="col-auto">Auto</th>
+                  <th>Status</th>
+                </tr>
+              {/snippet}
+              {#snippet body()}
+                {#each filteredManualScenarios as scenario}
+                  <tr class="click-row">
+                    <td class="checkbox-col" onclick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedManualIds.has(scenario.id)} onchange={() => toggleManualScenario(scenario.id)} />
+                    </td>
+                    <td>
+                      <div class="scenario-name-cell">
+                        <span class="scenario-key">{scenario.scenarioKey}</span>
+                        <span class="scenario-title">{scenario.name}</span>
+                      </div>
+                    </td>
+                    <td>
+                      <span class="prio-badge prio-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
+                    </td>
+                    <td class="col-auto">
+                      {#if scenario.automationStatus === 'AUTOMATED'}
+                        <span class="auto-badge auto-automated" title="Automated">A</span>
+                      {:else if scenario.automationStatus === 'AUTOMATABLE'}
+                        <span class="auto-badge auto-automatable" title="Automatable">A</span>
+                      {:else}
+                        <span class="auto-badge auto-manual" title="Manual only">M</span>
+                      {/if}
+                    </td>
+                    <td>
+                      <Badge text={scenario.status} variant={scenario.status === 'ACTIVE' ? 'success' : 'warning'} />
+                    </td>
+                  </tr>
+                {/each}
+              {/snippet}
+            </DataTable>
+          </div>
+        {/if}
         <div class="modal-actions">
           <Button variant="secondary" size="sm" onclick={closeAddMenu}>Cancel</Button>
           <Button variant="primary" size="sm" onclick={goToConfirmStep} disabled={manualSelectedCount === 0}>
@@ -1025,14 +1090,28 @@
   .picker-main { padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
   .picker-toolbar { display: flex; gap: 10px; align-items: center; }
   .picker-toolbar .search-input { flex: 1; }
-  .picker-count { font-size: 0.78rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; }
-  .scenario-check-list { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
-  .check-all-row, .check-row { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 6px; cursor: pointer; }
-  .check-all-row { font-weight: 700; font-size: 0.82rem; border-bottom: 1px solid var(--color-border); margin-bottom: 4px; }
-  .check-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
-  .check-row-info { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
-  .check-row-info strong { font-size: 0.82rem; }
-  .check-row-info .muted { font-size: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .picker-filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .filter-group { display: flex; align-items: center; gap: 6px; }
+  .filter-label { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; white-space: nowrap; }
+  .filter-select { border: 1px solid var(--color-border); border-radius: 5px; padding: 5px 8px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.78rem; }
+  .picker-count { font-size: 0.78rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; margin-left: auto; }
+  .picker-table-wrap { flex: 1; overflow-y: auto; min-height: 0; border: 1px solid var(--color-border); border-radius: 8px; }
+  .click-row { cursor: pointer; }
+  .click-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
+  .scenario-name-cell { display: flex; flex-direction: column; gap: 2px; }
+  .scenario-key { font-size: 0.72rem; font-family: var(--font-mono, monospace); color: var(--color-text-muted); }
+  .scenario-title { font-size: 0.84rem; font-weight: 600; color: var(--color-text); }
+  .prio-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
+  .prio-critical { background: #fee2e2; color: #dc2626; }
+  .prio-high { background: #fef3c7; color: #d97706; }
+  .prio-medium { background: #e0f2fe; color: #0284c7; }
+  .prio-low { background: #f0fdf4; color: #16a34a; }
+  .prio-unset { background: var(--color-bg); color: var(--color-text-muted); }
+  .auto-badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; font-size: 0.62rem; font-weight: 800; }
+  .auto-automated { background: #dcfce7; color: #15803d; }
+  .auto-automatable { background: #fef3c7; color: #d97706; }
+  .auto-manual { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+  .col-auto { width: 40px; text-align: center; }
 
   /* Confirm step */
   .confirm-section { padding: 4px 0; }
@@ -1051,12 +1130,20 @@
   .preview-heading { font-size: 0.875rem; font-weight: 700; margin: 8px 0 4px; }
   .path-hint { font-size: 0.68rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); margin-top: 1px; }
 
+  :global([data-theme="dark"]) .prio-critical { background: #450a0a; color: #f87171; }
+  :global([data-theme="dark"]) .prio-high { background: #451a03; color: #fbbf24; }
+  :global([data-theme="dark"]) .prio-medium { background: #0c1929; color: #38bdf8; }
+  :global([data-theme="dark"]) .prio-low { background: #052e16; color: #4ade80; }
+  :global([data-theme="dark"]) .auto-automated { background: #14532d; color: #4ade80; }
+  :global([data-theme="dark"]) .auto-automatable { background: #451a03; color: #fbbf24; }
+
   /* Responsive */
   @media (max-width: 700px) {
     .add-menu-dropdown { right: auto; left: 0; min-width: 240px; }
     .manual-picker { grid-template-columns: 1fr; }
     .picker-sidebar { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 180px; flex-shrink: 0; }
     .picker-main { max-height: 320px; }
+    .picker-filters { gap: 6px; }
     .confirm-table-wrap { max-height: 240px; }
   }
   @media (max-width: 480px) {
@@ -1064,5 +1151,7 @@
     .add-menu-item svg { width: 14px; height: 14px; }
     .confirm-table { font-size: 0.72rem; }
     .confirm-table th, .confirm-table td { padding: 5px 6px; }
+    .scenario-key { font-size: 0.65rem; }
+    .scenario-title { font-size: 0.76rem; }
   }
 </style>
