@@ -5,9 +5,10 @@
   import { listUsers, searchUsers, addSquadMember, removeSquadMember, getSquadDetail, assignProjectRole, type User, type UserDetail, type Squad, type SquadDetail, type SquadMember } from '$lib/api/organization';
 
   let { data } = $props();
-  let users = $state<User[]>(data.users);
-  let squads = $state<Squad[]>(data.squads ?? []);
+  let users = $state<User[]>([]);
+  let squads = $state<Squad[]>([]);
   let error = $state('');
+  $effect(() => { users = data.users; squads = data.squads ?? []; });
   let message = $state('');
   let searchQ = $state('');
   let searching = $state(false);

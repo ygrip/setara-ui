@@ -25,8 +25,9 @@
     }
   } = $props();
 
-  let builds = $state<PlanBuild[]>(data.builds);
-  let metrics = $state<SquadPlanMetrics | null>(data.metrics);
+  let builds = $state<PlanBuild[]>([]);
+  let metrics = $state<SquadPlanMetrics | null>(null);
+  $effect(() => { builds = data.builds; metrics = data.metrics; });
 
   let busy = $state(false);
   let actionError = $state('');

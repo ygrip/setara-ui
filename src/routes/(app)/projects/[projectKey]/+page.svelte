@@ -360,18 +360,6 @@
     margin-bottom: 28px;
   }
 
-  .metric-link {
-    color: inherit;
-    text-decoration: none;
-    display: block;
-    min-width: 0;
-  }
-
-  .metric-link:hover {
-    text-decoration: none;
-    filter: brightness(1.04);
-  }
-
   .last-run-card {
     background: var(--color-surface);
     border: 1px solid var(--color-border);
@@ -600,7 +588,6 @@
   .mono-chip { display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, monospace; font-size: 0.78rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 8px; }
   .copy-btn { border: 0; background: transparent; cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); padding: 0 2px; }
   .copy-btn:hover { color: var(--color-accent); }
-  .latest-link { font-size: 0.8rem; font-weight: 600; color: var(--color-accent); text-decoration: none; margin-top: 4px; }
 
   @media (max-width: 760px) {
     .metrics-row { grid-template-columns: 1fr; }

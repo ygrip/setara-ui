@@ -20,8 +20,9 @@
     }
   } = $props();
 
-  let runs = $state<AutomationRun[]>(data.runs);
-  let heatmap = $state<HeatmapDay[]>(data.heatmap);
+  let runs = $state<AutomationRun[]>([]);
+  let heatmap = $state<HeatmapDay[]>([]);
+  $effect(() => { runs = data.runs; heatmap = data.heatmap; });
   let liveEvents = $state<ExecutionEvent[]>([]);
   let refreshingRuns = false;
 
@@ -733,7 +734,6 @@
 
   /* ── Table cell helpers ─────────────────────────────── */
   .mono { font-family: var(--font-mono); font-size: 0.78rem; }
-  .link { color: var(--color-accent); font-size: 0.8rem; font-weight: 500; white-space: nowrap; }
   .nowrap { white-space: nowrap; }
 
   /* ── Live events ────────────────────────────────────── */

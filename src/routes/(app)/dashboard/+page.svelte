@@ -11,17 +11,23 @@
   let { data } = $props();
 
   // ── Aggregate chart state ─────────────────────────────────────
-  // Initialize directly from SvelteKit page data — no $effect needed.
-  let chartStart = $state(data.chartStart);
-  let chartEnd = $state(data.chartEnd);
-  let groupedBy = $state<'daily' | 'weekly' | 'monthly'>(data.groupedBy);
-  let aggregateHistory = $state<AggregateStatisticPoint[]>(data.aggregateHistory ?? []);
+  let chartStart = $state('');
+  let chartEnd = $state('');
+  let groupedBy = $state<'daily' | 'weekly' | 'monthly'>('daily');
+  let aggregateHistory = $state<AggregateStatisticPoint[]>([]);
+  $effect(() => {
+    chartStart = data.chartStart;
+    chartEnd = data.chartEnd;
+    groupedBy = data.groupedBy;
+    aggregateHistory = data.aggregateHistory ?? [];
+  });
   let chartBusy = $state(false);
   let chartError = $state('');
   let showChartExpand = $state(false);
 
   // ── Live summary (updated by WS RUN_FINISHED events) ─────────
-  let summary = $state<DashboardSummary | null>(data.summary);
+  let summary = $state<DashboardSummary | null>(null);
+  $effect(() => { summary = data.summary; });
   let refreshingSummary = false;
 
   // ── WebSocket live state ──────────────────────────────────────

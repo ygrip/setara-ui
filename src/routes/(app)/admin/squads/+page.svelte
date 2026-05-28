@@ -6,8 +6,9 @@
 
   let { data } = $props();
 
-  let squads = $state<Squad[]>(data.squads ?? []);
+  let squads = $state<Squad[]>([]);
   let error = $state('');
+  $effect(() => { squads = data.squads ?? []; });
 
   let createName = $state('');
   let createTribeId = $state('');

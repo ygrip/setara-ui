@@ -191,16 +191,6 @@
 
   .input:focus { border-color: var(--color-accent); }
 
-  .form-error {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: 6px;
-    padding: 8px 12px;
-    font-size: 0.8rem;
-    margin-top: 8px;
-  }
-
   .bold { font-weight: 500; }
   .muted { color: var(--color-text-muted); }
 

@@ -28,7 +28,7 @@
 
 {#if hasPermission(session, 'settings:read')}
   <div class="admin-shell">
-    <nav class="admin-tabs" role="tablist">
+    <nav class="admin-tabs">
       {#each navLinks as link}
         <a
           href={link.href}
