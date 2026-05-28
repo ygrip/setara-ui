@@ -4,8 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { wsManager } from '$lib/stores/websocket.svelte';
-  import type { ExecutionEvent } from '$lib/api/realtime';
+  import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
   import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
 
   let { data } = $props();
@@ -30,37 +29,74 @@
   $effect(() => { summary = data.summary; });
   let refreshingSummary = false;
 
-  // ── WebSocket live state ──────────────────────────────────────
-  let liveRuns = $state(new Map<string, ExecutionEvent>());
+  // ── Multi-project WebSocket state ─────────────────────────────
+  // One raw WebSocket per visible project so all projects report live events.
+  // activeRuns: runId → event for all in-flight runs across all projects.
+  let activeRuns = $state(new Map<string, ExecutionEvent>());
   let recentActivity = $state<ExecutionEvent[]>([]);
-  let unsub: (() => void) | null = null;
+  let wsConnected = $state(0); // count of open connections
+
+  // projectSockets held outside $state — plain JS object, not reactive.
+  const projectSockets = new Map<string, WebSocket>();
+
+  // Derived: how many active runs per projectKey (for live badges in table).
+  const liveByProject = $derived.by(() => {
+    const m = new Map<string, number>();
+    for (const ev of activeRuns.values()) {
+      m.set(ev.projectKey, (m.get(ev.projectKey) ?? 0) + 1);
+    }
+    return m;
+  });
+
+  const liveRunCount = $derived(activeRuns.size);
 
   onMount(() => {
-    // Connect to the first project we have — for cross-project coverage a
-    // global WS endpoint would be ideal; this demonstrates the pattern.
-    if (data.projects.length > 0) {
-      wsManager.connect(data.projects[0].projectKey);
-      unsub = wsManager.addHandler(handleWsEvent);
+    for (const project of data.projects) {
+      openSocket(project.projectKey);
     }
   });
 
   onDestroy(() => {
-    unsub?.();
-    wsManager.disconnect();
+    for (const ws of projectSockets.values()) {
+      ws.onopen = null;
+      ws.onclose = null;
+      ws.onerror = null;
+      ws.onmessage = null;
+      ws.close();
+    }
+    projectSockets.clear();
   });
+
+  function openSocket(projectKey: string) {
+    if (projectSockets.has(projectKey)) return;
+    const ws = new WebSocket(executionSocketUrl(projectKey));
+    projectSockets.set(projectKey, ws);
+
+    ws.onopen = () => { wsConnected += 1; };
+    ws.onclose = () => { wsConnected = Math.max(0, wsConnected - 1); };
+    ws.onerror = () => { /* onclose fires after onerror */ };
+    ws.onmessage = (msg: MessageEvent) => {
+      try {
+        const event = JSON.parse(msg.data as string) as ExecutionEvent;
+        handleWsEvent(event);
+      } catch {
+        // ignore malformed frames
+      }
+    };
+  }
 
   function handleWsEvent(event: ExecutionEvent) {
     recentActivity = [event, ...recentActivity].slice(0, 8);
 
     if (event.type === 'RUN_STARTED') {
-      liveRuns = new Map(liveRuns).set(event.runId, event);
+      activeRuns = new Map(activeRuns).set(event.runId, event);
     } else if (
       event.type === 'RUN_DISCOVERED' ||
       event.type === 'SCENARIO_RESULT_ACCEPTED'
     ) {
-      if (liveRuns.has(event.runId)) {
-        liveRuns = new Map(liveRuns).set(event.runId, {
-          ...liveRuns.get(event.runId)!,
+      if (activeRuns.has(event.runId)) {
+        activeRuns = new Map(activeRuns).set(event.runId, {
+          ...activeRuns.get(event.runId)!,
           ...event
         });
       }
@@ -68,9 +104,9 @@
       event.type === 'RUN_FINISHED' ||
       event.type === 'RUN_FINISH_ACCEPTED'
     ) {
-      const next = new Map(liveRuns);
+      const next = new Map(activeRuns);
       next.delete(event.runId);
-      liveRuns = next;
+      activeRuns = next;
       void refreshSummary();
     }
   }
@@ -81,13 +117,11 @@
     try {
       summary = await getDashboardSummary();
     } catch {
-      // keep stale summary
+      // keep stale summary on error
     } finally {
       refreshingSummary = false;
     }
   }
-
-  const liveRunCount = $derived(liveRuns.size);
 
   // ── Charts ────────────────────────────────────────────────────
   const coverageTrend = $derived({
@@ -207,9 +241,9 @@
           {liveRunCount} run{liveRunCount > 1 ? 's' : ''} in progress
         </span>
       {/if}
-      {#if wsManager.state === 'live'}
+      {#if wsConnected > 0}
         <span class="ws-pill ws-pill--live">Live</span>
-      {:else if wsManager.state === 'connecting'}
+      {:else if data.projects.length > 0}
         <span class="ws-pill ws-pill--connecting">Connecting…</span>
       {/if}
     </div>
@@ -332,8 +366,19 @@
           {/snippet}
           {#snippet body()}
             {#each data.projects as project (project.id)}
-              <tr>
-                <td><span class="key-badge">{project.projectKey}</span></td>
+              {@const runCount = liveByProject.get(project.projectKey) ?? 0}
+              <tr class:row-live={runCount > 0}>
+                <td>
+                  <div class="key-cell">
+                    <span class="key-badge">{project.projectKey}</span>
+                    {#if runCount > 0}
+                      <span class="run-live-badge">
+                        <span class="run-live-dot"></span>
+                        {runCount} live
+                      </span>
+                    {/if}
+                  </div>
+                </td>
                 <td class="bold">{project.name}</td>
                 <td class="muted">{formatDate(project.createdAt)}</td>
                 <td><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
@@ -680,6 +725,41 @@
     color: var(--color-text-muted);
     white-space: nowrap;
     flex-shrink: 0;
+  }
+
+  /* ── Projects table live state ── */
+  .key-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .run-live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 1px 7px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-success), transparent 85%);
+    border: 1px solid color-mix(in srgb, var(--color-success), transparent 55%);
+    color: var(--color-success);
+    font-size: 0.68rem;
+    font-weight: 700;
+    white-space: nowrap;
+  }
+
+  .run-live-dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--color-success);
+    animation: pulse 1.5s infinite;
+    flex-shrink: 0;
+  }
+
+  :global(tr.row-live td) {
+    background: color-mix(in srgb, var(--color-success), transparent 96%);
   }
 
   /* ── Table ── */
