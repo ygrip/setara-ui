@@ -4,9 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { verifyBuild, addBuildScenario, updateBuildScenarioResult, removeBuildScenarios, addAutomationToBuild, listBuildScenarios, listBuildAudit, listRunScenarios, type ProjectBuild, type BuildScenario, type BuildAuditEvent, type RunScenarioView } from '$lib/api/builds';
-  import type { AutomationRun } from '$lib/api/runs';
-  import { listDirectories, listScenarios, type TestDirectory, type Scenario } from '$lib/api/testcases';
+  import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, type ProjectBuild, type BuildScenario, type BuildAuditEvent } from '$lib/api/builds';
 
   let { data } = $props();
 
@@ -25,29 +23,6 @@
 
   // Unified Add Scenario dropdown
   let addScenarioMenuOpen = $state(false);
-  let addMode = $state<'menu' | 'automation' | 'manual'>('menu');
-
-  // Automation run mode
-  let selectedRunId = $state('');
-  let addingRun = $state(false);
-  let runSearch = $state('');
-  let runConfirmOpen = $state(false);
-  let runToConfirm = $state<AutomationRun | null>(null);
-  let runPreviewScenarios = $state<RunScenarioView[]>([]);
-  let loadingRunPreview = $state(false);
-
-  // Manual select mode
-  let manualDirectories = $state<TestDirectory[]>([]);
-  let manualScenarios = $state<Scenario[]>([]);
-  let manualDirFilter = $state('');
-  let manualScenarioFilter = $state('');
-  let manualTypeFilter = $state('');
-  let manualPriorityFilter = $state('');
-  let selectedManualIds = $state<Set<string>>(new Set());
-  let selectedDirId = $state<string | null>(null);
-  let manualStep = $state<'select' | 'confirm'>('select');
-  let addingManual = $state(false);
-  let manualConfirmOpen = $state(false);
 
   // Update Result modal
   let updateResultOpen = $state(false);
@@ -91,45 +66,6 @@
     });
   });
 
-  // Manual scenario selection — runs filtered
-  const filteredRuns = $derived.by(() => {
-    const q = runSearch.toLowerCase();
-    return (data.runs ?? []).filter(r => {
-      if (!q) return true;
-      const label = (r.jobName ?? r.runnerId) + ' ' + (r.branch ?? '');
-      return label.toLowerCase().includes(q);
-    });
-  });
-
-  // Manual directory list filtered
-  const filteredDirs = $derived.by(() => {
-    const q = manualDirFilter.toLowerCase();
-    if (!q) return manualDirectories;
-    return manualDirectories.filter(d => d.name.toLowerCase().includes(q));
-  });
-
-  // Manual scenarios for selected directory
-  const filteredManualScenarios = $derived.by(() => {
-    const q = manualScenarioFilter.toLowerCase();
-    let result = manualScenarios;
-    if (q) result = result.filter(s => s.name.toLowerCase().includes(q) || s.scenarioKey.toLowerCase().includes(q));
-    if (manualTypeFilter) result = result.filter(s => s.automationStatus === manualTypeFilter);
-    if (manualPriorityFilter) result = result.filter(s => s.priority === manualPriorityFilter);
-    return result;
-  });
-
-  const uniquePriorities = $derived.by(() => {
-    const set = new Set(manualScenarios.map(s => s.priority).filter(Boolean) as string[]);
-    return [...set].sort();
-  });
-
-  const manualSelectedCount = $derived(selectedManualIds.size);
-
-  // Get selected scenario details for confirmation
-  const selectedManualScenarios = $derived.by(() => {
-    return manualScenarios.filter(s => selectedManualIds.has(s.id));
-  });
-
   let copiedVersion = $state(false);
   async function copyBuildVersion(version: string) {
     try { await navigator.clipboard.writeText(version); copiedVersion = true; setTimeout(() => copiedVersion = false, 1500); } catch {}
@@ -161,167 +97,6 @@
 
   function closeAddMenu() {
     addScenarioMenuOpen = false;
-    addMode = 'menu';
-    selectedRunId = '';
-    runSearch = '';
-    runConfirmOpen = false;
-    runToConfirm = null;
-    runPreviewScenarios = [];
-    loadingRunPreview = false;
-    selectedManualIds = new Set();
-    manualStep = 'select';
-    manualDirFilter = '';
-    manualScenarioFilter = '';
-    manualTypeFilter = '';
-    manualPriorityFilter = '';
-    manualConfirmOpen = false;
-  }
-
-  function openAutomationMode() {
-    addScenarioMenuOpen = false;
-    addMode = 'automation';
-    selectedRunId = '';
-    runSearch = '';
-    runConfirmOpen = false;
-    runToConfirm = null;
-    runPreviewScenarios = [];
-    loadingRunPreview = false;
-  }
-
-  async function openManualMode() {
-    addScenarioMenuOpen = false;
-    addMode = 'manual';
-    selectedManualIds = new Set();
-    manualStep = 'select';
-    manualDirFilter = '';
-    manualScenarioFilter = '';
-    manualTypeFilter = '';
-    manualPriorityFilter = '';
-    manualConfirmOpen = false;
-    try {
-      manualDirectories = await listDirectories(data.projectKey, null, 'ACTIVE');
-      if (manualDirectories.length > 0) {
-        selectedDirId = manualDirectories[0].id;
-        manualScenarios = await listScenarios(data.projectKey, selectedDirId, 'ACTIVE');
-      } else {
-        selectedDirId = null;
-        manualScenarios = [];
-      }
-    } catch (e) {
-      manualDirectories = [];
-      manualScenarios = [];
-    }
-  }
-
-  async function selectManualDir(dirId: string) {
-    selectedDirId = dirId;
-    selectedManualIds = new Set();
-    manualScenarioFilter = '';
-    try {
-      manualScenarios = await listScenarios(data.projectKey, dirId, 'ACTIVE');
-    } catch {
-      manualScenarios = [];
-    }
-  }
-
-  function toggleManualScenario(id: string) {
-    const next = new Set(selectedManualIds);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    selectedManualIds = next;
-  }
-
-  function toggleAllManualScenarios() {
-    const visible = filteredManualScenarios;
-    const allSelected = visible.every(s => selectedManualIds.has(s.id));
-    const next = new Set(selectedManualIds);
-    if (allSelected) {
-      visible.forEach(s => next.delete(s.id));
-    } else {
-      visible.forEach(s => next.add(s.id));
-    }
-    selectedManualIds = next;
-  }
-
-  const manualAllSelected = $derived(filteredManualScenarios.length > 0 && filteredManualScenarios.every(s => selectedManualIds.has(s.id)));
-
-  function goToConfirmStep() {
-    manualStep = 'confirm';
-  }
-
-  function goBackToSelect() {
-    manualStep = 'select';
-  }
-
-  async function handleFinishManualAdd() {
-    if (!build || selectedManualIds.size === 0 || addingManual) return;
-    addingManual = true;
-    try {
-      let addedCount = 0;
-      for (const sid of selectedManualIds) {
-        try {
-          const newRow = await addBuildScenario(data.projectKey, build.id, { scenarioId: sid, source: 'MANUAL', addedBy: 'qa.user@setara.local' });
-          scenarios = [newRow, ...scenarios];
-          addedCount++;
-        } catch { /* skip individual failures */ }
-      }
-      const total = scenarios.length;
-      const passed = scenarios.filter(s => s.latestStatus === 'PASSED').length;
-      const failed = scenarios.filter(s => s.latestStatus === 'FAILED').length;
-      const blocked = scenarios.filter(s => s.latestStatus === 'BLOCKED').length;
-      const skipped = scenarios.filter(s => s.latestStatus === 'SKIPPED').length;
-      const notExecuted = scenarios.filter(s => s.latestStatus === 'NOT_EXECUTED').length;
-      build = {
-        ...build,
-        metrics: {
-          ...build.metrics,
-          totalScenarios: total,
-          passed, failed, blocked, skipped, notExecuted,
-          passPercentage: total > 0 ? Math.round((passed / total) * 100 * 100) / 100 : 0,
-          executionCoverage: total > 0 ? Math.round(((total - notExecuted) / total) * 100 * 100) / 100 : 0
-        }
-      };
-      closeAddMenu();
-      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20);
-      scenarios = page.items;
-      scenarioNextCursor = page.nextCursor;
-    } catch (e) {
-      verifyError = (e as Error).message;
-    } finally {
-      addingManual = false;
-    }
-  }
-
-  async function openRunConfirm(run: AutomationRun) {
-    runToConfirm = run;
-    runConfirmOpen = true;
-    loadingRunPreview = true;
-    runPreviewScenarios = [];
-    try {
-      runPreviewScenarios = await listRunScenarios(data.projectKey, run.id);
-    } catch {
-      runPreviewScenarios = [];
-    } finally {
-      loadingRunPreview = false;
-    }
-  }
-
-  async function confirmAddRun() {
-    if (!build || !runToConfirm || addingRun) return;
-    addingRun = true;
-    try {
-      const updated = await addAutomationToBuild(data.projectKey, build.id, { runId: runToConfirm.id });
-      build = updated;
-      // Reload scenarios
-      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20);
-      scenarios = page.items;
-      scenarioNextCursor = page.nextCursor;
-      closeAddMenu();
-    } catch (e) {
-      verifyError = (e as Error).message;
-    } finally {
-      addingRun = false;
-    }
   }
 
   async function loadMoreScenarios() {
@@ -419,12 +194,6 @@
 
   function pct(value: number | undefined): string {
     return `${Number(value || 0).toFixed(0)}%`;
-  }
-
-  function formatRunLabel(run: AutomationRun): string {
-    const passed = run.passedScenarios ?? 0;
-    const total = run.totalScenarios ?? 0;
-    return `${run.jobName ?? run.runnerId} · ${run.branch ?? '?'} · ${passed}/${total} passed · ${formatDate(run.startedAt)}`;
   }
 
   const directoryGroups = $derived.by(() => {
@@ -604,14 +373,14 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="add-menu-backdrop" onclick={() => addScenarioMenuOpen = false}></div>
             <div class="add-menu-dropdown">
-              <button class="add-menu-item" onclick={openAutomationMode}>
+              <a class="add-menu-item" href="/projects/{data.projectKey}/builds/{data.buildId}/add-from-run">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <div><strong>From Automation Run</strong><span>Link results from an existing execution run</span></div>
-              </button>
-              <button class="add-menu-item" onclick={openManualMode}>
+              </a>
+              <a class="add-menu-item" href="/projects/{data.projectKey}/builds/{data.buildId}/add-manual">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <div><strong>Manually Select</strong><span>Browse repository and pick scenarios</span></div>
-              </button>
+              </a>
             </div>
           {/if}
         </div>
@@ -787,215 +556,6 @@
   </div>
 </Modal>
 
-<!-- Automation Run Selection Modal -->
-<Modal open={addMode === 'automation'} title="Add from Automation Run" size="md" onclose={closeAddMenu}>
-  <div class="modal-body">
-    <p class="modal-sub">Select an execution run to link its scenario results to this build.</p>
-    <input class="search-input" bind:value={runSearch} placeholder="Search runs…" />
-    <div class="run-list">
-      {#each filteredRuns as run}
-        <button class="run-row" onclick={() => openRunConfirm(run)}>
-          <div class="run-row-top">
-            <Badge text={run.status} variant={run.status === 'PASSED' ? 'success' : run.status === 'FAILED' ? 'danger' : 'warning'} />
-            <span class="run-job">{run.jobName ?? run.runnerId}</span>
-            <span class="run-branch">{run.branch ?? '?'}</span>
-          </div>
-          <div class="run-row-bot">
-            <span>{(run.passedScenarios ?? 0)}/{(run.totalScenarios ?? 0)} passed</span>
-            <span>{formatDate(run.startedAt)}</span>
-          </div>
-        </button>
-      {/each}
-      {#if filteredRuns.length === 0}
-        <p class="empty">{runSearch ? 'No runs match your search.' : 'No automation runs available.'}</p>
-      {/if}
-    </div>
-  </div>
-</Modal>
-
-<!-- Run Confirm Dialog -->
-<Modal open={runConfirmOpen} title="Confirm Automation Run" size="lg" onclose={() => runConfirmOpen = false}>
-  <div class="modal-body">
-    {#if runToConfirm}
-      <p class="modal-sub">Link scenario results from this run to the build.</p>
-      <div class="confirm-run-card">
-        <div class="run-row-top">
-          <Badge text={runToConfirm.status} variant={runToConfirm.status === 'PASSED' ? 'success' : runToConfirm.status === 'FAILED' ? 'danger' : 'warning'} />
-          <span class="run-job">{runToConfirm.jobName ?? runToConfirm.runnerId}</span>
-          <span class="run-branch">{runToConfirm.branch ?? '?'}</span>
-        </div>
-        <div class="run-row-bot">
-          <span>{(runToConfirm.passedScenarios ?? 0)}/{(runToConfirm.totalScenarios ?? 0)} passed</span>
-          <span>{formatDate(runToConfirm.startedAt)}</span>
-        </div>
-      </div>
-      {#if loadingRunPreview}
-        <p class="empty">Loading scenario preview…</p>
-      {:else if runPreviewScenarios.length > 0}
-        <h4 class="preview-heading">{runPreviewScenarios.length} scenarios will be linked</h4>
-        <div class="confirm-table-wrap">
-          <table class="confirm-table">
-            <thead><tr><th>Status</th><th>Scenario</th><th>Name</th><th>Feature</th></tr></thead>
-            <tbody>
-              {#each runPreviewScenarios as rp}
-                <tr>
-                  <td><Badge text={rp.status} variant={rp.status === 'PASSED' ? 'success' : rp.status === 'FAILED' ? 'danger' : 'warning'} /></td>
-                  <td><code>{rp.scenarioKey ?? '—'}</code></td>
-                  <td>{rp.scenarioName}</td>
-                  <td class="muted">{rp.featureName ?? '—'}</td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-      {:else}
-        <p class="empty">No scenario results in this run.</p>
-      {/if}
-    {/if}
-    <div class="modal-actions">
-      <Button variant="primary" size="sm" onclick={confirmAddRun} disabled={addingRun || loadingRunPreview}>
-        {addingRun ? 'Adding…' : 'Confirm'}
-      </Button>
-      <Button variant="secondary" size="sm" onclick={() => runConfirmOpen = false}>Cancel</Button>
-    </div>
-  </div>
-</Modal>
-
-<!-- Manual Scenario Selection Modal -->
-<Modal open={addMode === 'manual'} title="Select Scenarios" size="xl" onclose={closeAddMenu}>
-  <div class="manual-picker" class:manual-step-confirm={manualStep === 'confirm'}>
-    {#if manualStep === 'select'}
-      <!-- Step 1: Browse & select -->
-      <div class="picker-sidebar">
-        <input class="search-input" bind:value={manualDirFilter} placeholder="Filter directories…" />
-        <div class="dir-list">
-          {#each filteredDirs as dir}
-            <button class="dir-row" class:dir-row--active={selectedDirId === dir.id} onclick={() => selectManualDir(dir.id)}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/></svg>
-              <span>{dir.name}</span>
-              <small>{dir.scenarioCount}</small>
-            </button>
-          {/each}
-          {#if filteredDirs.length === 0}
-            <p class="empty">No directories found.</p>
-          {/if}
-        </div>
-      </div>
-      <div class="picker-main">
-        <!-- Filter bar -->
-        <div class="picker-toolbar">
-          <input class="search-input" bind:value={manualScenarioFilter} placeholder="Search by name or key…" />
-        </div>
-        <div class="picker-filters">
-          <label class="filter-group">
-            <span class="filter-label">Type</span>
-            <select class="filter-select" bind:value={manualTypeFilter}>
-              <option value="">All types</option>
-              <option value="MANUAL_ONLY">Manual Only</option>
-              <option value="AUTOMATABLE">Automatable</option>
-              <option value="AUTOMATED">Automated</option>
-            </select>
-          </label>
-          <label class="filter-group">
-            <span class="filter-label">Priority</span>
-            <select class="filter-select" bind:value={manualPriorityFilter}>
-              <option value="">All</option>
-              {#each uniquePriorities as p}
-                <option value={p}>{p}</option>
-              {/each}
-            </select>
-          </label>
-          <span class="picker-count">{manualSelectedCount} selected</span>
-        </div>
-
-        <!-- Scenario table -->
-        {#if filteredManualScenarios.length === 0}
-          <p class="empty">{manualScenarioFilter || manualTypeFilter || manualPriorityFilter ? 'No scenarios match the current filters.' : 'No scenarios in this directory.'}</p>
-        {:else}
-          <div class="picker-table-wrap">
-            <DataTable>
-              {#snippet head()}
-                <tr>
-                  <th class="checkbox-col">
-                    <input type="checkbox" checked={manualAllSelected} onchange={toggleAllManualScenarios} />
-                  </th>
-                  <th>Scenario</th>
-                  <th>Priority</th>
-                  <th class="col-auto">Auto</th>
-                  <th>Status</th>
-                </tr>
-              {/snippet}
-              {#snippet body()}
-                {#each filteredManualScenarios as scenario}
-                  <tr class="click-row">
-                    <td class="checkbox-col" onclick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={selectedManualIds.has(scenario.id)} onchange={() => toggleManualScenario(scenario.id)} />
-                    </td>
-                    <td>
-                      <div class="scenario-name-cell">
-                        <span class="scenario-key">{scenario.scenarioKey}</span>
-                        <span class="scenario-title">{scenario.name}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <span class="prio-badge prio-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
-                    </td>
-                    <td class="col-auto">
-                      {#if scenario.automationStatus === 'AUTOMATED'}
-                        <span class="auto-badge auto-automated" title="Automated">A</span>
-                      {:else if scenario.automationStatus === 'AUTOMATABLE'}
-                        <span class="auto-badge auto-automatable" title="Automatable">A</span>
-                      {:else}
-                        <span class="auto-badge auto-manual" title="Manual only">M</span>
-                      {/if}
-                    </td>
-                    <td>
-                      <Badge text={scenario.status} variant={scenario.status === 'ACTIVE' ? 'success' : 'warning'} />
-                    </td>
-                  </tr>
-                {/each}
-              {/snippet}
-            </DataTable>
-          </div>
-        {/if}
-        <div class="modal-actions">
-          <Button variant="secondary" size="sm" onclick={closeAddMenu}>Cancel</Button>
-          <Button variant="primary" size="sm" onclick={goToConfirmStep} disabled={manualSelectedCount === 0}>
-            Review ({manualSelectedCount})
-          </Button>
-        </div>
-      </div>
-    {:else}
-      <!-- Step 2: Confirmation -->
-      <div class="confirm-section">
-        <h3>{selectedManualScenarios.length} scenarios to add</h3>
-        <div class="confirm-table-wrap">
-          <table class="confirm-table">
-            <thead><tr><th>Key</th><th>Name</th><th>Directory</th><th>Priority</th><th>Status</th></tr></thead>
-            <tbody>
-              {#each selectedManualScenarios as s}
-                <tr>
-                  <td><code>{s.scenarioKey}</code></td>
-                  <td>{s.name}</td>
-                  <td class="muted">{s.featureName ?? '—'}</td>
-                  <td>{s.priority ?? '—'}</td>
-                  <td><Badge text={s.status} variant={s.status === 'ACTIVE' ? 'success' : 'warning'} /></td>
-                </tr>
-              {/each}
-            </tbody>
-          </table>
-        </div>
-        <div class="modal-actions">
-          <Button variant="secondary" size="sm" onclick={goBackToSelect}>Back</Button>
-          <Button variant="primary" size="sm" onclick={handleFinishManualAdd} disabled={addingManual}>
-            {addingManual ? 'Adding…' : 'Finish Adding'}
-          </Button>
-        </div>
-      </div>
-    {/if}
-  </div>
-</Modal>
-
 <style>
   .page { max-width: min(1560px, 100%); }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
@@ -1019,6 +579,7 @@
   .th-sort:hover { color: var(--color-accent); }
   .filters-bar { display: flex; gap: .75rem; align-items: center; }
   .search-wrap { position: relative; display: flex; align-items: center; flex: 1; max-width: 320px; }
+  .search-input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; }
   .copy-inline-btn { display: inline-flex; align-items: center; background: none; border: 1px solid var(--color-border); border-radius: 3px; cursor: pointer; color: var(--color-text-muted); font-size: 0.65rem; padding: 1px 4px; margin-left: 2px; vertical-align: middle; }
   @media (max-width: 900px) {
     .page-header { flex-direction: column; }
@@ -1043,115 +604,36 @@
   .diff-table td { padding: 4px 8px; border: 1px solid var(--color-border); }
   /* Modal internals */
   .modal-body { display: flex; flex-direction: column; gap: 14px; }
-  .modal-sub { color: var(--color-text-muted); font-size: 0.875rem; }
   .modal-warn { background: #fef3c7; border: 1px solid #d97706; border-radius: 6px; padding: 10px 12px; font-size: 0.875rem; color: #92400e; }
   .modal-scenario-name { font-size: 0.875rem; font-weight: 600; color: var(--color-text); }
   .modal-actions { display: flex; gap: 10px; justify-content: flex-end; padding-top: 8px; }
-  .search-input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; }
-  .run-list { display: flex; flex-direction: column; gap: 8px; max-height: 360px; overflow-y: auto; }
-  .run-row { display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); cursor: pointer; text-align: left; }
-  .run-row-top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .run-row-bot { display: flex; gap: 12px; font-size: 0.78rem; color: var(--color-text-muted); }
-  .run-job { font-weight: 700; font-size: 0.875rem; }
-  .run-branch { font-size: 0.8rem; color: var(--color-text-muted); }
   .form-label { display: flex; flex-direction: column; gap: 6px; font-size: 0.875rem; font-weight: 600; }
   .form-select, .form-textarea { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; }
   .form-textarea { resize: vertical; }
-  .empty { color: var(--color-text-muted); font-size: 0.875rem; text-align: center; padding: 16px; }
-  @media (max-width: 900px) {
-    .page-header, .visual-panel { grid-template-columns: 1fr; flex-direction: column; }
-    .header-actions { justify-content: flex-start; }
-  }
 
   /* Add Scenario dropdown */
   .add-scenario-wrap { position: relative; }
   .add-menu-backdrop { position: fixed; inset: 0; z-index: 49; }
   .add-menu-dropdown { position: absolute; top: calc(100% + 6px); right: 0; z-index: 50; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; box-shadow: 0 12px 32px rgba(0,0,0,0.18); min-width: 280px; overflow: hidden; }
-  .add-menu-item { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; color: var(--color-text); font: inherit; transition: background 0.1s; }
-  .add-menu-item:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  .add-menu-item { display: flex; align-items: flex-start; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: none; cursor: pointer; text-align: left; color: var(--color-text); font: inherit; transition: background 0.1s; text-decoration: none; }
+  .add-menu-item:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); text-decoration: none; }
   .add-menu-item + .add-menu-item { border-top: 1px solid var(--color-border); }
   .add-menu-item svg { flex-shrink: 0; margin-top: 1px; color: var(--color-accent); }
   .add-menu-item strong { display: block; font-size: 0.875rem; margin-bottom: 2px; }
   .add-menu-item span { display: block; font-size: 0.75rem; color: var(--color-text-muted); }
-
-  /* Confirm run card */
-  .confirm-run-card { border: 1px solid var(--color-border); border-radius: 8px; padding: 14px; background: var(--color-bg); display: flex; flex-direction: column; gap: 8px; }
-
-  /* Manual picker layout */
-  .manual-picker { display: grid; grid-template-columns: 220px 1fr; gap: 0; min-height: 420px; max-height: 65vh; }
-  .manual-step-confirm { grid-template-columns: 1fr; }
-  .picker-sidebar { border-right: 1px solid var(--color-border); padding: 12px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
-  .picker-sidebar .search-input { margin-bottom: 4px; }
-  .dir-list { display: flex; flex-direction: column; gap: 2px; }
-  .dir-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: none; border-radius: 6px; background: none; cursor: pointer; font: inherit; color: var(--color-text); font-size: 0.82rem; text-align: left; }
-  .dir-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); }
-  .dir-row--active { background: color-mix(in srgb, var(--color-accent), transparent 88%); font-weight: 700; }
-  .dir-row small { margin-left: auto; color: var(--color-text-muted); font-size: 0.72rem; }
-  .picker-main { padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow: hidden; }
-  .picker-toolbar { display: flex; gap: 10px; align-items: center; }
-  .picker-toolbar .search-input { flex: 1; }
-  .picker-filters { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-  .filter-group { display: flex; align-items: center; gap: 6px; }
-  .filter-label { font-size: 0.72rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; white-space: nowrap; }
-  .filter-select { border: 1px solid var(--color-border); border-radius: 5px; padding: 5px 8px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.78rem; }
-  .picker-count { font-size: 0.78rem; font-weight: 700; color: var(--color-accent); white-space: nowrap; margin-left: auto; }
-  .picker-table-wrap { flex: 1; overflow-y: auto; min-height: 0; border: 1px solid var(--color-border); border-radius: 8px; }
-  .click-row { cursor: pointer; }
-  .click-row:hover { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
-  .scenario-name-cell { display: flex; flex-direction: column; gap: 2px; }
-  .scenario-key { font-size: 0.72rem; font-family: var(--font-mono, monospace); color: var(--color-text-muted); }
-  .scenario-title { font-size: 0.84rem; font-weight: 600; color: var(--color-text); }
-  .prio-badge { font-size: 0.68rem; font-weight: 700; padding: 2px 7px; border-radius: 4px; text-transform: uppercase; }
-  .prio-critical { background: #fee2e2; color: #dc2626; }
-  .prio-high { background: #fef3c7; color: #d97706; }
-  .prio-medium { background: #e0f2fe; color: #0284c7; }
-  .prio-low { background: #f0fdf4; color: #16a34a; }
-  .prio-unset { background: var(--color-bg); color: var(--color-text-muted); }
-  .auto-badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 4px; font-size: 0.62rem; font-weight: 800; }
-  .auto-automated { background: #dcfce7; color: #15803d; }
-  .auto-automatable { background: #fef3c7; color: #d97706; }
-  .auto-manual { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
-  .col-auto { width: 40px; text-align: center; }
-
-  /* Confirm step */
-  .confirm-section { padding: 4px 0; }
-  .confirm-section h3 { font-size: 1rem; margin: 0 0 12px; }
-  .confirm-table-wrap { max-height: 340px; overflow-y: auto; border: 1px solid var(--color-border); border-radius: 8px; }
-  .confirm-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  .confirm-table th { text-align: left; padding: 8px 10px; background: var(--color-bg); border-bottom: 1px solid var(--color-border); font-weight: 700; font-size: 0.72rem; text-transform: uppercase; color: var(--color-text-muted); position: sticky; top: 0; z-index: 1; }
-  .confirm-table td { padding: 7px 10px; border-bottom: 1px solid var(--color-border); }
-  .confirm-table code { font-size: 0.75rem; background: var(--color-bg); padding: 2px 5px; border-radius: 3px; }
 
   /* Load more */
   .load-more-wrap { display: flex; justify-content: center; padding: 14px 0 4px; }
   .load-more-btn { padding: 7px 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
   .load-more-btn:hover { border-color: var(--color-accent); }
   .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .preview-heading { font-size: 0.875rem; font-weight: 700; margin: 8px 0 4px; }
   .path-hint { font-size: 0.68rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); margin-top: 1px; }
 
-  :global([data-theme="dark"]) .prio-critical { background: #450a0a; color: #f87171; }
-  :global([data-theme="dark"]) .prio-high { background: #451a03; color: #fbbf24; }
-  :global([data-theme="dark"]) .prio-medium { background: #0c1929; color: #38bdf8; }
-  :global([data-theme="dark"]) .prio-low { background: #052e16; color: #4ade80; }
-  :global([data-theme="dark"]) .auto-automated { background: #14532d; color: #4ade80; }
-  :global([data-theme="dark"]) .auto-automatable { background: #451a03; color: #fbbf24; }
-
-  /* Responsive */
   @media (max-width: 700px) {
     .add-menu-dropdown { right: auto; left: 0; min-width: 240px; }
-    .manual-picker { grid-template-columns: 1fr; }
-    .picker-sidebar { border-right: none; border-bottom: 1px solid var(--color-border); max-height: 180px; flex-shrink: 0; }
-    .picker-main { max-height: 320px; }
-    .picker-filters { gap: 6px; }
-    .confirm-table-wrap { max-height: 240px; }
   }
   @media (max-width: 480px) {
     .add-menu-item { padding: 12px; gap: 8px; }
     .add-menu-item svg { width: 14px; height: 14px; }
-    .confirm-table { font-size: 0.72rem; }
-    .confirm-table th, .confirm-table td { padding: 5px 6px; }
-    .scenario-key { font-size: 0.65rem; }
-    .scenario-title { font-size: 0.76rem; }
   }
 </style>

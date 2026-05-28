@@ -18,6 +18,12 @@
   let scenarioError = $state<string | null>(null);
 
   $effect(() => {
+    const isOpen = result !== null;
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  });
+
+  $effect(() => {
     const sid = result?.scenarioId ?? null;
     if (!sid) { scenario = null; return; }
     scenarioLoading = true;
