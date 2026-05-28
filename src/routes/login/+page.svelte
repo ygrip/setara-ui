@@ -26,7 +26,7 @@
   onMount(() => {
     // Already logged in? Go to workspace.
     if (getValidSession()) {
-      goto('/workspace', { replaceState: true });
+      goto('/dashboard', { replaceState: true });
     }
   });
 
@@ -43,12 +43,12 @@
     const role: SetaraRole = EMAIL_ROLE_MAP[trimmed] ?? 'GUEST';
     const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     storeSession(createMockSession(trimmed, name, role));
-    goto('/workspace', { replaceState: true });
+    goto('/dashboard', { replaceState: true });
   }
 
   function quickLogin(account: typeof DEMO_ACCOUNTS[number]) {
     storeSession(createMockSession(account.email, account.name, account.role));
-    goto('/workspace', { replaceState: true });
+    goto('/dashboard', { replaceState: true });
   }
 </script>
 
@@ -63,7 +63,7 @@
       <span class="brand-name">SETARA</span>
     </div>
 
-    <h1 class="login-title">Sign in to your workspace</h1>
+    <h1 class="login-title">Sign in to Setara</h1>
     <p class="login-sub">Test case management and automation reporting</p>
 
     <form onsubmit={handleSubmit} class="form" novalidate>

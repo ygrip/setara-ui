@@ -293,30 +293,30 @@
           Coverage
         </a>
       {:else}
-        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+        <span class="nav-item nav-item--dimmed" title="Select a project to access Builds">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
           </svg>
           Builds
-        </a>
-        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+        </span>
+        <span class="nav-item nav-item--dimmed" title="Select a project to access Test Repository">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
           </svg>
           Test Repository
-        </a>
-        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+        </span>
+        <span class="nav-item nav-item--dimmed" title="Select a project to access Executions">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
           Executions
-        </a>
-        <a href="/workspace" class="nav-item nav-item--dimmed" onclick={closeSidebar}>
+        </span>
+        <span class="nav-item nav-item--dimmed" title="Select a project to access Coverage">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
           Coverage
-        </a>
+        </span>
       {/if}
 
       <!-- Divider -->
