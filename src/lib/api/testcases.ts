@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from './config';
-import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario } from '$lib/mock/client';
+import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
 
 export interface TestDirectory {
   id: string;
@@ -90,6 +90,16 @@ export async function createDirectory(projectKey: string, body: {
   parentId?: string | null;
   name: string;
 }): Promise<TestDirectory> {
+  if (isMockMode()) return {
+    id: `dir-mock-${Date.now()}`,
+    parentId: body.parentId ?? null,
+    directoryId: `DIR-MOCK-${Date.now()}`,
+    name: body.name,
+    slug: body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    path: body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    scenarioCount: 0,
+    createdAt: new Date().toISOString()
+  };
   const res = await apiFetch(`/api/projects/${projectKey}/directories`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -99,6 +109,16 @@ export async function createDirectory(projectKey: string, body: {
 }
 
 export async function renameDirectory(projectKey: string, directoryNodeId: string, name: string): Promise<TestDirectory> {
+  if (isMockMode()) return {
+    id: directoryNodeId,
+    parentId: null,
+    directoryId: directoryNodeId,
+    name,
+    slug: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    path: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+    scenarioCount: 0,
+    createdAt: new Date().toISOString()
+  };
   const res = await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -108,6 +128,7 @@ export async function renameDirectory(projectKey: string, directoryNodeId: strin
 }
 
 export async function deleteDirectory(projectKey: string, directoryNodeId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}`, { method: 'DELETE' });
 }
 
@@ -149,6 +170,7 @@ export async function checkScenarioExists(
   directoryNodeId: string,
   name: string
 ): Promise<ScenarioExistsResult> {
+  if (isMockMode()) return { exists: false, name };
   const res = await apiFetch(
     `/api/projects/${projectKey}/directories/${directoryNodeId}/scenarios/exists?name=${encodeURIComponent(name)}`
   );
@@ -166,6 +188,7 @@ export async function bulkCopyScenarios(
   projectKey: string,
   body: { scenarioIds: string[]; targetNodeId: string; duplicateStrategy?: string }
 ): Promise<BulkCopyResult> {
+  if (isMockMode()) return { createdCount: 0, skippedCount: 0, createdIds: [], skippedIds: [] };
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/copy`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -178,6 +201,7 @@ export async function bulkDeleteScenarios(
   projectKey: string,
   scenarioIds: string[]
 ): Promise<{ updatedCount: number; scenarioIds: string[] }> {
+  if (isMockMode()) return { updatedCount: 0, scenarioIds: [] };
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/delete`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -191,6 +215,16 @@ export async function moveDirectory(
   directoryNodeId: string,
   parentId: string | null
 ): Promise<TestDirectory> {
+  if (isMockMode()) return {
+    id: directoryNodeId,
+    parentId,
+    directoryId: directoryNodeId,
+    name: '',
+    slug: '',
+    path: '',
+    scenarioCount: 0,
+    createdAt: new Date().toISOString()
+  };
   const res = await apiFetch(`/api/projects/${projectKey}/directories/${directoryNodeId}/move`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -208,6 +242,30 @@ export async function createScenario(projectKey: string, body: {
   tags?: TagInput[];
   steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
+  if (isMockMode()) {
+    const now = new Date().toISOString();
+    return {
+      id: `scenario-mock-${Date.now()}`,
+      nodeId: body.nodeId,
+      scenarioKey: `SCN-MOCK-${Date.now()}`,
+      name: body.name,
+      source: 'MANUAL',
+      cucumberId: null,
+      featureUri: null,
+      featureName: null,
+      lineNumber: null,
+      tags: (body.tags ?? []).map(t => ({ id: `tag-${t.sanitized ?? t.display}`, sanitized: t.sanitized ?? t.display.toLowerCase(), display: t.display })),
+      priority: body.priority ?? null,
+      automationStatus: 'NOT_AUTOMATED',
+      automatable: body.automatable ?? false,
+      automationNotes: null,
+      manualNotes: body.notes ?? null,
+      status: 'DRAFT',
+      steps: (body.steps ?? []).map((s, i) => ({ ...s, id: `step-mock-${i}` })),
+      createdAt: now,
+      updatedAt: now
+    };
+  }
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -237,10 +295,12 @@ export async function updateScenario(projectKey: string, scenarioId: string, bod
 }
 
 export async function archiveScenario(projectKey: string, scenarioId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}`, { method: 'DELETE' });
 }
 
 export async function approveDraftScenarios(projectKey: string, scenarioIds: string[]): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/approve`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -249,6 +309,7 @@ export async function approveDraftScenarios(projectKey: string, scenarioIds: str
 }
 
 export async function rejectDraftScenarios(projectKey: string, scenarioIds: string[]): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/scenarios/bulk/reject`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -265,6 +326,21 @@ export async function createManualExecution(projectKey: string, scenarioId: stri
   finishedAt?: string;
   durationMs?: number;
 }): Promise<ManualExecution> {
+  if (isMockMode()) {
+    const now = new Date().toISOString();
+    return {
+      id: `exec-mock-${Date.now()}`,
+      scenarioId,
+      status: body.status,
+      executedBy: body.executedBy ?? null,
+      environment: body.environment ?? null,
+      notes: body.notes ?? null,
+      startedAt: body.startedAt ?? null,
+      finishedAt: body.finishedAt ?? null,
+      durationMs: body.durationMs ?? null,
+      createdAt: now
+    };
+  }
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}/manual-executions`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -274,6 +350,7 @@ export async function createManualExecution(projectKey: string, scenarioId: stri
 }
 
 export async function listManualExecutions(projectKey: string, scenarioId: string): Promise<ManualExecution[]> {
+  if (isMockMode()) return [];
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/${scenarioId}/manual-executions`);
   return res.json();
 }
@@ -321,6 +398,15 @@ export async function validateImport(
   file: File,
   duplicateStrategy = 'SKIP_EXISTING'
 ): Promise<ImportValidationResult> {
+  if (isMockMode()) return {
+    totalRows: 0,
+    newScenarioCount: 0,
+    existingScenarioCount: 0,
+    parsedStepCount: 0,
+    errorCount: 0,
+    warningCount: 0,
+    issues: []
+  };
   const form = new FormData();
   form.append('file', file);
   form.append('duplicateStrategy', duplicateStrategy);
@@ -348,11 +434,27 @@ export interface ImportJobView {
 }
 
 export async function listImportJobs(projectKey: string): Promise<ImportJobView[]> {
+  if (isMockMode()) return [];
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/history`);
   return res.json();
 }
 
 export async function getImportJob(projectKey: string, importId: string): Promise<ImportJobView> {
+  if (isMockMode()) return {
+    importId,
+    status: 'COMPLETED',
+    fileName: null,
+    duplicateStrategy: 'SKIP_EXISTING',
+    defaultStatus: 'DRAFT',
+    totalRows: 0,
+    processedRows: 0,
+    successCount: 0,
+    warningCount: 0,
+    errorCount: 0,
+    createdAt: new Date().toISOString(),
+    finishedAt: new Date().toISOString(),
+    issues: []
+  };
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/${importId}`);
   return res.json();
 }
@@ -363,6 +465,16 @@ export async function executeImport(
   duplicateStrategy = 'SKIP_EXISTING',
   defaultStatus = 'DRAFT'
 ): Promise<ImportResult> {
+  if (isMockMode()) return {
+    importId: `import-mock-${Date.now()}`,
+    status: 'COMPLETED',
+    totalRows: 0,
+    createdCount: 0,
+    updatedCount: 0,
+    skippedCount: 0,
+    failedCount: 0,
+    issues: []
+  };
   const form = new FormData();
   form.append('file', file);
   form.append('duplicateStrategy', duplicateStrategy);
@@ -388,9 +500,17 @@ export async function searchSimilarScenarios(
   query: string,
   limit = 10
 ): Promise<SimilarScenarioResult[]> {
+  if (isMockMode()) return [];
   const params = new URLSearchParams();
   params.set('q', query);
   params.set('limit', String(limit));
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/similar?${params}`);
+  return res.json();
+}
+
+export async function getProjectTags(projectKey: string): Promise<TagView[]> {
+  if (isMockMode()) return mockGetProjectTags(projectKey);
+  const res = await fetch(`${getApiBaseUrl()}/api/projects/${encodeURIComponent(projectKey)}/tags`);
+  if (!res.ok) return [];
   return res.json();
 }

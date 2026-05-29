@@ -3,7 +3,7 @@ import {
   mockTribes, mockSquads, mockUsers, mockNodesByProject,
   mockScenariosByProject,
   mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild,
-  mockSquadPlans, mockPlanBuilds
+  mockSquadPlans, mockPlanBuilds, mockTagsByProject
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
@@ -11,7 +11,7 @@ import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
-import type { Scenario, TestDirectory } from '$lib/api/testcases';
+import type { Scenario, TagView, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
 
@@ -580,6 +580,11 @@ export async function mockListAllSquads(_cursor?: string, limit?: number): Promi
     return { ...squad, tribeName: tribe?.name ?? null };
   });
   return { items: allSquads.slice(0, limit ?? 100), nextCursor: null, prevCursor: null };
+}
+
+export async function mockGetProjectTags(projectKey: string): Promise<TagView[]> {
+  await delay(80);
+  return mockTagsByProject[projectKey] ?? [];
 }
 
 export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {

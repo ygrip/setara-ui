@@ -1151,6 +1151,7 @@
             <span class="editor-label">Tags <span class="opt">(optional, max 20)</span></span>
             <TagInput
               tags={detailDraftTags.map(t => ({ id: '', sanitized: t.sanitized, display: t.display }))}
+              suggestions={availableTags}
               disabled={detailBusy}
               maxTags={20}
               onchange={(updated: TagInputType[]) => { detailDraftTags = updated; }}

@@ -1,8 +1,11 @@
 <script lang="ts">
   import type { TagView, TagInput as TagInputType } from '$lib/api/testcases';
 
+  type TagSuggestion = { sanitized: string; display: string };
+
   let {
     tags = [] as TagView[],
+    suggestions = [] as TagSuggestion[],
     onchange = (_tags: TagInputType[]) => {},
     maxTags = 20,
     disabled = false,
@@ -13,6 +16,28 @@
   let showDropdown = $state(false);
 
   const remaining = maxTags - tags.length;
+
+  const filteredSuggestions = $derived(
+    inputValue.trim().length >= 1
+      ? suggestions
+          .filter(s => {
+            const label = (s.display || s.sanitized).toLowerCase();
+            const q = inputValue.trim().toLowerCase();
+            return label.startsWith(q) && !tags.some(t => t.sanitized === s.sanitized);
+          })
+          .slice(0, 8)
+      : suggestions
+          .filter(s => !tags.some(t => t.sanitized === s.sanitized))
+          .slice(0, 8)
+  );
+  const showSuggestionDropdown = $derived(showDropdown && filteredSuggestions.length > 0 && !disabled && !readonly && remaining > 0);
+
+  function addFromSuggestion(suggestion: TagSuggestion) {
+    if (remaining <= 0 || disabled || readonly) return;
+    if (tags.some(t => t.sanitized === suggestion.sanitized)) return;
+    onchange([...tags.map(t => ({ sanitized: t.sanitized, display: t.display })), { sanitized: suggestion.sanitized, display: suggestion.display }]);
+    inputValue = '';
+  }
 
   function addTag(display: string) {
     const trimmed = display.trim();
@@ -64,6 +89,21 @@
         maxlength={128}
         aria-label="Add tag"
       />
+      {#if showSuggestionDropdown}
+        <ul class="tag-suggestions" role="listbox">
+          {#each filteredSuggestions as sug}
+            <li class="tag-suggestion-item" role="option" aria-selected="false">
+              <button
+                type="button"
+                class="tag-suggestion-btn"
+                onmousedown={(e) => { e.preventDefault(); addFromSuggestion(sug); }}
+              >
+                {sug.display || sug.sanitized}
+              </button>
+            </li>
+          {/each}
+        </ul>
+      {/if}
       {#if inputValue.trim()}
         <button class="tag-add-btn" onclick={() => addTag(inputValue)} disabled={remaining <= 0}>
           + Add
@@ -122,6 +162,7 @@
     display: flex;
     gap: 4px;
     align-items: center;
+    position: relative;
   }
   .tag-input {
     flex: 1;
@@ -156,4 +197,37 @@
     cursor: default;
   }
   .disabled { opacity: 0.6; }
+  .tag-suggestions {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    z-index: 50;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    list-style: none;
+    margin: 0;
+    padding: 4px;
+    max-height: 220px;
+    overflow-y: auto;
+  }
+  .tag-suggestion-item { margin: 0; }
+  .tag-suggestion-btn {
+    width: 100%;
+    text-align: left;
+    padding: 7px 12px;
+    border: 0;
+    background: transparent;
+    border-radius: 6px;
+    font: inherit;
+    font-size: 0.82rem;
+    color: var(--color-text);
+    cursor: pointer;
+  }
+  .tag-suggestion-btn:hover {
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    color: var(--color-accent);
+  }
 </style>

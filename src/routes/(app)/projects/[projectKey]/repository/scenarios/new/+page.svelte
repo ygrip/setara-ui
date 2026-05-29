@@ -155,6 +155,7 @@
           <span class="field-label">Tags <span class="opt">(optional, max 20)</span></span>
           <TagInput
             tags={tags.map(t => ({ id: '', sanitized: t.sanitized ?? '', display: t.display }))}
+            suggestions={[]}
             disabled={busy}
             onchange={(updated: TagInputType[]) => { tags = updated; }}
           />

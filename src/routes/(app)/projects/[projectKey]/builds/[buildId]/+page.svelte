@@ -369,10 +369,6 @@
         <Button variant="secondary" onclick={() => auditOpen = true}
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
         >History</Button>
-        <Button variant="secondary" href="/projects/{data.projectKey}/builds/{data.buildId}/suggest"
-          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1010 10"/><path d="M12 6v6l4 2"/></svg>'
-          disabled={build.status === 'VERIFIED'}
-        >AI Suggest</Button>
         <div class="add-scenario-wrap">
           <Button variant="primary" disabled={build.status === 'VERIFIED'} onclick={() => addScenarioMenuOpen = !addScenarioMenuOpen}
             icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
@@ -382,6 +378,10 @@
             <!-- svelte-ignore a11y_no_static_element_interactions -->
             <div class="add-menu-backdrop" onclick={() => addScenarioMenuOpen = false}></div>
             <div class="add-menu-dropdown">
+              <a class="add-menu-item add-menu-item--ai" href="/projects/{data.projectKey}/builds/{data.buildId}/suggest">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4l3 3"/><path d="M8 12h.01"/></svg>
+                <div><strong>AI Suggest</strong><span>Let AI recommend scenarios based on build requirements</span></div>
+              </a>
               <a class="add-menu-item" href="/projects/{data.projectKey}/builds/{data.buildId}/add-from-run">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                 <div><strong>From Automation Run</strong><span>Link results from an existing execution run</span></div>
@@ -652,6 +652,7 @@
   .add-menu-item svg { flex-shrink: 0; margin-top: 1px; color: var(--color-accent); }
   .add-menu-item strong { display: block; font-size: 0.875rem; margin-bottom: 2px; }
   .add-menu-item span { display: block; font-size: 0.75rem; color: var(--color-text-muted); }
+  .add-menu-item--ai strong { color: var(--color-accent); }
 
   /* Load more */
   .load-more-wrap { display: flex; justify-content: center; padding: 14px 0 4px; }

@@ -3,8 +3,12 @@ import type { AutomationRun } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanBuild, ReleasePlan } from '$lib/api/plans';
-import type { Scenario, TestDirectory } from '$lib/api/testcases';
+import type { Scenario, TagView, TestDirectory } from '$lib/api/testcases';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
+
+function tag(sanitized: string): TagView {
+  return { id: `tag-${sanitized}`, sanitized, display: sanitized };
+}
 
 export const mockProjects: Project[] = [
   { id: '1', squadId: 'squad-3', projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
@@ -100,7 +104,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Refunds',
       lineNumber: null,
-      tags: ['refund', 'regression'],
+      tags: [tag('refund'), tag('payment'), tag('happy-path')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -125,7 +129,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/payment/refund.feature',
       featureName: 'Refunds',
       lineNumber: 42,
-      tags: ['refund', 'balance'],
+      tags: [tag('refund'), tag('partial'), tag('regression')],
       priority: 'MEDIUM',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -151,7 +155,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Refunds',
       lineNumber: null,
-      tags: ['refund', 'idempotency'],
+      tags: [tag('refund'), tag('regression')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -176,7 +180,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Capture and Settlement',
       lineNumber: null,
-      tags: ['capture', 'resilience'],
+      tags: [tag('capture'), tag('settlement'), tag('critical')],
       priority: 'CRITICAL',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -202,7 +206,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/payment/settlement.feature',
       featureName: 'Settlement',
       lineNumber: 18,
-      tags: ['settlement', 'batch'],
+      tags: [tag('capture'), tag('settlement'), tag('regression')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -227,7 +231,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/payment/webhook.feature',
       featureName: 'Webhook Reconciliation',
       lineNumber: 30,
-      tags: ['webhook', 'retry'],
+      tags: [tag('webhook'), tag('retry'), tag('integration')],
       priority: 'MEDIUM',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -252,7 +256,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Disputes',
       lineNumber: null,
-      tags: ['dispute', 'evidence'],
+      tags: [tag('dispute'), tag('regression')],
       priority: 'HIGH',
       automationStatus: 'MANUAL_ONLY',
       automatable: false,
@@ -277,7 +281,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Disputes',
       lineNumber: null,
-      tags: ['dispute', 'deadline'],
+      tags: [tag('dispute'), tag('smoke')],
       priority: 'LOW',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -304,7 +308,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/auth/login.feature',
       featureName: 'Login',
       lineNumber: 12,
-      tags: ['auth', 'smoke'],
+      tags: [tag('login'), tag('smoke')],
       priority: 'CRITICAL',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -328,7 +332,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Login',
       lineNumber: null,
-      tags: ['auth', 'security'],
+      tags: [tag('session'), tag('security'), tag('regression')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -353,7 +357,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/auth/session.feature',
       featureName: 'Session Security',
       lineNumber: 24,
-      tags: ['auth', 'session'],
+      tags: [tag('login'), tag('session'), tag('security')],
       priority: 'CRITICAL',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -380,7 +384,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/catalog/search.feature',
       featureName: 'Search & Filters',
       lineNumber: 10,
-      tags: ['catalog', 'search', 'ranking'],
+      tags: [tag('search'), tag('product'), tag('smoke')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -405,7 +409,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/catalog/search.feature',
       featureName: 'Search & Filters',
       lineNumber: 40,
-      tags: ['catalog', 'filter'],
+      tags: [tag('filter'), tag('product')],
       priority: 'MEDIUM',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -430,7 +434,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Inventory',
       lineNumber: null,
-      tags: ['catalog', 'inventory', 'stock'],
+      tags: [tag('inventory'), tag('product'), tag('smoke')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -455,7 +459,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Inventory',
       lineNumber: null,
-      tags: ['catalog', 'inventory', 'event'],
+      tags: [tag('inventory'), tag('product')],
       priority: 'MEDIUM',
       automationStatus: 'MANUAL_ONLY',
       automatable: false,
@@ -482,7 +486,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/checkout/cart.feature',
       featureName: 'Cart Operations',
       lineNumber: 8,
-      tags: ['checkout', 'cart'],
+      tags: [tag('checkout'), tag('cart'), tag('e2e')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -508,7 +512,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/checkout/cart.feature',
       featureName: 'Cart Operations',
       lineNumber: 38,
-      tags: ['checkout', 'cart', 'price'],
+      tags: [tag('checkout'), tag('cart')],
       priority: 'MEDIUM',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -533,7 +537,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Promotions',
       lineNumber: null,
-      tags: ['checkout', 'promo', 'discount'],
+      tags: [tag('checkout'), tag('cart'), tag('promo')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -560,7 +564,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/order/place.feature',
       featureName: 'Order Lifecycle',
       lineNumber: 6,
-      tags: ['order', 'smoke'],
+      tags: [tag('order'), tag('lifecycle'), tag('smoke')],
       priority: 'CRITICAL',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -585,7 +589,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/order/cancel.feature',
       featureName: 'Cancellation',
       lineNumber: 12,
-      tags: ['order', 'cancel'],
+      tags: [tag('order'), tag('cancellation'), tag('regression')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -610,7 +614,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Cancellation',
       lineNumber: null,
-      tags: ['order', 'cancel', 'edge-case'],
+      tags: [tag('order'), tag('cancellation')],
       priority: 'MEDIUM',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -637,7 +641,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: 'features/notification/email.feature',
       featureName: 'Email',
       lineNumber: 10,
-      tags: ['notification', 'email', 'sla'],
+      tags: [tag('smoke')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATED',
       automatable: true,
@@ -662,7 +666,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       featureUri: null,
       featureName: 'Email',
       lineNumber: null,
-      tags: ['notification', 'email', 'gdpr'],
+      tags: [tag('regression')],
       priority: 'HIGH',
       automationStatus: 'AUTOMATABLE',
       automatable: true,
@@ -841,8 +845,16 @@ export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
   'build-payment-hotfix': [
     { id: 'bs-pay-hf-1', scenarioId: 'scenario-refund-happy', scenarioKey: 'SCN-REFUND1', name: 'Refund approved card payment', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-01', executedAt: '2026-05-10T11:12:00Z', addedAt: '2026-05-10T07:05:00Z', featureName: 'Refunds', directoryPath: 'payments/refunds' }
   ],
-  'build-auth-rc1': [],
-  'build-checkout-rc1': []
+  'build-auth-rc1': [
+    { id: 'bs-auth-1', scenarioId: 'scenario-login-valid', scenarioKey: 'SCN-LOGIN1', name: 'User logs in with valid credentials', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-25T09:00:00Z', featureName: 'Login', directoryPath: 'login' },
+    { id: 'bs-auth-2', scenarioId: 'scenario-login-locked', scenarioKey: 'SCN-LOGIN2', name: 'Locked account cannot obtain access token', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-25T09:01:00Z', featureName: 'Login', directoryPath: 'login' },
+    { id: 'bs-auth-3', scenarioId: 'scenario-session-refresh', scenarioKey: 'SCN-SESSION1', name: 'Refresh token rotation invalidates previous token', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-25T09:02:00Z', featureName: 'Session Security', directoryPath: 'session-security' }
+  ],
+  'build-checkout-rc1': [
+    { id: 'bs-chkout-1', scenarioId: 'scenario-checkout-add-item', scenarioKey: 'SCN-CHKOUT1', name: 'Add item to cart persists across sessions', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-02', executedAt: '2026-05-25T10:00:00Z', addedAt: '2026-05-24T09:00:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
+    { id: 'bs-chkout-2', scenarioId: 'scenario-checkout-remove-item', scenarioKey: 'SCN-CHKOUT2', name: 'Remove item from cart updates total price', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-02', executedAt: '2026-05-25T10:05:00Z', addedAt: '2026-05-24T09:01:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
+    { id: 'bs-chkout-3', scenarioId: 'scenario-checkout-promo-code', scenarioKey: 'SCN-CHKOUT3', name: 'Valid promo code applies discount at checkout', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-24T09:02:00Z', featureName: 'Promotions', directoryPath: 'checkout/promotions' }
+  ]
 };
 
 export const mockBuildAuditByBuild: Record<string, BuildAuditEvent[]> = {
@@ -974,6 +986,52 @@ export const mockSquadPlans: ReleasePlan[] = [
     totalProjects: 1
   }
 ];
+
+export const mockTagsByProject: Record<string, TagView[]> = {
+  PAYMENT: [
+    { id: 'tag-refund', sanitized: 'refund', display: 'refund' },
+    { id: 'tag-payment', sanitized: 'payment', display: 'payment' },
+    { id: 'tag-happy-path', sanitized: 'happy-path', display: 'happy-path' },
+    { id: 'tag-partial', sanitized: 'partial', display: 'partial' },
+    { id: 'tag-capture', sanitized: 'capture', display: 'capture' },
+    { id: 'tag-settlement', sanitized: 'settlement', display: 'settlement' },
+    { id: 'tag-critical', sanitized: 'critical', display: 'critical' },
+    { id: 'tag-webhook', sanitized: 'webhook', display: 'webhook' },
+    { id: 'tag-retry', sanitized: 'retry', display: 'retry' },
+    { id: 'tag-integration', sanitized: 'integration', display: 'integration' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+    { id: 'tag-dispute', sanitized: 'dispute', display: 'dispute' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+  ],
+  AUTH: [
+    { id: 'tag-login', sanitized: 'login', display: 'login' },
+    { id: 'tag-session', sanitized: 'session', display: 'session' },
+    { id: 'tag-security', sanitized: 'security', display: 'security' },
+    { id: 'tag-oauth', sanitized: 'oauth', display: 'oauth' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+  ],
+  CHECKOUT: [
+    { id: 'tag-checkout', sanitized: 'checkout', display: 'checkout' },
+    { id: 'tag-cart', sanitized: 'cart', display: 'cart' },
+    { id: 'tag-e2e', sanitized: 'e2e', display: 'e2e' },
+    { id: 'tag-promo', sanitized: 'promo', display: 'promo' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+  ],
+  ORDER: [
+    { id: 'tag-order', sanitized: 'order', display: 'order' },
+    { id: 'tag-cancellation', sanitized: 'cancellation', display: 'cancellation' },
+    { id: 'tag-lifecycle', sanitized: 'lifecycle', display: 'lifecycle' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+  ],
+  CATALOG: [
+    { id: 'tag-search', sanitized: 'search', display: 'search' },
+    { id: 'tag-inventory', sanitized: 'inventory', display: 'inventory' },
+    { id: 'tag-product', sanitized: 'product', display: 'product' },
+    { id: 'tag-filter', sanitized: 'filter', display: 'filter' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+  ],
+};
 
 export const mockPlanBuilds: Record<string, PlanBuild[]> = {
   'plan-squad3-may': [
