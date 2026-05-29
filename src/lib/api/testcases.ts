@@ -12,6 +12,17 @@ export interface TestDirectory {
   createdAt: string;
 }
 
+export interface TagView {
+  id: string;
+  sanitized: string;
+  display: string;
+}
+
+export interface TagInput {
+  sanitized?: string;
+  display: string;
+}
+
 export interface Scenario {
   id: string;
   nodeId: string;
@@ -22,7 +33,7 @@ export interface Scenario {
   featureUri: string | null;
   featureName: string | null;
   lineNumber: number | null;
-  tags: string[];
+  tags: TagView[];
   priority: string | null;
   automationStatus: string;
   automatable: boolean;
@@ -111,7 +122,9 @@ export async function listScenarios(
   nodeId?: string | null,
   status = 'ACTIVE',
   sortBy?: string,
-  sortDir?: string
+  sortDir?: string,
+  tags?: string[],
+  tagMode?: string
 ): Promise<Scenario[]> {
   if (isMockMode()) return mockListScenarios(projectKey, nodeId, status);
   const params = new URLSearchParams();
@@ -119,6 +132,8 @@ export async function listScenarios(
   if (status) params.set('status', status);
   if (sortBy) params.set('sortBy', sortBy);
   if (sortDir) params.set('sortDir', sortDir);
+  if (tags && tags.length) tags.forEach(t => params.append('tags', t));
+  if (tagMode) params.set('tagMode', tagMode);
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios${query}`);
   return res.json();
@@ -190,6 +205,7 @@ export async function createScenario(projectKey: string, body: {
   priority?: string;
   automatable?: boolean;
   notes?: string;
+  tags?: TagInput[];
   steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios`, {
@@ -208,6 +224,7 @@ export async function updateScenario(projectKey: string, scenarioId: string, bod
   automationNotes?: string;
   manualNotes?: string;
   status?: string;
+  tags?: TagInput[];
   steps?: Array<Omit<ScenarioStep, 'id'>>;
 }): Promise<Scenario> {
   if (isMockMode()) return mockUpdateScenario(projectKey, scenarioId, body);
@@ -355,5 +372,25 @@ export async function executeImport(
     const text = await res.text().catch(() => '');
     throw new Error(`API error ${res.status}: ${text || res.statusText}`);
   }
+  return res.json();
+}
+
+export interface SimilarScenarioResult {
+  scenarioId: string;
+  scenarioKey: string;
+  name: string;
+  path: string | null;
+  score: number;
+}
+
+export async function searchSimilarScenarios(
+  projectKey: string,
+  query: string,
+  limit = 10
+): Promise<SimilarScenarioResult[]> {
+  const params = new URLSearchParams();
+  params.set('q', query);
+  params.set('limit', String(limit));
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/similar?${params}`);
   return res.json();
 }

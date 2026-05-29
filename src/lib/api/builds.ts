@@ -18,6 +18,7 @@ export interface ProjectBuild {
   buildKey: string;
   version: string | null;
   description: string | null;
+  requirements: string | null;
   status: 'INITIATED' | 'IN_PROGRESS' | 'VERIFIED' | string;
   initiatedAt: string;
   inProgressAt: string | null;
@@ -224,4 +225,37 @@ export async function getBuildByVersion(projectKey: string, version: string): Pr
   } catch {
     return null;
   }
+}
+
+export interface SuggestionResult {
+  scenarioId: string;
+  scenarioKey: string | null;
+  name: string;
+  path: string | null;
+  confidence: number;
+  reason: string | null;
+}
+
+export interface SuggestResponse {
+  suggestions: SuggestionResult[];
+  message: string | null;
+}
+
+export async function suggestScenarios(projectKey: string, buildId: string): Promise<SuggestResponse> {
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/suggest-scenarios`, {
+    method: 'POST'
+  });
+  return res.json();
+}
+
+export async function bulkAddScenarios(
+  projectKey: string,
+  buildId: string,
+  body: { scenarioIds: string[]; source?: string; addedBy?: string }
+): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios/bulk-add`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
 }

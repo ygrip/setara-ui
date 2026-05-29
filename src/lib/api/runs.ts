@@ -77,9 +77,13 @@ export async function getRun(projectKey: string, runId: string): Promise<Automat
   return res.json();
 }
 
-export async function listRunResults(projectKey: string, runId: string): Promise<ScenarioRunResult[]> {
+export async function listRunResults(projectKey: string, runId: string, tags?: string[], tagMode?: string): Promise<ScenarioRunResult[]> {
   if (isMockMode()) return mockListRunResults(projectKey, runId);
-  const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results`);
+  const params = new URLSearchParams();
+  if (tags && tags.length) tags.forEach(t => params.append('tags', t));
+  if (tagMode) params.set('tagMode', tagMode);
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results${qs}`);
   return res.json();
 }
 

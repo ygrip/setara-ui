@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import TagFilterBar from '$lib/components/TagFilterBar.svelte';
   import { Dialog } from 'bits-ui';
   import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
   import { z } from 'zod';
@@ -22,9 +23,11 @@
     renameDirectory,
     getScenario,
     updateScenario,
+    searchSimilarScenarios,
     type Scenario,
     type ScenarioStep,
-    type TestDirectory
+    type TestDirectory,
+    type SimilarScenarioResult
   } from '$lib/api/testcases';
 
   let { data } = $props();
@@ -47,6 +50,11 @@
   let detailOpen = $state(false);
   let detailSteps = $state<BackendStep[]>([]);
 
+  // ── Similar scenarios ────────────────────────────────────────
+  let similarScenarios = $state<SimilarScenarioResult[]>([]);
+  let similarLoading = $state(false);
+  let similarError = $state('');
+
   // ── Scenario sorting ─────────────────────────────────────────
   let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation' | 'status'>('name');
   let scenarioSortDir = $state<'asc' | 'desc'>('asc');
@@ -55,6 +63,10 @@
   let filterAutomation = $state<string>('');
   let filterPriority = $state<string>('');
   let filterSearch = $state<string>('');
+
+  // ── Tag filters ──────────────────────────────────────────────
+  let filterTags = $state<string[]>([]);
+  let filterTagMode = $state<'ANY' | 'ALL'>('ANY');
 
   // ── Create directory modal ───────────────────────────────────
   let showDirectoryModal = $state(false);
@@ -107,6 +119,15 @@
         const q = filterSearch.toLowerCase();
         if (!s.name?.toLowerCase().includes(q) && !s.scenarioKey?.toLowerCase().includes(q)) return false;
       }
+      // Tag filter: client-side, ANY or ALL mode
+      if (filterTags.length > 0) {
+        const scenarioSans = (s.tags ?? []).map(t => t.sanitized);
+        if (filterTagMode === 'ALL') {
+          if (!filterTags.every(t => scenarioSans.includes(t))) return false;
+        } else {
+          if (!filterTags.some(t => scenarioSans.includes(t))) return false;
+        }
+      }
       return true;
     })
   );
@@ -118,6 +139,14 @@
   );
   const uniquePriorities = $derived(
     [...new Set(scopedScenarios.map((s: Scenario) => s.priority).filter(Boolean))] as string[]
+  );
+  const availableTags = $derived(
+    [...new Map(
+      scopedScenarios
+        .flatMap((s: Scenario) => s.tags ?? [])
+        .filter(t => t.sanitized)
+        .map(t => [t.sanitized, { sanitized: t.sanitized, display: t.display }] as const)
+    ).values()]
   );
   const selectedTitle = $derived(selectedDirectory ? selectedDirectory.name : 'All Scenarios');
   const scenarioColumnHelper = createColumnHelper<Scenario>();
@@ -258,6 +287,8 @@
     } finally {
       detailBusy = false;
     }
+    // Fetch similar scenarios
+    fetchSimilarScenarios(scenario);
   }
 
   function closeScenarioDetail() {
@@ -265,6 +296,24 @@
     detailScenario = null;
     detailDraft = null;
     detailSteps = [];
+    similarScenarios = [];
+    similarError = '';
+  }
+
+  async function fetchSimilarScenarios(scenario: Scenario) {
+    similarScenarios = [];
+    similarError = '';
+    similarLoading = true;
+    try {
+      const query = [scenario.name, scenario.scenarioKey]
+        .filter(Boolean)
+        .join(' ');
+      similarScenarios = await searchSimilarScenarios(data.projectKey, query, 8);
+    } catch (e) {
+      similarError = (e as Error).message;
+    } finally {
+      similarLoading = false;
+    }
   }
 
   async function saveDetailScenario() {
@@ -710,6 +759,13 @@
         {/if}
       </div>
 
+      <TagFilterBar
+        availableTags={availableTags}
+        selectedTags={filterTags}
+        tagMode={filterTagMode}
+        onchange={(tags, mode) => { filterTags = tags; filterTagMode = mode as 'ANY' | 'ALL'; }}
+      />
+
       <!-- Bulk action bar — only visible when rows are selected -->
       {#if selectedScenarioIds.length > 0}
         <div class="bulk-bar">
@@ -1093,6 +1149,36 @@
               onchange={(updated) => { detailSteps = updated; }}
             />
           </div>
+
+          <!-- Similar scenarios -->
+          <div class="similar-section">
+            <h3 class="steps-section-title">Similar Scenarios</h3>
+            {#if similarLoading}
+              <p class="similar-hint">Searching for similar scenarios…</p>
+            {:else if similarError}
+              <p class="similar-hint error">Similarity search unavailable: {similarError}</p>
+            {:else if similarScenarios.length === 0}
+              <p class="similar-hint">No similar scenarios found.</p>
+            {:else}
+              <div class="similar-list">
+                {#each similarScenarios as sim}
+                  <a
+                    href="/projects/{data.projectKey}/repository?scenario={sim.scenarioId}"
+                    class="similar-item"
+                  >
+                    <div class="similar-main">
+                      <span class="similar-key">{sim.scenarioKey}</span>
+                      <span class="similar-name">{sim.name}</span>
+                      {#if sim.path}<span class="similar-path">{sim.path}</span>{/if}
+                    </div>
+                    <span class="similar-score" style="--score:{sim.score * 100}%">
+                      {(sim.score * 100).toFixed(0)}%
+                    </span>
+                  </a>
+                {/each}
+              </div>
+            {/if}
+          </div>
         </div>
 
         <!-- Footer always visible at bottom of drawer -->
@@ -1279,6 +1365,79 @@
   .copy-result p { margin: 0; }
 
   /* Scenario drawer/editor */
+  /* Similar scenarios in drawer */
+  .similar-section {
+    border-top: 1px solid var(--color-border);
+    padding-top: 16px;
+    margin-top: 4px;
+  }
+  .similar-hint {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    padding: 8px 0;
+  }
+  .similar-hint.error {
+    color: var(--color-warning, #f59e0b);
+  }
+  .similar-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .similar-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    text-decoration: none;
+    color: var(--color-text);
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .similar-item:hover {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent), transparent 94%);
+  }
+  .similar-main {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+  .similar-key {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    color: var(--color-accent);
+    font-weight: 700;
+  }
+  .similar-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .similar-path {
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .similar-score {
+    flex-shrink: 0;
+    font-size: 0.78rem;
+    font-weight: 800;
+    padding: 3px 8px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-accent), transparent calc(100% - var(--score)));
+    color: var(--color-accent);
+  }
+
   :global(.drawer-overlay) { position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.42); backdrop-filter: blur(4px); }
   :global(.scenario-drawer) {
     position: fixed; z-index: 101; top: 0; right: 0; bottom: 0;
