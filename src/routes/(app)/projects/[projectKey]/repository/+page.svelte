@@ -71,6 +71,9 @@
   let filterTags = $state<string[]>([]);
   let filterTagMode = $state<'ANY' | 'ALL'>('ANY');
 
+  // ── Directory toolbar (mobile collapse) ─────────────────────
+  let dirActionsOpen = $state(false);
+
   // ── Create directory modal ───────────────────────────────────
   let showDirectoryModal = $state(false);
   let directoryParentId = $state<string | null>(null);
@@ -703,15 +706,27 @@
           <p class="panel-subtitle">{selectedDirectory?.path ?? data.projectKey}</p>
           {#if selectedDirectory}
             <div class="directory-toolbar" aria-label="Directory actions">
-              <button class="dir-action-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()} <span>Copy ID</span></button>
-              <a class="dir-action-btn" title="Open directory coverage map" aria-label="Open directory coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Directory Map</span></a>
-              <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
-              <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
-              {#if canWrite}
-                <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
-                <button class="dir-action-btn" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconMove()} <span>Move</span></button>
-                <button class="dir-action-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconTrash()} <span>Delete</span></button>
-              {/if}
+              <button
+                class="dir-toolbar-toggle"
+                aria-expanded={dirActionsOpen}
+                aria-controls="dir-toolbar-inner"
+                onclick={() => dirActionsOpen = !dirActionsOpen}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>
+                <span>Actions</span>
+                <svg class="toggle-chevron" class:open={dirActionsOpen} xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              <div id="dir-toolbar-inner" class="dir-toolbar-inner" class:dir-toolbar-hidden={!dirActionsOpen}>
+                <button class="dir-action-btn" title="Copy directory ID" aria-label="Copy directory ID" onclick={(e) => copyText(selectedDirectory.directoryId ?? selectedDirectory.id, 'Directory id', e)}>{@render iconCopy()} <span>Copy ID</span></button>
+                <a class="dir-action-btn" title="Open directory coverage map" aria-label="Open directory coverage map" href="/projects/{data.projectKey}/repository/directories/{selectedDirectory.directoryId ?? selectedDirectory.id}/coverage-map">{@render iconLayers()} <span>Directory Map</span></a>
+                <button class="dir-action-btn" title="Add sub-directory" aria-label="Add sub-directory" onclick={(e) => { e.stopPropagation(); openNodeModal(selectedDirectory.id); }}>{@render iconFolderPlus()} <span>Sub Dir</span></button>
+                <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={(e) => { e.stopPropagation(); goto(createScenarioUrl(selectedDirectory.id)); }}>{@render iconFilePlus()} <span>Scenario</span></button>
+                {#if canWrite}
+                  <button class="dir-action-btn" title="Rename directory" aria-label="Rename directory" onclick={(e) => { e.stopPropagation(); openRenameModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconPencil()} <span>Rename</span></button>
+                  <button class="dir-action-btn" title="Move directory" aria-label="Move directory" onclick={(e) => { e.stopPropagation(); openMoveModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconMove()} <span>Move</span></button>
+                  <button class="dir-action-btn danger" title="Delete directory" aria-label="Delete directory" onclick={(e) => { e.stopPropagation(); openDeleteDirModal(selectedDirectory.id, selectedDirectory.name); }}>{@render iconTrash()} <span>Delete</span></button>
+                {/if}
+              </div>
             </div>
           {/if}
         </div>
@@ -721,11 +736,12 @@
             <button class:active={reviewMode === 'DRAFT'} onclick={() => setReviewMode('DRAFT')}>Drafts</button>
           </div>
           {#if canWrite}
-            <a class="dir-action-btn" title="Semantic search" aria-label="Semantic search" href="/projects/{data.projectKey}/repository/semantic-search">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> AI Search
-            </a>
-            <a class="dir-action-btn import-action" title="Import scenarios from Excel" aria-label="Import scenarios from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
-            <button class="dir-action-btn" title="Add scenario" aria-label="Add scenario" onclick={() => goto(createScenarioUrl(selectedNodeId))} disabled={!selectedNodeId}>{@render iconFilePlus()} Add Scenario</button>
+            <div class="header-btns">
+              <a class="dir-action-btn" title="Semantic search" aria-label="Semantic search" href="/projects/{data.projectKey}/repository/semantic-search">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg> AI Search
+              </a>
+              <a class="dir-action-btn import-action" title="Import scenarios from Excel" aria-label="Import scenarios from Excel" href="/projects/{data.projectKey}/repository/import">{@render iconUpload()} Import</a>
+            </div>
           {/if}
         </div>
       </div>
@@ -1275,7 +1291,12 @@
     color: var(--color-accent);
     background: var(--color-accent-subtle);
   }
-  .directory-toolbar { margin-top: 10px; max-width: min(100%, 760px); }
+  .directory-toolbar { margin-top: 10px; max-width: min(100%, 760px); display: flex; flex-direction: column; gap: 6px; }
+  .dir-toolbar-toggle { display: none; }
+  .dir-toolbar-inner { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .toggle-chevron { transition: transform 0.18s ease; flex-shrink: 0; }
+  .toggle-chevron.open { transform: rotate(180deg); }
+  .header-btns { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .dir-action-btn {
     display: inline-flex;
     align-items: center;
@@ -1612,7 +1633,7 @@
     .editor-grid { grid-template-columns: 1fr; }
     :global(.scenario-drawer) { width: 100vw; }
     .scenario-topbar { align-items: stretch; flex-direction: column; }
-    .header-actions { flex-wrap: wrap; }
+    .header-actions { flex-wrap: wrap; gap: 8px; }
     .directory-toolbar { margin-top: 12px; }
     .dir-action-btn { flex: 1 1 118px; }
   }
@@ -1623,9 +1644,34 @@
     .scenario-panel :global(table) { min-width: 1080px; }
     .filter-bar { display: grid; grid-template-columns: 1fr; }
     .filter-group { display: grid; align-items: stretch; }
-    .header-actions { justify-content: space-between; }
-    .directory-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .dir-action-btn { width: 100%; min-width: 0; }
+    /* Tabs on top, action buttons below — each stretch to fill */
+    .header-actions { flex-direction: column; align-items: stretch; }
+    .header-btns { width: 100%; }
+    .header-btns .dir-action-btn { flex: 1; justify-content: center; }
+    /* Collapsible directory toolbar */
+    .dir-toolbar-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      padding: 8px 12px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      border: 1px solid var(--color-border);
+      border-radius: 6px;
+      background: var(--color-surface);
+      color: var(--color-text-muted);
+      cursor: pointer;
+    }
+    .dir-toolbar-toggle:hover {
+      border-color: var(--color-accent);
+      color: var(--color-accent);
+      background: var(--color-accent-subtle);
+    }
+    .dir-toolbar-toggle span { flex: 1; text-align: left; }
+    .dir-toolbar-hidden { display: none; }
+    .dir-toolbar-inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .dir-toolbar-inner .dir-action-btn { width: 100%; min-width: 0; flex: none; justify-content: flex-start; }
   }
   /* Touch / mobile: always show copy buttons, increase tap targets */
   @media (hover: none) and (pointer: coarse) {

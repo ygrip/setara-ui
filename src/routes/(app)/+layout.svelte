@@ -800,6 +800,7 @@
     padding: 8px 12px;
     border-top: 1px solid var(--color-border);
     flex-shrink: 0; /* never squished by the flex nav above */
+    background: inherit; /* inherit sidebar background so it's visually distinct */
   }
 
   .sidebar-search-btn {
@@ -1234,6 +1235,7 @@
       left: 0;
       top: 0;
       bottom: 0;
+      height: auto; /* override base 100vh — top+bottom anchoring is reliable on iOS Safari */
       z-index: 50;
       transform: translateX(-100%);
       transition: transform 0.25s ease;

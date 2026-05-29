@@ -588,7 +588,7 @@
   .page-subtitle { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; }
 
   /* Stepper */
-  .stepper { display: flex; align-items: center; margin-bottom: 2rem; }
+  .stepper { display: flex; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 0.25rem; }
   .step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--color-text-muted); }
   .step.active .step-circle { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
   .step.active .step-label { color: var(--color-text); font-weight: 600; }
@@ -599,7 +599,21 @@
 
   /* Layout */
   .wizard-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start; }
-  @media (max-width: 768px) { .wizard-layout { grid-template-columns: 1fr; } }
+  @media (max-width: 768px) {
+    .wizard-layout { grid-template-columns: 1fr; }
+    .page { padding: 1.25rem 1rem; }
+    .page-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .stepper { margin-bottom: 1.25rem; }
+    .step-label { font-size: 0.72rem; }
+    .step-line { min-width: 16px; max-width: 32px; }
+    .glass { padding: 1rem; }
+    .stats-row { gap: 0.5rem; }
+    .stat { min-width: 56px; }
+    .stat-value { font-size: 1.25rem; }
+    .step-actions { flex-direction: column-reverse; }
+    .step-actions .btn-primary,
+    .step-actions .btn-ghost { width: 100%; justify-content: center; }
+  }
   .wizard-main, .wizard-side { display: flex; flex-direction: column; gap: 1rem; }
 
   /* Glass */

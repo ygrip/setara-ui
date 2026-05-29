@@ -206,7 +206,7 @@
 
 <style>
   .page { max-width: min(1520px, 100%); }
-  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
+  .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
   .page-header { margin-bottom: 18px; }
@@ -251,5 +251,9 @@
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
   @media (max-width: 720px) {
     .form-grid { grid-template-columns: 1fr; }
+    .page-title { font-size: 1.2rem; }
+    .path-row { flex-direction: column; align-items: flex-start; }
+    .form-actions { flex-wrap: wrap; }
+    .form-actions :global(button), .form-actions :global(a) { flex: 1; min-width: 120px; }
   }
 </style>
