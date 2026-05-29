@@ -553,15 +553,15 @@
           <tbody>
             {#each history as job}
               <tr>
-                <td class="file-cell" title={job.fileName ?? ''}>{job.fileName ?? '—'}</td>
-                <td><span class="badge {statusBadgeClass(job.status)}">{job.status}</span></td>
-                <td>{job.totalRows}</td>
-                <td class="success-cell">{job.successCount}</td>
-                <td class="{job.errorCount > 0 ? 'error-cell' : ''}">{job.errorCount}</td>
-                <td class="muted">{job.duplicateStrategy.replace(/_/g, ' ')}</td>
-                <td class="muted">{job.defaultStatus}</td>
-                <td class="muted date-cell">{formatDate(job.createdAt)}</td>
-                <td>
+                <td class="file-cell" data-label="File" title={job.fileName ?? ''}>{job.fileName ?? '—'}</td>
+                <td data-label="Status"><span class="badge {statusBadgeClass(job.status)}">{job.status}</span></td>
+                <td data-label="Rows">{job.totalRows}</td>
+                <td class="success-cell" data-label="OK">{job.successCount}</td>
+                <td class="{job.errorCount > 0 ? 'error-cell' : ''}" data-label="Errors">{job.errorCount}</td>
+                <td class="muted col-hide-mobile" data-label="Strategy">{job.duplicateStrategy.replace(/_/g, ' ')}</td>
+                <td class="muted col-hide-mobile" data-label="Default">{job.defaultStatus}</td>
+                <td class="muted date-cell" data-label="Date">{formatDate(job.createdAt)}</td>
+                <td data-label="">
                   {#if job.errorCount > 0 || job.warningCount > 0}
                     <a class="table-link" href={importErrorReportUrl(data.projectKey, job.importId)} download title="Download error report">⬇</a>
                   {/if}
@@ -765,4 +765,43 @@
 
   /* Error banner */
   .error-banner { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--color-status-failed); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1rem; }
+
+  /* ── Mobile: history table card layout ───────────────────────── */
+  @media (max-width: 640px) {
+    .history-table-wrap { border: none; background: none; overflow-x: visible; }
+    .history-table,
+    .history-table tbody,
+    .history-table tr,
+    .history-table td { display: block; }
+    .history-table thead {
+      position: absolute; width: 1px; height: 1px; padding: 0;
+      margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    .history-table tbody { display: flex; flex-direction: column; gap: 8px; padding: 0; }
+    .history-table tr {
+      border: 1px solid var(--color-border);
+      border-radius: 8px;
+      background: var(--color-surface);
+      overflow: hidden;
+    }
+    .history-table tr:hover { background: var(--color-accent-subtle); }
+    .history-table td {
+      display: flex; align-items: center; gap: 8px;
+      padding: 8px 12px; border-bottom: 1px solid var(--color-border); font-size: 0.82rem;
+    }
+    .history-table td:last-child { border-bottom: none; }
+    .history-table td::before {
+      content: attr(data-label);
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      color: var(--color-text-muted); min-width: 64px; flex-shrink: 0;
+    }
+    .history-table td[data-label=""]::before { display: none; }
+    .history-table td[data-label=""] { justify-content: flex-end; }
+    .col-hide-mobile { display: none !important; }
+    .file-cell { max-width: none; white-space: normal; word-break: break-all; }
+    /* Stepper on small screens: shrink step labels */
+    .step { gap: 0.3rem; }
+    .step-label { display: none; }
+    .step.active .step-label { display: inline; }
+  }
 </style>

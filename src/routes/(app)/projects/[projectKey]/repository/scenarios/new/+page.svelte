@@ -252,8 +252,15 @@
   @media (max-width: 720px) {
     .form-grid { grid-template-columns: 1fr; }
     .page-title { font-size: 1.2rem; }
-    .path-row { flex-direction: column; align-items: flex-start; }
+    .path-row { flex-direction: column; align-items: flex-start; gap: 6px; }
     .form-actions { flex-wrap: wrap; }
-    .form-actions :global(button), .form-actions :global(a) { flex: 1; min-width: 120px; }
+    .form-actions :global(button), .form-actions :global(a) { flex: 1; min-width: 120px; justify-content: center; }
+  }
+  @media (max-width: 480px) {
+    .section { padding: 12px; }
+    .page-title { font-size: 1.1rem; }
+    .page-subtitle { font-size: 0.8rem; }
+    .form-actions :global(button), .form-actions :global(a) { width: 100%; flex: none; }
+    .path-row { font-size: 0.8rem; }
   }
 </style>

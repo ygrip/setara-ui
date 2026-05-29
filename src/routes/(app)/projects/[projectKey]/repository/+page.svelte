@@ -816,7 +816,7 @@
             : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.`}
         </div>
       {:else}
-        <DataTable>
+        <DataTable mobileCards={true}>
           {#snippet head()}
             <tr>
               <th>
@@ -831,7 +831,7 @@
                   Name <span class="sort-indicator">{sortIndicator('name')}</span>
                 </button>
               </th>
-              <th>Steps</th>
+              <th class="col-steps">Steps</th>
               <th>
                 <button class="sort-button" onclick={() => sortScenarios('priority')}>
                   Priority <span class="sort-indicator">{sortIndicator('priority')}</span>
@@ -845,20 +845,19 @@
                   Status <span class="sort-indicator">{sortIndicator('status')}</span>
                 </button>
               </th>
-              <th></th>
             </tr>
           {/snippet}
           {#snippet body()}
             {#each sortedScenarios as scenario}
               <tr class="click-row" onclick={() => openScenarioDetail(scenario)}>
-                <td onclick={(e) => e.stopPropagation()}>
+                <td data-label="" onclick={(e) => e.stopPropagation()}>
                   <input
                     type="checkbox"
                     checked={selectedScenarioIds.includes(scenario.id)}
                     onchange={() => toggleScenario(scenario.id)}
                   />
                 </td>
-                <td class="name-cell" onclick={(e) => e.stopPropagation()}>
+                <td class="name-cell" data-label="Scenario" onclick={(e) => e.stopPropagation()}>
                   <div class="name-cell-inner">
                     <div class="name-cell-text">
                       <span class="scenario-key">{scenario.scenarioKey}</span>
@@ -867,7 +866,7 @@
                     <button class="ta-btn copy-name-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
                   </div>
                 </td>
-                <td>
+                <td class="col-steps" data-label="Steps">
                   <div class="steps-preview">
                     {#each (scenario.steps ?? []).slice(0, 3) as step, index}
                       <button
@@ -883,10 +882,10 @@
                     {/if}
                   </div>
                 </td>
-                <td>
+                <td data-label="Priority">
                   <span class="status-badge priority priority-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
                 </td>
-                <td class="col-auto">
+                <td class="col-auto" data-label="Type">
                   {#if scenario.automationStatus === 'AUTOMATED'}
                     <span class="auto-icon is-automated" title="Automated">{@render iconAutomated()}</span>
                   {:else if scenario.automationStatus === 'AUTOMATABLE'}
@@ -895,7 +894,7 @@
                     <span class="auto-icon is-manual" title="Manual only">{@render iconManual()}</span>
                   {/if}
                 </td>
-                <td>
+                <td data-label="Status">
                   <span class="status-badge status-{scenario.status.toLowerCase()}">{scenario.status}</span>
                 </td>
               </tr>
@@ -1641,7 +1640,6 @@
     .tree-list { padding-inline: 10px; }
     .tree-row,
     .scenario-leaf { padding-left: calc(var(--level) * 22px); }
-    .scenario-panel :global(table) { min-width: 1080px; }
     .filter-bar { display: grid; grid-template-columns: 1fr; }
     .filter-group { display: grid; align-items: stretch; }
     /* Tabs on top, action buttons below — each stretch to fill */
@@ -1685,4 +1683,17 @@
   .tag-edit-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .editor-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
   .opt { font-weight: 400; opacity: 0.7; }
+
+  /* ── Mobile card mode for scenario table ─────────────────────── */
+  @media (max-width: 640px) {
+    /* Remove min-width constraints that break card layout */
+    .steps-preview { min-width: 0; max-width: 100%; }
+    .name-cell { min-width: 0; width: auto; }
+    /* Slim checkbox row in card mode */
+    .scenario-panel :global(.table-wrap--cards td[data-label=""]) { padding-block: 6px; }
+    /* Steps column — limit preview height to keep cards compact */
+    .col-steps .steps-preview { max-height: 72px; overflow: hidden; }
+    /* Make sure col-auto is left-aligned in card mode */
+    .col-auto { text-align: left !important; }
+  }
 </style>
