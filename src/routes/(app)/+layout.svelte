@@ -171,6 +171,20 @@
     </div>
 
     <nav class="sidebar-nav">
+      <!-- Search shortcut — mobile only, always at top of nav above all sections -->
+      <div class="sidebar-nav-search">
+        <button
+          class="sidebar-search-btn"
+          onclick={() => { paletteOpen = true; closeSidebar(); }}
+          aria-label="Search — press ⌘K to open"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span>Search anything…</span>
+        </button>
+      </div>
+
       <!-- Pinned section -->
       {#if pinnedItems.length > 0}
         <div class="nav-section-label">Pinned</div>
@@ -357,22 +371,10 @@
     </nav>
 
     <div class="sidebar-footer">
-      <!-- Mobile utility tools: search + theme — visible only on mobile -->
-      <div class="sidebar-mobile-tools">
-        <button
-          class="sidebar-search-btn"
-          onclick={() => { paletteOpen = true; closeSidebar(); }}
-          aria-label="Search — press ⌘K to open"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <span>Search anything…</span>
-        </button>
-        <div class="sidebar-footer-theme">
-          <span class="sidebar-footer-label">Theme</span>
-          <ThemeToggle />
-        </div>
+      <!-- Theme toggle — always visible on mobile, desktop-only in brand row -->
+      <div class="sidebar-footer-theme">
+        <span class="sidebar-footer-label">Theme</span>
+        <ThemeToggle />
       </div>
     </div>
   </aside>
@@ -546,7 +548,7 @@
     position: sticky;
     top: 0;
     height: 100vh;
-    overflow-y: auto;
+    overflow: hidden; /* nav scrolls internally; brand + footer always visible */
   }
 
   :global([data-theme="dark"]) .sidebar {
@@ -611,10 +613,18 @@
 
   .sidebar-nav {
     flex: 1;
+    min-height: 0; /* allow flex child to shrink so footer stays visible */
     padding: 12px 8px;
     display: flex;
     flex-direction: column;
     gap: 3px;
+    overflow-y: auto; /* nav scrolls, not the whole sidebar */
+  }
+
+  /* Search shortcut at top of nav — hidden on desktop, shown on mobile */
+  .sidebar-nav-search {
+    display: none;
+    padding: 0 0 8px;
   }
 
   .nav-section-label {
@@ -791,14 +801,6 @@
     border-top: 1px solid var(--color-border);
   }
 
-  /* Mobile utility tools: hidden on desktop, shown on mobile */
-  .sidebar-mobile-tools {
-    display: none;
-    flex-direction: column;
-    gap: 6px;
-    padding: 4px 0;
-  }
-
   .sidebar-search-btn {
     display: flex;
     align-items: center;
@@ -830,7 +832,7 @@
   }
 
   .sidebar-footer-theme {
-    display: flex;
+    display: none; /* hidden on desktop — theme lives in brand row there */
     align-items: center;
     justify-content: space-between;
     padding: 8px 4px;
@@ -1248,8 +1250,12 @@
       display: none;
     }
 
-    /* Show sidebar mobile tools (search + theme) */
-    .sidebar-mobile-tools {
+    /* Show search at top of nav and theme at bottom on mobile */
+    .sidebar-nav-search {
+      display: block;
+    }
+
+    .sidebar-footer-theme {
       display: flex;
     }
 
@@ -1261,6 +1267,11 @@
     /* Search bar hidden on mobile — lives in sidebar instead */
     .topbar-center {
       display: none;
+    }
+
+    /* Push live indicator + avatar to the right since center slot is gone */
+    .topbar-right {
+      margin-left: auto;
     }
 
     /* Hide Live text, keep dot only */
