@@ -22,6 +22,10 @@
     font-weight: 600;
     letter-spacing: 0.01em;
     white-space: nowrap;
+    max-width: 160px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    vertical-align: middle;
   }
 
   /* ── Semantic variants ── */

@@ -165,7 +165,7 @@
   <!-- Sidebar -->
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
-      <img src="/favicon.svg" alt="Setara" class="brand-icon" width="28" height="28" />
+      <span class="brand-icon-anim brand-icon-anim--lg" role="img" aria-label="Setara"></span>
       <span class="brand-name">SETARA</span>
       <span class="sidebar-brand-theme-desktop"><ThemeToggle /></span>
     </div>
@@ -357,9 +357,22 @@
     </nav>
 
     <div class="sidebar-footer">
-      <div class="sidebar-footer-theme">
-        <span class="sidebar-footer-label">Theme</span>
-        <ThemeToggle />
+      <!-- Mobile utility tools: search + theme — visible only on mobile -->
+      <div class="sidebar-mobile-tools">
+        <button
+          class="sidebar-search-btn"
+          onclick={() => { paletteOpen = true; closeSidebar(); }}
+          aria-label="Search — press ⌘K to open"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <span>Search anything…</span>
+        </button>
+        <div class="sidebar-footer-theme">
+          <span class="sidebar-footer-label">Theme</span>
+          <ThemeToggle />
+        </div>
       </div>
     </div>
   </aside>
@@ -383,7 +396,7 @@
         </button>
         <!-- Brand — mobile only: visible in topbar since sidebar is off-screen -->
         <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
-          <img src="/favicon.svg" alt="" width="22" height="22" class="topbar-brand-inline-icon" />
+          <span class="brand-icon-anim brand-icon-anim--sm" aria-hidden="true"></span>
           <span class="topbar-brand-inline-text">SETARA</span>
         </a>
         <!-- Project key pill (desktop) -->
@@ -411,9 +424,6 @@
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
-
-        <!-- Theme toggle — mobile only (desktop has it in sidebar) -->
-        <span class="topbar-theme-mobile"><ThemeToggle /></span>
 
         <!-- User avatar -->
         {#if session}
@@ -553,9 +563,25 @@
     justify-content: space-between;
   }
 
-  .brand-icon {
-    flex-shrink: 0;
+  /* Animated brand icon — CSS mask over gradient (matches brand-shimmer timing) */
+  .brand-icon-anim {
     display: block;
+    flex-shrink: 0;
+    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
+    background-size: 220% 100%;
+    -webkit-mask: url('/favicon.svg') no-repeat center / contain;
+    mask: url('/favicon.svg') no-repeat center / contain;
+    animation: brand-shimmer 5s ease-in-out infinite;
+  }
+
+  .brand-icon-anim--lg {
+    width: 28px;
+    height: 28px;
+  }
+
+  .brand-icon-anim--sm {
+    width: 20px;
+    height: 20px;
   }
 
   /* Hide brand-row ThemeToggle on mobile (it moves to sidebar footer) */
@@ -761,12 +787,50 @@
   }
 
   .sidebar-footer {
-    padding: 8px 16px;
+    padding: 8px 12px;
     border-top: 1px solid var(--color-border);
   }
 
+  /* Mobile utility tools: hidden on desktop, shown on mobile */
+  .sidebar-mobile-tools {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: 4px 0;
+  }
+
+  .sidebar-search-btn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    font-family: inherit;
+    font-size: 0.875rem;
+    text-align: left;
+    transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+  }
+
+  .sidebar-search-btn span { flex: 1; }
+
+  .sidebar-search-btn:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1);
+    color: var(--color-text);
+    background: var(--color-accent-subtle);
+  }
+
+  :global([data-theme="dark"]) .sidebar-search-btn {
+    background: rgba(255,255,255,0.04);
+  }
+
   .sidebar-footer-theme {
-    display: none; /* shown only on mobile via media query */
+    display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 4px;
@@ -858,11 +922,6 @@
     flex-shrink: 0;
   }
 
-  .topbar-brand-inline-icon {
-    display: block;
-    flex-shrink: 0;
-  }
-
   .topbar-brand-inline-text {
     font-family: var(--font-sans, "Sora", sans-serif);
     font-weight: 700;
@@ -875,12 +934,6 @@
     -webkit-text-fill-color: transparent;
     color: transparent;
     animation: brand-shimmer 5s ease-in-out infinite;
-  }
-
-  /* Theme toggle slot — mobile only */
-  .topbar-theme-mobile {
-    display: none;
-    align-items: center;
   }
 
   .project-key-pill {
@@ -953,9 +1006,6 @@
 
   @media (max-width: 768px) {
     .search-kbd { display: none; }
-    .search-placeholder { display: none; }
-    .topbar-center { flex: 0 0 auto; padding: 0; }
-    .search-btn { width: 36px; max-width: none; padding: 8px; justify-content: center; }
   }
 
   /* Live indicator */
@@ -1193,19 +1243,14 @@
       display: flex;
     }
 
-    /* Show theme toggle in topbar */
-    .topbar-theme-mobile {
-      display: flex;
-    }
-
-    /* Hide desktop ThemeToggle in brand row; topbar has it on mobile */
+    /* Hide desktop ThemeToggle in brand row on mobile */
     .sidebar-brand-theme-desktop {
       display: none;
     }
 
-    /* Also hide sidebar footer theme since topbar shows it */
-    .sidebar-footer-theme {
-      display: none;
+    /* Show sidebar mobile tools (search + theme) */
+    .sidebar-mobile-tools {
+      display: flex;
     }
 
     /* Hide project pill on mobile */
@@ -1213,18 +1258,8 @@
       display: none;
     }
 
-    /* Search fills the center slot */
+    /* Search bar hidden on mobile — lives in sidebar instead */
     .topbar-center {
-      flex: 1;
-      padding: 0 8px;
-    }
-
-    .search-btn {
-      width: 100%;
-      max-width: none;
-    }
-
-    .search-kbd {
       display: none;
     }
 

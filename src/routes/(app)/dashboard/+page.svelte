@@ -241,19 +241,14 @@
       <h1 class="page-title">Dashboard</h1>
       <p class="page-subtitle">A snapshot of test quality and automation progress across all your projects.</p>
     </div>
-    <div class="header-right">
-      {#if liveRunCount > 0}
+    {#if liveRunCount > 0}
+      <div class="header-right">
         <span class="live-pill">
           <span class="live-dot"></span>
           {liveRunCount} run{liveRunCount > 1 ? 's' : ''} in progress
         </span>
-      {/if}
-      {#if wsConnected > 0}
-        <span class="ws-pill ws-pill--live">Live</span>
-      {:else if data.projects.length > 0}
-        <span class="ws-pill ws-pill--connecting">Connecting…</span>
-      {/if}
-    </div>
+      </div>
+    {/if}
   </div>
 
   {#if data.error}
@@ -478,29 +473,6 @@
   @keyframes pulse {
     0%, 100% { opacity: 1; transform: scale(1); }
     50% { opacity: 0.5; transform: scale(0.8); }
-  }
-
-  .ws-pill {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    padding: 4px 10px;
-    border-radius: 999px;
-    border: 1px solid var(--color-border);
-    color: var(--color-text-muted);
-  }
-
-  .ws-pill--live {
-    color: var(--color-success);
-    border-color: color-mix(in srgb, var(--color-success), transparent 60%);
-    background: color-mix(in srgb, var(--color-success), transparent 90%);
-  }
-
-  .ws-pill--connecting {
-    color: #f59e0b;
-    border-color: color-mix(in srgb, #f59e0b, transparent 60%);
-    background: color-mix(in srgb, #f59e0b, transparent 90%);
   }
 
   .error-banner {
