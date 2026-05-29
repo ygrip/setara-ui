@@ -580,6 +580,14 @@
   @media (max-width: 640px) {
     .picker-layout { grid-template-columns: 1fr; }
     .picker-col--projects { border-right: none; border-bottom: 1px solid var(--color-border); padding-right: 0; padding-bottom: 12px; }
+    .plan-header { flex-direction: column; }
+    .plan-header-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      width: 100%;
+      gap: 8px;
+    }
+    .plan-header-actions :global(.btn) { width: 100%; justify-content: center; }
   }
   .chart-section { margin: 20px 0; }
   .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 12px; }

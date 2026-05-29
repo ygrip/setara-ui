@@ -107,12 +107,17 @@
     };
   });
 
-  // Scroll-lock: prevent background scroll when sidebar or mobile user popup is open
+  // Scroll-lock: prevent background scroll when sidebar or mobile user popup is open.
+  // Apply to both body and documentElement for reliable iOS Safari behaviour.
   $effect(() => {
     const isMobileView = window.matchMedia('(max-width: 768px)').matches;
     const shouldLock = sidebarOpen || (userMenuOpen && isMobileView);
     document.body.style.overflow = shouldLock ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    document.documentElement.style.overflow = shouldLock ? 'hidden' : '';
+    return () => {
+      document.body.style.overflow = '';
+      document.documentElement.style.overflow = '';
+    };
   });
 
   function signOut() {
@@ -376,6 +381,11 @@
             </svg>
           {/if}
         </button>
+        <!-- Brand — mobile only: visible in topbar since sidebar is off-screen -->
+        <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
+          <img src="/favicon.svg" alt="" width="22" height="22" class="topbar-brand-inline-icon" />
+          <span class="topbar-brand-inline-text">SETARA</span>
+        </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
           <span class="project-key-pill">{projectKey}</span>
@@ -401,6 +411,9 @@
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
+
+        <!-- Theme toggle — mobile only (desktop has it in sidebar) -->
+        <span class="topbar-theme-mobile"><ThemeToggle /></span>
 
         <!-- User avatar -->
         {#if session}
@@ -836,6 +849,40 @@
     color: var(--color-accent);
   }
 
+  /* Brand inline (mobile topbar) — hidden on desktop where sidebar shows it */
+  .topbar-brand-inline {
+    display: none;
+    align-items: center;
+    gap: 7px;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
+
+  .topbar-brand-inline-icon {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .topbar-brand-inline-text {
+    font-family: var(--font-sans, "Sora", sans-serif);
+    font-weight: 700;
+    font-size: 0.85rem;
+    letter-spacing: 0.16em;
+    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
+    background-size: 220% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+    animation: brand-shimmer 5s ease-in-out infinite;
+  }
+
+  /* Theme toggle slot — mobile only */
+  .topbar-theme-mobile {
+    display: none;
+    align-items: center;
+  }
+
   .project-key-pill {
     display: inline-flex;
     align-items: center;
@@ -1136,18 +1183,29 @@
       transform: translateX(0);
     }
 
-    /* Show icon toggle button */
+    /* Show hamburger button */
     .topbar-brand-mobile {
       display: flex;
     }
 
-    /* Hide desktop ThemeToggle in brand row; show footer version */
+    /* Show brand inline in topbar */
+    .topbar-brand-inline {
+      display: flex;
+    }
+
+    /* Show theme toggle in topbar */
+    .topbar-theme-mobile {
+      display: flex;
+    }
+
+    /* Hide desktop ThemeToggle in brand row; topbar has it on mobile */
     .sidebar-brand-theme-desktop {
       display: none;
     }
 
+    /* Also hide sidebar footer theme since topbar shows it */
     .sidebar-footer-theme {
-      display: flex;
+      display: none;
     }
 
     /* Hide project pill on mobile */

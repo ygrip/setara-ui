@@ -367,7 +367,7 @@
             <tr>
               <th>Key</th>
               <th>Project</th>
-              <th>Created</th>
+              <th class="col-hide-xs">Created</th>
               <th></th>
             </tr>
           {/snippet}
@@ -387,7 +387,7 @@
                   </div>
                 </td>
                 <td data-label="Project" class="bold">{project.name}</td>
-                <td data-label="Created" class="muted">{formatDate(project.createdAt)}</td>
+                <td data-label="Created" class="muted col-hide-xs">{formatDate(project.createdAt)}</td>
                 <td data-label=""><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
               </tr>
             {/each}
@@ -816,5 +816,6 @@
   @media (max-width: 480px) {
     .metrics-row { grid-template-columns: repeat(2, 1fr); }
     .page-title { font-size: 1.25rem; }
+    .col-hide-xs { display: none; }
   }
 </style>

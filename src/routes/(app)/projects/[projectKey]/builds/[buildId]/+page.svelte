@@ -621,7 +621,17 @@
   }
   @media (max-width: 500px) {
     .metrics { grid-template-columns: 1fr; }
-    .header-actions { gap: 6px; }
+    .header-actions {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+      width: 100%;
+    }
+    .header-actions :global(.btn) { width: 100%; justify-content: center; }
+    /* Badge spans full row */
+    .header-actions :global(.badge) { grid-column: 1 / -1; }
+    /* Add-scenario wrapper stretches too */
+    .add-scenario-wrap { width: 100%; }
   }
   .checkbox-col { width: 36px; text-align: center; }
   .error { border: 1px solid #fecaca; background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: var(--radius); margin-bottom: 16px; }
