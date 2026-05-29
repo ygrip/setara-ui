@@ -6,6 +6,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
   import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
+  import { MockWebSocket, isStaticMockMode } from '$lib/mock/websocket';
 
   let { data } = $props();
 
@@ -37,6 +38,10 @@
   let wsConnected = $state(0); // count of open connections
 
   // projectSockets held outside $state — plain JS object, not reactive.
+  // In mock mode we use MockWebSocket which prints to console; otherwise real WebSocket.
+  const _wsCtor: typeof WebSocket = isStaticMockMode()
+    ? (MockWebSocket as unknown as typeof WebSocket)
+    : WebSocket;
   const projectSockets = new Map<string, WebSocket>();
 
   // Derived: how many active runs per projectKey (for live badges in table).
@@ -69,7 +74,9 @@
 
   function openSocket(projectKey: string) {
     if (projectSockets.has(projectKey)) return;
-    const ws = new WebSocket(executionSocketUrl(projectKey));
+    const ws = new _wsCtor(
+      isStaticMockMode() ? projectKey : executionSocketUrl(projectKey)
+    ) as WebSocket;
     projectSockets.set(projectKey, ws);
 
     ws.onopen = () => { wsConnected += 1; };

@@ -1,4 +1,5 @@
 import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
+import { MockWebSocket, isStaticMockMode } from '$lib/mock/websocket';
 
 export type SocketState = 'idle' | 'connecting' | 'live' | 'offline';
 
@@ -65,7 +66,9 @@ class WebSocketManager {
 
   private open(): void {
     this.state = 'connecting';
-    const ws = new WebSocket(this.currentUrl);
+    const ws = isStaticMockMode()
+      ? (new MockWebSocket(this.currentUrl) as unknown as WebSocket)
+      : new WebSocket(this.currentUrl);
     this.ws = ws;
 
     ws.onopen = () => {
