@@ -3,7 +3,8 @@ import {
   mockTribes, mockSquads, mockUsers, mockNodesByProject,
   mockScenariosByProject,
   mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild,
-  mockSquadPlans, mockPlanBuilds, mockTagsByProject
+  mockSquadPlans, mockPlanBuilds, mockTagsByProject,
+  mockStatisticsOverride
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
@@ -57,7 +58,7 @@ export async function mockListRunResults(projectKey: string, runId: string): Pro
     featureName: scenario.featureName,
     scenarioName: scenario.name,
     scenarioLine: scenario.lineNumber,
-    tags: scenario.tags,
+    tags: scenario.tags.map(t => t.sanitized),
     status: index === 0 ? 'PASSED' : 'FAILED',
     startedAt: '2026-05-23T08:00:00Z',
     finishedAt: '2026-05-23T08:02:00Z',
@@ -272,6 +273,7 @@ export async function mockCreateBuild(
     buildKey: body.buildKey || body.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, ''),
     version: body.version ?? null,
     description: body.description ?? null,
+    requirements: null,
     status: 'INITIATED',
     initiatedAt: new Date().toISOString(),
     inProgressAt: null,
@@ -519,20 +521,22 @@ export async function mockListSquadProjectCoverage(squadId: string): Promise<Squ
 export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {
   await delay(120);
   return mockProjects.map(project => {
+    const override = mockStatisticsOverride[project.projectKey];
     const scenarios = mockScenariosByProject[project.projectKey]?.filter(s => s.status === 'ACTIVE') ?? [];
-    const totalAutomated = scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
-    const totalAutomatable = scenarios.filter(s => s.automatable).length;
+    const totalScenarios    = override?.totalScenarios    ?? scenarios.length;
+    const totalAutomated    = override?.totalAutomated    ?? scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+    const totalAutomatable  = override?.totalAutomatable  ?? scenarios.filter(s => s.automatable).length;
     return {
       id: `stat-${project.id}`,
       projectId: project.id,
       projectKey: project.projectKey,
       projectName: project.name,
-      statDate: '2026-05-28',
-      totalScenarios: scenarios.length,
+      statDate: '2026-05-29',
+      totalScenarios,
       totalAutomated,
       totalAutomatable,
       coveragePercentage: totalAutomatable === 0 ? 0 : Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)),
-      updatedAt: '2026-05-28T00:00:00Z'
+      updatedAt: '2026-05-29T00:00:00Z'
     };
   });
 }

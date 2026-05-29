@@ -10,6 +10,38 @@ function tag(sanitized: string): TagView {
   return { id: `tag-${sanitized}`, sanitized, display: sanitized };
 }
 
+// ── Scenario factory ────────────────────────────────────────────────────────
+type AutoStatus = 'AUTOMATED' | 'AUTOMATABLE' | 'MANUAL_ONLY';
+type Priority   = 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+type SrcType    = 'AUTOMATION' | 'MANUAL';
+type Status     = 'ACTIVE' | 'DRAFT';
+
+function mkScenario(
+  id: string, nodeId: string, key: string, name: string,
+  src: SrcType, autoStatus: AutoStatus,
+  tags: TagView[], priority: Priority,
+  status: Status, featureName: string, createdAt: string
+): Scenario {
+  const auto = src === 'AUTOMATION';
+  return {
+    id, nodeId, scenarioKey: key, name, source: src,
+    cucumberId: auto ? `${id}-cid` : null,
+    featureUri: auto ? `features/${id.split('-').slice(0, 2).join('/')}.feature` : null,
+    featureName, lineNumber: auto ? 10 : null,
+    tags, priority, automationStatus: autoStatus,
+    automatable: autoStatus !== 'MANUAL_ONLY',
+    automationNotes: autoStatus === 'AUTOMATED' ? 'Covered in CI regression suite.' : null,
+    manualNotes: src === 'MANUAL' ? 'Requires manual verification step.' : null,
+    status,
+    steps: [
+      { sequenceNo: 1, keyword: 'GIVEN', name: `System is in a valid state for: ${name}`, description: null, expectation: 'Precondition met.' },
+      { sequenceNo: 2, keyword: 'WHEN',  name: `User performs the action`, description: `Trigger the scenario: ${name}`, expectation: 'Action is accepted by the system.' },
+      { sequenceNo: 3, keyword: 'THEN',  name: `Expected outcome is observed`, description: null, expectation: 'System reflects the correct outcome.' }
+    ],
+    createdAt, updatedAt: createdAt
+  };
+}
+
 export const mockProjects: Project[] = [
   { id: '1', squadId: 'squad-3', projectKey: 'PAYMENT', name: 'Payment Service', description: 'Core payment gateway integration tests', createdAt: '2026-01-15T10:00:00Z' },
   { id: '2', squadId: 'squad-1', projectKey: 'AUTH', name: 'Auth Service', description: 'SSO and identity management test suite', createdAt: '2026-02-01T09:00:00Z' },
@@ -42,7 +74,38 @@ export const mockRunsByProject: Record<string, AutomationRun[]> = {
     { id: 'run-006', projectId: '3', projectKey: 'CATALOG', runnerId: 'ci-runner-02', status: 'PARTIAL', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'q7r8s9t0', jobName: 'full-suite', startedAt: '2026-05-23T07:00:00Z', finishedAt: '2026-05-23T07:35:22Z', createdAt: '2026-05-23T07:00:00Z', totalScenarios: 312, passedScenarios: 280, failedScenarios: 28, skippedScenarios: 4 },
     { id: 'run-013', projectId: '3', projectKey: 'CATALOG', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'n5o6p7q8', jobName: 'full-suite', startedAt: '2026-05-22T07:00:00Z', finishedAt: '2026-05-22T07:38:00Z', createdAt: '2026-05-22T07:00:00Z', totalScenarios: 308, passedScenarios: 301, failedScenarios: 6, skippedScenarios: 1 },
   ],
-  CHECKOUT: [],
+  CHECKOUT: [
+    { id: 'run-chk-001', projectId: '4', projectKey: 'CHECKOUT', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', buildId: 'build-checkout-rc1', buildKey: 'checkout-rc1', buildName: 'Checkout 2026.06 RC1', commitSha: 'chk1a2b3c', jobName: 'regression', startedAt: '2026-05-25T10:00:00Z', finishedAt: '2026-05-25T10:14:22Z', createdAt: '2026-05-25T10:00:00Z', totalScenarios: 82, passedScenarios: 80, failedScenarios: 1, skippedScenarios: 1 },
+    { id: 'run-chk-002', projectId: '4', projectKey: 'CHECKOUT', runnerId: 'ci-runner-02', status: 'FAILED', branch: 'feature/voucher', environment: 'staging', framework: 'cucumber', commitSha: 'chk4d5e6f', jobName: 'smoke', startedAt: '2026-05-24T08:00:00Z', finishedAt: '2026-05-24T08:08:11Z', createdAt: '2026-05-24T08:00:00Z', totalScenarios: 40, passedScenarios: 34, failedScenarios: 6, skippedScenarios: 0 },
+    { id: 'run-chk-003', projectId: '4', projectKey: 'CHECKOUT', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'chkg7h8i9', jobName: 'smoke', startedAt: '2026-05-22T09:00:00Z', finishedAt: '2026-05-22T09:10:45Z', createdAt: '2026-05-22T09:00:00Z', totalScenarios: 40, passedScenarios: 40, failedScenarios: 0, skippedScenarios: 0 },
+  ],
+  ORDER: [
+    { id: 'run-ord-001', projectId: '6', projectKey: 'ORDER', runnerId: 'ci-runner-04', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'ord1a2b3c', jobName: 'regression', startedAt: '2026-05-23T07:30:00Z', finishedAt: '2026-05-23T07:52:18Z', createdAt: '2026-05-23T07:30:00Z', totalScenarios: 156, passedScenarios: 149, failedScenarios: 5, skippedScenarios: 2 },
+    { id: 'run-ord-002', projectId: '6', projectKey: 'ORDER', runnerId: 'ci-runner-04', status: 'FAILED', branch: 'feature/returns', environment: 'staging', framework: 'cucumber', commitSha: 'ord4d5e6f', jobName: 'smoke', startedAt: '2026-05-22T12:00:00Z', finishedAt: '2026-05-22T12:11:30Z', createdAt: '2026-05-22T12:00:00Z', totalScenarios: 60, passedScenarios: 47, failedScenarios: 13, skippedScenarios: 0 },
+    { id: 'run-ord-003', projectId: '6', projectKey: 'ORDER', runnerId: 'ci-runner-04', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'ordg7h8i9', jobName: 'smoke', startedAt: '2026-05-21T08:00:00Z', finishedAt: '2026-05-21T08:09:22Z', createdAt: '2026-05-21T08:00:00Z', totalScenarios: 60, passedScenarios: 58, failedScenarios: 1, skippedScenarios: 1 },
+    { id: 'run-ord-004', projectId: '6', projectKey: 'ORDER', runnerId: 'ci-runner-04', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'ordj0k1l2', jobName: 'regression', startedAt: '2026-05-20T07:30:00Z', finishedAt: '2026-05-20T07:51:05Z', createdAt: '2026-05-20T07:30:00Z', totalScenarios: 153, passedScenarios: 148, failedScenarios: 4, skippedScenarios: 1 },
+  ],
+  NOTIFICATION: [
+    { id: 'run-notif-001', projectId: '5', projectKey: 'NOTIFICATION', runnerId: 'ci-runner-05', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'notif1a2b', jobName: 'regression', startedAt: '2026-05-23T06:00:00Z', finishedAt: '2026-05-23T06:18:44Z', createdAt: '2026-05-23T06:00:00Z', totalScenarios: 98, passedScenarios: 94, failedScenarios: 3, skippedScenarios: 1 },
+    { id: 'run-notif-002', projectId: '5', projectKey: 'NOTIFICATION', runnerId: 'ci-runner-05', status: 'FAILED', branch: 'feature/push-fcm', environment: 'staging', framework: 'cucumber', commitSha: 'notif3c4d', jobName: 'smoke', startedAt: '2026-05-22T11:00:00Z', finishedAt: '2026-05-22T11:09:12Z', createdAt: '2026-05-22T11:00:00Z', totalScenarios: 45, passedScenarios: 38, failedScenarios: 7, skippedScenarios: 0 },
+    { id: 'run-notif-003', projectId: '5', projectKey: 'NOTIFICATION', runnerId: 'ci-runner-05', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'notif5e6f', jobName: 'smoke', startedAt: '2026-05-21T06:00:00Z', finishedAt: '2026-05-21T06:10:30Z', createdAt: '2026-05-21T06:00:00Z', totalScenarios: 45, passedScenarios: 45, failedScenarios: 0, skippedScenarios: 0 },
+  ],
+  WALLET: [
+    { id: 'run-wal-001', projectId: '7', projectKey: 'WALLET', runnerId: 'ci-runner-06', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'wal1a2b3c', jobName: 'regression', startedAt: '2026-05-23T08:00:00Z', finishedAt: '2026-05-23T08:24:15Z', createdAt: '2026-05-23T08:00:00Z', totalScenarios: 180, passedScenarios: 174, failedScenarios: 4, skippedScenarios: 2 },
+    { id: 'run-wal-002', projectId: '7', projectKey: 'WALLET', runnerId: 'ci-runner-06', status: 'FAILED', branch: 'feature/rewards-v2', environment: 'staging', framework: 'cucumber', commitSha: 'wal4d5e6f', jobName: 'smoke', startedAt: '2026-05-22T09:00:00Z', finishedAt: '2026-05-22T09:12:33Z', createdAt: '2026-05-22T09:00:00Z', totalScenarios: 70, passedScenarios: 60, failedScenarios: 10, skippedScenarios: 0 },
+    { id: 'run-wal-003', projectId: '7', projectKey: 'WALLET', runnerId: 'ci-runner-06', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'walg7h8i9', jobName: 'smoke', startedAt: '2026-05-21T08:00:00Z', finishedAt: '2026-05-21T08:11:00Z', createdAt: '2026-05-21T08:00:00Z', totalScenarios: 70, passedScenarios: 70, failedScenarios: 0, skippedScenarios: 0 },
+    { id: 'run-wal-004', projectId: '7', projectKey: 'WALLET', runnerId: 'ci-runner-06', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'walj0k1l2', jobName: 'regression', startedAt: '2026-05-20T08:00:00Z', finishedAt: '2026-05-20T08:22:44Z', createdAt: '2026-05-20T08:00:00Z', totalScenarios: 176, passedScenarios: 170, failedScenarios: 5, skippedScenarios: 1 },
+  ],
+  SEARCH: [
+    { id: 'run-srch-001', projectId: '8', projectKey: 'SEARCH', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'srch1a2b3', jobName: 'regression', startedAt: '2026-05-23T07:00:00Z', finishedAt: '2026-05-23T07:28:50Z', createdAt: '2026-05-23T07:00:00Z', totalScenarios: 210, passedScenarios: 204, failedScenarios: 4, skippedScenarios: 2 },
+    { id: 'run-srch-002', projectId: '8', projectKey: 'SEARCH', runnerId: 'ci-runner-02', status: 'PARTIAL', branch: 'main', environment: 'staging', framework: 'cucumber', commitSha: 'srch4c5d6', jobName: 'full-suite', startedAt: '2026-05-22T07:00:00Z', finishedAt: '2026-05-22T07:35:20Z', createdAt: '2026-05-22T07:00:00Z', totalScenarios: 210, passedScenarios: 185, failedScenarios: 20, skippedScenarios: 5 },
+    { id: 'run-srch-003', projectId: '8', projectKey: 'SEARCH', runnerId: 'ci-runner-02', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'srchg7h8i', jobName: 'smoke', startedAt: '2026-05-21T07:00:00Z', finishedAt: '2026-05-21T07:10:15Z', createdAt: '2026-05-21T07:00:00Z', totalScenarios: 80, passedScenarios: 80, failedScenarios: 0, skippedScenarios: 0 },
+  ],
+  INFRA: [
+    { id: 'run-infra-001', projectId: '9', projectKey: 'INFRA', runnerId: 'ci-runner-07', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'infra1a2b', jobName: 'health-check', startedAt: '2026-05-23T05:00:00Z', finishedAt: '2026-05-23T05:22:10Z', createdAt: '2026-05-23T05:00:00Z', totalScenarios: 120, passedScenarios: 118, failedScenarios: 1, skippedScenarios: 1 },
+    { id: 'run-infra-002', projectId: '9', projectKey: 'INFRA', runnerId: 'ci-runner-07', status: 'FAILED', branch: 'feature/new-relic-agent', environment: 'staging', framework: 'cucumber', commitSha: 'infra3c4d', jobName: 'sla-check', startedAt: '2026-05-22T05:00:00Z', finishedAt: '2026-05-22T05:20:44Z', createdAt: '2026-05-22T05:00:00Z', totalScenarios: 60, passedScenarios: 50, failedScenarios: 10, skippedScenarios: 0 },
+    { id: 'run-infra-003', projectId: '9', projectKey: 'INFRA', runnerId: 'ci-runner-07', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'infra5e6f', jobName: 'health-check', startedAt: '2026-05-21T05:00:00Z', finishedAt: '2026-05-21T05:21:30Z', createdAt: '2026-05-21T05:00:00Z', totalScenarios: 120, passedScenarios: 120, failedScenarios: 0, skippedScenarios: 0 },
+  ],
 };
 
 export const mockApiKeysByProject: Record<string, ApiKey[]> = {
@@ -87,9 +150,35 @@ export const mockNodesByProject: Record<string, MockNode[]> = {
     { id: 'node-order-cancel', parentId: 'node-order-root', nodeType: 'DIRECTORY', directoryId: 'DIR-ORDER02', name: 'Cancellation', slug: 'cancellation', path: 'order-lifecycle/cancellation', scenarioCount: 2, createdAt: '2026-05-04T00:00:00Z' },
   ],
   NOTIFICATION: [
-    { id: 'node-notif-root', parentId: null, nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF01', name: 'Delivery Channels', slug: 'delivery-channels', path: 'delivery-channels', scenarioCount: 3, createdAt: '2026-05-01T00:00:00Z' },
-    { id: 'node-notif-email', parentId: 'node-notif-root', nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF02', name: 'Email', slug: 'email', path: 'delivery-channels/email', scenarioCount: 2, createdAt: '2026-05-02T00:00:00Z' },
-  ]
+    { id: 'node-notif-root',  parentId: null,             nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF01', name: 'Delivery Channels',  slug: 'delivery-channels',  path: 'delivery-channels',          scenarioCount: 8,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-notif-email', parentId: 'node-notif-root', nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF02', name: 'Email',              slug: 'email',              path: 'delivery-channels/email',    scenarioCount: 5,  createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-notif-sms',   parentId: 'node-notif-root', nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF03', name: 'SMS',                slug: 'sms',                path: 'delivery-channels/sms',     scenarioCount: 4,  createdAt: '2026-05-03T00:00:00Z' },
+    { id: 'node-notif-push',  parentId: 'node-notif-root', nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF04', name: 'Push',               slug: 'push',               path: 'delivery-channels/push',    scenarioCount: 3,  createdAt: '2026-05-04T00:00:00Z' },
+    { id: 'node-notif-tmpl',  parentId: null,             nodeType: 'DIRECTORY', directoryId: 'DIR-NOTIF05', name: 'Templates',           slug: 'templates',          path: 'templates',                 scenarioCount: 5,  createdAt: '2026-05-05T00:00:00Z' },
+  ],
+  WALLET: [
+    { id: 'node-wallet-root',     parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET01', name: 'Wallet Core',       slug: 'wallet-core',      path: 'wallet-core',              scenarioCount: 10, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-wallet-topup',    parentId: 'node-wallet-root', nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET02', name: 'Top-up',            slug: 'topup',            path: 'wallet-core/topup',        scenarioCount: 8,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-wallet-withdraw', parentId: 'node-wallet-root', nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET03', name: 'Withdraw',          slug: 'withdraw',         path: 'wallet-core/withdraw',     scenarioCount: 6,  createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-wallet-transfer', parentId: 'node-wallet-root', nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET04', name: 'Transfer',          slug: 'transfer',         path: 'wallet-core/transfer',     scenarioCount: 7,  createdAt: '2026-05-03T00:00:00Z' },
+    { id: 'node-wallet-history',  parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET05', name: 'Transaction History', slug: 'history',        path: 'history',                  scenarioCount: 5,  createdAt: '2026-05-04T00:00:00Z' },
+    { id: 'node-wallet-reward',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-WALLET06', name: 'Rewards & Cashback', slug: 'rewards',         path: 'rewards',                  scenarioCount: 6,  createdAt: '2026-05-05T00:00:00Z' },
+  ],
+  SEARCH: [
+    { id: 'node-search-root',        parentId: null,               nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH01', name: 'Search Core',       slug: 'search-core',      path: 'search-core',          scenarioCount: 12, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-search-keyword',     parentId: 'node-search-root', nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH02', name: 'Keyword Search',    slug: 'keyword-search',   path: 'search-core/keyword',  scenarioCount: 8,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-search-filter',      parentId: 'node-search-root', nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH03', name: 'Filter & Sort',     slug: 'filter-sort',      path: 'search-core/filter',   scenarioCount: 7,  createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-search-autocomplete',parentId: 'node-search-root', nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH04', name: 'Autocomplete',      slug: 'autocomplete',     path: 'search-core/autocomplete', scenarioCount: 5, createdAt: '2026-05-03T00:00:00Z' },
+    { id: 'node-search-ranking',     parentId: null,               nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH05', name: 'Ranking & Relevance', slug: 'ranking',        path: 'ranking',              scenarioCount: 6,  createdAt: '2026-05-04T00:00:00Z' },
+    { id: 'node-search-analytics',   parentId: null,               nodeType: 'DIRECTORY', directoryId: 'DIR-SEARCH06', name: 'Search Analytics',  slug: 'analytics',        path: 'analytics',            scenarioCount: 4,  createdAt: '2026-05-05T00:00:00Z' },
+  ],
+  INFRA: [
+    { id: 'node-infra-root',    parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA01', name: 'Platform Health',    slug: 'platform-health', path: 'platform-health',       scenarioCount: 10, createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-infra-health',  parentId: 'node-infra-root', nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA02', name: 'Health Checks',      slug: 'health-checks',   path: 'platform-health/health', scenarioCount: 6,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-infra-sla',     parentId: 'node-infra-root', nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA03', name: 'SLA Monitoring',     slug: 'sla-monitoring',  path: 'platform-health/sla',    scenarioCount: 5,  createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-infra-dr',      parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA04', name: 'Disaster Recovery',  slug: 'disaster-recovery', path: 'disaster-recovery',    scenarioCount: 6,  createdAt: '2026-05-03T00:00:00Z' },
+    { id: 'node-infra-security',parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA05', name: 'Security Hardening', slug: 'security',        path: 'security',              scenarioCount: 5,  createdAt: '2026-05-04T00:00:00Z' },
+  ],
 };
 
 export const mockScenariosByProject: Record<string, Scenario[]> = {
@@ -630,6 +719,54 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       updatedAt: '2026-05-10T08:00:00Z'
     }
   ],
+  WALLET: [
+    mkScenario('wallet-topup-card',     'node-wallet-topup',    'SCN-WAL1',  'Top-up wallet with credit card',                         'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('topup'),tag('smoke')],          'CRITICAL', 'ACTIVE', 'Top-up',   '2026-05-01T08:00:00Z'),
+    mkScenario('wallet-topup-bank',     'node-wallet-topup',    'SCN-WAL2',  'Top-up via bank transfer is credited within SLA',         'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('topup'),tag('regression')],     'HIGH',     'ACTIVE', 'Top-up',   '2026-05-01T09:00:00Z'),
+    mkScenario('wallet-topup-limit',    'node-wallet-topup',    'SCN-WAL3',  'Top-up exceeding daily limit is rejected',                'MANUAL',     'AUTOMATABLE',  [tag('wallet'),tag('topup'),tag('limit')],          'HIGH',     'ACTIVE', 'Top-up',   '2026-05-02T08:00:00Z'),
+    mkScenario('wallet-topup-retry',    'node-wallet-topup',    'SCN-WAL4',  'Failed top-up retries do not double-charge',              'MANUAL',     'AUTOMATABLE',  [tag('wallet'),tag('topup'),tag('idempotency')],    'CRITICAL', 'ACTIVE', 'Top-up',   '2026-05-02T09:00:00Z'),
+    mkScenario('wallet-topup-promo',    'node-wallet-topup',    'SCN-WAL5',  'Promotional bonus applied on qualifying top-up',          'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('topup'),tag('promo')],          'MEDIUM',   'ACTIVE', 'Top-up',   '2026-05-03T08:00:00Z'),
+    mkScenario('wallet-withdraw-bank',  'node-wallet-withdraw', 'SCN-WAL6',  'Withdraw to registered bank account succeeds',            'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('withdraw'),tag('smoke')],       'CRITICAL', 'ACTIVE', 'Withdraw', '2026-05-04T08:00:00Z'),
+    mkScenario('wallet-withdraw-limit', 'node-wallet-withdraw', 'SCN-WAL7',  'Withdrawal exceeding balance is blocked',                  'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('withdraw'),tag('validation')],  'HIGH',     'ACTIVE', 'Withdraw', '2026-05-04T09:00:00Z'),
+    mkScenario('wallet-withdraw-kyc',   'node-wallet-withdraw', 'SCN-WAL8',  'Unverified KYC blocks large withdrawal',                  'MANUAL',     'AUTOMATABLE',  [tag('wallet'),tag('withdraw'),tag('kyc')],         'HIGH',     'ACTIVE', 'Withdraw', '2026-05-05T08:00:00Z'),
+    mkScenario('wallet-transfer-p2p',   'node-wallet-transfer', 'SCN-WAL9',  'Peer-to-peer transfer completes instantly',               'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('transfer'),tag('smoke')],       'CRITICAL', 'ACTIVE', 'Transfer', '2026-05-06T08:00:00Z'),
+    mkScenario('wallet-transfer-split', 'node-wallet-transfer', 'SCN-WAL10', 'Split payment deducts correct amount from each wallet',   'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('transfer'),tag('regression')],  'HIGH',     'ACTIVE', 'Transfer', '2026-05-06T09:00:00Z'),
+    mkScenario('wallet-transfer-ref',   'node-wallet-transfer', 'SCN-WAL11', 'Transfer with reference note is stored correctly',        'MANUAL',     'AUTOMATABLE',  [tag('wallet'),tag('transfer')],                   'MEDIUM',   'ACTIVE', 'Transfer', '2026-05-07T08:00:00Z'),
+    mkScenario('wallet-history-page',   'node-wallet-history',  'SCN-WAL12', 'Transaction history paginates correctly',                 'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('history'),tag('pagination')],   'MEDIUM',   'ACTIVE', 'History',  '2026-05-08T08:00:00Z'),
+    mkScenario('wallet-history-filter', 'node-wallet-history',  'SCN-WAL13', 'Filter by transaction type returns correct subset',       'AUTOMATION', 'AUTOMATED',    [tag('wallet'),tag('history'),tag('filter')],       'MEDIUM',   'ACTIVE', 'History',  '2026-05-08T09:00:00Z'),
+    mkScenario('wallet-reward-cashback','node-wallet-reward',   'SCN-WAL14', 'Cashback is credited 24h after qualifying purchase',      'MANUAL',     'AUTOMATABLE',  [tag('wallet'),tag('rewards'),tag('cashback')],     'MEDIUM',   'ACTIVE', 'Rewards',  '2026-05-09T08:00:00Z'),
+    mkScenario('wallet-reward-expire',  'node-wallet-reward',   'SCN-WAL15', 'Expired reward points are deducted on cycle end',         'MANUAL',     'MANUAL_ONLY',  [tag('wallet'),tag('rewards'),tag('expiry')],       'LOW',      'DRAFT',  'Rewards',  '2026-05-09T09:00:00Z'),
+  ],
+  SEARCH: [
+    mkScenario('search-kw-exact',     'node-search-keyword',      'SCN-SRCH1',  'Exact keyword match returns top result',                  'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('keyword'),tag('smoke')],          'CRITICAL', 'ACTIVE', 'Keyword',      '2026-05-01T08:00:00Z'),
+    mkScenario('search-kw-typo',      'node-search-keyword',      'SCN-SRCH2',  'Typo-tolerant search surfaces relevant results',          'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('keyword'),tag('fuzzy')],          'HIGH',     'ACTIVE', 'Keyword',      '2026-05-01T09:00:00Z'),
+    mkScenario('search-kw-empty',     'node-search-keyword',      'SCN-SRCH3',  'Empty query returns featured/popular results',            'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('keyword')],                       'MEDIUM',   'ACTIVE', 'Keyword',      '2026-05-02T08:00:00Z'),
+    mkScenario('search-kw-special',   'node-search-keyword',      'SCN-SRCH4',  'Special characters in query are sanitised safely',       'MANUAL',     'AUTOMATABLE', [tag('search'),tag('keyword'),tag('security')],       'HIGH',     'ACTIVE', 'Keyword',      '2026-05-02T09:00:00Z'),
+    mkScenario('search-filter-cat',   'node-search-filter',       'SCN-SRCH5',  'Category filter narrows results correctly',               'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('filter'),tag('smoke')],           'HIGH',     'ACTIVE', 'Filter',       '2026-05-03T08:00:00Z'),
+    mkScenario('search-filter-price', 'node-search-filter',       'SCN-SRCH6',  'Price range filter returns in-range products only',       'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('filter'),tag('regression')],      'HIGH',     'ACTIVE', 'Filter',       '2026-05-03T09:00:00Z'),
+    mkScenario('search-filter-rating','node-search-filter',       'SCN-SRCH7',  'Rating filter excludes products below threshold',         'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('filter')],                        'MEDIUM',   'ACTIVE', 'Filter',       '2026-05-04T08:00:00Z'),
+    mkScenario('search-filter-multi', 'node-search-filter',       'SCN-SRCH8',  'Multiple filters applied simultaneously are additive',   'MANUAL',     'AUTOMATABLE', [tag('search'),tag('filter'),tag('regression')],      'HIGH',     'ACTIVE', 'Filter',       '2026-05-04T09:00:00Z'),
+    mkScenario('search-auto-trigger', 'node-search-autocomplete', 'SCN-SRCH9',  'Autocomplete triggers after 2 characters',               'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('autocomplete'),tag('smoke')],     'MEDIUM',   'ACTIVE', 'Autocomplete', '2026-05-05T08:00:00Z'),
+    mkScenario('search-auto-debounce','node-search-autocomplete', 'SCN-SRCH10', 'Autocomplete debounces rapid keystrokes',                 'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('autocomplete')],                  'MEDIUM',   'ACTIVE', 'Autocomplete', '2026-05-05T09:00:00Z'),
+    mkScenario('search-rank-boost',   'node-search-ranking',      'SCN-SRCH11', 'Boosted products appear above organic results',           'MANUAL',     'AUTOMATABLE', [tag('search'),tag('ranking'),tag('regression')],     'HIGH',     'ACTIVE', 'Ranking',      '2026-05-06T08:00:00Z'),
+    mkScenario('search-rank-fresh',   'node-search-ranking',      'SCN-SRCH12', 'Freshness signal promotes recently updated products',    'MANUAL',     'MANUAL_ONLY', [tag('search'),tag('ranking')],                       'LOW',      'DRAFT',  'Ranking',      '2026-05-06T09:00:00Z'),
+    mkScenario('search-analytics-log','node-search-analytics',    'SCN-SRCH13', 'Search events are logged with query and result count',   'AUTOMATION', 'AUTOMATED',   [tag('search'),tag('analytics'),tag('regression')],   'MEDIUM',   'ACTIVE', 'Analytics',    '2026-05-07T08:00:00Z'),
+    mkScenario('search-analytics-ctr','node-search-analytics',    'SCN-SRCH14', 'Click-through rate tracked per result position',         'MANUAL',     'AUTOMATABLE', [tag('search'),tag('analytics')],                     'LOW',      'ACTIVE', 'Analytics',    '2026-05-07T09:00:00Z'),
+  ],
+  INFRA: [
+    mkScenario('infra-health-api',   'node-infra-health',   'SCN-INF1',  'API gateway health endpoint returns 200 within 200ms',     'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('health'),tag('smoke')],        'CRITICAL', 'ACTIVE', 'Health',   '2026-05-01T08:00:00Z'),
+    mkScenario('infra-health-db',    'node-infra-health',   'SCN-INF2',  'Database connection pool is healthy under load',           'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('health'),tag('database')],     'CRITICAL', 'ACTIVE', 'Health',   '2026-05-01T09:00:00Z'),
+    mkScenario('infra-health-cache', 'node-infra-health',   'SCN-INF3',  'Redis cache hit rate remains above 85%',                   'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('health'),tag('cache')],        'HIGH',     'ACTIVE', 'Health',   '2026-05-02T08:00:00Z'),
+    mkScenario('infra-health-queue', 'node-infra-health',   'SCN-INF4',  'Message queue consumer lag stays below threshold',        'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('health'),tag('queue')],        'HIGH',     'ACTIVE', 'Health',   '2026-05-02T09:00:00Z'),
+    mkScenario('infra-sla-p99',      'node-infra-sla',      'SCN-INF5',  'p99 latency stays under 500ms during peak traffic',       'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('sla'),tag('performance')],     'CRITICAL', 'ACTIVE', 'SLA',      '2026-05-03T08:00:00Z'),
+    mkScenario('infra-sla-uptime',   'node-infra-sla',      'SCN-INF6',  'Service achieves 99.9% uptime over 30-day window',        'MANUAL',     'MANUAL_ONLY', [tag('infra'),tag('sla'),tag('uptime')],          'CRITICAL', 'ACTIVE', 'SLA',      '2026-05-03T09:00:00Z'),
+    mkScenario('infra-sla-error',    'node-infra-sla',      'SCN-INF7',  'Error rate stays below 0.1% under normal load',           'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('sla'),tag('reliability')],     'HIGH',     'ACTIVE', 'SLA',      '2026-05-04T08:00:00Z'),
+    mkScenario('infra-dr-failover',  'node-infra-dr',       'SCN-INF8',  'Active-passive failover completes within 60 seconds',     'MANUAL',     'AUTOMATABLE', [tag('infra'),tag('disaster-recovery'),tag('failover')], 'CRITICAL', 'ACTIVE', 'DR',  '2026-05-05T08:00:00Z'),
+    mkScenario('infra-dr-backup',    'node-infra-dr',       'SCN-INF9',  'Daily database backup completes and verifies integrity',  'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('disaster-recovery'),tag('backup')],   'CRITICAL', 'ACTIVE', 'DR',  '2026-05-05T09:00:00Z'),
+    mkScenario('infra-dr-restore',   'node-infra-dr',       'SCN-INF10', 'Point-in-time restore recovers data within RPO',          'MANUAL',     'AUTOMATABLE', [tag('infra'),tag('disaster-recovery')],          'HIGH',     'DRAFT',  'DR',       '2026-05-06T08:00:00Z'),
+    mkScenario('infra-sec-tls',      'node-infra-security', 'SCN-INF11', 'All endpoints enforce TLS 1.2 minimum',                   'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('security'),tag('tls')],        'CRITICAL', 'ACTIVE', 'Security', '2026-05-07T08:00:00Z'),
+    mkScenario('infra-sec-headers',  'node-infra-security', 'SCN-INF12', 'HTTP security headers present on all responses',          'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('security'),tag('headers')],    'HIGH',     'ACTIVE', 'Security', '2026-05-07T09:00:00Z'),
+    mkScenario('infra-sec-rate',     'node-infra-security', 'SCN-INF13', 'Rate limiter blocks abusive client IPs',                  'AUTOMATION', 'AUTOMATED',   [tag('infra'),tag('security'),tag('rate-limit')], 'HIGH',     'ACTIVE', 'Security', '2026-05-08T08:00:00Z'),
+  ],
   NOTIFICATION: [
     {
       id: 'scenario-notif-email-delivery',
@@ -680,7 +817,17 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       ],
       createdAt: '2026-05-07T08:00:00Z',
       updatedAt: '2026-05-07T08:00:00Z'
-    }
+    },
+    mkScenario('notif-email-template',   'node-notif-email', 'SCN-NOTIF3',  'Email template renders localised content correctly',      'AUTOMATION', 'AUTOMATED',   [tag('email'),tag('template'),tag('regression')], 'HIGH',   'ACTIVE', 'Email',     '2026-05-08T08:00:00Z'),
+    mkScenario('notif-email-bounce',     'node-notif-email', 'SCN-NOTIF4',  'Bounced email is flagged and suppressed',                  'AUTOMATION', 'AUTOMATED',   [tag('email'),tag('bounce')],                     'HIGH',   'ACTIVE', 'Email',     '2026-05-08T09:00:00Z'),
+    mkScenario('notif-email-retry',      'node-notif-email', 'SCN-NOTIF5',  'Transient SMTP failure triggers retry with backoff',       'MANUAL',     'AUTOMATABLE', [tag('email'),tag('retry')],                      'HIGH',   'ACTIVE', 'Email',     '2026-05-09T08:00:00Z'),
+    mkScenario('notif-sms-otp',          'node-notif-sms',   'SCN-NOTIF6',  'OTP SMS is delivered within 30 seconds',                  'AUTOMATION', 'AUTOMATED',   [tag('sms'),tag('otp'),tag('smoke')],             'CRITICAL','ACTIVE', 'SMS',       '2026-05-10T08:00:00Z'),
+    mkScenario('notif-sms-intl',         'node-notif-sms',   'SCN-NOTIF7',  'International SMS delivered to supported country codes',  'MANUAL',     'AUTOMATABLE', [tag('sms'),tag('international')],                'HIGH',   'ACTIVE', 'SMS',       '2026-05-10T09:00:00Z'),
+    mkScenario('notif-sms-limit',        'node-notif-sms',   'SCN-NOTIF8',  'Rate limiting prevents SMS flood per user',               'AUTOMATION', 'AUTOMATED',   [tag('sms'),tag('rate-limit'),tag('security')],   'HIGH',   'ACTIVE', 'SMS',       '2026-05-11T08:00:00Z'),
+    mkScenario('notif-push-token',       'node-notif-push',  'SCN-NOTIF9',  'Push notification delivered to valid device token',       'AUTOMATION', 'AUTOMATED',   [tag('push'),tag('smoke')],                       'HIGH',   'ACTIVE', 'Push',      '2026-05-12T08:00:00Z'),
+    mkScenario('notif-push-expire',      'node-notif-push',  'SCN-NOTIF10', 'Expired device token is removed from registry',           'MANUAL',     'AUTOMATABLE', [tag('push'),tag('token')],                       'MEDIUM', 'ACTIVE', 'Push',      '2026-05-12T09:00:00Z'),
+    mkScenario('notif-tmpl-variables',   'node-notif-tmpl',  'SCN-NOTIF11', 'Template variables are substituted before sending',       'AUTOMATION', 'AUTOMATED',   [tag('template'),tag('regression')],              'HIGH',   'ACTIVE', 'Templates', '2026-05-13T08:00:00Z'),
+    mkScenario('notif-tmpl-locale',      'node-notif-tmpl',  'SCN-NOTIF12', 'Template selects correct locale based on user preference','AUTOMATION', 'AUTOMATED',   [tag('template'),tag('i18n')],                    'MEDIUM', 'ACTIVE', 'Templates', '2026-05-13T09:00:00Z'),
   ]
 };
 
@@ -752,7 +899,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       name: 'Payment 2026.06 RC1',
       buildKey: 'PAY-2026-06-RC1',
       version: '2026.06.0-rc1',
-      description: 'Sprint verification build for payment release readiness.',
+      description: 'Sprint verification build for payment release readiness.', requirements: null,
       status: 'IN_PROGRESS',
       initiatedAt: '2026-05-24T08:00:00Z',
       inProgressAt: '2026-05-24T09:15:00Z',
@@ -773,7 +920,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       name: 'Payment Hotfix 2026.05.1',
       buildKey: 'PAY-2026-05-HF1',
       version: '2026.05.1',
-      description: 'Closed hotfix verification build.',
+      description: 'Closed hotfix verification build.', requirements: null,
       status: 'VERIFIED',
       initiatedAt: '2026-05-10T07:00:00Z',
       inProgressAt: '2026-05-10T07:20:00Z',
@@ -796,7 +943,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       name: 'Auth 2026.06 RC1',
       buildKey: 'AUTH-2026-06-RC1',
       version: '2026.06.0-rc1',
-      description: 'Identity dependency build for checkout release.',
+      description: 'Identity dependency build for checkout release.', requirements: null,
       status: 'INITIATED',
       initiatedAt: '2026-05-25T08:30:00Z',
       inProgressAt: null,
@@ -806,6 +953,58 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       createdAt: '2026-05-25T08:30:00Z',
       updatedAt: '2026-05-25T08:30:00Z',
       metrics: { buildId: 'build-auth-rc1', totalScenarios: 2, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 2, passPercentage: 0, executionCoverage: 0 }
+    }
+  ],
+  ORDER: [
+    {
+      id: 'build-order-rc1', projectId: '6', projectKey: 'ORDER', projectName: 'Order Management', squadId: 'squad-6', squadName: 'Order Fulfillment',
+      name: 'Order 2026.06 RC1', buildKey: 'ORDER-2026-06-RC1', version: '2026.06.0-rc1', description: 'Order lifecycle verification for June release.', requirements: null,
+      status: 'IN_PROGRESS', initiatedAt: '2026-05-24T09:00:00Z', inProgressAt: '2026-05-24T09:30:00Z', verifiedAt: null,
+      createdBy: 'qa-order@example.com', verifiedBy: null, createdAt: '2026-05-24T09:00:00Z', updatedAt: '2026-05-25T10:00:00Z',
+      metrics: { buildId: 'build-order-rc1', totalScenarios: 3, passed: 2, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 66.67 }
+    }
+  ],
+  NOTIFICATION: [
+    {
+      id: 'build-notif-rc1', projectId: '5', projectKey: 'NOTIFICATION', projectName: 'Notification Service', squadId: 'squad-5', squadName: 'Notifications',
+      name: 'Notification 2026.06 RC1', buildKey: 'NOTIF-2026-06-RC1', version: '2026.06.0-rc1', description: 'Notification delivery and template verification.', requirements: null,
+      status: 'INITIATED', initiatedAt: '2026-05-25T10:00:00Z', inProgressAt: null, verifiedAt: null,
+      createdBy: 'qa-notif@example.com', verifiedBy: null, createdAt: '2026-05-25T10:00:00Z', updatedAt: '2026-05-25T10:00:00Z',
+      metrics: { buildId: 'build-notif-rc1', totalScenarios: 0, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 0, executionCoverage: 0 }
+    }
+  ],
+  WALLET: [
+    {
+      id: 'build-wallet-rc1', projectId: '7', projectKey: 'WALLET', projectName: 'Digital Wallet', squadId: 'squad-7', squadName: 'Wallet & Rewards',
+      name: 'Wallet 2026.06 RC1', buildKey: 'WALLET-2026-06-RC1', version: '2026.06.0-rc1', description: 'Wallet top-up, withdraw and transfer verification.', requirements: null,
+      status: 'IN_PROGRESS', initiatedAt: '2026-05-24T08:00:00Z', inProgressAt: '2026-05-24T08:30:00Z', verifiedAt: null,
+      createdBy: 'qa-wallet@example.com', verifiedBy: null, createdAt: '2026-05-24T08:00:00Z', updatedAt: '2026-05-25T09:00:00Z',
+      metrics: { buildId: 'build-wallet-rc1', totalScenarios: 8, passed: 6, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 75, executionCoverage: 87.5 }
+    },
+    {
+      id: 'build-wallet-hf1', projectId: '7', projectKey: 'WALLET', projectName: 'Digital Wallet', squadId: 'squad-7', squadName: 'Wallet & Rewards',
+      name: 'Wallet Hotfix 2026.05.1', buildKey: 'WALLET-2026-05-HF1', version: '2026.05.1', description: 'Hotfix for rewards expiry calculation.', requirements: null,
+      status: 'VERIFIED', initiatedAt: '2026-05-12T07:00:00Z', inProgressAt: '2026-05-12T07:30:00Z', verifiedAt: '2026-05-12T14:00:00Z',
+      createdBy: 'qa-wallet@example.com', verifiedBy: 'lead-wallet@example.com', createdAt: '2026-05-12T07:00:00Z', updatedAt: '2026-05-12T14:00:00Z',
+      metrics: { buildId: 'build-wallet-hf1', totalScenarios: 4, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
+    }
+  ],
+  SEARCH: [
+    {
+      id: 'build-search-rc1', projectId: '8', projectKey: 'SEARCH', projectName: 'Search & Discovery', squadId: 'squad-4', squadName: 'Catalog & Search',
+      name: 'Search 2026.06 RC1', buildKey: 'SEARCH-2026-06-RC1', version: '2026.06.0-rc1', description: 'Search ranking and filter verification for June.', requirements: null,
+      status: 'INITIATED', initiatedAt: '2026-05-25T11:00:00Z', inProgressAt: null, verifiedAt: null,
+      createdBy: 'qa-search@example.com', verifiedBy: null, createdAt: '2026-05-25T11:00:00Z', updatedAt: '2026-05-25T11:00:00Z',
+      metrics: { buildId: 'build-search-rc1', totalScenarios: 0, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 0, executionCoverage: 0 }
+    }
+  ],
+  INFRA: [
+    {
+      id: 'build-infra-rc1', projectId: '9', projectKey: 'INFRA', projectName: 'Platform Infra', squadId: 'squad-2', squadName: 'Infrastructure',
+      name: 'Infra Health 2026.05', buildKey: 'INFRA-2026-05', version: '2026.05.0', description: 'Monthly infrastructure health and SLA verification.', requirements: null,
+      status: 'VERIFIED', initiatedAt: '2026-05-05T06:00:00Z', inProgressAt: '2026-05-05T06:30:00Z', verifiedAt: '2026-05-05T16:00:00Z',
+      createdBy: 'qa-infra@example.com', verifiedBy: 'lead-infra@example.com', createdAt: '2026-05-05T06:00:00Z', updatedAt: '2026-05-05T16:00:00Z',
+      metrics: { buildId: 'build-infra-rc1', totalScenarios: 13, passed: 12, failed: 0, blocked: 0, skipped: 1, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
     }
   ],
   CHECKOUT: [
@@ -819,7 +1018,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       name: 'Checkout 2026.06 RC1',
       buildKey: 'CHECKOUT-2026-06-RC1',
       version: '2026.06.0-rc1',
-      description: 'Initiator squad build coordinating checkout release.',
+      description: 'Initiator squad build coordinating checkout release.', requirements: null,
       status: 'IN_PROGRESS',
       initiatedAt: '2026-05-24T08:30:00Z',
       inProgressAt: '2026-05-24T09:00:00Z',
@@ -987,6 +1186,23 @@ export const mockSquadPlans: ReleasePlan[] = [
   }
 ];
 
+// ── Statistics overrides ─────────────────────────────────────────────────────
+// Pre-computed realistic stats per project (totalScenarios reflects full suites
+// in the real system, not just the display scenarios in this mock).
+export const mockStatisticsOverride: Record<string, {
+  totalScenarios: number; totalAutomated: number; totalAutomatable: number;
+}> = {
+  PAYMENT:      { totalScenarios: 412, totalAutomated: 280, totalAutomatable: 368 },
+  AUTH:         { totalScenarios: 280, totalAutomated: 195, totalAutomatable: 250 },
+  CATALOG:      { totalScenarios: 356, totalAutomated: 240, totalAutomatable: 320 },
+  CHECKOUT:     { totalScenarios: 298, totalAutomated: 210, totalAutomatable: 270 },
+  ORDER:        { totalScenarios: 340, totalAutomated: 230, totalAutomatable: 305 },
+  NOTIFICATION: { totalScenarios: 188, totalAutomated: 130, totalAutomatable: 168 },
+  WALLET:       { totalScenarios: 318, totalAutomated: 215, totalAutomatable: 285 },
+  SEARCH:       { totalScenarios: 275, totalAutomated: 190, totalAutomatable: 248 },
+  INFRA:        { totalScenarios: 156, totalAutomated: 112, totalAutomatable: 140 },
+};
+
 export const mockTagsByProject: Record<string, TagView[]> = {
   PAYMENT: [
     { id: 'tag-refund', sanitized: 'refund', display: 'refund' },
@@ -1029,6 +1245,56 @@ export const mockTagsByProject: Record<string, TagView[]> = {
     { id: 'tag-inventory', sanitized: 'inventory', display: 'inventory' },
     { id: 'tag-product', sanitized: 'product', display: 'product' },
     { id: 'tag-filter', sanitized: 'filter', display: 'filter' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+  ],
+  NOTIFICATION: [
+    { id: 'tag-email', sanitized: 'email', display: 'email' },
+    { id: 'tag-sms', sanitized: 'sms', display: 'sms' },
+    { id: 'tag-push', sanitized: 'push', display: 'push' },
+    { id: 'tag-template', sanitized: 'template', display: 'template' },
+    { id: 'tag-otp', sanitized: 'otp', display: 'otp' },
+    { id: 'tag-retry', sanitized: 'retry', display: 'retry' },
+    { id: 'tag-bounce', sanitized: 'bounce', display: 'bounce' },
+    { id: 'tag-i18n', sanitized: 'i18n', display: 'i18n' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+  ],
+  WALLET: [
+    { id: 'tag-wallet', sanitized: 'wallet', display: 'wallet' },
+    { id: 'tag-topup', sanitized: 'topup', display: 'topup' },
+    { id: 'tag-withdraw', sanitized: 'withdraw', display: 'withdraw' },
+    { id: 'tag-transfer', sanitized: 'transfer', display: 'transfer' },
+    { id: 'tag-rewards', sanitized: 'rewards', display: 'rewards' },
+    { id: 'tag-cashback', sanitized: 'cashback', display: 'cashback' },
+    { id: 'tag-kyc', sanitized: 'kyc', display: 'kyc' },
+    { id: 'tag-limit', sanitized: 'limit', display: 'limit' },
+    { id: 'tag-idempotency', sanitized: 'idempotency', display: 'idempotency' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+  ],
+  SEARCH: [
+    { id: 'tag-search', sanitized: 'search', display: 'search' },
+    { id: 'tag-keyword', sanitized: 'keyword', display: 'keyword' },
+    { id: 'tag-filter', sanitized: 'filter', display: 'filter' },
+    { id: 'tag-autocomplete', sanitized: 'autocomplete', display: 'autocomplete' },
+    { id: 'tag-ranking', sanitized: 'ranking', display: 'ranking' },
+    { id: 'tag-analytics', sanitized: 'analytics', display: 'analytics' },
+    { id: 'tag-fuzzy', sanitized: 'fuzzy', display: 'fuzzy' },
+    { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+    { id: 'tag-security', sanitized: 'security', display: 'security' },
+  ],
+  INFRA: [
+    { id: 'tag-infra', sanitized: 'infra', display: 'infra' },
+    { id: 'tag-health', sanitized: 'health', display: 'health' },
+    { id: 'tag-sla', sanitized: 'sla', display: 'sla' },
+    { id: 'tag-performance', sanitized: 'performance', display: 'performance' },
+    { id: 'tag-uptime', sanitized: 'uptime', display: 'uptime' },
+    { id: 'tag-disaster-recovery', sanitized: 'disaster-recovery', display: 'disaster-recovery' },
+    { id: 'tag-backup', sanitized: 'backup', display: 'backup' },
+    { id: 'tag-failover', sanitized: 'failover', display: 'failover' },
+    { id: 'tag-security', sanitized: 'security', display: 'security' },
+    { id: 'tag-tls', sanitized: 'tls', display: 'tls' },
     { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
   ],
 };

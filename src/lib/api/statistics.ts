@@ -4,7 +4,7 @@ import {
   mockListProjectStatistics,
   mockListProjectStatisticHistory
 } from '$lib/mock/client';
-import { mockSquads, mockTribes, mockProjects, mockScenariosByProject, mockRunsByProject } from '$lib/mock/data';
+import { mockSquads, mockTribes, mockProjects, mockScenariosByProject, mockRunsByProject, mockStatisticsOverride } from '$lib/mock/data';
 
 export interface ProjectStatistic {
   id: string;
@@ -82,16 +82,22 @@ export async function listProjectStatisticHistory(projectKey: string, days = 30)
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
   if (isMockMode()) {
-    const stats = await mockListProjectStatistics();
-    const totalScenarios = stats.reduce((sum, row) => sum + row.totalScenarios, 0);
-    const totalAutomated = stats.reduce((sum, row) => sum + row.totalAutomated, 0);
-    const totalAutomatable = stats.reduce((sum, row) => sum + row.totalAutomatable, 0);
+    // Use override stats for realistic dashboard numbers
+    const allOverrides = Object.values(mockStatisticsOverride);
+    const totalScenarios   = allOverrides.reduce((s, r) => s + r.totalScenarios,   0);
+    const totalAutomated   = allOverrides.reduce((s, r) => s + r.totalAutomated,   0);
+    const totalAutomatable = allOverrides.reduce((s, r) => s + r.totalAutomatable, 0);
     const totalSquads = Object.values(mockSquads).reduce((sum, arr) => sum + arr.length, 0);
+    // Compute overall pass rate from recent runs
+    const allRuns = Object.values(mockRunsByProject).flat().filter(r => r.finishedAt && r.totalScenarios);
+    const recentRuns = allRuns.slice(-30);
+    const totalPass = recentRuns.reduce((s, r) => s + (r.passedScenarios ?? 0), 0);
+    const totalRun  = recentRuns.reduce((s, r) => s + (r.totalScenarios  ?? 0), 0);
     return {
       totalSquads,
       totalProjects: mockProjects.length,
       totalScenarios,
-      overallPassPercentage: 92,
+      overallPassPercentage: totalRun > 0 ? Number(((totalPass / totalRun) * 100).toFixed(1)) : 91.2,
       automationCoveragePercentage: totalAutomatable ? Number(((totalAutomated / totalAutomatable) * 100).toFixed(2)) : 0
     };
   }
@@ -183,10 +189,17 @@ export async function listSquadCoverage(params: {
         const squadProjects = mockProjects.filter(p => p.squadId === squad.id);
         let total = 0, automated = 0, automatable = 0;
         for (const proj of squadProjects) {
-          const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
-          total += scenarios.length;
-          automated += scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
-          automatable += scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+          const ov = mockStatisticsOverride[proj.projectKey];
+          if (ov) {
+            total      += ov.totalScenarios;
+            automated  += ov.totalAutomated;
+            automatable+= ov.totalAutomatable;
+          } else {
+            const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
+            total      += scenarios.length;
+            automated  += scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+            automatable+= scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+          }
         }
         const tribe = tribeById.get(squad.tribeId);
         return {
@@ -226,10 +239,11 @@ export async function listSquadProjectCoverage(squadId: string, params: {
   if (isMockMode()) {
     const squadProjects = mockProjects.filter(p => p.squadId === squadId);
     const result: SquadProjectCoverage[] = squadProjects.map(proj => {
+      const ov = mockStatisticsOverride[proj.projectKey];
       const scenarios = mockScenariosByProject[proj.projectKey] ?? [];
-      const totalScenarios = scenarios.length;
-      const totalAutomated = scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
-      const totalAutomatable = scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
+      const totalScenarios   = ov?.totalScenarios   ?? scenarios.length;
+      const totalAutomated   = ov?.totalAutomated   ?? scenarios.filter(s => s.automationStatus === 'AUTOMATED').length;
+      const totalAutomatable = ov?.totalAutomatable ?? scenarios.filter(s => s.automationStatus === 'AUTOMATED' || s.automationStatus === 'AUTOMATABLE').length;
       return {
         projectId: proj.id,
         projectKey: proj.projectKey,
