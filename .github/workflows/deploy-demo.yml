@@ -29,6 +29,8 @@ jobs:
           VITE_MOCK: 'true'
           BUILD_TARGET: demo
           GITHUB_REPOSITORY: ${{ github.repository }}
+          SITE_CUSTOM_DOMAIN: 'setara.readynaz.com'
+      - run: echo 'setara.readynaz.com' > build/CNAME
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build
