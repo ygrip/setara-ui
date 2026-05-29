@@ -799,6 +799,7 @@
   .sidebar-footer {
     padding: 8px 12px;
     border-top: 1px solid var(--color-border);
+    flex-shrink: 0; /* never squished by the flex nav above */
   }
 
   .sidebar-search-btn {
@@ -831,11 +832,18 @@
     background: rgba(255,255,255,0.04);
   }
 
+  /* Theme row in sidebar footer — shown on mobile, hidden on desktop where brand row has it */
   .sidebar-footer-theme {
-    display: none; /* hidden on desktop — theme lives in brand row there */
+    display: flex;
     align-items: center;
     justify-content: space-between;
     padding: 8px 4px;
+  }
+
+  @media (min-width: 769px) {
+    .sidebar-footer-theme {
+      display: none;
+    }
   }
 
   .sidebar-footer-label {
@@ -1250,13 +1258,9 @@
       display: none;
     }
 
-    /* Show search at top of nav and theme at bottom on mobile */
+    /* Show search at top of nav on mobile */
     .sidebar-nav-search {
       display: block;
-    }
-
-    .sidebar-footer-theme {
-      display: flex;
     }
 
     /* Hide project pill on mobile */
