@@ -381,7 +381,7 @@
         {:else if filteredScenarios.length === 0}
           <p class="empty">{scenarioFilter || typeFilter || priorityFilter ? 'No scenarios match the current filters.' : 'No scenarios in this directory.'}</p>
         {:else}
-          <DataTable mobileCards>
+          <DataTable>
             {#snippet head()}
               <tr>
                 <th class="checkbox-col">

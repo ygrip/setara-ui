@@ -1565,11 +1565,14 @@
     .directory-toolbar { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .dir-action-btn { width: 100%; min-width: 0; }
   }
-  /* Touch / mobile: always show copy buttons */
+  /* Touch / mobile: always show copy buttons, increase tap targets */
   @media (hover: none) and (pointer: coarse) {
     .ta-secondary { display: none; }
     .tree-line { gap: 2px; }
     .copy-name-btn { opacity: 1; }
+    .icon-btn { width: 44px; height: 44px; }
+    .dir-action-btn { min-height: 44px; }
+    .tree-caret-btn { height: 44px; }
   }
   .tag-edit-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .editor-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }

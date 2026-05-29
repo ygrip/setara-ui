@@ -362,7 +362,7 @@
           <p>No projects yet — create your first project in the <a href="/projects">Projects section</a>.</p>
         </div>
       {:else}
-        <DataTable mobileCards>
+        <DataTable>
           {#snippet head()}
             <tr>
               <th>Key</th>

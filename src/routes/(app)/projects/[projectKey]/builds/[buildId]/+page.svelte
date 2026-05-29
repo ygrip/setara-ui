@@ -450,7 +450,7 @@
         </div>
       {/if}
 
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th class="checkbox-col">

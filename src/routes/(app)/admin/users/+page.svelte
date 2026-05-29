@@ -99,7 +99,7 @@
     {#if users.length === 0}
       <p class="empty-text">No users found.</p>
     {:else}
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}<tr><th>Email</th><th>Display Name</th><th>Created</th><th></th></tr>{/snippet}
         {#snippet body()}
           {#each users as user}

@@ -577,6 +577,7 @@
     .metrics-row { grid-template-columns: 1fr; }
     .quick-links { grid-template-columns: 1fr; }
     .project-header { flex-direction: column; }
+    .settings-entry { width: 100%; min-height: 44px; justify-content: center; }
   }
 
   .latest-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }

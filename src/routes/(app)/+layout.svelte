@@ -438,36 +438,6 @@
                   Sign out
                 </button>
               </div>
-
-              <!-- Mobile: centred popup overlay -->
-              <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-              <div class="user-popup-overlay" role="dialog" aria-modal="true" aria-label="Account" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) userMenuOpen = false; }}>
-                <div class="user-popup">
-                  <div class="user-popup-avatar">{session.name?.[0]?.toUpperCase() ?? '?'}</div>
-                  <div class="user-popup-name">{session.name}</div>
-                  <div class="user-popup-email">{session.email}</div>
-                  <div class="user-popup-role">{session.role}</div>
-                  <div class="user-popup-actions">
-                    <a href="/profile" class="popup-btn" onclick={() => userMenuOpen = false}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-                      </svg>
-                      Profile
-                    </a>
-                    <button class="popup-btn popup-btn--danger" onclick={() => { userMenuOpen = false; signOut(); }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
-                      </svg>
-                      Sign out
-                    </button>
-                  </div>
-                  <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-                      <path d="M18 6 6 18M6 6l12 12"/>
-                    </svg>
-                  </button>
-                </div>
-              </div>
             {/if}
           </div>
         {/if}
@@ -497,6 +467,39 @@
     </footer>
   </div>
 </div>
+
+<!-- Mobile user popup — rendered outside app-shell so position:fixed is relative to viewport,
+     not the topbar's backdrop-filter stacking context -->
+{#if userMenuOpen && session}
+  <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
+  <div class="user-popup-overlay" role="dialog" aria-modal="true" aria-label="Account" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) userMenuOpen = false; }}>
+    <div class="user-popup">
+      <div class="user-popup-avatar">{session.name?.[0]?.toUpperCase() ?? '?'}</div>
+      <div class="user-popup-name">{session.name}</div>
+      <div class="user-popup-email">{session.email}</div>
+      <div class="user-popup-role">{session.role}</div>
+      <div class="user-popup-actions">
+        <a href="/profile" class="popup-btn" onclick={() => userMenuOpen = false}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+          </svg>
+          Profile
+        </a>
+        <button class="popup-btn popup-btn--danger" onclick={() => { userMenuOpen = false; signOut(); }}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </div>
+      <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+{/if}
 
 <!-- Command Palette -->
 <CommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />

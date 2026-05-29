@@ -231,6 +231,7 @@
   /* Column visibility on smaller viewports */
   @media (max-width: 720px) {
     .page-header { flex-direction: column; }
+    .page-header :global(.btn) { width: 100%; justify-content: center; }
     .filters-bar { flex-direction: column; align-items: stretch; }
     .search-wrap { width: 100%; }
     .search-input { min-width: 0; width: 100%; }

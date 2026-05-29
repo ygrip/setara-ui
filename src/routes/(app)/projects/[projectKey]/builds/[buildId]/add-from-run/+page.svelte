@@ -217,7 +217,7 @@
     {:else if scenariosError}
       <div class="error">{scenariosError}</div>
     {:else}
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th class="checkbox-col">

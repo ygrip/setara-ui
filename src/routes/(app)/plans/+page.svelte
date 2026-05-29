@@ -315,6 +315,7 @@
 
   @media (max-width: 800px) {
     .page-header { flex-direction: column; gap: 12px; }
+    .page-header :global(.btn) { width: 100%; justify-content: center; }
     .filters-bar { flex-direction: column; align-items: stretch; }
     .filters-bar select { width: 100%; }
     .search-wrap { width: 100%; }

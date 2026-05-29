@@ -114,7 +114,7 @@
       <p>No API keys yet. Create one to allow automation runners to submit results.</p>
     </div>
   {:else}
-    <DataTable mobileCards>
+    <DataTable>
       {#snippet head()}
         <tr>
           <th>Name</th>

@@ -163,7 +163,7 @@
         <h2 class="section-title">Project Coverage</h2>
         <input class="search-input" bind:value={projectSearch} placeholder="Search projects…" />
       </div>
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th class="th-sort" onclick={() => toggleSort('projectName')}>Project{sortIcon('projectName')}</th>

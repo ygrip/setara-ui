@@ -153,6 +153,11 @@
     flex-wrap: wrap;
   }
 
+  @media (max-width: 640px) {
+    .page-header { flex-direction: column; gap: 12px; }
+    .page-header :global(.btn) { width: 100%; justify-content: center; }
+  }
+
   .page-title {
     font-size: 1.5rem;
     font-weight: 700;

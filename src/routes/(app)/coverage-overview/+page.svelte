@@ -117,7 +117,7 @@
         <input bind:value={squadFilter} oninput={refreshSquads} placeholder="Filter squad" />
       </div>
     </div>
-    <DataTable mobileCards>
+    <DataTable>
       {#snippet head()}
         <tr>
           <th><button class="sort-button" onclick={() => sortSquads('name')}>Squad {indicator(squadSortBy === 'name', squadSortDir)}</button></th>
@@ -162,7 +162,7 @@
           <input bind:value={projectFilter} oninput={refreshProjects} placeholder="Filter project" />
         </div>
       </div>
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th><button class="sort-button" onclick={() => sortProjects('name')}>Project {indicator(projectSortBy === 'name', projectSortDir)}</button></th>

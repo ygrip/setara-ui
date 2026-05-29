@@ -154,7 +154,7 @@
     </div>
   {:else}
     <div class="table-wrap">
-      <DataTable mobileCards>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th>Status</th>
