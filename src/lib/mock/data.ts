@@ -51,7 +51,12 @@ export const mockProjects: Project[] = [
   { id: '6', squadId: 'squad-6', projectKey: 'ORDER', name: 'Order Management', description: 'Order lifecycle and fulfillment workflows', createdAt: '2026-03-18T10:00:00Z' },
   { id: '7', squadId: 'squad-7', projectKey: 'WALLET', name: 'Digital Wallet', description: 'Wallet top-up, balance, and transfer flows', createdAt: '2026-04-01T09:00:00Z' },
   { id: '8', squadId: 'squad-4', projectKey: 'SEARCH', name: 'Search & Discovery', description: 'Product search ranking and filter accuracy', createdAt: '2026-04-10T11:00:00Z' },
-  { id: '9', squadId: 'squad-2', projectKey: 'INFRA', name: 'Platform Infra', description: 'Infrastructure health and SLA tests', createdAt: '2026-04-15T10:00:00Z' },
+  { id: '9',  squadId: 'squad-2',  projectKey: 'INFRA',     name: 'Platform Infra',        description: 'Infrastructure health and SLA tests',                   createdAt: '2026-04-15T10:00:00Z' },
+  { id: '10', squadId: 'squad-8',  projectKey: 'PRICING',   name: 'Pricing Engine',        description: 'Dynamic pricing rules, promotions and bulk-tier tests',  createdAt: '2026-04-20T09:00:00Z' },
+  { id: '11', squadId: 'squad-9',  projectKey: 'IOS',       name: 'iOS App',               description: 'iOS client UI, navigation and integration test suite',   createdAt: '2026-04-22T10:00:00Z' },
+  { id: '12', squadId: 'squad-10', projectKey: 'ANDROID',   name: 'Android App',           description: 'Android client UI, deep-links and background sync tests', createdAt: '2026-04-22T11:00:00Z' },
+  { id: '13', squadId: 'squad-7',  projectKey: 'LOYALTY',   name: 'Loyalty Programme',     description: 'Points accrual, tier upgrades and redemption scenarios',   createdAt: '2026-04-28T09:00:00Z' },
+  { id: '14', squadId: 'squad-2',  projectKey: 'ANALYTICS', name: 'Analytics Platform',    description: 'Event tracking, funnel and cohort analysis test scenarios', createdAt: '2026-05-02T08:00:00Z' },
 ];
 
 export const mockRunsByProject: Record<string, AutomationRun[]> = {
@@ -106,18 +111,49 @@ export const mockRunsByProject: Record<string, AutomationRun[]> = {
     { id: 'run-infra-002', projectId: '9', projectKey: 'INFRA', runnerId: 'ci-runner-07', status: 'FAILED', branch: 'feature/new-relic-agent', environment: 'staging', framework: 'cucumber', commitSha: 'infra3c4d', jobName: 'sla-check', startedAt: '2026-05-22T05:00:00Z', finishedAt: '2026-05-22T05:20:44Z', createdAt: '2026-05-22T05:00:00Z', totalScenarios: 60, passedScenarios: 50, failedScenarios: 10, skippedScenarios: 0 },
     { id: 'run-infra-003', projectId: '9', projectKey: 'INFRA', runnerId: 'ci-runner-07', status: 'PASSED', branch: 'main', environment: 'production', framework: 'cucumber', commitSha: 'infra5e6f', jobName: 'health-check', startedAt: '2026-05-21T05:00:00Z', finishedAt: '2026-05-21T05:21:30Z', createdAt: '2026-05-21T05:00:00Z', totalScenarios: 120, passedScenarios: 120, failedScenarios: 0, skippedScenarios: 0 },
   ],
+  PRICING: [
+    { id: 'run-pri-001', projectId: '10', projectKey: 'PRICING', runnerId: 'ci-runner-08', status: 'PASSED',  branch: 'main',               environment: 'staging',    framework: 'cucumber', buildId: 'build-pricing-rc1', buildKey: 'pricing-rc1', buildName: 'Pricing 2026.06 RC1', commitSha: 'pri1a2b3c', jobName: 'regression',  startedAt: '2026-05-23T08:00:00Z', finishedAt: '2026-05-23T08:16:44Z', createdAt: '2026-05-23T08:00:00Z', totalScenarios: 88, passedScenarios: 84, failedScenarios: 3, skippedScenarios: 1 },
+    { id: 'run-pri-002', projectId: '10', projectKey: 'PRICING', runnerId: 'ci-runner-08', status: 'FAILED',  branch: 'feature/bulk-tiers', environment: 'staging',    framework: 'cucumber', commitSha: 'pri4d5e6f', jobName: 'smoke',       startedAt: '2026-05-22T10:00:00Z', finishedAt: '2026-05-22T10:09:11Z', createdAt: '2026-05-22T10:00:00Z', totalScenarios: 35, passedScenarios: 28, failedScenarios: 7, skippedScenarios: 0 },
+    { id: 'run-pri-003', projectId: '10', projectKey: 'PRICING', runnerId: 'ci-runner-08', status: 'PASSED',  branch: 'main',               environment: 'production', framework: 'cucumber', commitSha: 'pri7g8h9i', jobName: 'smoke',       startedAt: '2026-05-21T08:00:00Z', finishedAt: '2026-05-21T08:08:22Z', createdAt: '2026-05-21T08:00:00Z', totalScenarios: 35, passedScenarios: 35, failedScenarios: 0, skippedScenarios: 0 },
+    { id: 'run-pri-004', projectId: '10', projectKey: 'PRICING', runnerId: 'ci-runner-08', status: 'PASSED',  branch: 'main',               environment: 'staging',    framework: 'cucumber', commitSha: 'prij0k1l2', jobName: 'regression',  startedAt: '2026-05-20T08:00:00Z', finishedAt: '2026-05-20T08:15:10Z', createdAt: '2026-05-20T08:00:00Z', totalScenarios: 86, passedScenarios: 82, failedScenarios: 4, skippedScenarios: 0 },
+  ],
+  IOS: [
+    { id: 'run-ios-001', projectId: '11', projectKey: 'IOS', runnerId: 'xcode-runner-01', status: 'PASSED',  branch: 'main',              environment: 'staging',    framework: 'xctest',   buildId: 'build-ios-rc1', buildKey: 'ios-rc1', buildName: 'iOS App 2026.06 RC1', commitSha: 'ios1a2b3c', jobName: 'ui-regression', startedAt: '2026-05-23T09:00:00Z', finishedAt: '2026-05-23T09:32:18Z', createdAt: '2026-05-23T09:00:00Z', totalScenarios: 120, passedScenarios: 114, failedScenarios: 4, skippedScenarios: 2 },
+    { id: 'run-ios-002', projectId: '11', projectKey: 'IOS', runnerId: 'xcode-runner-01', status: 'FAILED',  branch: 'feature/biometric', environment: 'staging',    framework: 'xctest',   commitSha: 'ios4d5e6f', jobName: 'smoke',         startedAt: '2026-05-22T09:00:00Z', finishedAt: '2026-05-22T09:14:55Z', createdAt: '2026-05-22T09:00:00Z', totalScenarios: 50, passedScenarios: 41, failedScenarios: 9, skippedScenarios: 0 },
+    { id: 'run-ios-003', projectId: '11', projectKey: 'IOS', runnerId: 'xcode-runner-01', status: 'PASSED',  branch: 'main',              environment: 'production', framework: 'xctest',   commitSha: 'ios7g8h9i', jobName: 'smoke',         startedAt: '2026-05-21T09:00:00Z', finishedAt: '2026-05-21T09:12:00Z', createdAt: '2026-05-21T09:00:00Z', totalScenarios: 50, passedScenarios: 50, failedScenarios: 0, skippedScenarios: 0 },
+    { id: 'run-ios-004', projectId: '11', projectKey: 'IOS', runnerId: 'xcode-runner-01', status: 'PARTIAL', branch: 'main',              environment: 'staging',    framework: 'xctest',   commitSha: 'iosj0k1l2', jobName: 'ui-regression', startedAt: '2026-05-20T09:00:00Z', finishedAt: '2026-05-20T09:30:44Z', createdAt: '2026-05-20T09:00:00Z', totalScenarios: 120, passedScenarios: 100, failedScenarios: 15, skippedScenarios: 5 },
+  ],
+  ANDROID: [
+    { id: 'run-and-001', projectId: '12', projectKey: 'ANDROID', runnerId: 'android-runner-01', status: 'PASSED',  branch: 'main',             environment: 'staging',    framework: 'espresso', buildId: 'build-android-rc1', buildKey: 'android-rc1', buildName: 'Android App 2026.06 RC1', commitSha: 'and1a2b3c', jobName: 'ui-regression', startedAt: '2026-05-23T09:30:00Z', finishedAt: '2026-05-23T10:05:22Z', createdAt: '2026-05-23T09:30:00Z', totalScenarios: 115, passedScenarios: 109, failedScenarios: 4, skippedScenarios: 2 },
+    { id: 'run-and-002', projectId: '12', projectKey: 'ANDROID', runnerId: 'android-runner-01', status: 'FAILED',  branch: 'feature/deeplink', environment: 'staging',    framework: 'espresso', commitSha: 'and4d5e6f', jobName: 'smoke',         startedAt: '2026-05-22T10:00:00Z', finishedAt: '2026-05-22T10:18:30Z', createdAt: '2026-05-22T10:00:00Z', totalScenarios: 48, passedScenarios: 38, failedScenarios: 10, skippedScenarios: 0 },
+    { id: 'run-and-003', projectId: '12', projectKey: 'ANDROID', runnerId: 'android-runner-01', status: 'PASSED',  branch: 'main',             environment: 'production', framework: 'espresso', commitSha: 'and7g8h9i', jobName: 'smoke',         startedAt: '2026-05-21T10:00:00Z', finishedAt: '2026-05-21T10:15:10Z', createdAt: '2026-05-21T10:00:00Z', totalScenarios: 48, passedScenarios: 48, failedScenarios: 0, skippedScenarios: 0 },
+    { id: 'run-and-004', projectId: '12', projectKey: 'ANDROID', runnerId: 'android-runner-01', status: 'PASSED',  branch: 'main',             environment: 'staging',    framework: 'espresso', commitSha: 'andj0k1l2', jobName: 'ui-regression', startedAt: '2026-05-20T09:30:00Z', finishedAt: '2026-05-20T10:04:18Z', createdAt: '2026-05-20T09:30:00Z', totalScenarios: 113, passedScenarios: 108, failedScenarios: 5, skippedScenarios: 0 },
+  ],
+  LOYALTY: [
+    { id: 'run-loy-001', projectId: '13', projectKey: 'LOYALTY', runnerId: 'ci-runner-06', status: 'PASSED',  branch: 'main',               environment: 'staging',    framework: 'cucumber', buildId: 'build-loyalty-rc1', buildKey: 'loyalty-rc1', buildName: 'Loyalty 2026.06 RC1', commitSha: 'loy1a2b3c', jobName: 'regression',  startedAt: '2026-05-23T07:30:00Z', finishedAt: '2026-05-23T07:48:55Z', createdAt: '2026-05-23T07:30:00Z', totalScenarios: 76, passedScenarios: 72, failedScenarios: 3, skippedScenarios: 1 },
+    { id: 'run-loy-002', projectId: '13', projectKey: 'LOYALTY', runnerId: 'ci-runner-06', status: 'FAILED',  branch: 'feature/tier-rules', environment: 'staging',    framework: 'cucumber', commitSha: 'loy4d5e6f', jobName: 'smoke',       startedAt: '2026-05-22T08:00:00Z', finishedAt: '2026-05-22T08:10:40Z', createdAt: '2026-05-22T08:00:00Z', totalScenarios: 30, passedScenarios: 22, failedScenarios: 8, skippedScenarios: 0 },
+    { id: 'run-loy-003', projectId: '13', projectKey: 'LOYALTY', runnerId: 'ci-runner-06', status: 'PASSED',  branch: 'main',               environment: 'production', framework: 'cucumber', commitSha: 'loy7g8h9i', jobName: 'smoke',       startedAt: '2026-05-21T07:30:00Z', finishedAt: '2026-05-21T07:40:05Z', createdAt: '2026-05-21T07:30:00Z', totalScenarios: 30, passedScenarios: 30, failedScenarios: 0, skippedScenarios: 0 },
+  ],
+  ANALYTICS: [
+    { id: 'run-ana-001', projectId: '14', projectKey: 'ANALYTICS', runnerId: 'ci-runner-07', status: 'PASSED',  branch: 'main',              environment: 'staging',    framework: 'cucumber', buildId: 'build-analytics-rc1', buildKey: 'analytics-rc1', buildName: 'Analytics 2026.06 RC1', commitSha: 'ana1a2b3c', jobName: 'regression',   startedAt: '2026-05-23T06:00:00Z', finishedAt: '2026-05-23T06:20:30Z', createdAt: '2026-05-23T06:00:00Z', totalScenarios: 70, passedScenarios: 67, failedScenarios: 2, skippedScenarios: 1 },
+    { id: 'run-ana-002', projectId: '14', projectKey: 'ANALYTICS', runnerId: 'ci-runner-07', status: 'FAILED',  branch: 'feature/funnels',   environment: 'staging',    framework: 'cucumber', commitSha: 'ana4d5e6f', jobName: 'smoke',        startedAt: '2026-05-22T06:00:00Z', finishedAt: '2026-05-22T06:11:22Z', createdAt: '2026-05-22T06:00:00Z', totalScenarios: 28, passedScenarios: 21, failedScenarios: 7, skippedScenarios: 0 },
+    { id: 'run-ana-003', projectId: '14', projectKey: 'ANALYTICS', runnerId: 'ci-runner-07', status: 'PASSED',  branch: 'main',              environment: 'production', framework: 'cucumber', commitSha: 'ana7g8h9i', jobName: 'health-check', startedAt: '2026-05-21T06:00:00Z', finishedAt: '2026-05-21T06:18:44Z', createdAt: '2026-05-21T06:00:00Z', totalScenarios: 70, passedScenarios: 70, failedScenarios: 0, skippedScenarios: 0 },
+  ],
 };
 
 export const mockApiKeysByProject: Record<string, ApiKey[]> = {
-  PAYMENT: [
-    { id: 'key-001', name: 'CI Pipeline', keyPrefix: 'stk_ci_pay', scopes: 'automation:write', createdAt: '2026-01-20T10:00:00Z', revokedAt: null },
-    { id: 'key-002', name: 'Staging Runner', keyPrefix: 'stk_stg_pay', scopes: 'automation:write', createdAt: '2026-02-10T09:00:00Z', revokedAt: null },
+  PAYMENT:   [
+    { id: 'key-001', name: 'CI Pipeline',    keyPrefix: 'stk_ci_pay',   scopes: 'automation:write', createdAt: '2026-01-20T10:00:00Z', revokedAt: null },
+    { id: 'key-002', name: 'Staging Runner', keyPrefix: 'stk_stg_pay',  scopes: 'automation:write', createdAt: '2026-02-10T09:00:00Z', revokedAt: null },
   ],
-  AUTH: [
-    { id: 'key-003', name: 'Auth CI', keyPrefix: 'stk_ci_auth', scopes: 'automation:write', createdAt: '2026-02-05T11:00:00Z', revokedAt: null },
-  ],
-  CATALOG: [],
-  CHECKOUT: [],
+  AUTH:      [{ id: 'key-003', name: 'Auth CI',         keyPrefix: 'stk_ci_auth',  scopes: 'automation:write', createdAt: '2026-02-05T11:00:00Z', revokedAt: null }],
+  PRICING:   [{ id: 'key-010', name: 'Pricing CI',      keyPrefix: 'stk_ci_pri',   scopes: 'automation:write', createdAt: '2026-04-25T09:00:00Z', revokedAt: null }],
+  IOS:       [{ id: 'key-011', name: 'Xcode Cloud',     keyPrefix: 'stk_xc_ios',   scopes: 'automation:write', createdAt: '2026-04-28T10:00:00Z', revokedAt: null }],
+  ANDROID:   [{ id: 'key-012', name: 'Android CI',      keyPrefix: 'stk_ci_and',   scopes: 'automation:write', createdAt: '2026-04-28T11:00:00Z', revokedAt: null }],
+  LOYALTY:   [{ id: 'key-013', name: 'Loyalty CI',      keyPrefix: 'stk_ci_loy',   scopes: 'automation:write', createdAt: '2026-05-03T09:00:00Z', revokedAt: null }],
+  ANALYTICS: [{ id: 'key-014', name: 'Analytics CI',    keyPrefix: 'stk_ci_ana',   scopes: 'automation:write', createdAt: '2026-05-05T08:00:00Z', revokedAt: null }],
+  CATALOG:   [],
+  CHECKOUT:  [],
 };
 
 type MockNode = TestDirectory & { nodeType: 'DIRECTORY' | 'FEATURE'; directoryId: string | null };
@@ -178,6 +214,39 @@ export const mockNodesByProject: Record<string, MockNode[]> = {
     { id: 'node-infra-sla',     parentId: 'node-infra-root', nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA03', name: 'SLA Monitoring',     slug: 'sla-monitoring',  path: 'platform-health/sla',    scenarioCount: 5,  createdAt: '2026-05-02T00:00:00Z' },
     { id: 'node-infra-dr',      parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA04', name: 'Disaster Recovery',  slug: 'disaster-recovery', path: 'disaster-recovery',    scenarioCount: 6,  createdAt: '2026-05-03T00:00:00Z' },
     { id: 'node-infra-security',parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-INFRA05', name: 'Security Hardening', slug: 'security',        path: 'security',              scenarioCount: 5,  createdAt: '2026-05-04T00:00:00Z' },
+  ],
+  PRICING: [
+    { id: 'node-pri-root',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-PRI01', name: 'Pricing Rules',      slug: 'pricing-rules',   path: 'pricing-rules',              scenarioCount: 8, createdAt: '2026-04-22T00:00:00Z' },
+    { id: 'node-pri-base',   parentId: 'node-pri-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-PRI02', name: 'Base Price',         slug: 'base-price',      path: 'pricing-rules/base-price',   scenarioCount: 4, createdAt: '2026-04-22T00:00:00Z' },
+    { id: 'node-pri-promo',  parentId: 'node-pri-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-PRI03', name: 'Promotions',         slug: 'promotions',      path: 'pricing-rules/promotions',   scenarioCount: 4, createdAt: '2026-04-23T00:00:00Z' },
+    { id: 'node-pri-bulk',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-PRI04', name: 'Bulk & Tier Pricing', slug: 'bulk-tier',      path: 'bulk-tier',                  scenarioCount: 6, createdAt: '2026-04-24T00:00:00Z' },
+    { id: 'node-pri-dynamic',parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-PRI05', name: 'Dynamic Pricing',    slug: 'dynamic-pricing', path: 'dynamic-pricing',            scenarioCount: 4, createdAt: '2026-04-25T00:00:00Z' },
+  ],
+  IOS: [
+    { id: 'node-ios-root',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-IOS01', name: 'Core Flows',       slug: 'core-flows',     path: 'core-flows',               scenarioCount: 10, createdAt: '2026-04-24T00:00:00Z' },
+    { id: 'node-ios-auth',   parentId: 'node-ios-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-IOS02', name: 'Auth & Biometrics',slug: 'auth-biometrics',path: 'core-flows/auth-biometrics', scenarioCount: 5,  createdAt: '2026-04-24T00:00:00Z' },
+    { id: 'node-ios-nav',    parentId: 'node-ios-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-IOS03', name: 'Navigation',       slug: 'navigation',     path: 'core-flows/navigation',     scenarioCount: 4,  createdAt: '2026-04-25T00:00:00Z' },
+    { id: 'node-ios-push',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-IOS04', name: 'Push Notifications',slug: 'push-notif',    path: 'push-notifications',        scenarioCount: 4,  createdAt: '2026-04-26T00:00:00Z' },
+    { id: 'node-ios-offline',parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-IOS05', name: 'Offline Mode',     slug: 'offline',        path: 'offline-mode',              scenarioCount: 3,  createdAt: '2026-04-27T00:00:00Z' },
+  ],
+  ANDROID: [
+    { id: 'node-and-root',    parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-AND01', name: 'Core Flows',        slug: 'core-flows',     path: 'core-flows',               scenarioCount: 9,  createdAt: '2026-04-24T00:00:00Z' },
+    { id: 'node-and-auth',    parentId: 'node-and-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-AND02', name: 'Auth & Biometrics', slug: 'auth-biometrics',path: 'core-flows/auth-biometrics', scenarioCount: 5,  createdAt: '2026-04-24T00:00:00Z' },
+    { id: 'node-and-deeplink',parentId: 'node-and-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-AND03', name: 'Deep Links',        slug: 'deep-links',     path: 'core-flows/deep-links',     scenarioCount: 4,  createdAt: '2026-04-25T00:00:00Z' },
+    { id: 'node-and-bg',      parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-AND04', name: 'Background Sync',   slug: 'bg-sync',        path: 'background-sync',           scenarioCount: 4,  createdAt: '2026-04-26T00:00:00Z' },
+    { id: 'node-and-widget',  parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-AND05', name: 'Widget & Shortcut', slug: 'widget',         path: 'widget-shortcut',           scenarioCount: 3,  createdAt: '2026-04-27T00:00:00Z' },
+  ],
+  LOYALTY: [
+    { id: 'node-loy-root',     parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-LOY01', name: 'Points & Accrual',  slug: 'points-accrual', path: 'points-accrual',           scenarioCount: 8,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-loy-earn',     parentId: 'node-loy-root',   nodeType: 'DIRECTORY', directoryId: 'DIR-LOY02', name: 'Earning Rules',     slug: 'earning-rules',  path: 'points-accrual/earning',   scenarioCount: 5,  createdAt: '2026-05-01T00:00:00Z' },
+    { id: 'node-loy-tiers',    parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-LOY03', name: 'Tier Management',   slug: 'tier-mgmt',      path: 'tier-management',          scenarioCount: 5,  createdAt: '2026-05-02T00:00:00Z' },
+    { id: 'node-loy-redeem',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-LOY04', name: 'Redemption',        slug: 'redemption',     path: 'redemption',               scenarioCount: 5,  createdAt: '2026-05-03T00:00:00Z' },
+  ],
+  ANALYTICS: [
+    { id: 'node-ana-root',     parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-ANA01', name: 'Event Tracking',    slug: 'events',         path: 'events',                   scenarioCount: 7,  createdAt: '2026-05-04T00:00:00Z' },
+    { id: 'node-ana-funnel',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-ANA02', name: 'Funnels',           slug: 'funnels',        path: 'funnels',                  scenarioCount: 5,  createdAt: '2026-05-05T00:00:00Z' },
+    { id: 'node-ana-cohort',   parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-ANA03', name: 'Cohort Analysis',   slug: 'cohorts',        path: 'cohorts',                  scenarioCount: 4,  createdAt: '2026-05-06T00:00:00Z' },
+    { id: 'node-ana-pipeline', parentId: null,              nodeType: 'DIRECTORY', directoryId: 'DIR-ANA04', name: 'Data Pipeline',     slug: 'pipeline',       path: 'data-pipeline',            scenarioCount: 4,  createdAt: '2026-05-07T00:00:00Z' },
   ],
 };
 
@@ -828,7 +897,83 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
     mkScenario('notif-push-expire',      'node-notif-push',  'SCN-NOTIF10', 'Expired device token is removed from registry',           'MANUAL',     'AUTOMATABLE', [tag('push'),tag('token')],                       'MEDIUM', 'ACTIVE', 'Push',      '2026-05-12T09:00:00Z'),
     mkScenario('notif-tmpl-variables',   'node-notif-tmpl',  'SCN-NOTIF11', 'Template variables are substituted before sending',       'AUTOMATION', 'AUTOMATED',   [tag('template'),tag('regression')],              'HIGH',   'ACTIVE', 'Templates', '2026-05-13T08:00:00Z'),
     mkScenario('notif-tmpl-locale',      'node-notif-tmpl',  'SCN-NOTIF12', 'Template selects correct locale based on user preference','AUTOMATION', 'AUTOMATED',   [tag('template'),tag('i18n')],                    'MEDIUM', 'ACTIVE', 'Templates', '2026-05-13T09:00:00Z'),
-  ]
+  ],
+  PRICING: [
+    mkScenario('pri-base-list',    'node-pri-base',    'SCN-PRI1',  'List price returned for known SKU',                       'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('smoke')],                     'CRITICAL', 'ACTIVE', 'Base Price',    '2026-04-22T08:00:00Z'),
+    mkScenario('pri-base-override','node-pri-base',    'SCN-PRI2',  'Merchant price override supersedes catalogue price',      'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('override'),tag('regression')], 'HIGH',     'ACTIVE', 'Base Price',    '2026-04-22T09:00:00Z'),
+    mkScenario('pri-base-currency','node-pri-base',    'SCN-PRI3',  'Price is returned in requested currency',                 'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('currency')],                  'HIGH',     'ACTIVE', 'Base Price',    '2026-04-23T08:00:00Z'),
+    mkScenario('pri-base-unknown', 'node-pri-base',    'SCN-PRI4',  'Unknown SKU returns 404 with error code',                 'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('validation')],                'MEDIUM',   'ACTIVE', 'Base Price',    '2026-04-23T09:00:00Z'),
+    mkScenario('pri-promo-pct',    'node-pri-promo',   'SCN-PRI5',  'Percentage discount promo reduces price correctly',       'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('promo'),tag('smoke')],         'HIGH',     'ACTIVE', 'Promotions',    '2026-04-24T08:00:00Z'),
+    mkScenario('pri-promo-fixed',  'node-pri-promo',   'SCN-PRI6',  'Fixed amount discount applied to eligible items only',   'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('promo'),tag('regression')],    'HIGH',     'ACTIVE', 'Promotions',    '2026-04-24T09:00:00Z'),
+    mkScenario('pri-promo-stack',  'node-pri-promo',   'SCN-PRI7',  'Non-stackable promotions reject second coupon',           'MANUAL',     'AUTOMATABLE', [tag('pricing'),tag('promo'),tag('validation')],    'HIGH',     'ACTIVE', 'Promotions',    '2026-04-25T08:00:00Z'),
+    mkScenario('pri-promo-expire', 'node-pri-promo',   'SCN-PRI8',  'Expired promotion code returns clear error',              'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('promo')],                     'MEDIUM',   'ACTIVE', 'Promotions',    '2026-04-25T09:00:00Z'),
+    mkScenario('pri-bulk-tier1',   'node-pri-bulk',    'SCN-PRI9',  'Tier 1 bulk discount applied at threshold quantity',      'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('bulk'),tag('smoke')],          'HIGH',     'ACTIVE', 'Bulk & Tier',   '2026-04-26T08:00:00Z'),
+    mkScenario('pri-bulk-tier2',   'node-pri-bulk',    'SCN-PRI10', 'Tier 2 discount replaces tier 1 at higher quantity',      'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('bulk'),tag('regression')],     'HIGH',     'ACTIVE', 'Bulk & Tier',   '2026-04-26T09:00:00Z'),
+    mkScenario('pri-bulk-mixed',   'node-pri-bulk',    'SCN-PRI11', 'Mixed cart with bulk and non-bulk items prices correctly', 'MANUAL',     'AUTOMATABLE', [tag('pricing'),tag('bulk')],                      'MEDIUM',   'ACTIVE', 'Bulk & Tier',   '2026-04-27T08:00:00Z'),
+    mkScenario('pri-dynamic-peak', 'node-pri-dynamic', 'SCN-PRI12', 'Dynamic surcharge applied during peak demand window',     'MANUAL',     'AUTOMATABLE', [tag('pricing'),tag('dynamic')],                   'MEDIUM',   'ACTIVE', 'Dynamic',       '2026-04-28T08:00:00Z'),
+    mkScenario('pri-dynamic-floor','node-pri-dynamic', 'SCN-PRI13', 'Dynamic price never drops below configured floor',        'AUTOMATION', 'AUTOMATED',   [tag('pricing'),tag('dynamic'),tag('validation')],  'HIGH',     'ACTIVE', 'Dynamic',       '2026-04-28T09:00:00Z'),
+    mkScenario('pri-dynamic-audit','node-pri-dynamic', 'SCN-PRI14', 'Each price change is recorded in the audit log',          'MANUAL',     'MANUAL_ONLY', [tag('pricing'),tag('audit')],                     'LOW',      'DRAFT',  'Dynamic',       '2026-04-29T08:00:00Z'),
+  ],
+  IOS: [
+    mkScenario('ios-auth-biometric','node-ios-auth',   'SCN-IOS1',  'Face ID login completes within 2 seconds',                'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('biometric'),tag('smoke')],          'CRITICAL', 'ACTIVE', 'Auth',         '2026-04-24T08:00:00Z'),
+    mkScenario('ios-auth-fallback', 'node-ios-auth',   'SCN-IOS2',  'Fallback to PIN when Face ID fails three times',          'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('biometric'),tag('regression')],    'HIGH',     'ACTIVE', 'Auth',         '2026-04-24T09:00:00Z'),
+    mkScenario('ios-auth-token',    'node-ios-auth',   'SCN-IOS3',  'Auth token refreshes silently in background',             'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('session'),tag('regression')],       'HIGH',     'ACTIVE', 'Auth',         '2026-04-25T08:00:00Z'),
+    mkScenario('ios-auth-logout',   'node-ios-auth',   'SCN-IOS4',  'Force logout clears all keychain tokens',                 'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('security')],                       'CRITICAL', 'ACTIVE', 'Auth',         '2026-04-25T09:00:00Z'),
+    mkScenario('ios-auth-oauth',    'node-ios-auth',   'SCN-IOS5',  'OAuth sign-in via Google completes end-to-end',           'MANUAL',     'AUTOMATABLE', [tag('ios'),tag('oauth')],                          'HIGH',     'ACTIVE', 'Auth',         '2026-04-26T08:00:00Z'),
+    mkScenario('ios-nav-tab',       'node-ios-nav',    'SCN-IOS6',  'Tab bar navigates to correct section on tap',             'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('navigation'),tag('smoke')],         'HIGH',     'ACTIVE', 'Navigation',   '2026-04-27T08:00:00Z'),
+    mkScenario('ios-nav-back',      'node-ios-nav',    'SCN-IOS7',  'Back gesture returns to previous screen correctly',       'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('navigation')],                     'MEDIUM',   'ACTIVE', 'Navigation',   '2026-04-27T09:00:00Z'),
+    mkScenario('ios-nav-deeplink',  'node-ios-nav',    'SCN-IOS8',  'Universal link opens correct in-app destination',         'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('navigation'),tag('deeplink')],      'HIGH',     'ACTIVE', 'Navigation',   '2026-04-28T08:00:00Z'),
+    mkScenario('ios-push-receive',  'node-ios-push',   'SCN-IOS9',  'Push notification is received and displayed in tray',     'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('push'),tag('smoke')],               'HIGH',     'ACTIVE', 'Push',         '2026-04-29T08:00:00Z'),
+    mkScenario('ios-push-tap',      'node-ios-push',   'SCN-IOS10', 'Tapping notification deeplinks to correct screen',        'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('push'),tag('deeplink')],            'HIGH',     'ACTIVE', 'Push',         '2026-04-29T09:00:00Z'),
+    mkScenario('ios-push-badge',    'node-ios-push',   'SCN-IOS11', 'App badge count reflects unread notification count',      'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('push')],                           'MEDIUM',   'ACTIVE', 'Push',         '2026-04-30T08:00:00Z'),
+    mkScenario('ios-offline-cache', 'node-ios-offline','SCN-IOS12', 'Previously viewed content available offline',             'MANUAL',     'AUTOMATABLE', [tag('ios'),tag('offline'),tag('cache')],            'HIGH',     'ACTIVE', 'Offline',      '2026-05-01T08:00:00Z'),
+    mkScenario('ios-offline-sync',  'node-ios-offline','SCN-IOS13', 'Pending actions sync to server on reconnection',          'MANUAL',     'AUTOMATABLE', [tag('ios'),tag('offline'),tag('sync')],             'HIGH',     'ACTIVE', 'Offline',      '2026-05-01T09:00:00Z'),
+    mkScenario('ios-offline-banner','node-ios-offline','SCN-IOS14', 'Offline banner shown when network is unavailable',        'AUTOMATION', 'AUTOMATED',   [tag('ios'),tag('offline')],                        'MEDIUM',   'DRAFT',  'Offline',      '2026-05-02T08:00:00Z'),
+  ],
+  ANDROID: [
+    mkScenario('and-auth-biometric','node-and-auth',    'SCN-AND1',  'Fingerprint login completes within 2 seconds',            'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('biometric'),tag('smoke')],     'CRITICAL', 'ACTIVE', 'Auth',          '2026-04-24T08:00:00Z'),
+    mkScenario('and-auth-fallback', 'node-and-auth',    'SCN-AND2',  'Fallback to PIN when fingerprint fails three times',       'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('biometric'),tag('regression')],'HIGH',     'ACTIVE', 'Auth',          '2026-04-24T09:00:00Z'),
+    mkScenario('and-auth-token',    'node-and-auth',    'SCN-AND3',  'Auth token refreshes silently in background',             'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('session'),tag('regression')],  'HIGH',     'ACTIVE', 'Auth',          '2026-04-25T08:00:00Z'),
+    mkScenario('and-auth-logout',   'node-and-auth',    'SCN-AND4',  'Force logout clears all account manager tokens',          'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('security')],                   'CRITICAL', 'ACTIVE', 'Auth',          '2026-04-25T09:00:00Z'),
+    mkScenario('and-auth-oauth',    'node-and-auth',    'SCN-AND5',  'OAuth sign-in via Google completes end-to-end',           'MANUAL',     'AUTOMATABLE', [tag('android'),tag('oauth')],                      'HIGH',     'ACTIVE', 'Auth',          '2026-04-26T08:00:00Z'),
+    mkScenario('and-deep-scheme',   'node-and-deeplink','SCN-AND6',  'Custom URI scheme opens correct in-app destination',      'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('deeplink'),tag('smoke')],       'HIGH',     'ACTIVE', 'Deep Links',    '2026-04-27T08:00:00Z'),
+    mkScenario('and-deep-applink',  'node-and-deeplink','SCN-AND7',  'Verified App Link bypasses disambiguation dialog',        'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('deeplink'),tag('regression')],  'HIGH',     'ACTIVE', 'Deep Links',    '2026-04-27T09:00:00Z'),
+    mkScenario('and-deep-backstack','node-and-deeplink','SCN-AND8',  'Back stack is correct after deep-link navigation',        'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('deeplink'),tag('navigation')],  'MEDIUM',   'ACTIVE', 'Deep Links',    '2026-04-28T08:00:00Z'),
+    mkScenario('and-bg-sync',       'node-and-bg',      'SCN-AND9',  'WorkManager job syncs data in background correctly',      'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('background'),tag('sync')],      'HIGH',     'ACTIVE', 'Background',    '2026-04-29T08:00:00Z'),
+    mkScenario('and-bg-battery',    'node-and-bg',      'SCN-AND10', 'Doze mode does not prevent critical sync tasks',          'MANUAL',     'AUTOMATABLE', [tag('android'),tag('background'),tag('battery')],   'HIGH',     'ACTIVE', 'Background',    '2026-04-29T09:00:00Z'),
+    mkScenario('and-bg-retry',      'node-and-bg',      'SCN-AND11', 'Failed background sync retries with exponential backoff', 'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('background'),tag('retry')],     'MEDIUM',   'ACTIVE', 'Background',    '2026-04-30T08:00:00Z'),
+    mkScenario('and-widget-render', 'node-and-widget',  'SCN-AND12', 'Home screen widget renders latest data',                  'MANUAL',     'AUTOMATABLE', [tag('android'),tag('widget')],                      'MEDIUM',   'ACTIVE', 'Widget',        '2026-05-01T08:00:00Z'),
+    mkScenario('and-widget-tap',    'node-and-widget',  'SCN-AND13', 'Widget tap opens app at correct screen',                  'AUTOMATION', 'AUTOMATED',   [tag('android'),tag('widget'),tag('navigation')],    'MEDIUM',   'ACTIVE', 'Widget',        '2026-05-01T09:00:00Z'),
+    mkScenario('and-widget-update', 'node-and-widget',  'SCN-AND14', 'Widget data refreshes every 30 minutes',                  'MANUAL',     'MANUAL_ONLY', [tag('android'),tag('widget')],                      'LOW',      'DRAFT',  'Widget',        '2026-05-02T08:00:00Z'),
+  ],
+  LOYALTY: [
+    mkScenario('loy-earn-purchase', 'node-loy-earn',   'SCN-LOY1',  'Points credited after successful purchase',               'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('points'),tag('smoke')],         'CRITICAL', 'ACTIVE', 'Earning',       '2026-05-01T08:00:00Z'),
+    mkScenario('loy-earn-rate',     'node-loy-earn',   'SCN-LOY2',  'Earn rate multiplier applied on bonus category',          'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('points'),tag('regression')],    'HIGH',     'ACTIVE', 'Earning',       '2026-05-01T09:00:00Z'),
+    mkScenario('loy-earn-partial',  'node-loy-earn',   'SCN-LOY3',  'Partial refund reverses proportional points',             'MANUAL',     'AUTOMATABLE', [tag('loyalty'),tag('points'),tag('refund')],         'HIGH',     'ACTIVE', 'Earning',       '2026-05-02T08:00:00Z'),
+    mkScenario('loy-earn-cap',      'node-loy-earn',   'SCN-LOY4',  'Daily earn cap prevents over-accrual',                   'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('points'),tag('limit')],          'HIGH',     'ACTIVE', 'Earning',       '2026-05-02T09:00:00Z'),
+    mkScenario('loy-earn-expire',   'node-loy-earn',   'SCN-LOY5',  'Points expire after 12-month inactivity window',         'MANUAL',     'MANUAL_ONLY', [tag('loyalty'),tag('points'),tag('expiry')],         'MEDIUM',   'DRAFT',  'Earning',       '2026-05-03T08:00:00Z'),
+    mkScenario('loy-tier-upgrade',  'node-loy-tiers',  'SCN-LOY6',  'Tier upgraded when threshold balance is crossed',        'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('tier'),tag('smoke')],            'CRITICAL', 'ACTIVE', 'Tiers',         '2026-05-04T08:00:00Z'),
+    mkScenario('loy-tier-perks',    'node-loy-tiers',  'SCN-LOY7',  'Gold tier unlocks free shipping perk',                   'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('tier'),tag('perk')],             'HIGH',     'ACTIVE', 'Tiers',         '2026-05-04T09:00:00Z'),
+    mkScenario('loy-tier-downgrade','node-loy-tiers',  'SCN-LOY8',  'Tier downgrade runs at annual review if below threshold', 'MANUAL',     'AUTOMATABLE', [tag('loyalty'),tag('tier')],                         'MEDIUM',   'ACTIVE', 'Tiers',         '2026-05-05T08:00:00Z'),
+    mkScenario('loy-redeem-partial','node-loy-redeem', 'SCN-LOY9',  'Partial redemption deducts correct points balance',       'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('redemption'),tag('smoke')],      'CRITICAL', 'ACTIVE', 'Redemption',    '2026-05-06T08:00:00Z'),
+    mkScenario('loy-redeem-full',   'node-loy-redeem', 'SCN-LOY10', 'Full redemption zeroes balance without negative balance', 'AUTOMATION', 'AUTOMATED',   [tag('loyalty'),tag('redemption'),tag('regression')], 'HIGH',     'ACTIVE', 'Redemption',    '2026-05-06T09:00:00Z'),
+    mkScenario('loy-redeem-expired','node-loy-redeem', 'SCN-LOY11', 'Redemption with expired points shows clear error',        'MANUAL',     'AUTOMATABLE', [tag('loyalty'),tag('redemption')],                   'MEDIUM',   'ACTIVE', 'Redemption',    '2026-05-07T08:00:00Z'),
+    mkScenario('loy-redeem-voucher','node-loy-redeem', 'SCN-LOY12', 'Points converted to voucher code for third-party use',    'MANUAL',     'AUTOMATABLE', [tag('loyalty'),tag('redemption'),tag('voucher')],    'MEDIUM',   'DRAFT',  'Redemption',    '2026-05-07T09:00:00Z'),
+  ],
+  ANALYTICS: [
+    mkScenario('ana-evt-pageview',  'node-ana-root',    'SCN-ANA1',  'Page-view event is logged with correct metadata',         'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('events'),tag('smoke')],        'CRITICAL', 'ACTIVE', 'Events',        '2026-05-04T08:00:00Z'),
+    mkScenario('ana-evt-custom',    'node-ana-root',    'SCN-ANA2',  'Custom event payload is validated against schema',        'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('events'),tag('validation')],   'HIGH',     'ACTIVE', 'Events',        '2026-05-04T09:00:00Z'),
+    mkScenario('ana-evt-dedup',     'node-ana-root',    'SCN-ANA3',  'Duplicate event within idempotency window is dropped',    'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('events'),tag('idempotency')],  'HIGH',     'ACTIVE', 'Events',        '2026-05-05T08:00:00Z'),
+    mkScenario('ana-evt-latency',   'node-ana-root',    'SCN-ANA4',  'Event ingestion latency stays below 500ms p99',           'MANUAL',     'AUTOMATABLE', [tag('analytics'),tag('events'),tag('performance')],  'HIGH',     'ACTIVE', 'Events',        '2026-05-05T09:00:00Z'),
+    mkScenario('ana-funnel-basic',  'node-ana-funnel',  'SCN-ANA5',  'Funnel conversion rate calculated correctly',             'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('funnel'),tag('smoke')],         'HIGH',     'ACTIVE', 'Funnels',       '2026-05-06T08:00:00Z'),
+    mkScenario('ana-funnel-drop',   'node-ana-funnel',  'SCN-ANA6',  'Drop-off at each funnel step is correctly identified',    'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('funnel'),tag('regression')],   'HIGH',     'ACTIVE', 'Funnels',       '2026-05-06T09:00:00Z'),
+    mkScenario('ana-funnel-segment','node-ana-funnel',  'SCN-ANA7',  'Funnel filtered by user segment returns subset data',     'MANUAL',     'AUTOMATABLE', [tag('analytics'),tag('funnel'),tag('segment')],      'MEDIUM',   'ACTIVE', 'Funnels',       '2026-05-07T08:00:00Z'),
+    mkScenario('ana-cohort-define', 'node-ana-cohort',  'SCN-ANA8',  'Cohort definition saves and applies retention window',    'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('cohort'),tag('smoke')],         'HIGH',     'ACTIVE', 'Cohorts',       '2026-05-08T08:00:00Z'),
+    mkScenario('ana-cohort-chart',  'node-ana-cohort',  'SCN-ANA9',  'Cohort retention chart renders data for 12 weeks',        'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('cohort')],                     'MEDIUM',   'ACTIVE', 'Cohorts',       '2026-05-08T09:00:00Z'),
+    mkScenario('ana-pipeline-ingest','node-ana-pipeline','SCN-ANA10','Batch ingestion pipeline processes 1M events under 5m',   'MANUAL',     'AUTOMATABLE', [tag('analytics'),tag('pipeline'),tag('performance')], 'HIGH',     'ACTIVE', 'Pipeline',      '2026-05-09T08:00:00Z'),
+    mkScenario('ana-pipeline-schema','node-ana-pipeline','SCN-ANA11','Schema evolution does not break existing downstream jobs', 'AUTOMATION', 'AUTOMATED',   [tag('analytics'),tag('pipeline'),tag('regression')],  'HIGH',     'ACTIVE', 'Pipeline',      '2026-05-09T09:00:00Z'),
+    mkScenario('ana-pipeline-retry','node-ana-pipeline','SCN-ANA12', 'Failed pipeline stage retries and resumes correctly',     'MANUAL',     'AUTOMATABLE', [tag('analytics'),tag('pipeline'),tag('retry')],       'MEDIUM',   'DRAFT',  'Pipeline',      '2026-05-10T08:00:00Z'),
+  ],
 };
 
 export const mockPlansByProject: Record<string, ReleasePlan[]> = {
@@ -884,7 +1029,26 @@ export const mockPlansByProject: Record<string, ReleasePlan[]> = {
       closedAt: null,
       closedBy: null
     }
-  ]
+  ],
+  PRICING: [
+    { id: 'plan-pricing-2026-05', squadId: 'squad-8', squadName: 'Pricing', name: '2026.05 Pricing Engine Release', releaseVersion: '2026.05', releaseDate: '2026-05-28', description: 'Pricing rules and bulk tier launch verification.', status: 'IN_PROGRESS', createdAt: '2026-05-10T09:00:00Z', updatedAt: '2026-05-22T10:00:00Z', openedAt: '2026-05-10T09:00:00Z', openedBy: 'qa-pricing@example.com', inProgressAt: '2026-05-15T08:00:00Z', closedAt: null, closedBy: null },
+    { id: 'plan-pricing-2026-04', squadId: 'squad-8', squadName: 'Pricing', name: '2026.04 Promo Hotfix',           releaseVersion: '2026.04.2', releaseDate: null,          description: 'Hotfix for promotional discount calculation bug.', status: 'CLOSED', createdAt: '2026-04-18T08:00:00Z', updatedAt: '2026-04-22T16:00:00Z', openedAt: '2026-04-18T08:00:00Z', openedBy: 'qa-pricing@example.com', inProgressAt: '2026-04-19T08:00:00Z', closedAt: '2026-04-22T16:00:00Z', closedBy: 'lead-pricing@example.com' },
+  ],
+  IOS: [
+    { id: 'plan-ios-2026-05', squadId: 'squad-9', squadName: 'iOS', name: 'iOS 2026.05 Sprint', releaseVersion: '5.2.0', releaseDate: '2026-05-31', description: 'Biometric auth and deep-link improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T09:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T09:00:00Z', openedBy: 'qa-ios@example.com', inProgressAt: '2026-05-12T08:00:00Z', closedAt: null, closedBy: null },
+    { id: 'plan-ios-2026-04', squadId: 'squad-9', squadName: 'iOS', name: 'iOS 2026.04 Release', releaseVersion: '5.1.0', releaseDate: null,          description: 'April feature release verification.', status: 'CLOSED', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T09:00:00Z', openedBy: 'qa-ios@example.com', inProgressAt: '2026-04-08T08:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com' },
+  ],
+  ANDROID: [
+    { id: 'plan-android-2026-05', squadId: 'squad-10', squadName: 'Android', name: 'Android 2026.05 Sprint', releaseVersion: '6.2.0', releaseDate: '2026-05-31', description: 'Biometric auth and background sync improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T10:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T10:00:00Z', openedBy: 'qa-android@example.com', inProgressAt: '2026-05-12T09:00:00Z', closedAt: null, closedBy: null },
+    { id: 'plan-android-2026-04', squadId: 'squad-10', squadName: 'Android', name: 'Android 2026.04 Release', releaseVersion: '6.1.0', releaseDate: null,           description: 'April feature release verification.', status: 'CLOSED', createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T10:00:00Z', openedBy: 'qa-android@example.com', inProgressAt: '2026-04-08T09:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com' },
+  ],
+  LOYALTY: [
+    { id: 'plan-loyalty-2026-05', squadId: 'squad-7', squadName: 'Wallet & Rewards', name: 'Loyalty 2026.05 Launch', releaseVersion: '1.0.0', releaseDate: '2026-05-29', description: 'Initial loyalty programme launch scope.', status: 'IN_PROGRESS', createdAt: '2026-05-08T09:00:00Z', updatedAt: '2026-05-23T10:00:00Z', openedAt: '2026-05-08T09:00:00Z', openedBy: 'qa-wallet@example.com', inProgressAt: '2026-05-14T08:00:00Z', closedAt: null, closedBy: null },
+  ],
+  ANALYTICS: [
+    { id: 'plan-analytics-2026-05', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics Platform v1 GA', releaseVersion: '1.0.0', releaseDate: '2026-05-30', description: 'General availability of analytics event pipeline and funnels.', status: 'IN_PROGRESS', createdAt: '2026-05-10T08:00:00Z', updatedAt: '2026-05-23T09:00:00Z', openedAt: '2026-05-10T08:00:00Z', openedBy: 'qa-infra@example.com', inProgressAt: '2026-05-16T08:00:00Z', closedAt: null, closedBy: null },
+    { id: 'plan-analytics-2026-04', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics MVP', releaseVersion: '0.9.0', releaseDate: null, description: 'MVP verification for event tracking and basic dashboards.', status: 'CLOSED', createdAt: '2026-04-10T08:00:00Z', updatedAt: '2026-04-30T16:00:00Z', openedAt: '2026-04-10T08:00:00Z', openedBy: 'qa-infra@example.com', inProgressAt: '2026-04-15T08:00:00Z', closedAt: '2026-04-30T16:00:00Z', closedBy: 'lead-infra@example.com' },
+  ],
 };
 
 export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
@@ -1029,7 +1193,26 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
       updatedAt: '2026-05-25T08:45:00Z',
       metrics: { buildId: 'build-checkout-rc1', totalScenarios: 3, passed: 2, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 66.67 }
     }
-  ]
+  ],
+  PRICING: [
+    { id: 'build-pricing-rc1', projectId: '10', projectKey: 'PRICING', projectName: 'Pricing Engine', squadId: 'squad-8', squadName: 'Pricing', name: 'Pricing 2026.05 RC1', buildKey: 'PRI-2026-05-RC1', version: '2026.05.0-rc1', description: 'Pricing rules and bulk-tier release verification.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-20T09:00:00Z', inProgressAt: '2026-05-20T09:30:00Z', verifiedAt: null, createdBy: 'qa-pricing@example.com', verifiedBy: null, createdAt: '2026-05-20T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', metrics: { buildId: 'build-pricing-rc1', totalScenarios: 6, passed: 4, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 83.33 } },
+    { id: 'build-pricing-hf1',  projectId: '10', projectKey: 'PRICING', projectName: 'Pricing Engine', squadId: 'squad-8', squadName: 'Pricing', name: 'Promo Hotfix 2026.04.2', buildKey: 'PRI-2026-04-HF2', version: '2026.04.2', description: 'Verified hotfix for promotional calculation.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-18T09:00:00Z', inProgressAt: '2026-04-18T09:30:00Z', verifiedAt: '2026-04-22T15:00:00Z', createdBy: 'qa-pricing@example.com', verifiedBy: 'lead-pricing@example.com', createdAt: '2026-04-18T09:00:00Z', updatedAt: '2026-04-22T15:00:00Z', metrics: { buildId: 'build-pricing-hf1', totalScenarios: 3, passed: 3, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+  ],
+  IOS: [
+    { id: 'build-ios-rc1', projectId: '11', projectKey: 'IOS', projectName: 'iOS App', squadId: 'squad-9', squadName: 'iOS', name: 'iOS 2026.05 RC1', buildKey: 'IOS-2026-05-RC1', version: '5.2.0-rc1', description: 'Biometric and deep-link verification for May release.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-20T10:00:00Z', inProgressAt: '2026-05-20T10:30:00Z', verifiedAt: null, createdBy: 'qa-ios@example.com', verifiedBy: null, createdAt: '2026-05-20T10:00:00Z', updatedAt: '2026-05-24T12:00:00Z', metrics: { buildId: 'build-ios-rc1', totalScenarios: 7, passed: 5, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 71.43, executionCoverage: 85.71 } },
+    { id: 'build-ios-510', projectId: '11', projectKey: 'IOS', projectName: 'iOS App', squadId: 'squad-9', squadName: 'iOS', name: 'iOS 2026.04 Release', buildKey: 'IOS-2026-04', version: '5.1.0', description: 'April release verified build.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-20T09:00:00Z', inProgressAt: '2026-04-20T09:30:00Z', verifiedAt: '2026-04-29T16:00:00Z', createdBy: 'qa-ios@example.com', verifiedBy: 'lead-mobile@example.com', createdAt: '2026-04-20T09:00:00Z', updatedAt: '2026-04-29T16:00:00Z', metrics: { buildId: 'build-ios-510', totalScenarios: 5, passed: 5, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+  ],
+  ANDROID: [
+    { id: 'build-android-rc1', projectId: '12', projectKey: 'ANDROID', projectName: 'Android App', squadId: 'squad-10', squadName: 'Android', name: 'Android 2026.05 RC1', buildKey: 'AND-2026-05-RC1', version: '6.2.0-rc1', description: 'Biometric and background sync verification for May release.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-20T10:00:00Z', inProgressAt: '2026-05-20T10:30:00Z', verifiedAt: null, createdBy: 'qa-android@example.com', verifiedBy: null, createdAt: '2026-05-20T10:00:00Z', updatedAt: '2026-05-24T12:00:00Z', metrics: { buildId: 'build-android-rc1', totalScenarios: 7, passed: 5, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 71.43, executionCoverage: 85.71 } },
+    { id: 'build-android-610', projectId: '12', projectKey: 'ANDROID', projectName: 'Android App', squadId: 'squad-10', squadName: 'Android', name: 'Android 2026.04 Release', buildKey: 'AND-2026-04', version: '6.1.0', description: 'April release verified build.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-20T10:00:00Z', inProgressAt: '2026-04-20T10:30:00Z', verifiedAt: '2026-04-29T16:30:00Z', createdBy: 'qa-android@example.com', verifiedBy: 'lead-mobile@example.com', createdAt: '2026-04-20T10:00:00Z', updatedAt: '2026-04-29T16:30:00Z', metrics: { buildId: 'build-android-610', totalScenarios: 5, passed: 5, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+  ],
+  LOYALTY: [
+    { id: 'build-loyalty-rc1', projectId: '13', projectKey: 'LOYALTY', projectName: 'Loyalty Programme', squadId: 'squad-7', squadName: 'Wallet & Rewards', name: 'Loyalty 2026.05 RC1', buildKey: 'LOY-2026-05-RC1', version: '1.0.0-rc1', description: 'Initial launch verification for loyalty programme.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-18T09:00:00Z', inProgressAt: '2026-05-18T09:30:00Z', verifiedAt: null, createdBy: 'qa-wallet@example.com', verifiedBy: null, createdAt: '2026-05-18T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', metrics: { buildId: 'build-loyalty-rc1', totalScenarios: 6, passed: 5, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 83.33, executionCoverage: 83.33 } },
+  ],
+  ANALYTICS: [
+    { id: 'build-analytics-rc1', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics 2026.05 RC1', buildKey: 'ANA-2026-05-RC1', version: '1.0.0-rc1', description: 'GA release verification for analytics event pipeline.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-19T09:00:00Z', inProgressAt: '2026-05-19T09:30:00Z', verifiedAt: null, createdBy: 'qa-infra@example.com', verifiedBy: null, createdAt: '2026-05-19T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', metrics: { buildId: 'build-analytics-rc1', totalScenarios: 5, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 80, executionCoverage: 80 } },
+    { id: 'build-analytics-mvp', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics MVP 0.9.0', buildKey: 'ANA-2026-04-MVP', version: '0.9.0', description: 'MVP verified build — event tracking and dashboards.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-22T09:00:00Z', inProgressAt: '2026-04-22T09:30:00Z', verifiedAt: '2026-04-29T15:00:00Z', createdBy: 'qa-infra@example.com', verifiedBy: 'lead-infra@example.com', createdAt: '2026-04-22T09:00:00Z', updatedAt: '2026-04-29T15:00:00Z', metrics: { buildId: 'build-analytics-mvp', totalScenarios: 4, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+  ],
 };
 
 export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
@@ -1050,19 +1233,88 @@ export const mockBuildScenariosByBuild: Record<string, BuildScenario[]> = {
     { id: 'bs-auth-3', scenarioId: 'scenario-session-refresh', scenarioKey: 'SCN-SESSION1', name: 'Refresh token rotation invalidates previous token', priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-25T09:02:00Z', featureName: 'Session Security', directoryPath: 'session-security' }
   ],
   'build-checkout-rc1': [
-    { id: 'bs-chkout-1', scenarioId: 'scenario-checkout-add-item', scenarioKey: 'SCN-CHKOUT1', name: 'Add item to cart persists across sessions', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-02', executedAt: '2026-05-25T10:00:00Z', addedAt: '2026-05-24T09:00:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
-    { id: 'bs-chkout-2', scenarioId: 'scenario-checkout-remove-item', scenarioKey: 'SCN-CHKOUT2', name: 'Remove item from cart updates total price', priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'PASSED', source: 'AUTOMATION', executedBy: 'ci-runner-02', executedAt: '2026-05-25T10:05:00Z', addedAt: '2026-05-24T09:01:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
-    { id: 'bs-chkout-3', scenarioId: 'scenario-checkout-promo-code', scenarioKey: 'SCN-CHKOUT3', name: 'Valid promo code applies discount at checkout', priority: 'HIGH', expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL', executedBy: null, executedAt: null, addedAt: '2026-05-24T09:02:00Z', featureName: 'Promotions', directoryPath: 'checkout/promotions' }
-  ]
+    { id: 'bs-chkout-1', scenarioId: 'scenario-checkout-add-item',    scenarioKey: 'SCN-CHKOUT1', name: 'Add item to cart persists across sessions',    priority: 'HIGH',   expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-02',           executedAt: '2026-05-25T10:00:00Z', addedAt: '2026-05-24T09:00:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
+    { id: 'bs-chkout-2', scenarioId: 'scenario-checkout-remove-item', scenarioKey: 'SCN-CHKOUT2', name: 'Remove item from cart updates total price',   priority: 'MEDIUM', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-02',           executedAt: '2026-05-25T10:05:00Z', addedAt: '2026-05-24T09:01:00Z', featureName: 'Cart Operations', directoryPath: 'checkout/cart-operations' },
+    { id: 'bs-chkout-3', scenarioId: 'scenario-checkout-promo-code',  scenarioKey: 'SCN-CHKOUT3', name: 'Valid promo code applies discount at checkout', priority: 'HIGH',   expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,                     executedAt: null,                   addedAt: '2026-05-24T09:02:00Z', featureName: 'Promotions',      directoryPath: 'checkout/promotions' }
+  ],
+  'build-pricing-rc1': [
+    { id: 'bs-pri-1', scenarioId: 'pri-base-list',    scenarioKey: 'SCN-PRI1',  name: 'List price returned for known SKU',                    priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-08', executedAt: '2026-05-21T08:10:00Z', addedAt: '2026-05-20T09:10:00Z', featureName: 'Base Price',   directoryPath: 'pricing-rules/base-price' },
+    { id: 'bs-pri-2', scenarioId: 'pri-base-override', scenarioKey: 'SCN-PRI2',  name: 'Merchant price override supersedes catalogue price',  priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-08', executedAt: '2026-05-21T08:15:00Z', addedAt: '2026-05-20T09:11:00Z', featureName: 'Base Price',   directoryPath: 'pricing-rules/base-price' },
+    { id: 'bs-pri-3', scenarioId: 'pri-promo-pct',    scenarioKey: 'SCN-PRI5',  name: 'Percentage discount promo reduces price correctly',    priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-08', executedAt: '2026-05-21T08:20:00Z', addedAt: '2026-05-20T09:12:00Z', featureName: 'Promotions',   directoryPath: 'pricing-rules/promotions' },
+    { id: 'bs-pri-4', scenarioId: 'pri-promo-expire', scenarioKey: 'SCN-PRI8',  name: 'Expired promotion code returns clear error',           priority: 'MEDIUM',   expectedStatus: 'PASSED', latestStatus: 'FAILED',       source: 'AUTOMATION', executedBy: 'ci-runner-08', executedAt: '2026-05-21T08:25:00Z', addedAt: '2026-05-20T09:13:00Z', featureName: 'Promotions',   directoryPath: 'pricing-rules/promotions' },
+    { id: 'bs-pri-5', scenarioId: 'pri-bulk-tier1',   scenarioKey: 'SCN-PRI9',  name: 'Tier 1 bulk discount applied at threshold quantity',   priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-08', executedAt: '2026-05-21T08:30:00Z', addedAt: '2026-05-20T09:14:00Z', featureName: 'Bulk & Tier',  directoryPath: 'bulk-tier' },
+    { id: 'bs-pri-6', scenarioId: 'pri-promo-stack',  scenarioKey: 'SCN-PRI7',  name: 'Non-stackable promotions reject second coupon',        priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,           executedAt: null,                   addedAt: '2026-05-20T09:15:00Z', featureName: 'Promotions',   directoryPath: 'pricing-rules/promotions' },
+  ],
+  'build-ios-rc1': [
+    { id: 'bs-ios-1', scenarioId: 'ios-auth-biometric',scenarioKey: 'SCN-IOS1',  name: 'Face ID login completes within 2 seconds',            priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:10:00Z', addedAt: '2026-05-20T10:10:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-ios-2', scenarioId: 'ios-auth-fallback', scenarioKey: 'SCN-IOS2',  name: 'Fallback to PIN when Face ID fails three times',       priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:15:00Z', addedAt: '2026-05-20T10:11:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-ios-3', scenarioId: 'ios-auth-token',    scenarioKey: 'SCN-IOS3',  name: 'Auth token refreshes silently in background',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:20:00Z', addedAt: '2026-05-20T10:12:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-ios-4', scenarioId: 'ios-nav-tab',       scenarioKey: 'SCN-IOS6',  name: 'Tab bar navigates to correct section on tap',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:25:00Z', addedAt: '2026-05-20T10:13:00Z', featureName: 'Navigation', directoryPath: 'core-flows/navigation' },
+    { id: 'bs-ios-5', scenarioId: 'ios-nav-deeplink',  scenarioKey: 'SCN-IOS8',  name: 'Universal link opens correct in-app destination',      priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'FAILED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:30:00Z', addedAt: '2026-05-20T10:14:00Z', featureName: 'Navigation', directoryPath: 'core-flows/navigation' },
+    { id: 'bs-ios-6', scenarioId: 'ios-push-receive',  scenarioKey: 'SCN-IOS9',  name: 'Push notification is received and displayed in tray',  priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'xcode-runner-01', executedAt: '2026-05-22T10:35:00Z', addedAt: '2026-05-20T10:15:00Z', featureName: 'Push', directoryPath: 'push-notifications' },
+    { id: 'bs-ios-7', scenarioId: 'ios-offline-cache', scenarioKey: 'SCN-IOS12', name: 'Previously viewed content available offline',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,             executedAt: null,                   addedAt: '2026-05-20T10:16:00Z', featureName: 'Offline', directoryPath: 'offline-mode' },
+  ],
+  'build-android-rc1': [
+    { id: 'bs-and-1', scenarioId: 'and-auth-biometric',scenarioKey: 'SCN-AND1',  name: 'Fingerprint login completes within 2 seconds',         priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:10:00Z', addedAt: '2026-05-20T10:10:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-and-2', scenarioId: 'and-auth-fallback', scenarioKey: 'SCN-AND2',  name: 'Fallback to PIN when fingerprint fails three times',    priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:15:00Z', addedAt: '2026-05-20T10:11:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-and-3', scenarioId: 'and-auth-token',    scenarioKey: 'SCN-AND3',  name: 'Auth token refreshes silently in background',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:20:00Z', addedAt: '2026-05-20T10:12:00Z', featureName: 'Auth', directoryPath: 'core-flows/auth-biometrics' },
+    { id: 'bs-and-4', scenarioId: 'and-deep-scheme',   scenarioKey: 'SCN-AND6',  name: 'Custom URI scheme opens correct in-app destination',   priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:25:00Z', addedAt: '2026-05-20T10:13:00Z', featureName: 'Deep Links', directoryPath: 'core-flows/deep-links' },
+    { id: 'bs-and-5', scenarioId: 'and-deep-applink',  scenarioKey: 'SCN-AND7',  name: 'Verified App Link bypasses disambiguation dialog',      priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'FAILED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:30:00Z', addedAt: '2026-05-20T10:14:00Z', featureName: 'Deep Links', directoryPath: 'core-flows/deep-links' },
+    { id: 'bs-and-6', scenarioId: 'and-bg-sync',       scenarioKey: 'SCN-AND9',  name: 'WorkManager job syncs data in background correctly',   priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'android-runner-01', executedAt: '2026-05-22T10:35:00Z', addedAt: '2026-05-20T10:15:00Z', featureName: 'Background', directoryPath: 'background-sync' },
+    { id: 'bs-and-7', scenarioId: 'and-widget-render', scenarioKey: 'SCN-AND12', name: 'Home screen widget renders latest data',                priority: 'MEDIUM',   expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,               executedAt: null,                   addedAt: '2026-05-20T10:16:00Z', featureName: 'Widget', directoryPath: 'widget-shortcut' },
+  ],
+  'build-loyalty-rc1': [
+    { id: 'bs-loy-1', scenarioId: 'loy-earn-purchase', scenarioKey: 'SCN-LOY1',  name: 'Points credited after successful purchase',            priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-06', executedAt: '2026-05-20T09:10:00Z', addedAt: '2026-05-18T09:10:00Z', featureName: 'Earning', directoryPath: 'points-accrual/earning' },
+    { id: 'bs-loy-2', scenarioId: 'loy-earn-rate',     scenarioKey: 'SCN-LOY2',  name: 'Earn rate multiplier applied on bonus category',       priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-06', executedAt: '2026-05-20T09:15:00Z', addedAt: '2026-05-18T09:11:00Z', featureName: 'Earning', directoryPath: 'points-accrual/earning' },
+    { id: 'bs-loy-3', scenarioId: 'loy-tier-upgrade',  scenarioKey: 'SCN-LOY6',  name: 'Tier upgraded when threshold balance is crossed',      priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-06', executedAt: '2026-05-20T09:20:00Z', addedAt: '2026-05-18T09:12:00Z', featureName: 'Tiers', directoryPath: 'tier-management' },
+    { id: 'bs-loy-4', scenarioId: 'loy-tier-perks',    scenarioKey: 'SCN-LOY7',  name: 'Gold tier unlocks free shipping perk',                 priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-06', executedAt: '2026-05-20T09:25:00Z', addedAt: '2026-05-18T09:13:00Z', featureName: 'Tiers', directoryPath: 'tier-management' },
+    { id: 'bs-loy-5', scenarioId: 'loy-redeem-partial',scenarioKey: 'SCN-LOY9',  name: 'Partial redemption deducts correct points balance',    priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-06', executedAt: '2026-05-20T09:30:00Z', addedAt: '2026-05-18T09:14:00Z', featureName: 'Redemption', directoryPath: 'redemption' },
+    { id: 'bs-loy-6', scenarioId: 'loy-earn-partial',  scenarioKey: 'SCN-LOY3',  name: 'Partial refund reverses proportional points',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,           executedAt: null,                   addedAt: '2026-05-18T09:15:00Z', featureName: 'Earning', directoryPath: 'points-accrual/earning' },
+  ],
+  'build-analytics-rc1': [
+    { id: 'bs-ana-1', scenarioId: 'ana-evt-pageview',  scenarioKey: 'SCN-ANA1',  name: 'Page-view event is logged with correct metadata',      priority: 'CRITICAL', expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-07', executedAt: '2026-05-21T09:10:00Z', addedAt: '2026-05-19T09:10:00Z', featureName: 'Events',  directoryPath: 'events' },
+    { id: 'bs-ana-2', scenarioId: 'ana-evt-custom',    scenarioKey: 'SCN-ANA2',  name: 'Custom event payload is validated against schema',      priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-07', executedAt: '2026-05-21T09:15:00Z', addedAt: '2026-05-19T09:11:00Z', featureName: 'Events',  directoryPath: 'events' },
+    { id: 'bs-ana-3', scenarioId: 'ana-funnel-basic',  scenarioKey: 'SCN-ANA5',  name: 'Funnel conversion rate calculated correctly',          priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-07', executedAt: '2026-05-21T09:20:00Z', addedAt: '2026-05-19T09:12:00Z', featureName: 'Funnels', directoryPath: 'funnels' },
+    { id: 'bs-ana-4', scenarioId: 'ana-cohort-define', scenarioKey: 'SCN-ANA8',  name: 'Cohort definition saves and applies retention window', priority: 'HIGH',     expectedStatus: 'PASSED', latestStatus: 'PASSED',       source: 'AUTOMATION', executedBy: 'ci-runner-07', executedAt: '2026-05-21T09:25:00Z', addedAt: '2026-05-19T09:13:00Z', featureName: 'Cohorts', directoryPath: 'cohorts' },
+    { id: 'bs-ana-5', scenarioId: 'ana-pipeline-ingest',scenarioKey:'SCN-ANA10', name: 'Batch ingestion pipeline processes 1M events under 5m', priority: 'HIGH',    expectedStatus: 'PASSED', latestStatus: 'NOT_EXECUTED', source: 'MANUAL',     executedBy: null,           executedAt: null,                   addedAt: '2026-05-19T09:14:00Z', featureName: 'Pipeline',directoryPath: 'data-pipeline' },
+  ],
 };
 
 export const mockBuildAuditByBuild: Record<string, BuildAuditEvent[]> = {
   'build-payment-rc1': [
-    { id: 'audit-pay-1', eventType: 'BUILD_OPENED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:00:00Z', metadata: { buildKey: 'PAY-2026-06-RC1', name: 'Payment May RC1' } },
-    { id: 'audit-pay-2', eventType: 'SCENARIO_ADDED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T08:05:00Z', metadata: { count: 6, source: 'MANUAL' } },
-    { id: 'audit-pay-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-01', occurredAt: '2026-05-24T09:12:00Z', metadata: { runId: 'run-001', merged: 4, updated: 3 } },
-    { id: 'audit-pay-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-payment@example.com', occurredAt: '2026-05-24T10:40:00Z', metadata: { scenarioKey: 'SCN-CAPTURE1', previousStatus: 'NOT_EXECUTED', newStatus: 'PASSED', source: 'MANUAL', notes: 'Verified manually after environment fix' } }
-  ]
+    { id: 'audit-pay-1', eventType: 'BUILD_OPENED',            actor: 'qa-payment@example.com',  occurredAt: '2026-05-24T08:00:00Z', metadata: { buildKey: 'PAY-2026-06-RC1', name: 'Payment May RC1' } },
+    { id: 'audit-pay-2', eventType: 'SCENARIO_ADDED',          actor: 'qa-payment@example.com',  occurredAt: '2026-05-24T08:05:00Z', metadata: { count: 6, source: 'MANUAL' } },
+    { id: 'audit-pay-3', eventType: 'EXECUTION_ADDED',         actor: 'ci-runner-01',             occurredAt: '2026-05-24T09:12:00Z', metadata: { runId: 'run-001', merged: 4, updated: 3 } },
+    { id: 'audit-pay-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-payment@example.com',  occurredAt: '2026-05-24T10:40:00Z', metadata: { scenarioKey: 'SCN-CAPTURE1', previousStatus: 'NOT_EXECUTED', newStatus: 'PASSED', source: 'MANUAL', notes: 'Verified manually after environment fix' } }
+  ],
+  'build-pricing-rc1': [
+    { id: 'audit-pri-1', eventType: 'BUILD_OPENED',    actor: 'qa-pricing@example.com', occurredAt: '2026-05-20T09:00:00Z', metadata: { buildKey: 'PRI-2026-05-RC1', name: 'Pricing 2026.05 RC1' } },
+    { id: 'audit-pri-2', eventType: 'SCENARIO_ADDED',  actor: 'qa-pricing@example.com', occurredAt: '2026-05-20T09:10:00Z', metadata: { count: 6, source: 'MIXED' } },
+    { id: 'audit-pri-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-08',           occurredAt: '2026-05-21T08:10:00Z', metadata: { runId: 'run-pri-001', merged: 5, updated: 5 } },
+    { id: 'audit-pri-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-pricing@example.com', occurredAt: '2026-05-22T11:00:00Z', metadata: { scenarioKey: 'SCN-PRI8', previousStatus: 'NOT_EXECUTED', newStatus: 'FAILED', source: 'AUTOMATION', notes: 'Promo expiry check regressed after config change' } }
+  ],
+  'build-ios-rc1': [
+    { id: 'audit-ios-1', eventType: 'BUILD_OPENED',    actor: 'qa-ios@example.com',    occurredAt: '2026-05-20T10:00:00Z', metadata: { buildKey: 'IOS-2026-05-RC1', name: 'iOS 2026.05 RC1' } },
+    { id: 'audit-ios-2', eventType: 'SCENARIO_ADDED',  actor: 'qa-ios@example.com',    occurredAt: '2026-05-20T10:10:00Z', metadata: { count: 7, source: 'MIXED' } },
+    { id: 'audit-ios-3', eventType: 'EXECUTION_ADDED', actor: 'xcode-runner-01',       occurredAt: '2026-05-22T10:10:00Z', metadata: { runId: 'run-ios-001', merged: 6, updated: 5 } },
+    { id: 'audit-ios-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-ios@example.com', occurredAt: '2026-05-23T14:00:00Z', metadata: { scenarioKey: 'SCN-IOS8', previousStatus: 'NOT_EXECUTED', newStatus: 'FAILED', source: 'AUTOMATION', notes: 'Universal link routing broken by iOS 17.5 update' } }
+  ],
+  'build-android-rc1': [
+    { id: 'audit-and-1', eventType: 'BUILD_OPENED',    actor: 'qa-android@example.com', occurredAt: '2026-05-20T10:00:00Z', metadata: { buildKey: 'AND-2026-05-RC1', name: 'Android 2026.05 RC1' } },
+    { id: 'audit-and-2', eventType: 'SCENARIO_ADDED',  actor: 'qa-android@example.com', occurredAt: '2026-05-20T10:10:00Z', metadata: { count: 7, source: 'MIXED' } },
+    { id: 'audit-and-3', eventType: 'EXECUTION_ADDED', actor: 'android-runner-01',      occurredAt: '2026-05-22T10:10:00Z', metadata: { runId: 'run-and-001', merged: 6, updated: 5 } },
+    { id: 'audit-and-4', eventType: 'SCENARIO_RESULT_UPDATED', actor: 'qa-android@example.com', occurredAt: '2026-05-23T15:00:00Z', metadata: { scenarioKey: 'SCN-AND7', previousStatus: 'NOT_EXECUTED', newStatus: 'FAILED', source: 'AUTOMATION', notes: 'App link verification fails on API level 33 devices' } }
+  ],
+  'build-loyalty-rc1': [
+    { id: 'audit-loy-1', eventType: 'BUILD_OPENED',    actor: 'qa-wallet@example.com', occurredAt: '2026-05-18T09:00:00Z', metadata: { buildKey: 'LOY-2026-05-RC1', name: 'Loyalty 2026.05 RC1' } },
+    { id: 'audit-loy-2', eventType: 'SCENARIO_ADDED',  actor: 'qa-wallet@example.com', occurredAt: '2026-05-18T09:10:00Z', metadata: { count: 6, source: 'MIXED' } },
+    { id: 'audit-loy-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-06',          occurredAt: '2026-05-20T09:10:00Z', metadata: { runId: 'run-loy-001', merged: 5, updated: 5 } },
+  ],
+  'build-analytics-rc1': [
+    { id: 'audit-ana-1', eventType: 'BUILD_OPENED',    actor: 'qa-infra@example.com',  occurredAt: '2026-05-19T09:00:00Z', metadata: { buildKey: 'ANA-2026-05-RC1', name: 'Analytics 2026.05 RC1' } },
+    { id: 'audit-ana-2', eventType: 'SCENARIO_ADDED',  actor: 'qa-infra@example.com',  occurredAt: '2026-05-19T09:10:00Z', metadata: { count: 5, source: 'MIXED' } },
+    { id: 'audit-ana-3', eventType: 'EXECUTION_ADDED', actor: 'ci-runner-07',          occurredAt: '2026-05-21T09:10:00Z', metadata: { runId: 'run-ana-001', merged: 4, updated: 4 } },
+  ],
 };
 
 export const mockTribes: Tribe[] = [
@@ -1164,6 +1416,26 @@ export const mockSquadPlans: ReleasePlan[] = [
     verifiedBuilds: 0,
     totalProjects: 0
   },
+  // squad-2: Infrastructure
+  { id: 'plan-squad2-infra-q2', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Q2 Platform Hardening', releaseVersion: 'v2.0.0', releaseDate: '2026-06-30', description: 'Infrastructure reliability, SLA monitoring and analytics platform GA.', status: 'IN_PROGRESS', createdAt: '2026-05-01T08:00:00Z', updatedAt: '2026-05-23T09:00:00Z', openedAt: '2026-05-01T08:00:00Z', openedBy: 'bob.martinez', inProgressAt: '2026-05-12T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 2, verifiedBuilds: 0, totalProjects: 2 },
+  { id: 'plan-squad2-infra-apr', squadId: 'squad-2', squadName: 'Infrastructure', name: 'April SLA Review',     releaseVersion: 'v1.9.0', releaseDate: null,          description: 'Monthly SLA verification and disaster recovery drill.', status: 'CLOSED', createdAt: '2026-04-01T08:00:00Z', updatedAt: '2026-04-30T15:00:00Z', openedAt: '2026-04-01T08:00:00Z', openedBy: 'bob.martinez', inProgressAt: '2026-04-05T08:00:00Z', closedAt: '2026-04-30T15:00:00Z', closedBy: 'lead-infra@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
+  // squad-5: Notifications
+  { id: 'plan-squad5-notif-q2', squadId: 'squad-5', squadName: 'Notifications', name: 'Q2 Notification Suite', releaseVersion: 'v3.0.0', releaseDate: '2026-06-15', description: 'FCM push migration, template versioning and i18n improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-08T09:00:00Z', updatedAt: '2026-05-23T11:00:00Z', openedAt: '2026-05-08T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-05-14T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
+  { id: 'plan-squad5-notif-apr', squadId: 'squad-5', squadName: 'Notifications', name: 'April Channel Audit',  releaseVersion: null,     releaseDate: null,          description: 'Bounce and retry behaviour audit across all channels.', status: 'CLOSED', createdAt: '2026-04-05T09:00:00Z', updatedAt: '2026-04-28T14:00:00Z', openedAt: '2026-04-05T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-04-07T08:00:00Z', closedAt: '2026-04-28T14:00:00Z', closedBy: 'lead-notif@example.com', totalBuilds: 0, verifiedBuilds: 0, totalProjects: 1 },
+  // squad-6: Order Fulfillment
+  { id: 'plan-squad6-order-q2', squadId: 'squad-6', squadName: 'Order Fulfillment', name: 'Q2 Order Lifecycle',    releaseVersion: 'v4.1.0', releaseDate: '2026-06-20', description: 'Returns, partial cancellation and SLA alerting for Q2.', status: 'IN_PROGRESS', createdAt: '2026-05-10T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', openedAt: '2026-05-10T09:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-05-15T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
+  { id: 'plan-squad6-order-may', squadId: 'squad-6', squadName: 'Order Fulfillment', name: 'May Hotfix Validation', releaseVersion: 'v4.0.1', releaseDate: null,          description: 'Verification of cancellation-after-shipment hotfix.', status: 'CLOSED', createdAt: '2026-05-05T08:00:00Z', updatedAt: '2026-05-09T16:00:00Z', openedAt: '2026-05-05T08:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-05-06T08:00:00Z', closedAt: '2026-05-09T16:00:00Z', closedBy: 'lead-order@example.com', totalBuilds: 0, verifiedBuilds: 0, totalProjects: 1 },
+  // squad-7: Wallet & Rewards
+  { id: 'plan-squad7-wallet-q2', squadId: 'squad-7', squadName: 'Wallet & Rewards', name: 'Q2 Wallet + Loyalty', releaseVersion: 'v2.8.0', releaseDate: '2026-06-25', description: 'Wallet KYC improvements and initial loyalty programme launch.', status: 'IN_PROGRESS', createdAt: '2026-05-08T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', openedAt: '2026-05-08T09:00:00Z', openedBy: 'alice.chen', inProgressAt: '2026-05-14T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 2, verifiedBuilds: 0, totalProjects: 2 },
+  // squad-8: Pricing
+  { id: 'plan-squad8-pricing-may', squadId: 'squad-8', squadName: 'Pricing', name: 'May Pricing Release',  releaseVersion: 'v1.5.0', releaseDate: '2026-05-28', description: 'Bulk tier pricing and dynamic surcharge launch.', status: 'IN_PROGRESS', createdAt: '2026-05-10T09:00:00Z', updatedAt: '2026-05-23T10:00:00Z', openedAt: '2026-05-10T09:00:00Z', openedBy: 'bob.martinez', inProgressAt: '2026-05-16T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
+  { id: 'plan-squad8-pricing-apr', squadId: 'squad-8', squadName: 'Pricing', name: 'April Promo Hotfix',   releaseVersion: 'v1.4.2', releaseDate: null,          description: 'Promotional discount calculation hotfix validation.', status: 'CLOSED', createdAt: '2026-04-18T08:00:00Z', updatedAt: '2026-04-22T16:00:00Z', openedAt: '2026-04-18T08:00:00Z', openedBy: 'bob.martinez', inProgressAt: '2026-04-19T08:00:00Z', closedAt: '2026-04-22T16:00:00Z', closedBy: 'lead-pricing@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
+  // squad-9: iOS
+  { id: 'plan-squad9-ios-may', squadId: 'squad-9', squadName: 'iOS', name: 'iOS May Sprint',     releaseVersion: '5.2.0', releaseDate: '2026-05-31', description: 'Biometric auth, deep links and offline mode improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T09:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-05-12T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
+  { id: 'plan-squad9-ios-apr', squadId: 'squad-9', squadName: 'iOS', name: 'iOS April Release', releaseVersion: '5.1.0', releaseDate: null,          description: 'April feature release — OAuth and navigation fixes.', status: 'CLOSED', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-04-08T08:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
+  // squad-10: Android
+  { id: 'plan-squad10-and-may', squadId: 'squad-10', squadName: 'Android', name: 'Android May Sprint',     releaseVersion: '6.2.0', releaseDate: '2026-05-31', description: 'Biometric auth, background sync and widget improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T10:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T10:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-05-12T09:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
+  { id: 'plan-squad10-and-apr', squadId: 'squad-10', squadName: 'Android', name: 'Android April Release', releaseVersion: '6.1.0', releaseDate: null,           description: 'April feature release — deep links and back-stack fixes.', status: 'CLOSED', createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T10:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-04-08T09:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
   {
     id: 'plan-squad4-catalog',
     squadId: 'squad-4',
@@ -1201,6 +1473,11 @@ export const mockStatisticsOverride: Record<string, {
   WALLET:       { totalScenarios: 318, totalAutomated: 215, totalAutomatable: 285 },
   SEARCH:       { totalScenarios: 275, totalAutomated: 190, totalAutomatable: 248 },
   INFRA:        { totalScenarios: 156, totalAutomated: 112, totalAutomatable: 140 },
+  PRICING:      { totalScenarios: 220, totalAutomated: 148, totalAutomatable: 196 },
+  IOS:          { totalScenarios: 195, totalAutomated: 122, totalAutomatable: 170 },
+  ANDROID:      { totalScenarios: 188, totalAutomated: 118, totalAutomatable: 164 },
+  LOYALTY:      { totalScenarios: 165, totalAutomated: 108, totalAutomatable: 145 },
+  ANALYTICS:    { totalScenarios: 142, totalAutomated:  98, totalAutomatable: 128 },
 };
 
 export const mockTagsByProject: Record<string, TagView[]> = {
@@ -1297,6 +1574,75 @@ export const mockTagsByProject: Record<string, TagView[]> = {
     { id: 'tag-tls', sanitized: 'tls', display: 'tls' },
     { id: 'tag-smoke', sanitized: 'smoke', display: 'smoke' },
   ],
+  PRICING: [
+    { id: 'tag-pricing',    sanitized: 'pricing',    display: 'pricing' },
+    { id: 'tag-promo',      sanitized: 'promo',      display: 'promo' },
+    { id: 'tag-override',   sanitized: 'override',   display: 'override' },
+    { id: 'tag-bulk',       sanitized: 'bulk',       display: 'bulk' },
+    { id: 'tag-dynamic',    sanitized: 'dynamic',    display: 'dynamic' },
+    { id: 'tag-currency',   sanitized: 'currency',   display: 'currency' },
+    { id: 'tag-audit',      sanitized: 'audit',      display: 'audit' },
+    { id: 'tag-smoke',      sanitized: 'smoke',      display: 'smoke' },
+    { id: 'tag-regression', sanitized: 'regression', display: 'regression' },
+    { id: 'tag-validation', sanitized: 'validation', display: 'validation' },
+  ],
+  IOS: [
+    { id: 'tag-ios',         sanitized: 'ios',         display: 'ios' },
+    { id: 'tag-biometric',   sanitized: 'biometric',   display: 'biometric' },
+    { id: 'tag-navigation',  sanitized: 'navigation',  display: 'navigation' },
+    { id: 'tag-deeplink',    sanitized: 'deeplink',    display: 'deeplink' },
+    { id: 'tag-push',        sanitized: 'push',        display: 'push' },
+    { id: 'tag-offline',     sanitized: 'offline',     display: 'offline' },
+    { id: 'tag-oauth',       sanitized: 'oauth',       display: 'oauth' },
+    { id: 'tag-session',     sanitized: 'session',     display: 'session' },
+    { id: 'tag-cache',       sanitized: 'cache',       display: 'cache' },
+    { id: 'tag-smoke',       sanitized: 'smoke',       display: 'smoke' },
+    { id: 'tag-regression',  sanitized: 'regression',  display: 'regression' },
+    { id: 'tag-security',    sanitized: 'security',    display: 'security' },
+  ],
+  ANDROID: [
+    { id: 'tag-android',     sanitized: 'android',    display: 'android' },
+    { id: 'tag-biometric',   sanitized: 'biometric',  display: 'biometric' },
+    { id: 'tag-deeplink',    sanitized: 'deeplink',   display: 'deeplink' },
+    { id: 'tag-navigation',  sanitized: 'navigation', display: 'navigation' },
+    { id: 'tag-background',  sanitized: 'background', display: 'background' },
+    { id: 'tag-sync',        sanitized: 'sync',       display: 'sync' },
+    { id: 'tag-battery',     sanitized: 'battery',    display: 'battery' },
+    { id: 'tag-widget',      sanitized: 'widget',     display: 'widget' },
+    { id: 'tag-oauth',       sanitized: 'oauth',      display: 'oauth' },
+    { id: 'tag-session',     sanitized: 'session',    display: 'session' },
+    { id: 'tag-retry',       sanitized: 'retry',      display: 'retry' },
+    { id: 'tag-smoke',       sanitized: 'smoke',      display: 'smoke' },
+    { id: 'tag-regression',  sanitized: 'regression', display: 'regression' },
+    { id: 'tag-security',    sanitized: 'security',   display: 'security' },
+  ],
+  LOYALTY: [
+    { id: 'tag-loyalty',     sanitized: 'loyalty',    display: 'loyalty' },
+    { id: 'tag-points',      sanitized: 'points',     display: 'points' },
+    { id: 'tag-tier',        sanitized: 'tier',       display: 'tier' },
+    { id: 'tag-perk',        sanitized: 'perk',       display: 'perk' },
+    { id: 'tag-redemption',  sanitized: 'redemption', display: 'redemption' },
+    { id: 'tag-expiry',      sanitized: 'expiry',     display: 'expiry' },
+    { id: 'tag-voucher',     sanitized: 'voucher',    display: 'voucher' },
+    { id: 'tag-refund',      sanitized: 'refund',     display: 'refund' },
+    { id: 'tag-limit',       sanitized: 'limit',      display: 'limit' },
+    { id: 'tag-smoke',       sanitized: 'smoke',      display: 'smoke' },
+    { id: 'tag-regression',  sanitized: 'regression', display: 'regression' },
+  ],
+  ANALYTICS: [
+    { id: 'tag-analytics',   sanitized: 'analytics',   display: 'analytics' },
+    { id: 'tag-events',      sanitized: 'events',      display: 'events' },
+    { id: 'tag-funnel',      sanitized: 'funnel',      display: 'funnel' },
+    { id: 'tag-cohort',      sanitized: 'cohort',      display: 'cohort' },
+    { id: 'tag-pipeline',    sanitized: 'pipeline',    display: 'pipeline' },
+    { id: 'tag-segment',     sanitized: 'segment',     display: 'segment' },
+    { id: 'tag-idempotency', sanitized: 'idempotency', display: 'idempotency' },
+    { id: 'tag-performance', sanitized: 'performance', display: 'performance' },
+    { id: 'tag-retry',       sanitized: 'retry',       display: 'retry' },
+    { id: 'tag-validation',  sanitized: 'validation',  display: 'validation' },
+    { id: 'tag-smoke',       sanitized: 'smoke',       display: 'smoke' },
+    { id: 'tag-regression',  sanitized: 'regression',  display: 'regression' },
+  ],
 };
 
 export const mockPlanBuilds: Record<string, PlanBuild[]> = {
@@ -1339,23 +1685,29 @@ export const mockPlanBuilds: Record<string, PlanBuild[]> = {
     }
   ],
   'plan-squad4-catalog': [
-    {
-      id: 'rpb-catalog-v18',
-      buildId: 'build-catalog-v18',
-      buildKey: 'CATALOG-V18',
-      buildName: 'Catalog v1.8.0',
-      buildVersion: 'v1.8.0',
-      projectId: '3',
-      projectKey: 'CATALOG',
-      projectName: 'Product Catalog',
-      squadId: 'squad-4',
-      squadName: 'Catalog & Search',
-      status: 'VERIFIED',
-      initiatedAt: '2026-04-10T10:00:00Z',
-      verifiedAt: '2026-05-14T17:00:00Z',
-      addedAt: '2026-04-10T10:00:00Z',
-      addedBy: 'alice.chen',
-      metrics: { totalScenarios: 312, passed: 312, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 }
-    }
-  ]
+    { id: 'rpb-catalog-v18', buildId: 'build-catalog-v18', buildKey: 'CATALOG-V18', buildName: 'Catalog v1.8.0', buildVersion: 'v1.8.0', projectId: '3', projectKey: 'CATALOG', projectName: 'Product Catalog', squadId: 'squad-4', squadName: 'Catalog & Search', status: 'VERIFIED', initiatedAt: '2026-04-10T10:00:00Z', verifiedAt: '2026-05-14T17:00:00Z', addedAt: '2026-04-10T10:00:00Z', addedBy: 'alice.chen', metrics: { totalScenarios: 312, passed: 312, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } }
+  ],
+  'plan-squad2-infra-q2': [
+    { id: 'rpb-infra-2026-05', buildId: 'build-infra-rc1',     buildKey: 'INFRA-2026-05',     buildName: 'Infra Health 2026.05',    buildVersion: '2026.05.0', projectId: '9',  projectKey: 'INFRA',     projectName: 'Platform Infra',      squadId: 'squad-2', squadName: 'Infrastructure', status: 'VERIFIED',    initiatedAt: '2026-05-05T06:00:00Z', verifiedAt: '2026-05-05T16:00:00Z', addedAt: '2026-05-01T08:10:00Z', addedBy: 'bob.martinez', metrics: { totalScenarios: 13, passed: 12, failed: 0, blocked: 0, skipped: 1, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+    { id: 'rpb-ana-rc1',       buildId: 'build-analytics-rc1', buildKey: 'ANA-2026-05-RC1',   buildName: 'Analytics 2026.05 RC1',  buildVersion: '1.0.0-rc1', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform',  squadId: 'squad-2', squadName: 'Infrastructure', status: 'IN_PROGRESS', initiatedAt: '2026-05-19T09:00:00Z', verifiedAt: null,                   addedAt: '2026-05-01T08:15:00Z', addedBy: 'bob.martinez', metrics: { totalScenarios: 5, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 80, executionCoverage: 80 } },
+  ],
+  'plan-squad5-notif-q2': [
+    { id: 'rpb-notif-rc1', buildId: 'build-notif-rc1', buildKey: 'NOTIF-2026-06-RC1', buildName: 'Notification 2026.06 RC1', buildVersion: '2026.06.0-rc1', projectId: '5', projectKey: 'NOTIFICATION', projectName: 'Notification Service', squadId: 'squad-5', squadName: 'Notifications', status: 'INITIATED', initiatedAt: '2026-05-25T10:00:00Z', verifiedAt: null, addedAt: '2026-05-08T09:10:00Z', addedBy: 'carol.kim', metrics: { totalScenarios: 0, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 0, executionCoverage: 0 } },
+  ],
+  'plan-squad6-order-q2': [
+    { id: 'rpb-order-rc1', buildId: 'build-order-rc1', buildKey: 'ORDER-2026-06-RC1', buildName: 'Order 2026.06 RC1', buildVersion: '2026.06.0-rc1', projectId: '6', projectKey: 'ORDER', projectName: 'Order Management', squadId: 'squad-6', squadName: 'Order Fulfillment', status: 'IN_PROGRESS', initiatedAt: '2026-05-24T09:00:00Z', verifiedAt: null, addedAt: '2026-05-10T09:10:00Z', addedBy: 'david.chen', metrics: { totalScenarios: 3, passed: 2, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 66.67 } },
+  ],
+  'plan-squad7-wallet-q2': [
+    { id: 'rpb-wallet-rc1', buildId: 'build-wallet-rc1', buildKey: 'WALLET-2026-06-RC1', buildName: 'Wallet 2026.06 RC1', buildVersion: '2026.06.0-rc1', projectId: '7', projectKey: 'WALLET', projectName: 'Digital Wallet', squadId: 'squad-7', squadName: 'Wallet & Rewards', status: 'IN_PROGRESS', initiatedAt: '2026-05-24T08:00:00Z', verifiedAt: null, addedAt: '2026-05-08T09:10:00Z', addedBy: 'alice.chen', metrics: { totalScenarios: 8, passed: 6, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 75, executionCoverage: 87.5 } },
+    { id: 'rpb-loyalty-rc1', buildId: 'build-loyalty-rc1', buildKey: 'LOY-2026-05-RC1', buildName: 'Loyalty 2026.05 RC1', buildVersion: '1.0.0-rc1', projectId: '13', projectKey: 'LOYALTY', projectName: 'Loyalty Programme', squadId: 'squad-7', squadName: 'Wallet & Rewards', status: 'IN_PROGRESS', initiatedAt: '2026-05-18T09:00:00Z', verifiedAt: null, addedAt: '2026-05-08T09:15:00Z', addedBy: 'alice.chen', metrics: { totalScenarios: 6, passed: 5, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 83.33, executionCoverage: 83.33 } },
+  ],
+  'plan-squad8-pricing-may': [
+    { id: 'rpb-pricing-rc1', buildId: 'build-pricing-rc1', buildKey: 'PRI-2026-05-RC1', buildName: 'Pricing 2026.05 RC1', buildVersion: '2026.05.0-rc1', projectId: '10', projectKey: 'PRICING', projectName: 'Pricing Engine', squadId: 'squad-8', squadName: 'Pricing', status: 'IN_PROGRESS', initiatedAt: '2026-05-20T09:00:00Z', verifiedAt: null, addedAt: '2026-05-10T09:10:00Z', addedBy: 'bob.martinez', metrics: { totalScenarios: 6, passed: 4, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 66.67, executionCoverage: 83.33 } },
+  ],
+  'plan-squad9-ios-may': [
+    { id: 'rpb-ios-rc1', buildId: 'build-ios-rc1', buildKey: 'IOS-2026-05-RC1', buildName: 'iOS 2026.05 RC1', buildVersion: '5.2.0-rc1', projectId: '11', projectKey: 'IOS', projectName: 'iOS App', squadId: 'squad-9', squadName: 'iOS', status: 'IN_PROGRESS', initiatedAt: '2026-05-20T10:00:00Z', verifiedAt: null, addedAt: '2026-05-05T09:10:00Z', addedBy: 'carol.kim', metrics: { totalScenarios: 7, passed: 5, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 71.43, executionCoverage: 85.71 } },
+  ],
+  'plan-squad10-and-may': [
+    { id: 'rpb-android-rc1', buildId: 'build-android-rc1', buildKey: 'AND-2026-05-RC1', buildName: 'Android 2026.05 RC1', buildVersion: '6.2.0-rc1', projectId: '12', projectKey: 'ANDROID', projectName: 'Android App', squadId: 'squad-10', squadName: 'Android', status: 'IN_PROGRESS', initiatedAt: '2026-05-20T10:00:00Z', verifiedAt: null, addedAt: '2026-05-05T10:10:00Z', addedBy: 'david.chen', metrics: { totalScenarios: 7, passed: 5, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 71.43, executionCoverage: 85.71 } },
+  ],
 };
