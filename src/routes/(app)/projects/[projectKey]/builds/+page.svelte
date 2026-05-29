@@ -230,5 +230,10 @@
   .opt { font-size: 0.7em; font-weight: 400; text-transform: none; color: var(--color-text-muted); }
   @media (max-width: 720px) {
     .page-header { flex-direction: column; }
+    .filters-bar { flex-direction: column; align-items: stretch; }
+    .search-wrap { width: 100%; }
+    .search-input { min-width: 0; width: 100%; }
+    .filters-bar select { width: 100%; }
+    .count { margin-left: 0; }
   }
 </style>

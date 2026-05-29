@@ -239,4 +239,10 @@
     padding: 12px 16px;
     margin-bottom: 20px;
   }
+
+  @media (max-width: 720px) {
+    .section-heading { flex-direction: column; align-items: stretch; }
+    .filters { flex-direction: column; }
+    .filters input { width: 100%; box-sizing: border-box; }
+  }
 </style>

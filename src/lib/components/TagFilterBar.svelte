@@ -171,8 +171,10 @@
     position: absolute;
     top: 100%;
     left: 16px;
+    right: 0;
     z-index: 50;
     min-width: 220px;
+    max-width: min(320px, calc(100vw - 32px));
     max-height: 240px;
     overflow-y: auto;
     background: var(--color-surface);

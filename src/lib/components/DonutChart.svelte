@@ -24,7 +24,8 @@
       type: 'doughnut',
       data: chartData as any,
       options: {
-        responsive: false,
+        responsive: true,
+        maintainAspectRatio: true,
         cutout: '70%',
         plugins: {
           legend: {
@@ -45,13 +46,22 @@
   });
 </script>
 
-<div class="donut-wrap">
+<div class="donut-wrap" style="max-width:{size}px">
   {#if label}<p class="chart-label">{label}</p>{/if}
-  <canvas bind:this={canvas} width={size} height={size}></canvas>
+  <canvas bind:this={canvas}></canvas>
 </div>
 
 <style>
-  .donut-wrap { display: flex; flex-direction: column; align-items: center; }
+  .donut-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+  }
+  .donut-wrap canvas {
+    width: 100% !important;
+    height: auto !important;
+  }
   .chart-label {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.06em; color: var(--color-text-muted); margin: 0 0 12px;

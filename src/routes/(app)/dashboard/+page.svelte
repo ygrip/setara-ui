@@ -806,5 +806,15 @@
   @media (max-width: 720px) {
     .chart-card { padding: 14px; }
     .lower-grid { grid-template-columns: 1fr; }
+    .section-heading { flex-direction: column; align-items: stretch; }
+    .chart-controls { flex-direction: column; align-items: stretch; }
+    .chart-controls label { flex-direction: row; align-items: center; justify-content: space-between; }
+    .chart-controls input,
+    .chart-controls select { flex: 1; }
+    .expand-btn { width: 100%; justify-content: center; }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .page-title { font-size: 1.25rem; }
   }
 </style>
