@@ -165,11 +165,13 @@
 
     <section class="section steps-section">
       <h2 class="section-title">Steps</h2>
-      <SetaraStepGridEditor
-        steps={detailSteps}
-        readonly={busy}
-        onchange={(updated) => { detailSteps = updated; }}
-      />
+      <div class="steps-grid-scroll">
+        <SetaraStepGridEditor
+          steps={detailSteps}
+          readonly={busy}
+          onchange={(updated) => { detailSteps = updated; }}
+        />
+      </div>
     </section>
 
     <div class="form-actions">
@@ -248,6 +250,15 @@
   .empty-picker { margin: 0; color: var(--color-text-muted); font-size: 0.85rem; padding: 20px 0; text-align: center; }
   .steps-section { padding-bottom: 8px; }
   .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 12px; }
+  /* Horizontal scroll wrapper for the RevoGrid — needed on mobile since the
+     grid has fixed column widths that sum to ~992px */
+  .steps-grid-scroll {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    /* Bleed to section edges so the scroll indicator reaches the padding edge */
+    margin: 0 -16px;
+    padding: 0 16px;
+  }
   .form-actions { display: flex; justify-content: flex-end; gap: 8px; }
   @media (max-width: 720px) {
     .form-grid { grid-template-columns: 1fr; }
@@ -255,6 +266,7 @@
     .path-row { flex-direction: column; align-items: flex-start; gap: 6px; }
     .form-actions { flex-wrap: wrap; }
     .form-actions :global(button), .form-actions :global(a) { flex: 1; min-width: 120px; justify-content: center; }
+    .steps-grid-scroll { margin: 0 -12px; padding: 0 12px; }
   }
   @media (max-width: 480px) {
     .section { padding: 12px; }
@@ -262,5 +274,9 @@
     .page-subtitle { font-size: 0.8rem; }
     .form-actions :global(button), .form-actions :global(a) { width: 100%; flex: none; }
     .path-row { font-size: 0.8rem; }
+    /* On very small screens, let the grid bleed fully and be scrolled */
+    .steps-grid-scroll { margin: 0 -12px; padding: 0; border-radius: 0; }
+    .section.steps-section { padding-left: 0; padding-right: 0; }
+    .section.steps-section .section-title { padding: 0 12px; }
   }
 </style>

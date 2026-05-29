@@ -1234,7 +1234,7 @@
   .repo-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
   .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .tree-scroll { flex: 1; overflow: auto; }
-  .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; }
+  .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; -webkit-overflow-scrolling: touch; }
   .tree-topbar,
   .scenario-topbar { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
   .tree-topbar-actions,
@@ -1312,12 +1312,20 @@
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     transition: border-color 0.12s, color 0.12s, background 0.12s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
   }
   a.dir-action-btn { text-decoration: none; cursor: pointer; }
   .dir-action-btn:hover:not(:disabled) {
     border-color: var(--color-accent);
     color: var(--color-accent);
     background: var(--color-accent-subtle);
+  }
+  .dir-action-btn:active:not(:disabled) {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    transform: scale(0.97);
   }
   .dir-action-btn svg { width: 14px; height: 14px; flex: 0 0 auto; }
   .dir-action-btn.danger {
@@ -1644,6 +1652,9 @@
     .filter-group { display: grid; align-items: stretch; }
     /* Tabs on top, action buttons below — each stretch to fill */
     .header-actions { flex-direction: column; align-items: stretch; }
+    /* Make segmented LIVE/DRAFTS tabs equal width, filling the container */
+    .segmented { width: 100%; }
+    .segmented button { flex: 1; justify-content: center; }
     .header-btns { width: 100%; }
     .header-btns .dir-action-btn { flex: 1; justify-content: center; }
     /* Collapsible directory toolbar */
@@ -1652,7 +1663,7 @@
       align-items: center;
       gap: 8px;
       width: 100%;
-      padding: 8px 12px;
+      padding: 10px 12px;
       font-size: 0.82rem;
       font-weight: 600;
       border: 1px solid var(--color-border);
@@ -1660,16 +1671,31 @@
       background: var(--color-surface);
       color: var(--color-text-muted);
       cursor: pointer;
+      min-height: 44px;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
     }
-    .dir-toolbar-toggle:hover {
+    .dir-toolbar-toggle:hover,
+    .dir-toolbar-toggle:active {
       border-color: var(--color-accent);
       color: var(--color-accent);
       background: var(--color-accent-subtle);
     }
     .dir-toolbar-toggle span { flex: 1; text-align: left; }
-    .dir-toolbar-hidden { display: none; }
-    .dir-toolbar-inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-    .dir-toolbar-inner .dir-action-btn { width: 100%; min-width: 0; flex: none; justify-content: flex-start; }
+    .dir-toolbar-hidden { display: none !important; }
+    .dir-toolbar-inner {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 6px;
+    }
+    .dir-toolbar-inner .dir-action-btn {
+      width: 100%;
+      min-width: 0;
+      flex: none;
+      justify-content: flex-start;
+      min-height: 44px;
+      touch-action: manipulation;
+    }
   }
   /* Touch / mobile: always show copy buttons, increase tap targets */
   @media (hover: none) and (pointer: coarse) {
