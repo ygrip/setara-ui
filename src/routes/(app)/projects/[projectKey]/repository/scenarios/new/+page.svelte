@@ -3,7 +3,9 @@
   import { createScenario, type TestDirectory } from '$lib/api/testcases';
   import Modal from '$lib/components/Modal.svelte';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
+  import TagInput from '$lib/components/TagInput.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
+  import type { TagInput as TagInputType } from '$lib/api/testcases';
 
   let { data } = $props();
 
@@ -16,6 +18,7 @@
   let priority = $state('MEDIUM');
   let automationStatus = $state('AUTOMATABLE');
   let description = $state('');
+  let tags = $state<{ sanitized?: string; display: string }[]>([]);
   let detailSteps = $state<BackendStep[]>([
     { sequenceNo: 1, keyword: 'GIVEN', name: '', description: null, expectation: null },
     { sequenceNo: 2, keyword: 'WHEN', name: '', description: null, expectation: null },
@@ -57,6 +60,7 @@
         priority,
         automatable: automationStatus !== 'MANUAL_ONLY',
         notes: description.trim() || undefined,
+        tags: tags.length > 0 ? tags.map(t => ({ display: t.display, sanitized: t.sanitized ?? '' })) : undefined,
         steps: filledSteps.map((s, i) => ({
           sequenceNo: i + 1,
           keyword: s.keyword,
@@ -146,6 +150,14 @@
           <span>Description</span>
           <textarea bind:value={description} placeholder="Optional review notes or scenario context" disabled={busy}></textarea>
         </label>
+        <div class="wide tag-field">
+          <span class="field-label">Tags <span class="opt">(optional, max 20)</span></span>
+          <TagInput
+            tags={tags.map(t => ({ id: '', sanitized: t.sanitized ?? '', display: t.display }))}
+            disabled={busy}
+            onchange={(updated: TagInputType[]) => { tags = updated; }}
+          />
+        </div>
       </div>
     </section>
 
@@ -206,6 +218,9 @@
   .form-grid { display: grid; grid-template-columns: 220px 1fr; gap: 14px; }
   .wide { grid-column: 1 / -1; }
   label, .field { display: grid; gap: 5px; font-size: 0.78rem; color: var(--color-text-muted); }
+  .tag-field { display: grid; gap: 5px; }
+  .field-label { font-size: 0.78rem; color: var(--color-text-muted); }
+  .opt { font-size: 0.72em; font-weight: 400; }
   button, input, select, textarea { font: inherit; }
   button { border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); border-radius: 6px; padding: 7px 10px; cursor: pointer; }
   button:hover:not(:disabled) { border-color: var(--color-accent); color: var(--color-accent); }

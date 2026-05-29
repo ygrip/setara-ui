@@ -12,7 +12,7 @@
   let showCreate = $state(false);
   let creating = $state(false);
   let createError = $state('');
-  let form = $state({ name: '', buildKey: '', version: '', description: '' });
+  let form = $state({ name: '', buildKey: '', version: '', description: '', requirements: '' });
   let statusFilter = $state('');
   let nameFilter = $state('');
 
@@ -75,11 +75,12 @@
         name: form.name.trim(),
         buildKey: form.buildKey.trim() || undefined,
         version: form.version.trim() || undefined,
-        description: form.description.trim() || undefined
+        description: form.description.trim() || undefined,
+        requirements: form.requirements.trim() || undefined
       });
       allBuilds = [created, ...allBuilds];
       showCreate = false;
-      form = { name: '', buildKey: '', version: '', description: '' };
+      form = { name: '', buildKey: '', version: '', description: '', requirements: '' };
     } catch (error) {
       createError = error instanceof Error ? error.message : 'Unable to create build';
     } finally {
@@ -179,7 +180,8 @@
     <label>Name <span class="req">*</span><input bind:value={form.name} placeholder="Payment May RC2" /></label>
     <label>Build key <span class="opt">(optional)</span><input bind:value={form.buildKey} placeholder="payment-rc2" /></label>
     <label>Version <span class="opt">(optional)</span><input bind:value={form.version} placeholder="2026.05.2" /></label>
-    <label>Description <span class="opt">(optional)</span><textarea bind:value={form.description} rows="3"></textarea></label>
+    <label>Description <span class="opt">(optional)</span><textarea bind:value={form.description} rows="2"></textarea></label>
+    <label>Build Requirements <span class="opt">(optional)</span><textarea bind:value={form.requirements} rows="4" placeholder="Describe what this build must verify — used by AI scenario suggestions"></textarea></label>
     <div class="modal-actions">
       <Button variant="secondary" size="sm" onclick={() => showCreate = false}>Cancel</Button>
       <Button variant="primary" size="sm" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create'}</Button>

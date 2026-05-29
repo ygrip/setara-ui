@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last updated: 2026-05-28
+Last updated: 2026-05-29
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
@@ -26,10 +26,16 @@ Beads issues: run `bd list --status=open` in the setara root for live status.
 - Step editor (RevoGrid): keyword dropdown, pointer/focus row tracking, move/delete/duplicate
 - Directory move/rename/delete modals, bulk action bar, filter bar (auto status + priority)
 - Coverage Map and Quality Map (SetaraMindMap renderer with drag, node links)
+- **Tag support**: `TagInput.svelte` multi-chip input component with sanitize/display separation, max-20 enforcement
+- **Tag filter bar**: `TagFilterBar.svelte` (project-scoped tag pool, ANY/ALL mode toggle) on scenario list
+- **Semantic search page**: `/repository/search` — similarity query, scored results list
+- **AI suggest page**: `/builds/{id}/suggest` — trigger LLM+vector suggestion, display scored results
 
 **Build management**
 - Build list page: sortable headers (Name ↑↓ / Created ↑↓ / Verified ↑↓), backend-backed sort via URL params
 - Build detail: large doughnut chart, scenario table, verify gate enforcement, history/audit diff modal
+- Build detail: **description and build requirements displayed** in meta section (2026-05-29)
+- Build create form: **requirements field** (textarea) included in modal (2026-05-29)
 - Add-from-run page (`/builds/{id}/add-from-run`): 2-step full-page (pick run → review scenarios)
 - Add-manual page (`/builds/{id}/add-manual`): split-layout directory tree (nested, chevrons, counts) + sortable scenario table (name/priority)
 - Build quality map page; build trend chart on plan detail
@@ -56,15 +62,28 @@ Beads issues: run `bd list --status=open` in the setara root for live status.
 - Add-manual scenario sort is correctly client-side (all data loaded upfront, no pagination)
 - Build detail scenario sort correctly resets cursor and reloads from API on sort change
 
+**New scenario form (2026-05-29)**
+- TagInput wired into new scenario creation form — tags sent on submit
+
 ---
 
 ## 🔲 Remaining Work
 
+### Scenario tags
+- [ ] Scenario edit drawer does not show or edit tags — beads: `setara-fah` · P3
+
 ### Live updates
 - [ ] Dashboard (`/dashboard`) metric cards and recent projects table update from WebSocket events — beads: `setara-uqe` · P2
+
+### Admin
+- [ ] Intelligence health admin page — surface `/api/admin/intelligence/health` endpoint — beads: `setara-8z3` · P3
+
+### Style consistency
+- [ ] Migrate raw `<button>` elements to use `Button` component across all pages — beads: `setara-6fp` · P3
 
 ### Verification
 - [ ] Unit tests for Svelte stores and API client functions — beads: `setara-ks7` · P3
 - [ ] Component tests for critical flows (build verify, plan close, scenario CRUD) — beads: `setara-ks7` · P3
 - [ ] End-to-end smoke test (project → scenario → execution → plan flows) — beads: `setara-ks7` · P3
 - [ ] Frontend container smoke test — beads: `setara-ks7` · P3
+- [ ] OpenAPI contract smoke check in CI against mock mode — beads: `setara-x3m` · P3

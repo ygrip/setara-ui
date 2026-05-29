@@ -369,6 +369,10 @@
         <Button variant="secondary" onclick={() => auditOpen = true}
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>'
         >History</Button>
+        <Button variant="secondary" href="/projects/{data.projectKey}/builds/{data.buildId}/suggest"
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1010 10"/><path d="M12 6v6l4 2"/></svg>'
+          disabled={build.status === 'VERIFIED'}
+        >AI Suggest</Button>
         <div class="add-scenario-wrap">
           <Button variant="primary" disabled={build.status === 'VERIFIED'} onclick={() => addScenarioMenuOpen = !addScenarioMenuOpen}
             icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'
@@ -399,6 +403,23 @@
 
     {#if verifyGateError}<div class="error">{verifyGateError}</div>{/if}
     {#if verifyError}<div class="error">{verifyError}</div>{/if}
+
+    {#if build.description || build.requirements}
+      <section class="build-meta-section">
+        {#if build.description}
+          <div class="build-meta-item">
+            <span class="build-meta-label">Description</span>
+            <p class="build-meta-text">{build.description}</p>
+          </div>
+        {/if}
+        {#if build.requirements}
+          <div class="build-meta-item">
+            <span class="build-meta-label">Build Requirements</span>
+            <p class="build-meta-text requirements-text">{build.requirements}</p>
+          </div>
+        {/if}
+      </section>
+    {/if}
 
     <section class="visual-panel">
       <div class="chart-wrap">
@@ -570,6 +591,11 @@
   h2 { font-size: 1rem; margin: 0 0 12px; }
   p, .muted { color: var(--color-text-muted); margin: 0; }
   .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+  .build-meta-section { display: flex; flex-direction: column; gap: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
+  .build-meta-item { display: flex; flex-direction: column; gap: 4px; }
+  .build-meta-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+  .build-meta-text { margin: 0; font-size: 0.875rem; color: var(--color-text); line-height: 1.55; }
+  .requirements-text { white-space: pre-wrap; word-break: break-word; }
   .visual-panel { display: grid; grid-template-columns: minmax(360px, 520px) 1fr; gap: 28px; align-items: center; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
   .chart-wrap { display: flex; justify-content: center; }
   .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
