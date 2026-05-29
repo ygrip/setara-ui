@@ -135,12 +135,12 @@
           <tr>
             <th class="th-sort" onclick={() => toggleSort('name')}>Build{sortIndicator('name')}</th>
             <th>Status</th>
-            <th>Version</th>
+            <th class="col-hide-sm">Version</th>
             <th>Scenarios</th>
             <th>Pass</th>
-            <th>Execution</th>
-            <th class="th-sort" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
-            <th class="th-sort" onclick={() => toggleSort('verifiedAt')}>Verified{sortIndicator('verifiedAt')}</th>
+            <th class="col-hide-sm">Execution</th>
+            <th class="th-sort col-hide-xs" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
+            <th class="th-sort col-hide-sm" onclick={() => toggleSort('verifiedAt')}>Verified{sortIndicator('verifiedAt')}</th>
           </tr>
         </thead>
         <tbody>
@@ -151,7 +151,7 @@
                 <span class="build-key">{build.buildKey}</span>
               </td>
               <td><Badge text={build.status} variant={statusVariant(build.status)} /></td>
-              <td>
+              <td class="col-hide-sm">
                 {#if build.version}
                   <span class="version-chip">{build.version}</span>
                 {:else}
@@ -160,9 +160,9 @@
               </td>
               <td class="num">{build.metrics.totalScenarios}</td>
               <td class="num">{pct(build.metrics.passPercentage)}</td>
-              <td class="num">{pct(build.metrics.executionCoverage)}</td>
-              <td class="nowrap muted">{formatDate(build.createdAt)}</td>
-              <td class="nowrap muted">{formatDate(build.verifiedAt)}</td>
+              <td class="num col-hide-sm">{pct(build.metrics.executionCoverage)}</td>
+              <td class="nowrap muted col-hide-xs">{formatDate(build.createdAt)}</td>
+              <td class="nowrap muted col-hide-sm">{formatDate(build.verifiedAt)}</td>
             </tr>
           {/each}
           {#if builds.length === 0}
@@ -228,6 +228,7 @@
   .error { color: var(--color-danger); font-weight: 700; }
   .req { color: var(--color-danger); }
   .opt { font-size: 0.7em; font-weight: 400; text-transform: none; color: var(--color-text-muted); }
+  /* Column visibility on smaller viewports */
   @media (max-width: 720px) {
     .page-header { flex-direction: column; }
     .filters-bar { flex-direction: column; align-items: stretch; }
@@ -235,5 +236,10 @@
     .search-input { min-width: 0; width: 100%; }
     .filters-bar select { width: 100%; }
     .count { margin-left: 0; }
+    .col-hide-sm { display: none; }
+  }
+  @media (max-width: 480px) {
+    .col-hide-xs { display: none; }
+    .builds-table th, .builds-table td { padding: 10px 10px; }
   }
 </style>

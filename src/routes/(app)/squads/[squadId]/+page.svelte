@@ -163,11 +163,11 @@
         <h2 class="section-title">Project Coverage</h2>
         <input class="search-input" bind:value={projectSearch} placeholder="Search projects…" />
       </div>
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th class="th-sort" onclick={() => toggleSort('projectName')}>Project{sortIcon('projectName')}</th>
-            <th class="th-sort" onclick={() => toggleSort('totalScenarios')}>Total Scenarios{sortIcon('totalScenarios')}</th>
+            <th class="th-sort" onclick={() => toggleSort('totalScenarios')}>Scenarios{sortIcon('totalScenarios')}</th>
             <th>Automated</th>
             <th>Automatable</th>
             <th class="th-sort" onclick={() => toggleSort('coveragePercentage')}>Coverage{sortIcon('coveragePercentage')}</th>
@@ -179,11 +179,11 @@
           {:else}
             {#each filteredProjects as proj}
               <tr>
-                <td><a class="project-link" href="/projects/{proj.projectKey}">{proj.projectName}</a></td>
-                <td>{proj.totalScenarios}</td>
-                <td>{proj.totalAutomated}</td>
-                <td>{proj.totalAutomatable}</td>
-                <td>
+                <td data-label="Project"><a class="project-link" href="/projects/{proj.projectKey}">{proj.projectName}</a></td>
+                <td data-label="Scenarios">{proj.totalScenarios}</td>
+                <td data-label="Automated">{proj.totalAutomated}</td>
+                <td data-label="Automatable">{proj.totalAutomatable}</td>
+                <td data-label="Coverage">
                   <div class="cov-cell">
                     <div class="cov-bar"><div class="cov-fill" style="width:{proj.coveragePercentage}%"></div></div>
                     <strong>{pct(proj.coveragePercentage)}</strong>

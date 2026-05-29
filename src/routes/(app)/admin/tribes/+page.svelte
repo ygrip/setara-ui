@@ -86,16 +86,16 @@
     {#if data.tribes.length === 0}
       <p class="empty-text">No tribes yet.</p>
     {:else}
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr><th>Name</th><th>Created</th><th></th></tr>
         {/snippet}
         {#snippet body()}
           {#each data.tribes as tribe}
             <tr>
-              <td class="bold">{tribe.name}</td>
-              <td>{formatDate(tribe.createdAt)}</td>
-              <td>
+              <td data-label="Name" class="bold">{tribe.name}</td>
+              <td data-label="Created">{formatDate(tribe.createdAt)}</td>
+              <td data-label="">
                 <button class="action-btn" onclick={() => openEdit(tribe)} title="Edit">✎</button>
                 <button class="action-btn danger" onclick={() => handleDelete(tribe)} title="Delete">✕</button>
               </td>

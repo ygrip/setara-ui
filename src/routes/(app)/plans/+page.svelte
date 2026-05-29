@@ -126,7 +126,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Release Plans</h1>
-      <p class="subtitle">Sprint-level quality gates coordinated across squads and projects.</p>
+      <p class="subtitle">Track test readiness and quality gates for each release, across your squads.</p>
     </div>
     <Button variant="primary" onclick={() => { showCreate = true; createError = ''; createForm = { squadId: '', name: '', releaseDate: '', description: '' }; }}
       icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>'

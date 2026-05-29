@@ -12,7 +12,7 @@ import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
-import type { Scenario, TagView, TestDirectory } from '$lib/api/testcases';
+import type { Scenario, TagInput, TagView, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
 
@@ -150,15 +150,35 @@ export async function mockGetScenario(projectKey: string, scenarioId: string): P
 export async function mockUpdateScenario(
   projectKey: string,
   scenarioId: string,
-  body: Partial<Scenario> & { steps?: Scenario['steps'] }
+  body: {
+    name?: string;
+    priority?: string;
+    automatable?: boolean;
+    automationStatus?: string;
+    automationNotes?: string;
+    manualNotes?: string;
+    status?: string;
+    tags?: TagInput[];
+    steps?: Scenario['steps'];
+  }
 ): Promise<Scenario> {
   await delay(120);
   const scenarios = mockScenariosByProject[projectKey] ?? [];
   const index = scenarios.findIndex(item => item.id === scenarioId);
   if (index < 0) throw new Error(`Scenario ${scenarioId} not found`);
+  // Convert TagInput[] → TagView[] (generate a synthetic id from the sanitized value)
+  const resolvedTags: TagView[] | undefined = body.tags
+    ? body.tags.map(t => ({
+        id: `tag-${(t.sanitized ?? t.display).toLowerCase().replace(/\s+/g, '-')}`,
+        sanitized: t.sanitized ?? t.display.toLowerCase().replace(/\s+/g, '-'),
+        display: t.display
+      }))
+    : undefined;
+  const { tags: _tags, ...rest } = body;
   scenarios[index] = {
     ...scenarios[index],
-    ...body,
+    ...rest,
+    ...(resolvedTags !== undefined ? { tags: resolvedTags } : {}),
     steps: body.steps ?? scenarios[index].steps,
     updatedAt: new Date().toISOString()
   };

@@ -1,6 +1,8 @@
+import type { LoadEvent } from '@sveltejs/kit';
+
 export const ssr = false;
 
-export async function load({ fetch }) {
+export async function load({ fetch }: LoadEvent) {
   try {
     const res = await fetch('/api/admin/intelligence/health');
     if (res.ok) return { health: await res.json(), error: null };

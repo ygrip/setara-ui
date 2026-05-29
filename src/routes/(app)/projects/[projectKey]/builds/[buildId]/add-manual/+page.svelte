@@ -381,7 +381,7 @@
         {:else if filteredScenarios.length === 0}
           <p class="empty">{scenarioFilter || typeFilter || priorityFilter ? 'No scenarios match the current filters.' : 'No scenarios in this directory.'}</p>
         {:else}
-          <DataTable>
+          <DataTable mobileCards>
             {#snippet head()}
               <tr>
                 <th class="checkbox-col">
@@ -395,16 +395,16 @@
               {#each filteredScenarios as scenario (scenario.id)}
                 <!-- svelte-ignore a11y_click_events_have_key_events -->
                 <tr class="click-row" onclick={() => toggleScenario(scenario)}>
-                  <td class="checkbox-col" onclick={(e) => e.stopPropagation()}>
+                  <td data-label="" class="checkbox-col" onclick={(e) => e.stopPropagation()}>
                     <input type="checkbox" checked={selectedIds.has(scenario.id)} onchange={() => toggleScenario(scenario)} />
                   </td>
-                  <td>
+                  <td data-label="Scenario">
                     <div class="scenario-cell">
                       <code class="scenario-key">{scenario.scenarioKey}</code>
                       <span class="scenario-name">{scenario.name}</span>
                     </div>
                   </td>
-                  <td>
+                  <td data-label="Priority">
                     <span class="prio-badge {priorityVariant(scenario.priority)}">{scenario.priority ?? 'UNSET'}</span>
                   </td>
                 </tr>
@@ -429,7 +429,7 @@
     <div class="review-section">
       <h2 class="review-heading">{selectedIds.size} scenarios to add</h2>
 
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th>Key</th>
@@ -444,12 +444,12 @@
           {#each selectedList as s (s.id)}
             {@const sDir = (data.directories as TestDirectory[]).find(d => d.id === s.nodeId)}
             <tr>
-              <td><code class="mono">{s.scenarioKey}</code></td>
-              <td>{s.name}</td>
-              <td class="muted">{sDir?.name ?? s.featureName ?? '—'}</td>
-              <td><span class="prio-badge {priorityVariant(s.priority)}">{s.priority ?? 'UNSET'}</span></td>
-              <td><Badge text={s.status} variant={statusVariant(s.status)} /></td>
-              <td>
+              <td data-label="Key"><code class="mono">{s.scenarioKey}</code></td>
+              <td data-label="Name">{s.name}</td>
+              <td data-label="Directory" class="muted">{sDir?.name ?? s.featureName ?? '—'}</td>
+              <td data-label="Priority"><span class="prio-badge {priorityVariant(s.priority)}">{s.priority ?? 'UNSET'}</span></td>
+              <td data-label="Status"><Badge text={s.status} variant={statusVariant(s.status)} /></td>
+              <td data-label="">
                 <button class="remove-btn" onclick={() => removeSelected(s.id)} aria-label="Remove {s.scenarioKey}">×</button>
               </td>
             </tr>

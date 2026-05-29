@@ -4,6 +4,9 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
+  import { isMockMode } from '$lib/mock/client';
+
+  const isMock = isMockMode();
 
   const projectKey = $derived(page.params.projectKey);
 
@@ -56,85 +59,104 @@
 
   <div class="page-header">
     <div>
-      <h1 class="page-title">Semantic Search</h1>
-      <p class="page-sub">Find similar scenarios by meaning, not just keywords.</p>
+      <h1 class="page-title">Smart Search</h1>
+      <p class="page-sub">Find test scenarios by describing what they do — no need for exact keywords.</p>
     </div>
     <Button variant="secondary" href="/projects/{projectKey}/repository">← Back to Repository</Button>
   </div>
 
-  <div class="search-section">
-    <div class="search-bar">
-      <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-      <input
-        class="search-input"
-        type="search"
-        placeholder="Describe what you're looking for… e.g. 'user login with invalid credentials'"
-        bind:value={query}
-        onkeydown={handleKeydown}
-        aria-label="Semantic search query"
-      />
-      <Button variant="primary" onclick={search} disabled={searching || !query.trim()}>
-        {searching ? 'Searching…' : 'Search'}
-      </Button>
-    </div>
-    <p class="search-hint">Requires intelligence features enabled. Falls back to text search if vector store is unavailable.</p>
-  </div>
-
-  {#if error}
-    <div class="error-banner">{error}</div>
-  {/if}
-
-  {#if searched}
-    {#if results.length > 0}
-      <div class="results-section">
-        <h2 class="section-title">Results ({results.length})</h2>
-        <div class="results-list">
-          {#each results as result}
-            <a href="/projects/{projectKey}/repository?scenario={result.scenarioId}" class="result-card">
-              <div class="result-header">
-                <strong class="result-key">{result.scenarioKey}</strong>
-                <span class="result-score" style="--score:{result.score * 100}%">
-                  {formatScore(result.score)}
-                </span>
-              </div>
-              <span class="result-name">{result.name}</span>
-              {#if result.path}
-                <span class="result-path">{result.path}</span>
-              {/if}
-            </a>
-          {/each}
-        </div>
+  {#if isMock}
+    <div class="disabled-state">
+      <div class="disabled-icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v4M11 15h.01"/>
+        </svg>
       </div>
-    {:else if !searching}
-      <div class="empty-state">
-        <p>No similar scenarios found for <strong>"{query}"</strong>.</p>
-        <p class="muted">Try rephrasing your query or check that intelligence features are enabled.</p>
+      <h2 class="disabled-title">Smart Search is not available in preview mode</h2>
+      <p class="disabled-desc">This feature uses AI to find test scenarios by meaning. It requires a live backend with the Intelligence feature enabled.</p>
+      <a href="/projects/{projectKey}/repository" class="back-link">← Go back to the test repository</a>
+    </div>
+  {:else}
+    <div class="search-section">
+      <div class="search-bar">
+        <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <input
+          class="search-input"
+          type="search"
+          placeholder="Describe what you're looking for… e.g. 'user login with invalid credentials'"
+          bind:value={query}
+          onkeydown={handleKeydown}
+          aria-label="Search by description"
+        />
+        <Button variant="primary" onclick={search} disabled={searching || !query.trim()}>
+          {searching ? 'Searching…' : 'Search'}
+        </Button>
+      </div>
+      <p class="search-hint">Tip: describe the behaviour you want to test, not the exact scenario name.</p>
+    </div>
+
+    {#if error}
+      <div class="error-banner">{error}</div>
+    {/if}
+
+    {#if searched}
+      {#if results.length > 0}
+        <div class="results-section">
+          <h2 class="section-title">Results ({results.length})</h2>
+          <div class="results-list">
+            {#each results as result}
+              <a href="/projects/{projectKey}/repository?scenario={result.scenarioId}" class="result-card">
+                <div class="result-header">
+                  <strong class="result-key">{result.scenarioKey}</strong>
+                  <span class="result-score" style="--score:{result.score * 100}%">
+                    {formatScore(result.score)} match
+                  </span>
+                </div>
+                <span class="result-name">{result.name}</span>
+                {#if result.path}
+                  <span class="result-path">{result.path}</span>
+                {/if}
+              </a>
+            {/each}
+          </div>
+        </div>
+      {:else if !searching}
+        <div class="empty-state">
+          <p>No matching scenarios found for <strong>"{query}"</strong>.</p>
+          <p class="muted">Try describing the scenario differently, or check that the Intelligence feature is enabled.</p>
+        </div>
+      {/if}
+    {/if}
+
+    {#if !searched}
+      <div class="info-card">
+        <h3>How Smart Search works</h3>
+        <p>Instead of matching keywords, Smart Search understands the <strong>intent</strong> of your query — so you can find test cases even if you don't know their exact names.</p>
+        <ul>
+          <li>Describe the user action or behaviour to test</li>
+          <li>Find duplicate or overlapping test cases</li>
+          <li>Discover related scenarios across different folders</li>
+        </ul>
+        <p class="muted">Requires Intelligence to be enabled in your backend settings.</p>
       </div>
     {/if}
-  {/if}
-
-  {#if !searched}
-    <div class="info-card">
-      <h3>About Semantic Search</h3>
-      <p>Semantic search finds scenarios by their <strong>meaning</strong>, not just exact keyword matches. It uses AI embeddings to understand the intent behind your query.</p>
-      <ul>
-        <li>Describe what the scenario should test</li>
-        <li>Find duplicate or similar test cases</li>
-        <li>Discover related scenarios across directories</li>
-      </ul>
-      <p class="muted">Enable with: <code>setara.intelligence.enabled=true</code> and configure an embedding provider.</p>
-    </div>
   {/if}
 </div>
 
 <style>
   .page { max-width: min(960px, 100%); }
-  .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
+  .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .sep { opacity: 0.5; }
-  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; }
+  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .page-sub { color: var(--color-text-muted); font-size: 0.9rem; margin: 4px 0 0; }
+  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 56px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
+  .disabled-icon { width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
+  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text); }
+  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
+  .back-link { font-size: 0.875rem; color: var(--color-accent); text-decoration: none; font-weight: 600; }
+  .back-link:hover { text-decoration: underline; }
   .search-section { margin-bottom: 24px; }
   .search-bar { display: flex; gap: 10px; align-items: center; }
   .search-icon { position: absolute; margin-left: 12px; color: var(--color-text-muted); pointer-events: none; z-index: 1; }
@@ -159,5 +181,5 @@
   .info-card p { font-size: 0.875rem; color: var(--color-text-muted); margin: 0 0 8px; line-height: 1.5; }
   .info-card ul { margin: 0 0 8px; padding-left: 20px; color: var(--color-text-muted); font-size: 0.85rem; }
   .info-card li { margin-bottom: 4px; }
-  .info-card code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; }
+  .info-card code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
 </style>

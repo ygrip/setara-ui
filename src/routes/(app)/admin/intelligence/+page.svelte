@@ -1,7 +1,9 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
+  import { isMockMode } from '$lib/mock/client';
 
   let { data } = $props();
+  const isMock = isMockMode();
   let reindexProjectKey = $state('');
   let reindexBusy = $state(false);
   let reindexResult = $state('');
@@ -47,12 +49,27 @@
 
 <div class="page">
   <div class="page-header">
-    <h1 class="page-title">Intelligence Health</h1>
-    <p class="page-subtitle">Embedding pipeline, vector store, and pending jobs status</p>
+    <h1 class="page-title">Intelligence</h1>
+    <p class="page-subtitle">AI-powered search and embedding pipeline status</p>
   </div>
 
-  {#if data.error}
-    <div class="error-banner">{data.error}</div>
+  {#if isMock}
+    <div class="disabled-state">
+      <div class="disabled-icon">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M12 8v4M12 16h.01"/>
+        </svg>
+      </div>
+      <h2 class="disabled-title">Not available in preview mode</h2>
+      <p class="disabled-desc">The Intelligence feature requires a live backend with an embedding provider configured. This page shows real-time health and lets you manage AI indexing.</p>
+      <p class="disabled-hint">To enable: set <code>setara.intelligence.enabled=true</code> and configure an embedding provider in your backend settings.</p>
+    </div>
+  {:else if data.error}
+    <div class="error-banner">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      {data.error}
+    </div>
   {:else if data.health}
     {@const h = data.health}
     <div class="health-grid">
@@ -98,7 +115,7 @@
     <div class="actions-section">
       <div class="action-card">
         <h3 class="action-title">Reindex Project</h3>
-        <p class="action-desc">Queue all active scenarios in a project for re-embedding.</p>
+        <p class="action-desc">Queue all active test scenarios in a project to be re-processed by the AI embedding pipeline.</p>
         <div class="action-row">
           <input class="project-key-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
           <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
@@ -109,8 +126,8 @@
       </div>
 
       <div class="action-card">
-        <h3 class="action-title">Create HNSW Index</h3>
-        <p class="action-desc">Create a pgvector HNSW index on the embedding column using the active provider dimension. Requires embeddings to be indexed first.</p>
+        <h3 class="action-title">Create Search Index</h3>
+        <p class="action-desc">Build the vector search index to speed up semantic similarity queries. Run this after initial indexing is complete.</p>
         <div class="action-row">
           <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
             {createIndexBusy ? 'Creating…' : 'Create Index'}
@@ -129,7 +146,13 @@
   .page-header { margin-bottom: 24px; }
   .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
   .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
+  .error-banner { display: flex; align-items: center; gap: 8px; background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
+  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 48px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
+  .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
+  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text); }
+  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
+  .disabled-hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); opacity: 0.75; }
+  .disabled-hint code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
   .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
   .health-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; }
   .card-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: 8px; }

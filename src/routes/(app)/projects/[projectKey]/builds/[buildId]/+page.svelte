@@ -450,7 +450,7 @@
         </div>
       {/if}
 
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th class="checkbox-col">
@@ -468,20 +468,20 @@
         {#snippet body()}
           {#each filteredScenarios as scenario (scenario.id)}
             <tr>
-              <td class="checkbox-col">
+              <td data-label="" class="checkbox-col">
                 <input type="checkbox" checked={selectedIds.has(scenario.id)} onchange={() => toggleSelect(scenario.id)} />
               </td>
-              <td>
+              <td data-label="Scenario">
                 <strong>{scenario.scenarioKey}</strong>
                 <div class="muted">{scenario.name}</div>
                 {#if scenario.directoryPath}<div class="path-hint">{scenario.directoryPath}</div>{/if}
               </td>
-              <td><Badge text={scenario.expectedStatus} variant="neutral" /></td>
-              <td><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
-              <td><Badge text={scenario.source} variant={scenario.source === 'AUTOMATION' ? 'automated' : 'manual'} /></td>
-              <td>{scenario.executedBy ?? '—'}</td>
-              <td>{formatDate(scenario.executedAt)}</td>
-              <td>
+              <td data-label="Expected"><Badge text={scenario.expectedStatus} variant="neutral" /></td>
+              <td data-label="Actual"><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
+              <td data-label="Source"><Badge text={scenario.source} variant={scenario.source === 'AUTOMATION' ? 'automated' : 'manual'} /></td>
+              <td data-label="Executed By">{scenario.executedBy ?? '—'}</td>
+              <td data-label="Added">{formatDate(scenario.executedAt)}</td>
+              <td data-label="">
                 {#if scenario.source !== 'AUTOMATION'}
                 <button class="inline-btn" onclick={() => openUpdateResult(scenario)} disabled={build?.status === 'VERIFIED'}>
                   Update Result

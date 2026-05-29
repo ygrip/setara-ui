@@ -5,8 +5,11 @@
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import { clearSession, getValidSession, hasPermission, refreshSession, type SetaraSession } from '$lib/auth';
+  import { isMockMode } from '$lib/mock/client';
 
   let { children } = $props();
+
+  const isMock = isMockMode();
 
   let session = $state<SetaraSession | null>(null);
   let sidebarOpen = $state(false);
@@ -102,6 +105,14 @@
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('click', handleOutsideClick);
     };
+  });
+
+  // Scroll-lock: prevent background scroll when sidebar or mobile user popup is open
+  $effect(() => {
+    const isMobileView = window.matchMedia('(max-width: 768px)').matches;
+    const shouldLock = sidebarOpen || (userMenuOpen && isMobileView);
+    document.body.style.overflow = shouldLock ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
   });
 
   function signOut() {
@@ -242,7 +253,7 @@
         {#if projectKey}
           <span class="nav-divider-key">{projectKey}</span>
         {:else}
-          <span class="nav-divider-hint">(select project)</span>
+          <span class="nav-divider-hint">(none selected)</span>
         {/if}
       </div>
 
@@ -293,25 +304,25 @@
           Coverage
         </a>
       {:else}
-        <span class="nav-item nav-item--dimmed" title="Select a project to access Builds">
+        <span class="nav-item nav-item--dimmed" title="Open a project first to access Builds">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
           </svg>
           Builds
         </span>
-        <span class="nav-item nav-item--dimmed" title="Select a project to access Test Repository">
+        <span class="nav-item nav-item--dimmed" title="Open a project first to access Test Repository">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
           </svg>
           Test Repository
         </span>
-        <span class="nav-item nav-item--dimmed" title="Select a project to access Executions">
+        <span class="nav-item nav-item--dimmed" title="Open a project first to access Executions">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
           Executions
         </span>
-        <span class="nav-item nav-item--dimmed" title="Select a project to access Coverage">
+        <span class="nav-item nav-item--dimmed" title="Open a project first to access Coverage">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
@@ -329,7 +340,7 @@
         class:nav-item--active={isActive('/admin')}
         class:nav-item--dimmed={!can('settings:read')}
         aria-disabled={!can('settings:read')}
-        title={can('settings:read') ? 'Settings' : 'Settings require QA or Admin role'}
+        title={can('settings:read') ? 'Settings' : 'You need QA Lead or Admin role to access Settings'}
         onclick={closeSidebar}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -353,9 +364,17 @@
     <!-- Top bar (always visible) -->
     <header class="topbar">
       <div class="topbar-left">
-        <!-- Icon button — mobile only: toggles sidebar; desktop: links home -->
+        <!-- Hamburger — mobile only: toggles sidebar -->
         <button class="topbar-brand-mobile" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle navigation" aria-expanded={sidebarOpen}>
-          <img src="/favicon.svg" alt="" class="topbar-brand-icon" width="26" height="26" aria-hidden="true" />
+          {#if sidebarOpen}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          {:else}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+            </svg>
+          {/if}
         </button>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
@@ -378,7 +397,7 @@
 
       <div class="topbar-right">
         <!-- Live indicator -->
-        <div class="live-indicator" title="Live updates active">
+        <div class="live-indicator" title="Connected — receiving live test run updates">
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
@@ -442,7 +461,11 @@
                       Sign out
                     </button>
                   </div>
-                  <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">✕</button>
+                  <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                      <path d="M18 6 6 18M6 6l12 12"/>
+                    </svg>
+                  </button>
                 </div>
               </div>
             {/if}
@@ -450,6 +473,16 @@
         {/if}
       </div>
     </header>
+
+    <!-- Preview mode banner -->
+    {#if isMock}
+      <div class="preview-banner" role="status" aria-live="polite">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        <span><strong>Preview mode</strong> — Showing sample data. Connect a live backend to see your real results.</span>
+      </div>
+    {/if}
 
     <!-- Page content -->
     <main class="content">
@@ -787,18 +820,17 @@
     background: none;
     border: none;
     cursor: pointer;
-    padding: 4px;
+    padding: 6px;
     border-radius: 8px;
-    transition: opacity 0.15s;
+    color: var(--color-text-muted);
+    transition: background 0.12s, color 0.12s;
+    min-width: 36px;
+    min-height: 36px;
   }
 
   .topbar-brand-mobile:hover {
-    opacity: 0.75;
-  }
-
-  .topbar-brand-icon {
-    flex-shrink: 0;
-    display: block;
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
   }
 
   .project-key-pill {
@@ -1050,6 +1082,30 @@
 
   .footer-sep {
     opacity: 0.5;
+  }
+
+  /* ── Preview banner ── */
+  .preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 20px;
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    border-bottom: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+    color: var(--color-accent);
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.4;
+    flex-shrink: 0;
+  }
+
+  .preview-banner strong {
+    font-weight: 700;
+  }
+
+  :global([data-theme="dark"]) .preview-banner {
+    background: color-mix(in srgb, var(--color-accent), transparent 82%);
+    border-bottom-color: color-mix(in srgb, var(--color-accent), transparent 60%);
   }
 
   /* ── Mobile backdrop ── */

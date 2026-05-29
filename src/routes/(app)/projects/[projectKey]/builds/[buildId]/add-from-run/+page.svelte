@@ -217,7 +217,7 @@
     {:else if scenariosError}
       <div class="error">{scenariosError}</div>
     {:else}
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th class="checkbox-col">
@@ -233,14 +233,14 @@
         {#snippet body()}
           {#each runScenarios as rs (rs.id)}
             <tr>
-              <td class="checkbox-col">
+              <td data-label="" class="checkbox-col">
                 <input type="checkbox" checked={selectedRunScenarioIds.has(rs.id)} onchange={() => toggleScenario(rs.id)} />
               </td>
-              <td><Badge text={rs.status} variant={statusVariant(rs.status)} /></td>
-              <td><code class="mono">{rs.scenarioKey ?? '—'}</code></td>
-              <td>{rs.scenarioName}</td>
-              <td class="muted">{rs.featureName ?? '—'}</td>
-              <td class="muted">—</td>
+              <td data-label="Status"><Badge text={rs.status} variant={statusVariant(rs.status)} /></td>
+              <td data-label="Key"><code class="mono">{rs.scenarioKey ?? '—'}</code></td>
+              <td data-label="Name">{rs.scenarioName}</td>
+              <td data-label="Feature" class="muted">{rs.featureName ?? '—'}</td>
+              <td data-label="Duration" class="muted">—</td>
             </tr>
           {/each}
           {#if runScenarios.length === 0}

@@ -99,13 +99,18 @@
     {#if users.length === 0}
       <p class="empty-text">No users found.</p>
     {:else}
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}<tr><th>Email</th><th>Display Name</th><th>Created</th><th></th></tr>{/snippet}
         {#snippet body()}
           {#each users as user}
-            <tr><td>{user.email}</td><td class="bold">{user.displayName}</td><td>{formatDate(user.createdAt)}</td><td>
-              <button class="action-btn" onclick={() => openSquadModal(user)} title="Manage squads">⚙</button>
-            </td></tr>
+            <tr>
+              <td data-label="Email">{user.email}</td>
+              <td data-label="Name" class="bold">{user.displayName}</td>
+              <td data-label="Created">{formatDate(user.createdAt)}</td>
+              <td data-label="">
+                <button class="action-btn" onclick={() => openSquadModal(user)} title="Manage squads">⚙</button>
+              </td>
+            </tr>
           {/each}
         {/snippet}
       </DataTable>

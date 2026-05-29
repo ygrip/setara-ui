@@ -91,14 +91,19 @@
     {#if squads.length === 0}
       <p class="empty-text">No squads yet.</p>
     {:else}
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}<tr><th>Name</th><th>Tribe</th><th>Created</th><th></th></tr>{/snippet}
         {#snippet body()}
           {#each squads as squad}
-            <tr><td class="bold">{squad.name}</td><td class="muted">{squad.tribeName ?? '—'}</td><td>{formatDate(squad.createdAt)}</td><td>
-              <button class="action-btn" onclick={() => openEdit(squad)} title="Edit">✎</button>
-              <button class="action-btn danger" onclick={() => handleDelete(squad)} title="Delete">✕</button>
-            </td></tr>
+            <tr>
+              <td data-label="Name" class="bold">{squad.name}</td>
+              <td data-label="Tribe" class="muted">{squad.tribeName ?? '—'}</td>
+              <td data-label="Created">{formatDate(squad.createdAt)}</td>
+              <td data-label="">
+                <button class="action-btn" onclick={() => openEdit(squad)} title="Edit">✎</button>
+                <button class="action-btn danger" onclick={() => handleDelete(squad)} title="Delete">✕</button>
+              </td>
+            </tr>
           {/each}
         {/snippet}
       </DataTable>

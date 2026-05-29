@@ -99,8 +99,8 @@
 <div class="page">
   <div class="page-header">
     <div>
-      <h1 class="page-title">Coverage Overview</h1>
-      <p class="page-subtitle">Squad-level automation coverage with project drilldown.</p>
+      <h1 class="page-title">Coverage</h1>
+      <p class="page-subtitle">See how much of each squad's test suite is automated, broken down by project.</p>
     </div>
   </div>
 
@@ -117,20 +117,20 @@
         <input bind:value={squadFilter} oninput={refreshSquads} placeholder="Filter squad" />
       </div>
     </div>
-    <DataTable>
+    <DataTable mobileCards>
       {#snippet head()}
         <tr>
           <th><button class="sort-button" onclick={() => sortSquads('name')}>Squad {indicator(squadSortBy === 'name', squadSortDir)}</button></th>
           <th>Tribe</th>
           <th>Projects</th>
-          <th>Total Scenarios</th>
+          <th>Scenarios</th>
           <th>Automated</th>
           <th><button class="sort-button" onclick={() => sortSquads('coverage')}>Coverage {indicator(squadSortBy === 'coverage', squadSortDir)}</button></th>
         </tr>
       {/snippet}
       {#snippet body()}
         {#if squads.length === 0}
-          <tr><td colspan="6" class="empty-cell">No squad coverage captured yet.</td></tr>
+          <tr><td colspan="6" class="empty-cell">No coverage data yet.</td></tr>
         {:else}
           {#each squads as row}
             <tr
@@ -138,12 +138,12 @@
               class:row-selected={selectedSquad?.squadId === row.squadId}
               onclick={() => goto('/squads/' + row.squadId)}
             >
-              <td class="bold">{row.squadName}</td>
-              <td>{row.tribeName ?? '—'}</td>
-              <td>{row.projectCount}</td>
-              <td>{row.totalScenarios}</td>
-              <td>{row.totalAutomated}</td>
-              <td><strong>{pct(row.coveragePercentage)}</strong></td>
+              <td data-label="Squad" class="bold">{row.squadName}</td>
+              <td data-label="Tribe">{row.tribeName ?? '—'}</td>
+              <td data-label="Projects">{row.projectCount}</td>
+              <td data-label="Scenarios">{row.totalScenarios}</td>
+              <td data-label="Automated">{row.totalAutomated}</td>
+              <td data-label="Coverage"><strong>{pct(row.coveragePercentage)}</strong></td>
             </tr>
           {/each}
         {/if}
@@ -162,11 +162,11 @@
           <input bind:value={projectFilter} oninput={refreshProjects} placeholder="Filter project" />
         </div>
       </div>
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th><button class="sort-button" onclick={() => sortProjects('name')}>Project {indicator(projectSortBy === 'name', projectSortDir)}</button></th>
-            <th>Total Scenarios</th>
+            <th>Scenarios</th>
             <th>Automated</th>
             <th>Automatable</th>
             <th><button class="sort-button" onclick={() => sortProjects('coverage')}>Coverage {indicator(projectSortBy === 'coverage', projectSortDir)}</button></th>
@@ -178,11 +178,11 @@
           {:else}
             {#each projects as row}
               <tr>
-                <td><a class="link bold" href="/projects/{row.projectKey}">{row.projectName}</a></td>
-                <td>{row.totalScenarios}</td>
-                <td>{row.totalAutomated}</td>
-                <td>{row.totalAutomatable}</td>
-                <td><strong>{pct(row.coveragePercentage)}</strong></td>
+                <td data-label="Project"><a class="link bold" href="/projects/{row.projectKey}">{row.projectName}</a></td>
+                <td data-label="Scenarios">{row.totalScenarios}</td>
+                <td data-label="Automated">{row.totalAutomated}</td>
+                <td data-label="Automatable">{row.totalAutomatable}</td>
+                <td data-label="Coverage"><strong>{pct(row.coveragePercentage)}</strong></td>
               </tr>
             {/each}
           {/if}

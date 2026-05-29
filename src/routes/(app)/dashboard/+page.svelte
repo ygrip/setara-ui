@@ -239,7 +239,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Quality overview across all projects</p>
+      <p class="page-subtitle">A snapshot of test quality and automation progress across all your projects.</p>
     </div>
     <div class="header-right">
       {#if liveRunCount > 0}
@@ -265,27 +265,27 @@
   <!-- Metric cards row -->
   <div class="metrics-row">
     <MetricCard
-      label="Total Squads"
+      label="Squads"
       value={summary?.totalSquads ?? '—'}
       variant="info"
       icon="M3 7h18M3 12h18M3 17h18"
     />
     <MetricCard
-      label="Total Projects"
+      label="Projects"
       value={summary?.totalProjects ?? '—'}
       variant="default"
       icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
     />
     <MetricCard
-      label="Total Scenarios"
+      label="Test Scenarios"
       value={summary?.totalScenarios ?? '—'}
       variant="default"
       icon="M22 12h-4l-3 9L9 3l-3 9H2"
     />
     <MetricCard
-      label="Overall Pass"
+      label="Pass Rate"
       value={`${Number(summary?.overallPassPercentage ?? 0).toFixed(0)}%`}
-      sub={`automation ${Number(summary?.automationCoveragePercentage ?? 0).toFixed(0)}%`}
+      sub={`${Number(summary?.automationCoveragePercentage ?? 0).toFixed(0)}% automated`}
       variant="default"
       icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
     />
@@ -295,8 +295,8 @@
   <div class="chart-section">
     <div class="section-heading">
       <div>
-        <h2 class="section-title">Coverage &amp; Pass Rate Trend</h2>
-        <p class="section-subtitle">Scenarios, automation coverage %, and execution pass rate % over time.</p>
+        <h2 class="section-title">Trends</h2>
+        <p class="section-subtitle">Automation coverage and test pass rate over time.</p>
       </div>
       <div class="chart-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -362,11 +362,11 @@
           <p>No projects yet — create your first project in the <a href="/projects">Projects section</a>.</p>
         </div>
       {:else}
-        <DataTable>
+        <DataTable mobileCards>
           {#snippet head()}
             <tr>
-              <th>Project Key</th>
-              <th>Name</th>
+              <th>Key</th>
+              <th>Project</th>
               <th>Created</th>
               <th></th>
             </tr>
@@ -375,7 +375,7 @@
             {#each data.projects as project (project.id)}
               {@const runCount = liveByProject.get(project.projectKey) ?? 0}
               <tr class:row-live={runCount > 0}>
-                <td>
+                <td data-label="Key">
                   <div class="key-cell">
                     <span class="key-badge">{project.projectKey}</span>
                     {#if runCount > 0}
@@ -386,9 +386,9 @@
                     {/if}
                   </div>
                 </td>
-                <td class="bold">{project.name}</td>
-                <td class="muted">{formatDate(project.createdAt)}</td>
-                <td><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
+                <td data-label="Project" class="bold">{project.name}</td>
+                <td data-label="Created" class="muted">{formatDate(project.createdAt)}</td>
+                <td data-label=""><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
               </tr>
             {/each}
           {/snippet}

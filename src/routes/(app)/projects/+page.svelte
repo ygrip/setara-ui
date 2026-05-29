@@ -66,7 +66,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Projects</h1>
-      <p class="page-subtitle">Manage your test automation projects</p>
+      <p class="page-subtitle">Your test projects — select one to view scenarios, builds, and coverage.</p>
     </div>
     {#if canWrite}
       <Button variant="primary" onclick={() => showModal = true}>+ New Project</Button>
@@ -96,7 +96,7 @@
       <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
         <path d="M3 7h18M3 12h18M3 17h18"/>
       </svg>
-      <p>{search ? 'No projects match your search.' : 'No projects yet. Create your first project.'}</p>
+      <p>{search ? `No projects match "${search}".` : 'No projects yet. Create your first project to get started.'}</p>
     </div>
   {:else}
     <div class="project-grid">

@@ -154,12 +154,12 @@
     </div>
   {:else}
     <div class="table-wrap">
-      <DataTable>
+      <DataTable mobileCards>
         {#snippet head()}
           <tr>
             <th>Status</th>
             <th class="th-sort" onclick={() => toggleSort('name')}>Name{sortIndicator('name')}</th>
-            <th class="th-sort" onclick={() => toggleSort('releaseDate')}>Release date{sortIndicator('releaseDate')}</th>
+            <th class="th-sort" onclick={() => toggleSort('releaseDate')}>Release Date{sortIndicator('releaseDate')}</th>
             <th>Builds</th>
             <th>Projects</th>
             <th class="th-sort" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
@@ -172,15 +172,15 @@
               class="plan-row"
               onclick={() => window.location.href = `/squads/${data.squadId}/release-plans/${plan.id}`}
             >
-              <td><Badge text={plan.status} variant={statusVariant(plan.status)} /></td>
-              <td class="plan-name-cell">
+              <td data-label="Status"><Badge text={plan.status} variant={statusVariant(plan.status)} /></td>
+              <td data-label="Name" class="plan-name-cell">
                 <span class="plan-name">{plan.name}</span>
                 {#if plan.releaseVersion}
                   <span class="plan-version">{plan.releaseVersion}</span>
                 {/if}
               </td>
-              <td class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '—'}</td>
-              <td>
+              <td data-label="Release Date" class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '—'}</td>
+              <td data-label="Builds">
                 {#if (plan.totalBuilds ?? 0) > 0}
                   <div class="builds-cell">
                     <span class="builds-text">{plan.verifiedBuilds ?? 0} / {plan.totalBuilds}</span>
@@ -196,9 +196,9 @@
                   <span class="muted">—</span>
                 {/if}
               </td>
-              <td class="muted">{(plan.totalProjects ?? 0) > 0 ? plan.totalProjects : '—'}</td>
-              <td class="nowrap muted">{formatDate(plan.createdAt)}</td>
-              <td class="nowrap muted">{formatDate(plan.closedAt)}</td>
+              <td data-label="Projects" class="muted">{(plan.totalProjects ?? 0) > 0 ? plan.totalProjects : '—'}</td>
+              <td data-label="Created" class="nowrap muted">{formatDate(plan.createdAt)}</td>
+              <td data-label="Closed" class="nowrap muted">{formatDate(plan.closedAt)}</td>
             </tr>
           {/each}
         {/snippet}

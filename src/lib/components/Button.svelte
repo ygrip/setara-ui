@@ -52,10 +52,22 @@
     cursor: pointer;
     font-weight: 500;
     font-family: var(--font-body);
-    transition: background 0.15s, color 0.15s, opacity 0.15s, box-shadow 0.15s;
+    transition: background 0.15s, color 0.15s, opacity 0.15s, box-shadow 0.15s, border-color 0.15s, transform 0.08s;
     white-space: nowrap;
     text-decoration: none;
     line-height: 1.4;
+    outline: none;
+    min-height: 36px;
+  }
+
+  .btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 4px rgba(0, 175, 165, 0.2);
+  }
+
+  .btn:active:not(:disabled):not(.btn--disabled) {
+    transform: translateY(1px);
   }
 
   .btn:disabled,
@@ -79,6 +91,7 @@
   .btn--sm {
     padding: 6px 12px;
     font-size: 0.8rem;
+    min-height: 32px;
   }
 
   .btn--sm .btn-icon :global(svg) {
@@ -87,8 +100,14 @@
   }
 
   .btn--md {
-    padding: 9px 18px;
+    padding: 8px 18px;
     font-size: 0.875rem;
+    min-height: 38px;
+  }
+
+  @media (max-width: 768px) {
+    .btn--md { min-height: 44px; padding: 10px 18px; }
+    .btn--sm { min-height: 36px; padding: 7px 12px; }
   }
 
   .btn--primary {

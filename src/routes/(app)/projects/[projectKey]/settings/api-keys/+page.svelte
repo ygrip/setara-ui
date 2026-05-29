@@ -114,7 +114,7 @@
       <p>No API keys yet. Create one to allow automation runners to submit results.</p>
     </div>
   {:else}
-    <DataTable>
+    <DataTable mobileCards>
       {#snippet head()}
         <tr>
           <th>Name</th>
@@ -129,19 +129,19 @@
       {#snippet body()}
         {#each data.apiKeys as key}
           <tr>
-            <td class="bold">{key.name}</td>
-            <td class="mono">{key.keyPrefix}…</td>
-            <td class="scopes">{key.scopes}</td>
-            <td>
+            <td data-label="Name" class="bold">{key.name}</td>
+            <td data-label="Prefix" class="mono">{key.keyPrefix}…</td>
+            <td data-label="Scopes" class="scopes">{key.scopes}</td>
+            <td data-label="Status">
               {#if key.revokedAt}
                 <Badge text="Revoked" variant="danger" />
               {:else}
                 <Badge text="Active" variant="success" />
               {/if}
             </td>
-            <td>{formatDate(key.createdAt)}</td>
-            <td>—</td>
-            <td>
+            <td data-label="Created">{formatDate(key.createdAt)}</td>
+            <td data-label="Last Used">—</td>
+            <td data-label="">
               {#if !key.revokedAt}
                 <div class="row-actions">
                   <Button variant="secondary" size="sm" onclick={() => handleRotate(key.id)}>Rotate</Button>
