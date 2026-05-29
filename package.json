@@ -15,7 +15,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "generate:types": "openapi-typescript ${SETARA_API_URL:-http://localhost:8080}/q/openapi -o src/lib/api/openapi.d.ts && echo 'Types generated → src/lib/api/openapi.d.ts'",
-    "check:contract": "node scripts/check-contract.mjs"
+    "check:contract": "node scripts/check-contract.mjs",
+    "check:openapi": "tsx scripts/check-openapi.ts"
   },
   "dependencies": {
     "@melt-ui/svelte": "^0.86.6",

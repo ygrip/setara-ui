@@ -4,6 +4,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
+  import Button from '$lib/components/Button.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
   import type { TagInput as TagInputType } from '$lib/api/testcases';
 
@@ -171,10 +172,10 @@
     </section>
 
     <div class="form-actions">
-      <button type="button" onclick={() => goto(`/projects/${data.projectKey}/repository`)} disabled={busy}>Cancel</button>
-      <button type="submit" class="primary-btn" disabled={busy || !nodeId || !name.trim()}>
+      <Button variant="secondary" type="button" onclick={() => goto(`/projects/${data.projectKey}/repository`)} disabled={busy}>Cancel</Button>
+      <Button variant="primary" type="submit" disabled={busy || !nodeId || !name.trim()}>
         {busy ? 'Creating…' : 'Create Draft Scenario'}
-      </button>
+      </Button>
     </div>
   </form>
 </div>

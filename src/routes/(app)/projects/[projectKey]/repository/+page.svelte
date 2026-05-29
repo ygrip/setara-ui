@@ -4,6 +4,8 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TagFilterBar from '$lib/components/TagFilterBar.svelte';
+  import TagInput from '$lib/components/TagInput.svelte';
+  import type { TagInput as TagInputType, TagView } from '$lib/api/testcases';
   import { Dialog } from 'bits-ui';
   import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
   import { z } from 'zod';
@@ -49,6 +51,7 @@
   let detailBusy = $state(false);
   let detailOpen = $state(false);
   let detailSteps = $state<BackendStep[]>([]);
+  let detailDraftTags = $state<{ sanitized: string; display: string }[]>([]);
 
   // ── Similar scenarios ────────────────────────────────────────
   let similarScenarios = $state<SimilarScenarioResult[]>([]);
@@ -271,6 +274,7 @@
       description: s.description,
       expectation: s.expectation
     }));
+    detailDraftTags = (scenario.tags ?? []).map(t => ({ sanitized: t.sanitized, display: t.display }));
     detailOpen = true;
     detailBusy = true;
     try {
@@ -284,6 +288,7 @@
         description: s.description,
         expectation: s.expectation
       }));
+      detailDraftTags = (full.tags ?? []).map(t => ({ sanitized: t.sanitized, display: t.display }));
     } finally {
       detailBusy = false;
     }
@@ -296,6 +301,7 @@
     detailScenario = null;
     detailDraft = null;
     detailSteps = [];
+    detailDraftTags = [];
     similarScenarios = [];
     similarError = '';
   }
@@ -337,6 +343,7 @@
         automationStatus: draft.automationStatus,
         manualNotes: draft.manualNotes ?? undefined,
         automationNotes: draft.automationNotes ?? undefined,
+        tags: detailDraftTags.length > 0 ? detailDraftTags.map(t => ({ sanitized: t.sanitized, display: t.display })) : [],
         steps: detailSteps.map((s, i) => ({
           sequenceNo: i + 1,
           keyword: s.keyword,
@@ -1140,6 +1147,16 @@
             </label>
           </div>
 
+          <div class="tag-edit-field">
+            <span class="editor-label">Tags <span class="opt">(optional, max 20)</span></span>
+            <TagInput
+              tags={detailDraftTags.map(t => ({ id: '', sanitized: t.sanitized, display: t.display }))}
+              disabled={detailBusy}
+              maxTags={20}
+              onchange={(updated: TagInputType[]) => { detailDraftTags = updated; }}
+            />
+          </div>
+
           <!-- RevoGrid step editor -->
           <div class="steps-section">
             <h3 class="steps-section-title">Steps</h3>
@@ -1553,4 +1570,7 @@
     .tree-line { gap: 2px; }
     .copy-name-btn { opacity: 1; }
   }
+  .tag-edit-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .editor-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
+  .opt { font-weight: 400; opacity: 0.7; }
 </style>

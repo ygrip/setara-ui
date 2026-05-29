@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { suggestScenarios, bulkAddScenarios, type SuggestResponse, type SuggestionResult } from '$lib/api/builds';
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
 
   const projectKey = $derived(page.params.projectKey);
   const buildId = $derived(page.params.buildId);
@@ -106,7 +107,7 @@
   {:else if error}
     <div class="error-banner">
       <strong>Error:</strong> {error}
-      <button onclick={load}>Retry</button>
+      <Button variant="secondary" onclick={load}>Retry</Button>
     </div>
   {:else if done}
     <div class="success-banner">
@@ -137,9 +138,9 @@
             <input type="checkbox" checked={selectedIds.size === response.suggestions.length} onchange={toggleAll} />
             Select all
           </label>
-          <button class="primary-btn" disabled={selectedIds.size === 0 || adding} onclick={addSelected}>
+          <Button variant="primary" disabled={selectedIds.size === 0 || adding} onclick={addSelected}>
             {adding ? 'Adding…' : `Add ${selectedIds.size} Selected`}
-          </button>
+          </Button>
         </div>
       </div>
 
