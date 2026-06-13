@@ -66,8 +66,10 @@ describe('Critical component interaction guardrails', () => {
 
     assert.match(source, /AiThinkingPanel/);
     assert.match(source, /loading = true/);
-    assert.match(source, /fetch\(reviewUrl, \{ method: 'POST' \}\)/);
-    assert.match(source, /if \(!res\.ok\)/);
+    assert.match(source, /getApiBaseUrl/);
+    assert.match(source, /fetch\(apiReviewUrl\(\), \{ method: 'POST', credentials: 'include' \}\)/);
+    assert.match(source, /readJsonOrThrow<AiReviewResult>/);
+    assert.match(source, /normalizeErrorMessage/);
     assert.match(source, /AppAlert tone="error"/);
     assert.match(source, /Request AI Review/);
     assert.match(source, /AI-generated analysis — always verify/);
