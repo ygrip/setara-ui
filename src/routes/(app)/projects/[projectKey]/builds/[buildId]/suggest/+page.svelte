@@ -5,6 +5,7 @@
   import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import { normalizeErrorMessage } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   const projectKey = $derived(page.params.projectKey);
@@ -35,7 +36,10 @@
         selectedIds = new Set(response.suggestions.map(s => s.scenarioId));
       }
     } catch (e) {
-      error = (e as Error).message;
+      error = normalizeErrorMessage(
+        e,
+        'AI scenario suggestions are unavailable right now. Check the Intelligence configuration and try again.'
+      );
     } finally {
       loading = false;
     }
@@ -64,7 +68,7 @@
       await bulkAddScenarios(projectKey, buildId, { scenarioIds: [...selectedIds], source: 'AI_SUGGEST' });
       done = true;
     } catch (e) {
-      addError = (e as Error).message;
+      addError = normalizeErrorMessage(e, 'Could not add the selected scenarios. Please try again.');
     } finally {
       adding = false;
     }
@@ -130,7 +134,7 @@
       steps={suggestionThinkingSteps}
     />
   {:else if error}
-    <AppAlert tone="error" title="Error">
+    <AppAlert tone="error" title="AI suggestions unavailable">
       <div class="alert-row">
         <span>{error}</span>
         <Button variant="secondary" onclick={load}>Retry</Button>

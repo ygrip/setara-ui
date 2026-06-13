@@ -1,5 +1,7 @@
 <script lang="ts">
   import AiThinkingPanel from './AiThinkingPanel.svelte';
+  import { getApiBaseUrl } from '$lib/api/config';
+  import { normalizeErrorMessage, readJsonOrThrow } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let {
@@ -39,22 +41,27 @@
     'Preparing insights'
   ];
 
+  const aiReviewUnavailableMessage = 'AI review is unavailable right now. Check the Intelligence configuration and try again.';
+
+  function apiReviewUrl(): string {
+    if (/^https?:\/\//i.test(reviewUrl)) return reviewUrl;
+    return `${getApiBaseUrl().replace(/\/$/, '')}${reviewUrl.startsWith('/') ? reviewUrl : `/${reviewUrl}`}`;
+  }
+
   async function requestReview() {
     loading = true;
     error = '';
     result = null;
     try {
-      const res = await fetch(reviewUrl, { method: 'POST' });
-      const json: AiReviewResult = await res.json();
-      if (!res.ok) {
-        error = (json as any).message ?? `Request failed (HTTP ${res.status})`;
-      } else if (json.message && !json.summary && !json.findings?.length) {
+      const res = await fetch(apiReviewUrl(), { method: 'POST', credentials: 'include' });
+      const json = await readJsonOrThrow<AiReviewResult>(res, aiReviewUnavailableMessage);
+      if (json.message && !json.summary && !json.findings?.length) {
         error = json.message;
       } else {
         result = json;
       }
     } catch (e: any) {
-      error = e.message ?? 'Could not reach the AI service.';
+      error = normalizeErrorMessage(e, aiReviewUnavailableMessage);
     } finally {
       loading = false;
     }
@@ -141,7 +148,7 @@
 {:else}
   <div class="review-idle">
     {#if error}
-      <AppAlert tone="error">{error}</AppAlert>
+      <AppAlert tone="error" title="AI review unavailable">{error}</AppAlert>
     {/if}
     <button class="request-btn" onclick={requestReview}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>

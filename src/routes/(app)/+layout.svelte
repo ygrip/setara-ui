@@ -3,7 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
-  import CommandPalette from '$lib/components/CommandPalette.svelte';
+  import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
   import { clearSession, getValidSession, hasPermission, refreshSession, type SetaraSession } from '$lib/auth';
   import { isMockMode } from '$lib/mock/client';
   import { lockBodyScroll } from '$lib/scroll-lock';
@@ -529,7 +529,7 @@
 {/if}
 
 <!-- Command Palette -->
-<CommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
+<LazyCommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
 
 <style>
   .app-shell {

@@ -6,6 +6,8 @@ import {
   type DashboardSummary
 } from '$lib/api/statistics';
 
+export const prerender = import.meta.env.VITE_MOCK === 'true';
+
 export async function load() {
   try {
     const end = new Date();

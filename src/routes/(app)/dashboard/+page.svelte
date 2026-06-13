@@ -2,7 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import LineChart from '$lib/components/LineChart.svelte';
+  import LazyLineChart from '$lib/components/LazyLineChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
   import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
@@ -310,7 +310,7 @@
             <option value="monthly">Monthly</option>
           </select>
         </label>
-        <button class="expand-btn" title="Expand chart" onclick={() => showChartExpand = true}>
+        <button class="expand-btn" type="button" title="Expand chart" aria-label="Expand trends chart" onclick={() => showChartExpand = true}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
           Expand
         </button>
@@ -325,7 +325,7 @@
       onclick={() => showChartExpand = true}
       onkeydown={(e) => { if (e.key === 'Enter') showChartExpand = true; }}
     >
-      <LineChart chartData={coverageTrend} height={290} />
+      <LazyLineChart chartData={coverageTrend} height={290} />
       {#if chartBusy}<p class="chart-note">Refreshing chart…</p>{/if}
       {#if chartError}<p class="chart-error">{chartError}</p>{/if}
     </div>
@@ -347,7 +347,7 @@
       </div>
       <div class="expanded-chart-scroll">
         <div class="expanded-chart-frame">
-          <LineChart chartData={coverageTrend} height={620} />
+          <LazyLineChart chartData={coverageTrend} />
         </div>
       </div>
       {#if chartBusy}<p class="chart-note">Refreshing…</p>{/if}
@@ -549,17 +549,42 @@
   }
 
   .expand-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
     font: inherit;
     font-size: 0.78rem;
-    padding: 6px 11px;
+    font-weight: 700;
+    line-height: 1;
+    align-self: flex-end;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 12px;
     border: 1px solid var(--color-border);
     border-radius: 6px;
     background: var(--color-surface);
     color: var(--color-text-muted);
     cursor: pointer;
     white-space: nowrap;
+    vertical-align: middle;
+    transition: border-color 0.15s, color 0.15s, background 0.15s, box-shadow 0.15s;
   }
-  .expand-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
+  .expand-btn:hover,
+  .expand-btn:focus-visible {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 82%);
+    outline: none;
+  }
+
+  .expand-btn svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 auto;
+    display: block;
+  }
 
   .chart-card {
     background: var(--color-surface);
@@ -619,14 +644,18 @@
   }
 
   .expanded-chart-frame {
-    min-width: 1120px;
-    width: max(1120px, calc(100vw - 96px));
+    min-width: 1040px;
+    width: 100%;
     aspect-ratio: 16 / 9;
-    max-height: 680px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-surface);
     padding: 18px;
+  }
+
+  .expanded-chart-frame :global(.chart-wrap) {
+    height: 100%;
+    min-height: 0;
   }
 
   /* ── Lower grid ── */
@@ -806,7 +835,7 @@
     .chart-controls label { flex-direction: row; align-items: center; justify-content: space-between; }
     .chart-controls input,
     .chart-controls select { flex: 1; }
-    .expand-btn { width: 100%; justify-content: center; }
+    .expand-btn { width: 100%; justify-content: center; align-self: stretch; }
   }
   @media (max-width: 480px) {
     .metrics-row { grid-template-columns: 1fr; }

@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import { readJsonOrThrow } from './errors';
 import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion } from '$lib/mock/client';
 
 export interface CursorPage<T> {
@@ -246,7 +247,10 @@ export async function suggestScenarios(projectKey: string, buildId: string): Pro
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/suggest-scenarios`, {
     method: 'POST'
   });
-  return res.json();
+  return readJsonOrThrow<SuggestResponse>(
+    res,
+    'AI scenario suggestions are unavailable right now. Check the Intelligence configuration and try again.'
+  );
 }
 
 export async function bulkAddScenarios(

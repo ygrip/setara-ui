@@ -6,6 +6,7 @@
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
   import Button from '$lib/components/Button.svelte';
+  import { normalizeErrorMessage } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
   import type { TagInput as TagInputType } from '$lib/api/testcases';
@@ -90,7 +91,10 @@
         }
       }
     } catch (err) {
-      suggestError = 'Could not reach AI provider. Your draft steps are unchanged — try again or add steps manually.';
+      suggestError = normalizeErrorMessage(
+        err,
+        'AI step suggestions are unavailable right now. Your draft steps are unchanged, so you can try again or add steps manually.'
+      );
     } finally {
       suggesting = false;
     }

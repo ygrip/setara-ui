@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import { readJsonOrThrow } from './errors';
 import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
 
 export interface TestDirectory {
@@ -505,7 +506,10 @@ export async function searchSimilarScenarios(
   params.set('q', query);
   params.set('limit', String(limit));
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/similar?${params}`);
-  return res.json();
+  return readJsonOrThrow<SimilarScenarioResult[]>(
+    res,
+    'Smart Search is unavailable right now. Check the Intelligence configuration and try again.'
+  );
 }
 
 export async function getProjectTags(projectKey: string): Promise<TagView[]> {
@@ -548,5 +552,8 @@ export async function suggestScenarioSteps(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(request)
   });
-  return res.json();
+  return readJsonOrThrow<StepSuggestionResponse>(
+    res,
+    'AI step suggestions are unavailable right now. Check the Intelligence configuration and try again.'
+  );
 }

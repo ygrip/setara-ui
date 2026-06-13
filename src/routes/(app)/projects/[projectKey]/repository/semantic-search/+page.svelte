@@ -4,7 +4,8 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
-  import { getApiBaseUrl } from '$lib/api/config';
+  import { normalizeErrorMessage } from '$lib/api/errors';
+  import { searchSimilarScenarios } from '$lib/api/testcases';
   import { isMockMode } from '$lib/mock/client';
 
   const isMock = isMockMode();
@@ -29,11 +30,12 @@
     if (!query.trim()) return;
     searching = true; error = ''; searched = true;
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/projects/${projectKey}/scenarios/search/similar?q=${encodeURIComponent(query.trim())}&limit=15`);
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      results = await res.json();
+      results = await searchSimilarScenarios(projectKey ?? '', query.trim(), 15);
     } catch (e) {
-      error = (e as Error).message;
+      error = normalizeErrorMessage(
+        e,
+        'Smart Search is unavailable right now. Check the Intelligence configuration and try again.'
+      );
       results = [];
     } finally { searching = false; }
   }
@@ -97,7 +99,7 @@
     </div>
 
     {#if error}
-      <AppAlert tone="error">{error}</AppAlert>
+      <AppAlert tone="error" title="Smart Search unavailable">{error}</AppAlert>
     {/if}
 
     {#if searched}
