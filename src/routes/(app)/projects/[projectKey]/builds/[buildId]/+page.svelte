@@ -4,6 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, type ProjectBuild, type BuildScenario, type BuildAuditEvent } from '$lib/api/builds';
   import { getApiBaseUrl } from '$lib/api/config';
 
@@ -436,6 +437,10 @@
         <div><span>Execution coverage</span><strong>{pct(build.metrics.executionCoverage)}</strong></div>
         <div><span>Verified at</span><strong>{formatDate(build.verifiedAt)}</strong></div>
       </div>
+    </section>
+
+    <section class="section ai-review-section">
+      <AiReviewPanel reviewUrl="/api/projects/{data.projectKey}/builds/{data.buildId}/ai-review" label="this build" />
     </section>
 
     <section class="section">

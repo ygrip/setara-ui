@@ -4,10 +4,15 @@ export const ssr = false;
 
 export async function load({ fetch }: LoadEvent) {
   try {
-    const res = await fetch('/api/admin/intelligence/health');
-    if (res.ok) return { health: await res.json(), error: null };
-    return { health: null, error: `HTTP ${res.status}` };
+    const [healthRes, flagsRes] = await Promise.all([
+      fetch('/api/admin/intelligence/health'),
+      fetch('/api/admin/intelligence/feature-flags')
+    ]);
+    const health = healthRes.ok ? await healthRes.json() : null;
+    const flags = flagsRes.ok ? await flagsRes.json() : null;
+    if (!health) return { health: null, flags, error: `HTTP ${healthRes.status}` };
+    return { health, flags, error: null };
   } catch (e: any) {
-    return { health: null, error: e.message ?? 'Failed to load' };
+    return { health: null, flags: null, error: e.message ?? 'Failed to load' };
   }
 }

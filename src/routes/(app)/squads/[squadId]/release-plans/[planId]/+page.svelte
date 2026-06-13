@@ -6,6 +6,7 @@
   import LineChart from '$lib/components/LineChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan,
     type PlanBuild, type ReleasePlan, type SquadPlanMetrics
@@ -313,6 +314,10 @@
       </section>
     {/if}
 
+    <section class="ai-review-section">
+      <AiReviewPanel reviewUrl="/api/squads/{data.squadId}/plans/{data.planId}/ai-review" label="this release plan" />
+    </section>
+
     <!-- Builds table -->
     <section class="section">
       <div class="section-header">
@@ -609,4 +614,5 @@
   .chart-section { margin: 20px 0; }
   .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 12px; }
   .chart-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 16px; }
+  .ai-review-section { margin: 20px 0; }
 </style>

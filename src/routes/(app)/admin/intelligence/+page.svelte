@@ -10,6 +10,49 @@
   let createIndexBusy = $state(false);
   let createIndexResult = $state('');
 
+  // Feature flags
+  interface AiFlags { smartSearch: boolean; smartSuggestion: boolean; duplicateAnalysis: boolean; smartReview: boolean; }
+  let localFlags = $state<AiFlags>(data.flags ?? { smartSearch: false, smartSuggestion: false, duplicateAnalysis: false, smartReview: false });
+  let flagsBusy = $state(false);
+  let flagsError = $state('');
+  let flagsSaved = $state(false);
+
+  $effect(() => { if (data.flags) localFlags = { ...data.flags }; });
+
+  const flagDefs: { key: keyof AiFlags; label: string; desc: string }[] = [
+    { key: 'smartSearch', label: 'Smart Search', desc: 'Semantic scenario search using AI embeddings' },
+    { key: 'smartSuggestion', label: 'Smart Suggestion', desc: 'AI-powered scenario suggestions for builds' },
+    { key: 'duplicateAnalysis', label: 'Duplicate Analysis', desc: 'Detect near-duplicate scenarios in the repository' },
+    { key: 'smartReview', label: 'Smart Review', desc: 'AI review summaries for builds, plans, and scenarios' }
+  ];
+
+  async function toggleFlag(key: keyof AiFlags, value: boolean) {
+    const prev = localFlags[key];
+    localFlags = { ...localFlags, [key]: value };
+    flagsBusy = true; flagsError = ''; flagsSaved = false;
+    try {
+      const res = await fetch('/api/admin/intelligence/feature-flags', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [key]: value })
+      });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        flagsError = (json as any).message ?? `Failed to update (HTTP ${res.status})`;
+        localFlags = { ...localFlags, [key]: prev };
+      } else {
+        localFlags = await res.json();
+        flagsSaved = true;
+        setTimeout(() => { flagsSaved = false; }, 2000);
+      }
+    } catch (e: any) {
+      flagsError = e.message ?? 'Request failed';
+      localFlags = { ...localFlags, [key]: prev };
+    } finally {
+      flagsBusy = false;
+    }
+  }
+
   async function triggerReindex() {
     if (!reindexProjectKey.trim()) return;
     reindexBusy = true;
@@ -65,79 +108,117 @@
       <p class="disabled-desc">The Intelligence feature requires a live backend with an embedding provider configured. This page shows real-time health and lets you manage AI indexing.</p>
       <p class="disabled-hint">To enable: set <code>setara.intelligence.enabled=true</code> and configure an embedding provider in your backend settings.</p>
     </div>
-  {:else if data.error}
-    <div class="error-banner">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      {data.error}
-    </div>
-  {:else if data.health}
-    {@const h = data.health}
-    <div class="health-grid">
-      <div class="health-card">
-        <div class="card-label">Intelligence</div>
-        <div class="card-value">{statusDot(h.intelligenceEnabled)} {h.intelligenceEnabled ? 'Enabled' : 'Disabled'}</div>
-      </div>
-      <div class="health-card">
-        <div class="card-label">Embedding</div>
-        <div class="card-value">{statusDot(h.embeddingEnabled)} {h.embeddingEnabled ? 'Enabled' : 'Disabled'}</div>
-      </div>
-      <div class="health-card">
-        <div class="card-label">Provider</div>
-        <div class="card-value">
-          {statusDot(h.embeddingProviderActive)} {h.embeddingProviderType}
-          {#if h.embeddingDimension > 0}<span class="dim-badge">{h.embeddingDimension}d</span>{/if}
-        </div>
-      </div>
-      <div class="health-card">
-        <div class="card-label">Vector Store</div>
-        <div class="card-value">
-          {statusDot(h.vectorStoreActive && h.vectorStoreHealthy)} {h.vectorStoreType}
-          {#if !h.vectorStoreHealthy}<span class="warn-badge">Unhealthy</span>{/if}
-        </div>
-      </div>
-      <div class="health-card">
-        <div class="card-label">Pending Jobs</div>
-        <div class="card-value" class:warn={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs}</div>
-      </div>
-      <div class="health-card">
-        <div class="card-label">Last Processed</div>
-        <div class="card-value text-sm">{h.lastProcessedAt ? new Date(h.lastProcessedAt).toLocaleString() : '—'}</div>
-      </div>
-    </div>
-
-    {#if h.lastError || h.recentErrorMessage}
-      <div class="error-section">
-        <div class="section-label">Recent Error</div>
-        <pre class="error-text">{h.lastError ?? h.recentErrorMessage}</pre>
+  {:else}
+    {#if data.error}
+      <div class="error-banner">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        {data.error}
       </div>
     {/if}
 
-    <div class="actions-section">
-      <div class="action-card">
-        <h3 class="action-title">Reindex Project</h3>
-        <p class="action-desc">Queue all active test scenarios in a project to be re-processed by the AI embedding pipeline.</p>
-        <div class="action-row">
-          <input class="project-key-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
-          <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
-            {reindexBusy ? 'Queuing…' : 'Reindex'}
-          </button>
+    {#if data.health}
+      {@const h = data.health}
+      <div class="health-grid">
+        <div class="health-card">
+          <div class="card-label">Intelligence</div>
+          <div class="card-value">{statusDot(h.intelligenceEnabled)} {h.intelligenceEnabled ? 'Enabled' : 'Disabled'}</div>
         </div>
-        {#if reindexResult}<p class="action-result">{reindexResult}</p>{/if}
+        <div class="health-card">
+          <div class="card-label">Embedding</div>
+          <div class="card-value">{statusDot(h.embeddingEnabled)} {h.embeddingEnabled ? 'Enabled' : 'Disabled'}</div>
+        </div>
+        <div class="health-card">
+          <div class="card-label">Provider</div>
+          <div class="card-value">
+            {statusDot(h.embeddingProviderActive)} {h.embeddingProviderType}
+            {#if h.embeddingDimension > 0}<span class="dim-badge">{h.embeddingDimension}d</span>{/if}
+          </div>
+        </div>
+        <div class="health-card">
+          <div class="card-label">Vector Store</div>
+          <div class="card-value">
+            {statusDot(h.vectorStoreActive && h.vectorStoreHealthy)} {h.vectorStoreType}
+            {#if !h.vectorStoreHealthy}<span class="warn-badge">Unhealthy</span>{/if}
+          </div>
+        </div>
+        <div class="health-card">
+          <div class="card-label">Pending Jobs</div>
+          <div class="card-value" class:warn={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs}</div>
+        </div>
+        <div class="health-card">
+          <div class="card-label">Last Processed</div>
+          <div class="card-value text-sm">{h.lastProcessedAt ? new Date(h.lastProcessedAt).toLocaleString() : '—'}</div>
+        </div>
       </div>
 
-      <div class="action-card">
-        <h3 class="action-title">Create Search Index</h3>
-        <p class="action-desc">Build the vector search index to speed up semantic similarity queries. Run this after initial indexing is complete.</p>
-        <div class="action-row">
-          <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
-            {createIndexBusy ? 'Creating…' : 'Create Index'}
-          </button>
+      {#if h.lastError || h.recentErrorMessage}
+        <div class="error-section">
+          <div class="section-label">Recent Error</div>
+          <pre class="error-text">{h.lastError ?? h.recentErrorMessage}</pre>
         </div>
-        {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
+      {/if}
+    {:else if !data.error}
+      <p class="empty-state">No health data available.</p>
+    {/if}
+
+    <!-- AI Feature Flags -->
+    <div class="flags-section">
+      <div class="flags-section-header">
+        <div>
+          <h2 class="flags-title">AI Feature Flags</h2>
+          <p class="flags-subtitle">Enable or disable AI capabilities system-wide. Changes take effect immediately.</p>
+        </div>
+        {#if flagsSaved}<span class="flags-saved-badge">Saved</span>{/if}
       </div>
+      <div class="flags-grid">
+        {#each flagDefs as def}
+          <div class="flag-row">
+            <div class="flag-info">
+              <span class="flag-name">{def.label}</span>
+              <span class="flag-desc">{def.desc}</span>
+            </div>
+            <button
+              class="toggle-btn"
+              class:toggle-on={localFlags[def.key]}
+              onclick={() => toggleFlag(def.key, !localFlags[def.key])}
+              disabled={flagsBusy}
+              aria-pressed={localFlags[def.key]}
+              aria-label="Toggle {def.label}"
+            >
+              <span class="toggle-thumb"></span>
+            </button>
+          </div>
+        {/each}
+      </div>
+      {#if flagsError}<p class="flags-error">{flagsError}</p>{/if}
     </div>
-  {:else}
-    <p class="empty-state">No health data available.</p>
+
+    {#if data.health}
+      <div class="actions-section">
+        <div class="action-card">
+          <h3 class="action-title">Reindex Project</h3>
+          <p class="action-desc">Queue all active test scenarios in a project to be re-processed by the AI embedding pipeline.</p>
+          <div class="action-row">
+            <input class="project-key-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
+            <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
+              {reindexBusy ? 'Queuing…' : 'Reindex'}
+            </button>
+          </div>
+          {#if reindexResult}<p class="action-result">{reindexResult}</p>{/if}
+        </div>
+
+        <div class="action-card">
+          <h3 class="action-title">Create Search Index</h3>
+          <p class="action-desc">Build the vector search index to speed up semantic similarity queries. Run this after initial indexing is complete.</p>
+          <div class="action-row">
+            <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
+              {createIndexBusy ? 'Creating…' : 'Create Index'}
+            </button>
+          </div>
+          {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
+        </div>
+      </div>
+    {/if}
   {/if}
 </div>
 
@@ -175,4 +256,26 @@
   .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .action-result { margin: 10px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
   .empty-state { color: var(--color-text-muted); text-align: center; padding: 40px; }
+
+  /* Feature flags */
+  .flags-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
+  .flags-section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
+  .flags-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; }
+  .flags-subtitle { margin: 0; font-size: 0.82rem; color: var(--color-text-muted); }
+  .flags-saved-badge { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; align-self: center; }
+  .flags-grid { display: grid; gap: 12px; }
+  .flag-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+  .flag-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .flag-row:first-child { padding-top: 0; }
+  .flag-info { min-width: 0; }
+  .flag-name { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 2px; }
+  .flag-desc { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
+  .flags-error { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-danger, #dc2626); }
+
+  /* Toggle switch */
+  .toggle-btn { position: relative; flex-shrink: 0; width: 44px; height: 24px; border-radius: 12px; border: none; background: var(--color-border); cursor: pointer; transition: background 0.2s; padding: 0; }
+  .toggle-btn.toggle-on { background: var(--color-accent); }
+  .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.2s; display: block; }
+  .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
 </style>

@@ -1,12 +1,16 @@
 <script lang="ts">
   import { page } from '$app/state';
   import { goto } from '$app/navigation';
-  import { suggestScenarios, bulkAddScenarios, type SuggestResponse, type SuggestionResult } from '$lib/api/builds';
+  import { suggestScenarios, bulkAddScenarios, type SuggestResponse } from '$lib/api/builds';
+  import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
 
   const projectKey = $derived(page.params.projectKey);
   const buildId = $derived(page.params.buildId);
+  const projectKeyPath = $derived(projectKey ?? '');
+  const buildIdPath = $derived(buildId ?? '');
+  const buildShortId = $derived(buildIdPath ? buildIdPath.substring(0, 8) : '...');
 
   let loading = $state(true);
   let error = $state('');
@@ -17,6 +21,11 @@
   let done = $state(false);
 
   async function load() {
+    if (!projectKey || !buildId) {
+      error = 'Missing project or build identifier.';
+      loading = false;
+      return;
+    }
     loading = true;
     error = '';
     try {
@@ -47,7 +56,7 @@
   }
 
   async function addSelected() {
-    if (selectedIds.size === 0 || adding) return;
+    if (!projectKey || !buildId || selectedIds.size === 0 || adding) return;
     adding = true;
     addError = '';
     try {
@@ -70,6 +79,20 @@
     return 'warning';
   }
 
+  const suggestionThinkingSteps = [
+    'Reading build requirements',
+    'Finding semantic matches',
+    'Asking the model to reason',
+    'Ranking scenario candidates'
+  ];
+
+  const addThinkingSteps = [
+    'Preparing selected scenarios',
+    'Linking scenarios to this build',
+    'Recording AI suggestion source',
+    'Refreshing build coverage'
+  ];
+
   function init() { load(); }
   init();
 </script>
@@ -78,11 +101,11 @@
 
 <div class="page">
   <nav class="breadcrumb">
-    <a href="/projects/{projectKey}">{projectKey}</a>
+    <a href="/projects/{projectKeyPath}">{projectKeyPath}</a>
     <span>›</span>
-    <a href="/projects/{projectKey}/builds">Builds</a>
+    <a href="/projects/{projectKeyPath}/builds">Builds</a>
     <span>›</span>
-    <a href="/projects/{projectKey}/builds/{buildId}">Build {buildId.substring(0, 8)}</a>
+    <a href="/projects/{projectKeyPath}/builds/{buildIdPath}">Build {buildShortId}</a>
     <span>›</span>
     <span>AI Suggestions</span>
   </nav>
@@ -95,15 +118,16 @@
         Review and confirm which scenarios to add.
       </p>
     </div>
-    <a class="back-link" href="/projects/{projectKey}/builds/{buildId}">← Back to Build</a>
+    <a class="back-link" href="/projects/{projectKeyPath}/builds/{buildIdPath}">← Back to Build</a>
   </header>
 
   {#if loading}
-    <div class="loading-state">
-      <div class="spinner"></div>
-      <p>Analyzing build requirements and searching for relevant scenarios…</p>
-      <p class="loading-hint">This may take up to 30 seconds.</p>
-    </div>
+    <AiThinkingPanel
+      title="AI is reviewing this build"
+      subtitle="Setara is reading the requirements, searching existing scenarios, and asking the model to rank the best matches."
+      hint="Longer requirements can take 20-30 seconds while the model reasons through the context."
+      steps={suggestionThinkingSteps}
+    />
   {:else if error}
     <div class="error-banner">
       <strong>Error:</strong> {error}
@@ -116,7 +140,7 @@
         <strong>{selectedIds.size} scenario(s) added to build</strong>
         <p>Scenarios have been added with source "AI_SUGGEST".</p>
       </div>
-      <a href="/projects/{projectKey}/builds/{buildId}" class="primary-btn">Return to Build</a>
+      <a href="/projects/{projectKeyPath}/builds/{buildIdPath}" class="primary-btn">Return to Build</a>
     </div>
   {:else if response && response.message && response.suggestions.length === 0}
     <div class="empty-state">
@@ -124,10 +148,19 @@
       <h2>No Suggestions Found</h2>
       <p>{response.message}</p>
       <p class="empty-hint">Try adding more detailed build requirements, or manually select scenarios from the repository.</p>
-      <a href="/projects/{projectKey}/builds/{buildId}" class="primary-btn">Return to Build</a>
+      <a href="/projects/{projectKeyPath}/builds/{buildIdPath}" class="primary-btn">Return to Build</a>
     </div>
   {:else if response}
-    <div class="suggestions-section">
+    <div class="suggestions-section" aria-busy={adding}>
+      {#if adding}
+        <AiThinkingPanel
+          title="Adding selected scenarios"
+          subtitle="Setara is attaching your selected recommendations to the build and preserving the AI suggestion source."
+          hint="Keep this page open until the build update completes."
+          steps={addThinkingSteps}
+        />
+      {/if}
+
       <div class="suggestions-header">
         <div>
           <h2>{response.suggestions.length} suggestion(s)</h2>
@@ -153,6 +186,7 @@
           <label class="suggestion-card" class:selected={selectedIds.has(suggestion.scenarioId)}>
             <input
               type="checkbox"
+              disabled={adding}
               checked={selectedIds.has(suggestion.scenarioId)}
               onchange={() => toggle(suggestion.scenarioId)}
             />
@@ -187,15 +221,10 @@
   .page-sub { margin: 0; color: var(--color-text-muted); font-size: 0.88rem; }
   .back-link { color: var(--color-accent); text-decoration: none; font-size: 0.85rem; white-space: nowrap; }
 
-  .loading-state { text-align: center; padding: 60px 20px; }
-  .spinner { width: 36px; height: 36px; margin: 0 auto 16px; border: 3px solid var(--color-border); border-top-color: var(--color-accent); border-radius: 50%; animation: spin 0.8s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
-  .loading-hint { color: var(--color-text-muted); font-size: 0.78rem; }
-
   .error-banner, .success-banner { padding: 16px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
   .error-banner { background: color-mix(in srgb, #dc2626, transparent 90%); border: 1px solid color-mix(in srgb, #dc2626, transparent 70%); color: #dc2626; }
   .success-banner { background: color-mix(in srgb, #16a34a, transparent 90%); border: 1px solid color-mix(in srgb, #16a34a, transparent 70%); color: #16a34a; flex-wrap: wrap; }
-  .error-banner button { margin-left: auto; }
+  .error-banner :global(button) { margin-left: auto; }
   .primary-btn { display: inline-flex; align-items: center; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--color-accent); color: #fff; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .primary-btn:disabled { opacity: 0.5; cursor: default; }
 
@@ -212,8 +241,11 @@
   .select-all-label { display: flex; align-items: center; gap: 6px; font-size: 0.82rem; cursor: pointer; }
 
   .suggestions-list { display: flex; flex-direction: column; gap: 8px; }
+  .suggestions-section :global(.ai-thinking) { margin-bottom: 18px; }
   .suggestion-card { display: flex; align-items: flex-start; gap: 12px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); cursor: pointer; transition: border-color 0.15s; }
   .suggestion-card:hover { border-color: var(--color-accent); }
+  .suggestion-card:has(input:disabled) { cursor: default; opacity: 0.72; }
+  .suggestion-card:has(input:disabled):hover { border-color: var(--color-border); }
   .suggestion-card.selected { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 94%); }
   .suggestion-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
   .suggestion-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
