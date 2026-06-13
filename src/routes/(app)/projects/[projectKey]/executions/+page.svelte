@@ -372,6 +372,7 @@
             <th class="col-hide-md">Framework</th>
             <th class="th-sort" onclick={() => toggleSort('startedAt')}>Started{sortIcon('startedAt')}</th>
             <th class="col-hide-sm th-sort" onclick={() => toggleSort('durationMs')}>Duration{sortIcon('durationMs')}</th>
+            <th class="col-action"></th>
           </tr>
         {/snippet}
         {#snippet body()}
@@ -384,6 +385,14 @@
               <td class="col-hide-md">{run.framework ?? '—'}</td>
               <td class="nowrap">{formatDate(run.startedAt)}</td>
               <td class="col-hide-sm nowrap">{duration(run.startedAt, run.finishedAt)}</td>
+              <td class="col-action">
+                <a
+                  class="open-report-link"
+                  href="/projects/{data.projectKey}/executions/{run.id}"
+                  onclick={(e) => e.stopPropagation()}
+                  aria-label="Open report for run {run.id}"
+                >Open</a>
+              </td>
             </tr>
           {/each}
         {/snippet}
@@ -735,6 +744,23 @@
   /* ── Table cell helpers ─────────────────────────────── */
   .mono { font-family: var(--font-mono); font-size: 0.78rem; }
   .nowrap { white-space: nowrap; }
+
+  /* ── Action column ──────────────────────────────────── */
+  .col-action { width: 60px; text-align: right; padding-right: 12px; }
+
+  .open-report-link {
+    font-size: 0.78rem;
+    color: var(--color-accent);
+    text-decoration: none;
+    padding: 3px 8px;
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+    border-radius: 4px;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .open-report-link:hover {
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+  }
 
   /* ── Live events ────────────────────────────────────── */
   .event-feed { display: grid; gap: 8px; }

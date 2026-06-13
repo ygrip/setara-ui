@@ -36,6 +36,8 @@ export interface AutomationRun {
   pendingScenarios?: number | null;
   durationMs?: number | null;
   notes?: string | null;
+  reportUrl?: string | null;
+  reportPath?: string | null;
 }
 
 export interface ScenarioRunResult {
