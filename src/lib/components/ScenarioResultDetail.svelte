@@ -4,6 +4,7 @@
   import Badge from './Badge.svelte';
   import SetaraLoader from './SetaraLoader.svelte';
   import MarkdownBlock from './MarkdownBlock.svelte';
+  import { lockBodyScroll } from '$lib/scroll-lock';
 
   interface Props {
     result: ScenarioRunResult | null;
@@ -18,9 +19,8 @@
   let scenarioError = $state<string | null>(null);
 
   $effect(() => {
-    const isOpen = result !== null;
-    document.body.style.overflow = isOpen ? 'hidden' : '';
-    return () => { document.body.style.overflow = ''; };
+    if (!result) return;
+    return lockBodyScroll();
   });
 
   $effect(() => {
@@ -312,6 +312,8 @@
   .panel-body {
     flex: 1;
     overflow-y: auto;
+    overscroll-behavior: contain;
+    min-height: 0;
     padding: 20px;
     display: flex;
     flex-direction: column;

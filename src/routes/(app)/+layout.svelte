@@ -6,6 +6,7 @@
   import CommandPalette from '$lib/components/CommandPalette.svelte';
   import { clearSession, getValidSession, hasPermission, refreshSession, type SetaraSession } from '$lib/auth';
   import { isMockMode } from '$lib/mock/client';
+  import { lockBodyScroll } from '$lib/scroll-lock';
 
   let { children } = $props();
 
@@ -107,17 +108,11 @@
     };
   });
 
-  // Scroll-lock: prevent background scroll when sidebar or mobile user popup is open.
-  // Apply to both body and documentElement for reliable iOS Safari behaviour.
   $effect(() => {
     const isMobileView = window.matchMedia('(max-width: 768px)').matches;
     const shouldLock = sidebarOpen || (userMenuOpen && isMobileView);
-    document.body.style.overflow = shouldLock ? 'hidden' : '';
-    document.documentElement.style.overflow = shouldLock ? 'hidden' : '';
-    return () => {
-      document.body.style.overflow = '';
-      document.documentElement.style.overflow = '';
-    };
+    if (!shouldLock) return;
+    return lockBodyScroll();
   });
 
   function signOut() {
@@ -1303,6 +1298,7 @@
       justify-content: center;
       padding: 24px;
       animation: popup-fade-in 0.15s ease;
+      overflow: hidden;
     }
 
     @keyframes popup-fade-in {
@@ -1314,6 +1310,7 @@
       position: relative;
       width: 100%;
       max-width: 320px;
+      max-height: min(86vh, calc(100dvh - 48px));
       background: rgba(248, 250, 252, 0.95);
       backdrop-filter: blur(28px) saturate(200%);
       -webkit-backdrop-filter: blur(28px) saturate(200%);
@@ -1327,6 +1324,8 @@
       gap: 6px;
       text-align: center;
       animation: popup-slide-in 0.18s ease;
+      overflow-y: auto;
+      overscroll-behavior: contain;
     }
 
     :global([data-theme="dark"]) .user-popup {

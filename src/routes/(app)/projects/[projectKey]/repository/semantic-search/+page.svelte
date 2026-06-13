@@ -181,5 +181,4 @@
   .info-card p { font-size: 0.875rem; color: var(--color-text-muted); margin: 0 0 8px; line-height: 1.5; }
   .info-card ul { margin: 0 0 8px; padding-left: 20px; color: var(--color-text-muted); font-size: 0.85rem; }
   .info-card li { margin-bottom: 4px; }
-  .info-card code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
 </style>

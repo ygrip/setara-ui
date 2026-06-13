@@ -6,15 +6,25 @@
     disabled = false,
     href = '',
     icon = '',
+    iconOnly = false,
+    fullWidth = false,
+    ariaLabel = '',
+    title = '',
+    className = '',
     onclick,
     children
   }: {
-    variant?: 'primary' | 'secondary' | 'danger';
+    variant?: 'primary' | 'secondary' | 'danger' | 'ghost';
     size?: 'sm' | 'md';
     type?: 'button' | 'submit' | 'reset';
     disabled?: boolean;
     href?: string;
     icon?: string;
+    iconOnly?: boolean;
+    fullWidth?: boolean;
+    ariaLabel?: string;
+    title?: string;
+    className?: string;
     onclick?: (e: MouseEvent) => void;
     children?: import('svelte').Snippet;
   } = $props();
@@ -23,9 +33,13 @@
 {#if href}
   <a
     {href}
-    class="btn btn--{variant} btn--{size}"
+    class="btn btn--{variant} btn--{size} {className}"
     class:btn--disabled={disabled}
+    class:btn--icon={iconOnly}
+    class:btn--full={fullWidth}
     aria-disabled={disabled}
+    aria-label={ariaLabel || undefined}
+    {title}
   >
     {#if icon}<span class="btn-icon">{@html icon}</span>{/if}
     {@render children?.()}
@@ -34,7 +48,11 @@
   <button
     {type}
     {disabled}
-    class="btn btn--{variant} btn--{size}"
+    class="btn btn--{variant} btn--{size} {className}"
+    class:btn--icon={iconOnly}
+    class:btn--full={fullWidth}
+    aria-label={ariaLabel || undefined}
+    {title}
     {onclick}
   >
     {#if icon}<span class="btn-icon">{@html icon}</span>{/if}
@@ -46,6 +64,7 @@
   .btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: 6px;
     border: none;
     border-radius: var(--radius);
@@ -58,6 +77,10 @@
     line-height: 1.4;
     outline: none;
     min-height: 36px;
+  }
+
+  .btn--full {
+    width: 100%;
   }
 
   .btn:focus-visible {
@@ -92,6 +115,18 @@
     padding: 6px 12px;
     font-size: 0.8rem;
     min-height: 32px;
+  }
+
+  .btn--icon {
+    width: 34px;
+    min-width: 34px;
+    padding: 0;
+    gap: 0;
+  }
+
+  .btn--icon.btn--sm {
+    width: 30px;
+    min-width: 30px;
   }
 
   .btn--sm .btn-icon :global(svg) {
@@ -132,6 +167,28 @@
 
   .btn--danger {
     background: #fee2e2;
+    color: var(--color-danger);
+  }
+
+  .btn--ghost {
+    background: transparent;
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
+  }
+
+  .btn--ghost:hover:not(:disabled) {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
+
+  .btn--ghost.btn--danger {
+    color: var(--color-danger);
+  }
+
+  .btn--ghost.btn--danger:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-danger), transparent 90%);
+    border-color: var(--color-danger);
     color: var(--color-danger);
   }
 

@@ -3,7 +3,7 @@
     availableTags = [] as { sanitized: string; display: string }[],
     selectedTags = [] as string[],
     tagMode = 'ANY' as 'ANY' | 'ALL',
-    onchange = (_tags: string[], _mode: string) => {}
+    onchange = (_tags: string[], _mode: 'ANY' | 'ALL') => {}
   } = $props();
 
   let showDropdown = $state(false);

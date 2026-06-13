@@ -1,5 +1,6 @@
 <script lang="ts">
   import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { listUsers, searchUsers, addSquadMember, removeSquadMember, getSquadDetail, assignProjectRole, type User, type UserDetail, type Squad, type SquadDetail, type SquadMember } from '$lib/api/organization';
@@ -89,12 +90,12 @@
     <Button variant="primary" type="submit" disabled={busy || !projectKey.trim() || !email.trim()}>{busy ? 'Assigning…' : 'Assign Role'}</Button>
   </form>
 
-  <div class="panel">
+  <Card padding="md">
     <h2 class="panel-title">Users</h2>
     <div class="search-bar">
       <input class="input" type="search" bind:value={searchQ} placeholder="Search by name or email…" onkeydown={(e) => e.key === 'Enter' && handleSearch()} />
-      <button class="btn-submit" onclick={handleSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</button>
-      <button class="btn-cancel" onclick={() => { searchQ = ''; handleSearch(); }}>Clear</button>
+      <Button variant="primary" size="sm" onclick={handleSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button>
+      <Button variant="secondary" size="sm" onclick={() => { searchQ = ''; handleSearch(); }}>Clear</Button>
     </div>
     {#if users.length === 0}
       <p class="empty-text">No users found.</p>
@@ -108,14 +109,14 @@
               <td data-label="Name" class="bold">{user.displayName}</td>
               <td data-label="Created">{formatDate(user.createdAt)}</td>
               <td data-label="">
-                <button class="action-btn" onclick={() => openSquadModal(user)} title="Manage squads">⚙</button>
+                <Button variant="ghost" size="sm" iconOnly onclick={() => openSquadModal(user)} title="Manage squads" ariaLabel="Manage squads">⚙</Button>
               </td>
             </tr>
           {/each}
         {/snippet}
       </DataTable>
     {/if}
-  </div>
+  </Card>
 </div>
 
 <Modal open={squadOpen} title="Squad Membership — {squadUser?.displayName}" size="md" onclose={() => squadOpen = false}>
@@ -125,7 +126,7 @@
       <h3 class="section-title">Current Squads</h3>
       <div class="member-list">
         {#each squadUserDetail.squads as m}
-          <div class="member-row"><span><strong>{m.displayName}</strong> — {m.email}</span><span class="role-chip">{m.role}</span><button class="action-btn danger small" onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove">✕</button></div>
+          <div class="member-row"><span><strong>{m.displayName}</strong> — {m.email}</span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove" ariaLabel="Remove from squad">✕</Button></div>
         {/each}
       </div>
     {/if}
@@ -133,7 +134,7 @@
     <div class="add-member-row">
       <select class="input" bind:value={selectedSquadId}><option value="">— Select squad —</option>{#each squads as s}<option value={s.id}>{s.name}</option>{/each}</select>
       <select class="input" bind:value={squadRole} style="width:auto"><option value="VIEWER">Viewer</option><option value="QA">QA Engineer</option><option value="QA_LEAD">QA Lead</option><option value="DEVELOPER">Developer</option><option value="ADMIN">Admin</option></select>
-      <button class="btn-submit" onclick={handleAssignSquad} disabled={squadBusy || !selectedSquadId}>{squadBusy ? 'Adding…' : 'Add'}</button>
+      <Button variant="primary" size="sm" onclick={handleAssignSquad} disabled={squadBusy || !selectedSquadId}>{squadBusy ? 'Adding…' : 'Add'}</Button>
     </div>
   </div>
 </Modal>
@@ -142,21 +143,17 @@
   .section-wrap{display:flex;flex-direction:column;gap:20px}.page-title{font-size:1.5rem;font-weight:700;margin-bottom:4px}
   .error-banner{background:#fee2e2;color:var(--color-danger);border:1px solid #fecaca;border-radius:var(--radius);padding:12px 16px;font-size:.875rem}
   .success-banner{background:color-mix(in srgb,var(--color-success),transparent 90%);color:var(--color-success);border:1px solid color-mix(in srgb,var(--color-success),transparent 70%);border-radius:var(--radius);padding:12px 16px;font-size:.875rem}
-  .panel{background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius);padding:20px}
   .panel-title{font-size:1rem;font-weight:600;margin-bottom:14px;color:var(--color-text)}.panel-subtitle{margin:-8px 0 0;color:var(--color-text-muted);font-size:.82rem}
   .role-panel{display:grid;grid-template-columns:minmax(220px,1fr) minmax(130px,.55fr) minmax(220px,.9fr) minmax(120px,.45fr) auto;align-items:end;gap:12px}
   label{display:grid;gap:5px;color:var(--color-text-muted);font-size:.76rem}
   input,select{width:100%;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:var(--color-text);padding:9px 10px;font:inherit}
   .empty-text{color:var(--color-text-muted);font-size:.875rem}.bold{font-weight:500}.muted{color:var(--color-text-muted)}
   .search-bar{display:flex;gap:8px;margin-bottom:14px;align-items:center}.search-bar .input{flex:1;max-width:400px}
-  .action-btn{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:4px;border:1px solid var(--color-border);background:var(--color-bg);color:var(--color-text-muted);cursor:pointer;font-size:1.1rem;text-align:center;transition:border-color .15s,color .15s}.action-btn:hover{border-color:var(--color-accent);color:var(--color-accent)}.action-btn.danger:hover{border-color:var(--color-danger);color:var(--color-danger)}.action-btn.small{width:22px;height:22px;font-size:.7rem}
   .modal-body{display:flex;flex-direction:column;gap:12px}
   .section-title{font-size:.9rem;font-weight:600;margin:0;color:var(--color-text)}
   .member-list{display:flex;flex-direction:column;gap:6px}
   .member-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);font-size:.85rem}
   .role-chip{display:inline-flex;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;background:var(--color-accent-subtle);color:var(--color-accent)}
   .add-member-row{display:flex;gap:8px;align-items:center}.add-member-row .input{flex:1}
-  .btn-cancel{padding:7px 14px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-surface);color:var(--color-text);font:inherit;font-size:.82rem;cursor:pointer}
-  .btn-submit{padding:7px 14px;border-radius:6px;border:1px solid var(--color-accent);background:var(--color-accent);color:#fff;font:inherit;font-size:.82rem;font-weight:600;cursor:pointer;white-space:nowrap}.btn-submit:disabled{opacity:.5;cursor:not-allowed}
   @media(max-width:980px){.role-panel{grid-template-columns:1fr}}
 </style>

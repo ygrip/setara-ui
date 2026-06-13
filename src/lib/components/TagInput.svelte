@@ -15,7 +15,7 @@
   let inputValue = $state('');
   let showDropdown = $state(false);
 
-  const remaining = maxTags - tags.length;
+  const remaining = $derived(maxTags - tags.length);
 
   const filteredSuggestions = $derived(
     inputValue.trim().length >= 1

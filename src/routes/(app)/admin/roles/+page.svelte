@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, mockRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
   import { isMockMode } from '$lib/mock/client';
@@ -131,11 +133,12 @@
     <!-- Role cards -->
     <div class="section-header">
       <h2 class="section-title">Roles</h2>
-      <button class="btn-create" onclick={() => { showCreate = true; createError = ''; createForm = { key: '', label: '', description: '', color: 'info' }; }}>+ New Role</button>
+      <Button variant="primary" size="sm" onclick={() => { showCreate = true; createError = ''; createForm = { key: '', label: '', description: '', color: 'info' }; }}>New Role</Button>
     </div>
     <div class="roles-grid">
       {#each roles as role (role.id)}
-        <div class="role-card">
+        <Card padding="md">
+          <div class="role-card-content">
           <div class="role-card-head">
             <span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span>
             {#if role.system}<span class="system-tag">system</span>{/if}
@@ -143,22 +146,23 @@
           <span class="role-display">{role.label}</span>
           <p class="role-desc">{role.description ?? ''}</p>
           <div class="role-card-actions">
-            <button class="role-action-btn" onclick={() => openPermEditor(role)} title="Edit permissions">
+            <Button variant="ghost" size="sm" onclick={() => openPermEditor(role)} title="Edit permissions">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
               Permissions
-            </button>
+            </Button>
             {#if !role.system}
-              <button class="role-action-btn danger" onclick={() => handleDelete(role)} title="Delete role">
+              <Button variant="danger" size="sm" iconOnly onclick={() => handleDelete(role)} title="Delete role" ariaLabel="Delete role">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-              </button>
+              </Button>
             {/if}
           </div>
-        </div>
+          </div>
+        </Card>
       {/each}
     </div>
 
     <!-- Permission matrix -->
-    <div class="panel">
+    <Card padding="md">
       <h2 class="panel-title">Permission Matrix</h2>
       <div class="matrix-wrap">
         <table class="matrix-table">
@@ -193,7 +197,7 @@
           </tbody>
         </table>
       </div>
-    </div>
+    </Card>
   {/if}
 
   <p class="note">System roles (ADMIN, VIEWER) cannot be modified or deleted. Role assignments are managed via <strong>Admin → Users</strong>.</p>
@@ -226,8 +230,8 @@
       </select>
     </label>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick={() => showCreate = false}>Cancel</button>
-      <button class="btn-submit" onclick={handleCreate} disabled={createBusy}>{createBusy ? 'Creating…' : 'Create'}</button>
+      <Button variant="secondary" size="sm" onclick={() => showCreate = false}>Cancel</Button>
+      <Button variant="primary" size="sm" onclick={handleCreate} disabled={createBusy}>{createBusy ? 'Creating…' : 'Create'}</Button>
     </div>
   </div>
 </Modal>
@@ -249,8 +253,8 @@
       </div>
     {/each}
     <div class="modal-actions">
-      <button class="btn-cancel" onclick={() => showPermModal = false}>Cancel</button>
-      <button class="btn-submit" onclick={savePermissions} disabled={permBusy}>{permBusy ? 'Saving…' : 'Save'}</button>
+      <Button variant="secondary" size="sm" onclick={() => showPermModal = false}>Cancel</Button>
+      <Button variant="primary" size="sm" onclick={savePermissions} disabled={permBusy}>{permBusy ? 'Saving…' : 'Save'}</Button>
     </div>
   </div>
 </Modal>
@@ -276,24 +280,19 @@
       grid-template-columns: none;
     }
 
-    .role-card {
+    .roles-grid :global(.card) {
       flex: 0 0 85vw;
       max-width: 320px;
       scroll-snap-align: start;
     }
   }
 
-  .role-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px;
+  .role-card-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    transition: border-color 0.15s;
+    min-height: 154px;
   }
-  .role-card:hover { border-color: var(--color-accent); }
 
   .role-card-head { margin-bottom: 2px; }
 
@@ -317,23 +316,6 @@
     margin-top: 4px;
     flex-wrap: wrap;
   }
-
-  .role-action-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 4px 10px;
-    border-radius: 4px;
-    border: 1px solid var(--color-border);
-    background: var(--color-bg);
-    color: var(--color-text);
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .role-action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  .role-action-btn.danger:hover { border-color: var(--color-danger); color: var(--color-danger); }
 
   .system-tag {
     display: inline-flex;
@@ -360,18 +342,6 @@
     font-weight: 700;
     color: var(--color-text);
     margin: 0;
-  }
-
-  .btn-create {
-    padding: 7px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--color-accent);
-    background: var(--color-accent);
-    color: #fff;
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
   }
 
   .modal-body {
@@ -408,30 +378,6 @@
     justify-content: flex-end;
     padding-top: 8px;
   }
-
-  .btn-cancel {
-    padding: 7px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font: inherit;
-    font-size: 0.82rem;
-    cursor: pointer;
-  }
-
-  .btn-submit {
-    padding: 7px 14px;
-    border-radius: 6px;
-    border: 1px solid var(--color-accent);
-    background: var(--color-accent);
-    color: #fff;
-    font: inherit;
-    font-size: 0.82rem;
-    font-weight: 600;
-    cursor: pointer;
-  }
-  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 
   .perm-editor {
     display: flex;
@@ -499,14 +445,6 @@
   .role-badge-info    { background: #dbeafe; color: #1d4ed8; }
   .role-badge-success { background: #dcfce7; color: #15803d; }
   .role-badge-neutral { background: var(--color-accent-subtle); color: var(--color-text-muted); }
-
-  /* Matrix */
-  .panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px;
-  }
 
   .panel-title {
     font-size: 1rem;

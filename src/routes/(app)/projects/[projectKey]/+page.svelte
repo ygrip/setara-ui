@@ -1,5 +1,6 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
+  import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
@@ -104,7 +105,7 @@
           <p class="project-desc">{data.project.description}</p>
         {/if}
       </div>
-      <a href="/projects/{data.projectKey}/settings" class="settings-entry">Project Settings</a>
+      <Button variant="secondary" href="/projects/{data.projectKey}/settings">Project Settings</Button>
     </div>
 
     <!-- Metric cards -->
@@ -338,21 +339,6 @@
     margin: 0;
   }
 
-  .settings-entry {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 38px;
-    padding: 8px 14px;
-    border: 1px solid var(--color-accent);
-    border-radius: 6px;
-    background: color-mix(in srgb, var(--color-accent), transparent 90%);
-    color: var(--color-accent);
-    font-size: 0.82rem;
-    font-weight: 800;
-    text-decoration: none;
-  }
-
   .metrics-row {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -577,7 +563,7 @@
     .metrics-row { grid-template-columns: 1fr; }
     .quick-links { grid-template-columns: 1fr; }
     .project-header { flex-direction: column; }
-    .settings-entry { width: 100%; min-height: 44px; justify-content: center; }
+    .project-header :global(.btn) { width: 100%; min-height: 44px; justify-content: center; }
   }
 
   .latest-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }

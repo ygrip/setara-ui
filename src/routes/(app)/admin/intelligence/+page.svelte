@@ -12,7 +12,8 @@
 
   // Feature flags
   interface AiFlags { smartSearch: boolean; smartSuggestion: boolean; duplicateAnalysis: boolean; smartReview: boolean; }
-  let localFlags = $state<AiFlags>(data.flags ?? { smartSearch: false, smartSuggestion: false, duplicateAnalysis: false, smartReview: false });
+  const defaultFlags: AiFlags = { smartSearch: false, smartSuggestion: false, duplicateAnalysis: false, smartReview: false };
+  let localFlags = $state<AiFlags>({ ...defaultFlags });
   let flagsBusy = $state(false);
   let flagsError = $state('');
   let flagsSaved = $state(false);

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { lockBodyScroll } from '$lib/scroll-lock';
+
   let {
     open = false,
     title,
@@ -20,9 +22,12 @@
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Escape') onclose?.();
   }
-</script>
 
-<svelte:body class:modal-open={open} />
+  $effect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  });
+</script>
 
 {#if open}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -122,10 +127,7 @@
     padding: 20px;
     overflow: auto;
     min-height: 0;
-  }
-
-  :global(body.modal-open) {
-    overflow: hidden;
+    overscroll-behavior: contain;
   }
 
   @media (max-width: 640px) {

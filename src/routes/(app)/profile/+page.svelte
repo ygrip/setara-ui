@@ -1,6 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import { clearSession, getValidSession, storeSession, type SetaraSession } from '$lib/auth';
 
   let session = $state<SetaraSession | null>(null);
@@ -38,7 +40,8 @@
   </div>
 
   {#if session}
-    <div class="profile-card">
+    <Card padding="sm">
+      <div class="profile-card-content">
       <!-- Avatar -->
       <div class="avatar-section">
         <div class="avatar-large">
@@ -91,13 +94,14 @@
         </div>
 
         <div class="form-actions">
-          <button class="btn btn--primary" onclick={saveChanges}>
+          <Button variant="primary" onclick={saveChanges}>
             {saved ? 'Saved!' : 'Save changes'}
-          </button>
-          <button class="btn btn--danger" onclick={signOut}>Sign out</button>
+          </Button>
+          <Button variant="danger" onclick={signOut}>Sign out</Button>
         </div>
       </div>
-    </div>
+      </div>
+    </Card>
   {/if}
 </div>
 
@@ -108,11 +112,7 @@
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
 
-  .profile-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 16px;
-    box-shadow: var(--shadow);
+  .profile-card-content {
     overflow: hidden;
   }
 
@@ -229,32 +229,4 @@
     padding-top: 4px;
   }
 
-  .btn {
-    padding: 8px 18px;
-    border-radius: 8px;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-    transition: background 0.15s, opacity 0.15s;
-  }
-
-  .btn--primary {
-    background: var(--color-accent);
-    color: #fff;
-  }
-
-  .btn--primary:hover {
-    background: var(--color-accent-hover);
-  }
-
-  .btn--danger {
-    background: none;
-    border: 1px solid var(--color-danger);
-    color: var(--color-danger);
-  }
-
-  .btn--danger:hover {
-    background: rgba(220, 38, 38, 0.08);
-  }
 </style>

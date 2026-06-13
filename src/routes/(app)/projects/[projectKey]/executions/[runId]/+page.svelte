@@ -4,12 +4,12 @@
   import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
+  import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import ScenarioResultDetail from '$lib/components/ScenarioResultDetail.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRunResults } from '$lib/api/runs';
   import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
-  import { getApiBaseUrl } from '$lib/api/config';
 
   let { data }: {
     data: {
@@ -158,8 +158,8 @@
   const skippedScenarios = $derived(run?.skippedScenarios ?? results.filter(r => r.status === 'SKIPPED').length);
   const passRate = $derived(totalScenarios ? Math.round((passedScenarios / totalScenarios) * 100) : 0);
   const shortRunId = $derived(data.runId.slice(0, 8));
-  const reportXlsxUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/runs/${data.runId}/report?format=xlsx`);
-  const reportPdfUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/runs/${data.runId}/report?format=pdf`);
+  const reportPath = $derived(`/api/projects/${data.projectKey}/runs/${data.runId}/report`);
+  const reportFilename = $derived(`setara-execution-${data.projectKey}-${data.runId}`);
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
   const runDonut = $derived({
     labels: ['Passed', 'Failed', 'Skipped'],
@@ -224,8 +224,7 @@
         >{wsManager.state}</span>
       </div>
       <div class="export-actions">
-        <a class="export-btn" href={reportXlsxUrl} download>Export XLSX</a>
-        <a class="export-btn" href={reportPdfUrl} download>Export PDF</a>
+        <ReportExportMenu reportPath={reportPath} filenameBase={reportFilename} />
       </div>
     </div>
 
@@ -471,17 +470,6 @@
   }
 
   .export-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
-
-  .export-btn {
-    font-size: 0.78rem;
-    padding: 4px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-  }
-  .export-btn:hover { background: var(--color-bg-hover, #f3f4f6); color: var(--color-text); }
 
   .run-id    { color: var(--color-text-muted); font-size: 0.875rem; }
   .run-runner {

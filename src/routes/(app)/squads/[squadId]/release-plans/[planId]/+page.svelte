@@ -7,11 +7,11 @@
   import MetricCard from '$lib/components/MetricCard.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
+  import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan,
     type PlanBuild, type ReleasePlan, type SquadPlanMetrics
   } from '$lib/api/squadPlans';
-  import { getApiBaseUrl } from '$lib/api/config';
   import { listBuilds, type ProjectBuild } from '$lib/api/builds';
   import { listProjects, type Project } from '$lib/api/projects';
 
@@ -47,8 +47,8 @@
   let showClose = $state(false);
 
   const existingBuildIds = $derived(new Set(builds.map(b => b.buildId)));
-  const reportXlsxUrl = $derived(`${getApiBaseUrl()}/api/squads/${data.squadId}/plans/${data.planId}/report?format=xlsx`);
-  const reportPdfUrl = $derived(`${getApiBaseUrl()}/api/squads/${data.squadId}/plans/${data.planId}/report?format=pdf`);
+  const reportPath = $derived(`/api/squads/${data.squadId}/plans/${data.planId}/report`);
+  const reportFilename = $derived(`setara-release-plan-${data.squadId}-${data.planId}`);
 
   const canClose = $derived(
     data.plan?.status !== 'CLOSED' &&
@@ -241,8 +241,7 @@
         {/if}
       </div>
       <div class="plan-header-actions">
-        <a class="export-btn" href={reportXlsxUrl} download>Export XLSX</a>
-        <a class="export-btn" href={reportPdfUrl} download>Export PDF</a>
+        <ReportExportMenu reportPath={reportPath} filenameBase={reportFilename} />
         <Button variant="secondary" href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map"
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"/><path d="M2 12h20"/></svg>'
         >
@@ -599,18 +598,6 @@
     }
     .plan-header-actions :global(.btn) { width: 100%; justify-content: center; }
   }
-  .export-btn {
-    font-size: 0.78rem;
-    padding: 4px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-    align-self: center;
-  }
-  .export-btn:hover { background: var(--color-bg-hover, #f3f4f6); color: var(--color-text); }
   .chart-section { margin: 20px 0; }
   .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 12px; }
   .chart-wrap { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; padding: 16px; }

@@ -5,8 +5,8 @@
   import DonutChart from '$lib/components/DonutChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
+  import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, type ProjectBuild, type BuildScenario, type BuildAuditEvent } from '$lib/api/builds';
-  import { getApiBaseUrl } from '$lib/api/config';
 
   let { data } = $props();
 
@@ -129,8 +129,8 @@
   }
 
   const allSelected = $derived(scenarios.length > 0 && selectedIds.size === scenarios.length);
-  const reportXlsxUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/builds/${data.buildId}/report?format=xlsx`);
-  const reportPdfUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/builds/${data.buildId}/report?format=pdf`);
+  const reportPath = $derived(`/api/projects/${data.projectKey}/builds/${data.buildId}/report`);
+  const reportFilename = $derived(`setara-build-${data.projectKey}-${data.buildId}`);
   const hasFailed = $derived(scenarios.some(s => s.latestStatus === 'FAILED'));
 
   // Audit event label map
@@ -367,8 +367,7 @@
       </div>
       <div class="header-actions">
         <Badge text={build.status} variant={statusVariant(build.status)} />
-        <a class="export-btn" href={reportXlsxUrl} download>Export XLSX</a>
-        <a class="export-btn" href={reportPdfUrl} download>Export PDF</a>
+        <ReportExportMenu reportPath={reportPath} filenameBase={reportFilename} />
         <Button variant="secondary" href="/projects/{data.projectKey}/builds/{data.buildId}/quality-map"
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"/><path d="M2 12h20"/></svg>'
         >Quality Map</Button>
@@ -643,17 +642,6 @@
     /* Add-scenario wrapper stretches too */
     .add-scenario-wrap { width: 100%; }
   }
-  .export-btn {
-    font-size: 0.78rem;
-    padding: 4px 10px;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    color: var(--color-text-muted);
-    text-decoration: none;
-    transition: background 0.15s, color 0.15s;
-    white-space: nowrap;
-  }
-  .export-btn:hover { background: var(--color-bg-hover, #f3f4f6); color: var(--color-text); }
   .checkbox-col { width: 36px; text-align: center; }
   .error { border: 1px solid #fecaca; background: #fee2e2; color: #b91c1c; padding: 12px; border-radius: var(--radius); margin-bottom: 16px; }
   .bulk-bar { display: flex; align-items: center; gap: 12px; padding: 10px 14px; background: color-mix(in srgb, var(--color-accent), transparent 90%); border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 10px; font-size: 0.875rem; font-weight: 600; }

@@ -106,11 +106,6 @@ input, select, textarea, button {
   font-size: inherit;
 }
 
-/* ── Scroll lock (shared by Modal, CommandPalette, slide panels) ── */
-body.modal-open {
-  overflow: hidden;
-}
-
 /* ── Legacy landing page styles (kept for root +page.svelte) ─ */
 .shell {
   min-height: 100vh;

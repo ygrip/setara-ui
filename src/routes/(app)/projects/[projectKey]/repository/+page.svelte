@@ -786,7 +786,7 @@
         availableTags={availableTags}
         selectedTags={filterTags}
         tagMode={filterTagMode}
-        onchange={(tags, mode) => { filterTags = tags; filterTagMode = mode as 'ANY' | 'ALL'; }}
+        onchange={(tags: string[], mode: 'ANY' | 'ALL') => { filterTags = tags; filterTagMode = mode; }}
       />
 
       <!-- Bulk action bar — only visible when rows are selected -->
@@ -1169,7 +1169,12 @@
               suggestions={availableTags}
               disabled={detailBusy}
               maxTags={20}
-              onchange={(updated: TagInputType[]) => { detailDraftTags = updated; }}
+              onchange={(updated: TagInputType[]) => {
+                detailDraftTags = updated.map((tag) => ({
+                  sanitized: tag.sanitized ?? tag.display,
+                  display: tag.display
+                }));
+              }}
             />
           </div>
 

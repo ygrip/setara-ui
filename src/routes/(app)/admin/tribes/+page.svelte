@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createTribe, updateTribe, deleteTribe, getTribe, searchUsers, type Tribe, type TribeDetail, type UserDetail } from '$lib/api/organization';
@@ -81,7 +82,7 @@
   {#if data.error}<div class="error-banner">Could not connect to backend — {data.error}</div>{/if}
   {#if error}<div class="error-banner">{error}</div>{/if}
 
-  <div class="panel">
+  <Card padding="md">
     <h2 class="panel-title">Tribes</h2>
     {#if data.tribes.length === 0}
       <p class="empty-text">No tribes yet.</p>
@@ -96,23 +97,23 @@
               <td data-label="Name" class="bold">{tribe.name}</td>
               <td data-label="Created">{formatDate(tribe.createdAt)}</td>
               <td data-label="">
-                <button class="action-btn" onclick={() => openEdit(tribe)} title="Edit">✎</button>
-                <button class="action-btn danger" onclick={() => handleDelete(tribe)} title="Delete">✕</button>
+                <Button variant="ghost" size="sm" iconOnly onclick={() => openEdit(tribe)} title="Edit" ariaLabel="Edit tribe">✎</Button>
+                <Button variant="danger" size="sm" iconOnly onclick={() => handleDelete(tribe)} title="Delete" ariaLabel="Delete tribe">✕</Button>
               </td>
             </tr>
           {/each}
         {/snippet}
       </DataTable>
     {/if}
-  </div>
+  </Card>
 
-  <div class="panel">
+  <Card padding="md">
     <h2 class="panel-title">New Tribe</h2>
     <form onsubmit={handleCreateTribe} class="inline-form">
       <input class="input" type="text" bind:value={newTribeName} required placeholder="Tribe name" />
       <Button variant="primary" type="submit" disabled={creatingTribe}>{creatingTribe ? 'Creating…' : 'Create'}</Button>
     </form>
-  </div>
+  </Card>
 </div>
 
 <Modal open={editOpen} title="Edit Tribe" size="md" onclose={() => editOpen = false}>
@@ -133,8 +134,8 @@
       {/if}
     </label>
     <div class="modal-actions">
-      <button class="btn-cancel" onclick={() => editOpen = false}>Cancel</button>
-      <button class="btn-submit" onclick={handleSaveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
+      <Button variant="secondary" size="sm" onclick={() => editOpen = false}>Cancel</Button>
+      <Button variant="primary" size="sm" onclick={handleSaveEdit} disabled={saving}>{saving ? 'Saving…' : 'Save'}</Button>
     </div>
   </div>
 </Modal>
@@ -151,13 +152,6 @@
     border-radius: var(--radius);
     padding: 12px 16px;
     font-size: 0.875rem;
-  }
-
-  .panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px;
   }
 
   .panel-title {
@@ -194,16 +188,6 @@
   .bold { font-weight: 500; }
   .muted { color: var(--color-text-muted); }
 
-  .action-btn {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 26px; height: 26px; border-radius: 4px;
-    border: 1px solid var(--color-border); background: var(--color-bg);
-    color: var(--color-text-muted); cursor: pointer; font-size: 0.8rem;
-    transition: border-color 0.15s, color 0.15s;
-  }
-  .action-btn:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  .action-btn.danger:hover { border-color: var(--color-danger); color: var(--color-danger); }
-
   .modal-body { display: flex; flex-direction: column; gap: 12px; }
   .field { display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); }
   .field .input, .field textarea { font-weight: 400; }
@@ -212,7 +196,4 @@
   .user-pick:hover { background: var(--color-accent-subtle); }
   .user-pick.selected { background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 600; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
-  .btn-cancel { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--color-border); background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.82rem; cursor: pointer; }
-  .btn-submit { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--color-accent); background: var(--color-accent); color: #fff; font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-  .btn-submit:disabled { opacity: 0.5; cursor: not-allowed; }
 </style>

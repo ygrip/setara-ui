@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createProject, type Project } from '$lib/api/projects';
   import { getValidSession, hasPermission } from '$lib/auth';
@@ -101,7 +102,8 @@
   {:else}
     <div class="project-grid">
       {#each filtered as project}
-        <a href="/projects/{project.projectKey}" class="project-card">
+        <Card href="/projects/{project.projectKey}" padding="lg" ariaLabel="Open {project.name}">
+          <div class="project-card-content">
           <div class="card-top">
             <Badge text={project.projectKey} variant="neutral" />
           </div>
@@ -112,7 +114,8 @@
           <div class="card-meta">
             <span>Created {formatDate(project.createdAt)}</span>
           </div>
-        </a>
+          </div>
+        </Card>
       {/each}
     </div>
   {/if}
@@ -229,24 +232,11 @@
     gap: 16px;
   }
 
-  .project-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 20px;
+  .project-card-content {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    text-decoration: none;
-    color: inherit;
-    transition: box-shadow 0.15s, border-color 0.15s;
-  }
-
-  .project-card:hover {
-    border-color: var(--color-accent);
-    box-shadow: var(--shadow-md);
-    text-decoration: none;
+    min-height: 138px;
   }
 
   .card-top {

@@ -103,6 +103,7 @@ export async function createBuild(projectKey: string, body: {
   buildKey?: string;
   version?: string;
   description?: string;
+  requirements?: string;
   createdBy?: string;
 }): Promise<ProjectBuild> {
   if (isMockMode()) return mockCreateBuild(projectKey, body);

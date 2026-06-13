@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { mockProjects } from '$lib/mock/data';
+  import { lockBodyScroll } from '$lib/scroll-lock';
 
   let {
     open,
@@ -69,6 +70,11 @@
     }
   });
 
+  $effect(() => {
+    if (!open) return;
+    return lockBodyScroll();
+  });
+
   function navigate(href: string) {
     onclose();
     goto(href);
@@ -93,8 +99,6 @@
     if (e.target === e.currentTarget) onclose();
   }
 </script>
-
-<svelte:body class:modal-open={open} />
 
 {#if open}
   <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
@@ -176,11 +180,14 @@
     background: rgba(0, 0, 0, 0.45);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
+    overflow: hidden;
+    padding: 24px;
   }
 
   .palette-panel {
     max-width: 580px;
     width: 90%;
+    max-height: min(82vh, calc(100dvh - 48px));
     margin: 12vh auto 0;
     border-radius: 16px;
     background: rgba(255, 255, 255, 0.9);
@@ -189,6 +196,8 @@
     border: 1px solid rgba(255, 255, 255, 0.6);
     box-shadow: 0 32px 80px rgba(0, 0, 0, 0.2);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   :global([data-theme="dark"]) .palette-panel {
@@ -263,8 +272,9 @@
 
   .palette-results {
     padding: 8px;
-    max-height: 360px;
+    min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
 
   .palette-empty {
@@ -320,5 +330,22 @@
     color: var(--color-accent);
     border-radius: 4px;
     padding: 1px 6px;
+  }
+
+  @media (max-width: 640px) {
+    .palette-overlay {
+      padding: 12px;
+    }
+
+    .palette-panel {
+      width: 100%;
+      margin-top: 8vh;
+      max-height: min(86vh, calc(100dvh - 24px));
+      border-radius: 12px;
+    }
+
+    .palette-search-row {
+      padding: 14px 16px;
+    }
   }
 </style>

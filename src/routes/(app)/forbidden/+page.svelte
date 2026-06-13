@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
   import { getValidSession } from '$lib/auth';
 
   let role = $state<string | null>(null);
@@ -15,7 +17,8 @@
 </svelte:head>
 
 <div class="forbidden-wrap">
-  <div class="forbidden-card">
+  <Card padding="lg">
+    <div class="forbidden-content">
     <div class="lock-icon" aria-hidden="true">
       <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -34,15 +37,16 @@
     {/if}
 
     <div class="actions">
-      <button class="btn-back" onclick={() => history.back()}>
+      <Button variant="secondary" onclick={() => history.back()}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
         Go Back
-      </button>
-      <a class="btn-dashboard" href="/dashboard">Go to Dashboard</a>
+      </Button>
+      <Button variant="primary" href="/dashboard">Go to Dashboard</Button>
     </div>
-  </div>
+    </div>
+  </Card>
 </div>
 
 <style>
@@ -54,19 +58,17 @@
     padding: 40px 20px;
   }
 
-  .forbidden-card {
+  .forbidden-wrap :global(.card) {
+    max-width: 420px;
+    width: 100%;
+  }
+
+  .forbidden-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 16px;
     text-align: center;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: calc(var(--radius) + 4px);
-    padding: 48px 40px;
-    max-width: 420px;
-    width: 100%;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
   }
 
   .lock-icon {
@@ -127,43 +129,4 @@
     justify-content: center;
   }
 
-  .btn-back {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 18px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    color: var(--color-text);
-    font-size: 0.875rem;
-    font-weight: 500;
-    font-family: inherit;
-    cursor: pointer;
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
-  }
-
-  .btn-back:hover {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-    background: var(--color-accent-subtle);
-  }
-
-  .btn-dashboard {
-    display: inline-flex;
-    align-items: center;
-    padding: 9px 18px;
-    border-radius: var(--radius);
-    background: var(--color-accent);
-    color: #fff;
-    font-size: 0.875rem;
-    font-weight: 600;
-    text-decoration: none;
-    transition: opacity 0.15s;
-  }
-
-  .btn-dashboard:hover {
-    opacity: 0.88;
-    text-decoration: none;
-  }
 </style>

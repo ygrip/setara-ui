@@ -264,18 +264,24 @@
       value={summary?.totalSquads ?? '—'}
       variant="info"
       icon="M3 7h18M3 12h18M3 17h18"
+      href="/coverage-overview"
+      ariaLabel="Open squad coverage overview"
     />
     <MetricCard
       label="Projects"
       value={summary?.totalProjects ?? '—'}
       variant="default"
       icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
+      href="/projects"
+      ariaLabel="Open projects"
     />
     <MetricCard
       label="Test Scenarios"
       value={summary?.totalScenarios ?? '—'}
       variant="default"
       icon="M22 12h-4l-3 9L9 3l-3 9H2"
+      href="/coverage-overview"
+      ariaLabel="Open scenario coverage overview"
     />
     <MetricCard
       label="Pass Rate"
@@ -283,6 +289,8 @@
       sub={`${Number(summary?.automationCoveragePercentage ?? 0).toFixed(0)}% automated`}
       variant="default"
       icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
+      href="/coverage-overview"
+      ariaLabel="Open quality and pass-rate overview"
     />
   </div>
 
@@ -325,7 +333,7 @@
   </div>
 
   <!-- Chart expand modal -->
-  <Modal open={showChartExpand} title="Coverage &amp; Pass Rate Trend" size="xl" onclose={() => showChartExpand = false}>
+  <Modal open={showChartExpand} title="Coverage &amp; Pass Rate Trend" size="full" onclose={() => showChartExpand = false}>
     <div class="expand-modal-content">
       <div class="expand-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -338,7 +346,11 @@
           </select>
         </label>
       </div>
-      <LineChart chartData={coverageTrend} height={520} />
+      <div class="expanded-chart-scroll">
+        <div class="expanded-chart-frame">
+          <LineChart chartData={coverageTrend} height={620} />
+        </div>
+      </div>
       {#if chartBusy}<p class="chart-note">Refreshing…</p>{/if}
     </div>
   </Modal>
@@ -487,7 +499,7 @@
 
   .metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
     gap: 16px;
     margin-bottom: 32px;
   }
@@ -562,10 +574,11 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    padding: 20px 24px;
+    padding: clamp(16px, 2vw, 24px);
     box-shadow: var(--shadow);
     cursor: pointer;
     transition: box-shadow 0.15s;
+    overflow: hidden;
   }
   .chart-card:hover {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%);
@@ -584,7 +597,7 @@
     display: flex;
     flex-direction: column;
     gap: 14px;
-    width: min(1180px, 100%);
+    width: 100%;
     min-width: 0;
   }
   .expand-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
@@ -604,6 +617,25 @@
     color: var(--color-text);
     padding: 7px 9px;
     font: inherit;
+  }
+
+  .expanded-chart-scroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+
+  .expanded-chart-frame {
+    min-width: 1120px;
+    width: max(1120px, calc(100vw - 96px));
+    aspect-ratio: 16 / 9;
+    max-height: 680px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    padding: 18px;
   }
 
   /* ── Lower grid ── */
@@ -786,7 +818,7 @@
     .expand-btn { width: 100%; justify-content: center; }
   }
   @media (max-width: 480px) {
-    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .metrics-row { grid-template-columns: 1fr; }
     .page-title { font-size: 1.25rem; }
     .col-hide-xs { display: none; }
   }
