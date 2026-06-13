@@ -8,6 +8,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan,
     type PlanBuild, type ReleasePlan, type SquadPlanMetrics
@@ -220,7 +221,7 @@
   </nav>
 
   {#if data.error}
-    <div class="error-banner" role="alert">{data.error}</div>
+    <AppAlert tone="error">{data.error}</AppAlert>
   {:else if data.plan}
     <!-- Plan header -->
     <div class="plan-header">
@@ -266,7 +267,7 @@
     </div>
 
     {#if actionError}
-      <div class="error-banner" role="alert">{actionError}</div>
+      <AppAlert tone="error">{actionError}</AppAlert>
     {/if}
 
     <!-- Metrics row -->
@@ -525,7 +526,7 @@
   .plan-meta span:not(.muted)::before { content: ''; }
   .plan-desc { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; max-width: 640px; }
   .plan-header-actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 20px; }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
   .metrics-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
   .section { margin-bottom: 28px; }
   .section--audit { margin-bottom: 0; }

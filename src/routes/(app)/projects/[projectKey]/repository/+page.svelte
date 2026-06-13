@@ -5,6 +5,8 @@
   import Modal from '$lib/components/Modal.svelte';
   import TagFilterBar from '$lib/components/TagFilterBar.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import { notify } from '$lib/ui/feedback/notify';
   import type { TagInput as TagInputType, TagView } from '$lib/api/testcases';
   import { Dialog } from 'bits-ui';
   import { createColumnHelper, type ColumnDef } from '@tanstack/table-core';
@@ -45,7 +47,6 @@
   let expandedIds = $state<Set<string>>(new Set());
   let busy = $state(false);
   let actionError = $state('');
-  let copyMessage = $state('');
   let detailScenario = $state<Scenario | null>(null);
   let detailDraft = $state<Scenario | null>(null);
   let detailBusy = $state(false);
@@ -423,8 +424,7 @@
   async function copyText(value: string, label: string, e?: MouseEvent) {
     e?.stopPropagation();
     await navigator.clipboard.writeText(value);
-    copyMessage = `${label} copied`;
-    setTimeout(() => (copyMessage = ''), 1800);
+    notify.success(`${label} copied`);
   }
 
   function createScenarioUrl(nodeId: string | null): string {
@@ -620,9 +620,8 @@
 {#snippet iconAutomated()}<svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="16" y1="16" x2="16" y2="16"/><polyline points="8.5 21 11 18.5 13 20.5 16.5 17" stroke-width="2"/></svg>{/snippet}
 
 <div class="page">
-  {#if data.error}<div class="error-banner">Could not load repository — {data.error}</div>{/if}
-  {#if actionError}<div class="error-banner">{actionError}</div>{/if}
-  {#if copyMessage}<div class="toast">{copyMessage}</div>{/if}
+  {#if data.error}<AppAlert tone="error" title="Could not load repository">{data.error}</AppAlert>{/if}
+  {#if actionError}<AppAlert tone="error">{actionError}</AppAlert>{/if}
 
   <div class="repo-layout">
     <!-- ── Directory tree ──────────────────────────────────────── -->
@@ -1234,8 +1233,7 @@
 
 <style>
   .page { max-width: none; }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
-  .toast { position: fixed; right: 24px; bottom: 24px; background: var(--color-text); color: var(--color-bg); padding: 10px 14px; border-radius: 6px; font-size: 0.85rem; z-index: 120; }
+  :global(.page > .app-alert) { margin-bottom: 12px; }
   .repo-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
   .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .tree-scroll { flex: 1; overflow: auto; }

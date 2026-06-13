@@ -1,6 +1,7 @@
 <script lang="ts">
   import { downloadReport, type ReportFormat } from '$lib/api/reports';
   import { isMockMode } from '$lib/mock/client';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let {
     reportPath,
@@ -73,7 +74,9 @@
   {/if}
 
   {#if error}
-    <p class="export-error" role="alert">{error}</p>
+    <div class="export-error">
+      <AppAlert tone="error">{error}</AppAlert>
+    </div>
   {/if}
 </div>
 
@@ -195,14 +198,11 @@
     max-height: 7rem;
     overflow: hidden;
     margin: 0;
-    padding: 9px 11px;
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 65%);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--color-danger), transparent 91%);
-    color: var(--color-danger);
+  }
+
+  .export-error :global(.app-alert) {
     box-shadow: var(--shadow);
     font-size: 0.78rem;
-    line-height: 1.45;
   }
 
   @media (max-width: 560px) {

@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { isMockMode } from '$lib/mock/client';
 
@@ -96,7 +97,7 @@
     </div>
 
     {#if error}
-      <div class="error-banner">{error}</div>
+      <AppAlert tone="error">{error}</AppAlert>
     {/if}
 
     {#if searched}
@@ -163,7 +164,7 @@
   .search-input { flex: 1; padding: 10px 12px 10px 38px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
   .search-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0,175,165,0.1); }
   .search-hint { font-size: 0.75rem; color: var(--color-text-muted); margin: 8px 0 0; }
-  .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 16px; font-size: 0.875rem; }
+  :global(.page > .app-alert) { margin-bottom: 16px; }
   .results-section { margin-top: 8px; }
   .section-title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; color: var(--color-text); }
   .results-list { display: flex; flex-direction: column; gap: 8px; }

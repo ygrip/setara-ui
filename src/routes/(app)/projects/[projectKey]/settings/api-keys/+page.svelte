@@ -3,7 +3,12 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
-  import Modal from '$lib/components/Modal.svelte';
+  import AppTooltip from '$lib/ui/display/AppTooltip.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import { notify } from '$lib/ui/feedback/notify';
+  import ApiKeyRotateModal from '$lib/ui/domain/ApiKeyRotateModal.svelte';
+  import AppDropdown from '$lib/ui/overlay/AppDropdown.svelte';
+  import AppModal from '$lib/ui/overlay/AppModal.svelte';
   import { createApiKey, revokeApiKey, rotateApiKey, type ApiKey } from '$lib/api/apikeys';
 
   let { data } = $props();
@@ -14,6 +19,7 @@
   let newKeyName = $state('');
   let newKeyScopes = $state<string[]>(['execution:write']);
   let revealedKey = $state('');
+  let pendingAction = $state<{ type: 'rotate' | 'revoke'; keyId: string; keyName: string } | null>(null);
 
   const scopeOptions = [
     { value: 'execution:read', label: 'Read execution data' },
@@ -48,25 +54,33 @@
     }
   }
 
-  async function handleRevoke(keyId: string) {
-    if (!confirm('Revoke this API key? This cannot be undone.')) return;
-    try {
-      await revokeApiKey(data.projectKey, keyId);
-      await invalidateAll();
-    } catch (err) {
-      alert((err as Error).message);
-    }
+  function requestRevoke(key: ApiKey) {
+    pendingAction = { type: 'revoke', keyId: key.id, keyName: key.name };
   }
 
-  async function handleRotate(keyId: string) {
-    if (!confirm('Rotate this API key? The old key will stop working immediately.')) return;
+  function requestRotate(key: ApiKey) {
+    pendingAction = { type: 'rotate', keyId: key.id, keyName: key.name };
+  }
+
+  async function confirmApiKeyAction() {
+    if (!pendingAction) return;
+    const action = pendingAction;
+    pendingAction = null;
     try {
-      const result = await rotateApiKey(data.projectKey, keyId);
-      revealedKey = result.rawKey;
-      showModal = true;
+      if (action.type === 'revoke') {
+        await revokeApiKey(data.projectKey, action.keyId);
+        notify.success('API key revoked');
+      } else {
+        const result = await rotateApiKey(data.projectKey, action.keyId);
+        revealedKey = result.rawKey;
+        showModal = true;
+        notify.success('API key rotated');
+      }
       await invalidateAll();
     } catch (err) {
-      alert((err as Error).message);
+      notify.error((err as Error).message, {
+        title: action.type === 'revoke' ? 'Could not revoke API key' : 'Could not rotate API key'
+      });
     }
   }
 
@@ -74,6 +88,11 @@
     newKeyScopes = newKeyScopes.includes(scope)
       ? newKeyScopes.filter((item) => item !== scope)
       : [...newKeyScopes, scope];
+  }
+
+  async function copyRevealedKey() {
+    await navigator.clipboard.writeText(revealedKey);
+    notify.success('API key copied');
   }
 </script>
 
@@ -108,7 +127,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner">Could not load API keys — {data.error}</div>
+    <AppAlert tone="error" title="Could not load API keys">{data.error}</AppAlert>
   {:else if data.apiKeys.length === 0}
     <div class="empty-state">
       <p>No API keys yet. Create one to allow automation runners to submit results.</p>
@@ -130,7 +149,11 @@
         {#each data.apiKeys as key}
           <tr>
             <td data-label="Name" class="bold">{key.name}</td>
-            <td data-label="Prefix" class="mono">{key.keyPrefix}…</td>
+            <td data-label="Prefix">
+              <AppTooltip text="Only the key prefix is available after creation">
+                <span class="mono">{key.keyPrefix}…</span>
+              </AppTooltip>
+            </td>
             <td data-label="Scopes" class="scopes">{key.scopes}</td>
             <td data-label="Status">
               {#if key.revokedAt}
@@ -143,10 +166,10 @@
             <td data-label="Last Used">—</td>
             <td data-label="">
               {#if !key.revokedAt}
-                <div class="row-actions">
-                  <Button variant="secondary" size="sm" onclick={() => handleRotate(key.id)}>Rotate</Button>
-                  <Button variant="danger" size="sm" onclick={() => handleRevoke(key.id)}>Revoke</Button>
-                </div>
+                <AppDropdown label="Actions">
+                  <button type="button" role="menuitem" onclick={() => requestRotate(key)}>Rotate key</button>
+                  <button type="button" role="menuitem" class="danger-action" onclick={() => requestRevoke(key)}>Revoke key</button>
+                </AppDropdown>
               {/if}
             </td>
           </tr>
@@ -156,7 +179,7 @@
   {/if}
 </div>
 
-<Modal
+<AppModal
   open={showModal}
   title={revealedKey ? 'Key Created — Save It Now' : 'New API Key'}
   onclose={() => { showModal = false; revealedKey = ''; }}
@@ -170,7 +193,7 @@
         This key will not be shown again. Copy it now.
       </div>
       <div class="key-box">{revealedKey}</div>
-      <Button variant="secondary" onclick={() => navigator.clipboard.writeText(revealedKey)}>
+      <Button variant="secondary" onclick={copyRevealedKey}>
         Copy to Clipboard
       </Button>
     </div>
@@ -210,7 +233,15 @@
       </div>
     </form>
   {/if}
-</Modal>
+</AppModal>
+
+<ApiKeyRotateModal
+  open={!!pendingAction}
+  keyName={pendingAction?.keyName ?? ''}
+  mode={pendingAction?.type ?? 'rotate'}
+  onclose={() => pendingAction = null}
+  onconfirm={confirmApiKeyAction}
+/>
 
 <style>
   .page { max-width: min(1520px, 100%); }
@@ -242,12 +273,6 @@
     margin-bottom: 24px;
   }
 
-  .error-banner {
-    background: #fee2e2; color: var(--color-danger);
-    border: 1px solid #fecaca; border-radius: var(--radius);
-    padding: 12px 16px; font-size: 0.875rem;
-  }
-
   .empty-state {
     color: var(--color-text-muted); font-size: 0.875rem; padding: 20px 0;
   }
@@ -255,7 +280,7 @@
   .bold { font-weight: 500; }
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
   .scopes { font-size: 0.8rem; color: var(--color-text-muted); }
-  .row-actions { display: flex; gap: 6px; }
+  .danger-action { color: var(--color-danger) !important; }
 
   /* Form */
   .form { display: flex; flex-direction: column; gap: 16px; }

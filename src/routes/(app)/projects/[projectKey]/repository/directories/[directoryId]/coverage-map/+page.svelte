@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import Modal from '$lib/components/Modal.svelte';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import type { MapNode } from '$lib/api/mindmaps';
   import { getScenario, type Scenario } from '$lib/api/testcases';
 
@@ -76,7 +77,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner">Could not load coverage map - {data.error}</div>
+    <AppAlert tone="error" title="Could not load coverage map">{data.error}</AppAlert>
   {:else if data.coverageMap}
     <SetaraMindMap map={data.coverageMap} onnodeclick={handleNodeClick} />
   {/if}
@@ -86,7 +87,7 @@
   {#if scenarioBusy}
     <div class="empty-state">Loading scenario...</div>
   {:else if scenarioError}
-    <div class="error-banner">{scenarioError}</div>
+    <AppAlert tone="error">{scenarioError}</AppAlert>
   {:else if scenarioDetail}
     <div class="scenario-detail">
       <div class="scenario-meta">
@@ -122,7 +123,7 @@
   .page-header span { color: var(--color-text-muted); font-size: 0.86rem; }
   .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   label { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 10px; color: var(--color-text-muted); font-size: 0.82rem; background: var(--color-surface); }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; }
+  :global(.page > .app-alert) { margin-bottom: 16px; }
   .empty-state { color: var(--color-text-muted); padding: 18px; text-align: center; }
   .scenario-detail { display: grid; gap: 14px; }
   .scenario-detail > p { margin: 0; color: var(--color-text-muted); }

@@ -5,6 +5,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createTribe, updateTribe, deleteTribe, getTribe, searchUsers, type Tribe, type TribeDetail, type UserDetail } from '$lib/api/organization';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -79,8 +80,8 @@
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
 
-  {#if data.error}<div class="error-banner">Could not connect to backend — {data.error}</div>{/if}
-  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if data.error}<AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>{/if}
+  {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
 
   <Card padding="md">
     <h2 class="panel-title">Tribes</h2>
@@ -144,15 +145,6 @@
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
 
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
-
-  .error-banner {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    font-size: 0.875rem;
-  }
 
   .panel-title {
     font-size: 1rem;

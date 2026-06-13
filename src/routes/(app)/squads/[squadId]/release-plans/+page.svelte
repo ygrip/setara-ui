@@ -5,6 +5,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { createSquadPlan, type ReleasePlan } from '$lib/api/squadPlans';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -125,7 +126,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner" role="alert">{data.error}</div>
+    <AppAlert tone="error">{data.error}</AppAlert>
   {/if}
 
   <!-- Filter -->
@@ -247,7 +248,7 @@
   .page-header-left { display: flex; flex-direction: column; gap: 2px; }
   .page-title { font-size: clamp(1.25rem, 4vw, 1.5rem); font-weight: 700; margin: 0; }
   .squad-meta { font-size: 0.8rem; color: var(--color-text-muted); }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 20px; }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
   .filter-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
   .filter-input { flex: 1; max-width: 260px; font: inherit; font-size: 0.875rem; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); }
   .filter-input:focus { outline: none; border-color: var(--color-accent); }

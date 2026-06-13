@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import type { MapNode } from '$lib/api/mindmaps';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -38,7 +39,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner" role="alert">Could not load quality map — {data.error}</div>
+    <AppAlert tone="error" title="Could not load quality map">{data.error}</AppAlert>
   {:else if data.qualityMap}
     <SetaraMindMap map={data.qualityMap} onnodeclick={handleNodeClick} />
   {:else}
@@ -58,6 +59,5 @@
   .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; }
   .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
   .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; }
   .empty-state { color: var(--color-text-muted); padding: 48px 24px; text-align: center; font-size: 0.875rem; }
 </style>

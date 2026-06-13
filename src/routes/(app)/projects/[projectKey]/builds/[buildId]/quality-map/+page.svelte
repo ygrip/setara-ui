@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import Button from '$lib/components/Button.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import type { MapNode } from '$lib/api/mindmaps';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
 
@@ -39,7 +40,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner" role="alert">Could not load quality map — {data.error}</div>
+    <AppAlert tone="error" title="Could not load quality map">{data.error}</AppAlert>
   {:else if data.qualityMap}
     <SetaraMindMap map={data.qualityMap} onnodeclick={handleNodeClick} />
   {:else}
@@ -56,6 +57,6 @@
   .page-eyebrow { margin: 0 0 4px; color: var(--color-accent); text-transform: uppercase; letter-spacing: 0.08em; font-size: 0.72rem; font-weight: 850; }
   .page-title { margin: 0; font-size: clamp(1.25rem, 4vw, 1.5rem); font-weight: 700; }
   .page-sub { color: var(--color-text-muted); font-size: 0.86rem; }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; }
+  :global(.page > .app-alert) { margin-bottom: 16px; }
   .empty-state { color: var(--color-text-muted); padding: 48px 24px; text-align: center; font-size: 0.875rem; }
 </style>

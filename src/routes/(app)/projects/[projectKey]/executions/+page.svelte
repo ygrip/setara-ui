@@ -9,6 +9,7 @@
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRuns } from '$lib/api/runs';
   import type { AutomationRun, HeatmapDay } from '$lib/api/runs';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data }: {
     data: {
@@ -346,7 +347,7 @@
 
   <!-- ── Runs table ──────────────────────────────────────────────── -->
   {#if data.error}
-    <div class="error-banner" role="alert">Could not load executions — {data.error}</div>
+    <AppAlert tone="error" title="Could not load executions">{data.error}</AppAlert>
   {:else if runs.length === 0}
     <div class="empty-state">
       <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
@@ -708,15 +709,7 @@
   }
 
   /* ── Error / empty states ───────────────────────────── */
-  .error-banner {
-    background: color-mix(in srgb, var(--color-danger), transparent 90%);
-    color: var(--color-danger);
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
-    border-radius: var(--radius);
-    padding: 14px 18px;
-    font-size: 0.875rem;
-    margin-bottom: 24px;
-  }
+  :global(.page > .app-alert) { margin-bottom: 24px; }
 
   .empty-state {
     text-align: center;

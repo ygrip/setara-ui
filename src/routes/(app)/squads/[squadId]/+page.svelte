@@ -5,6 +5,7 @@
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { SquadProjectCoverage } from '$lib/api/statistics';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -99,7 +100,7 @@
   </nav>
 
   {#if data.error}
-    <div class="error-banner">{data.error}</div>
+    <AppAlert tone="error">{data.error}</AppAlert>
   {:else}
     <header class="page-header">
       <div>
@@ -203,7 +204,7 @@
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
   .sep { opacity: 0.5; }
-  .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 12px 16px; margin-bottom: 20px; }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
   .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
   .header-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
   h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }

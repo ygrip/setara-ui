@@ -4,6 +4,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { listAllPlans, type ReleasePlan } from '$lib/api/plans';
   import { listAllSquads, type Squad } from '$lib/api/organization';
   import { createSquadPlan } from '$lib/api/squadPlans';
@@ -167,7 +168,7 @@
   </div>
 
   {#if error}
-    <div class="error-banner">{error}</div>
+    <AppAlert tone="error">{error}</AppAlert>
   {/if}
 
   {#if loading}
@@ -278,7 +279,7 @@
   .count { font-size: 0.8rem; color: var(--color-text-muted); margin-left: auto; }
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
-  .error-banner { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%); border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
+  :global(.page > .app-alert) { margin-bottom: 16px; }
   .empty { color: var(--color-text-muted); padding: 48px; text-align: center; font-size: 0.875rem; }
   .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; overflow-x: auto; }
   table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }

@@ -99,6 +99,14 @@ The app is built with **SvelteKit 5 runes** (`$state`, `$derived`, `$effect`) th
 
 ## Build and Deploy
 
+### Verification
+
+```bash
+npm run check     # Svelte diagnostics
+npm run test:ui   # lightweight UI adoption guardrails
+npm run build     # production build
+```
+
 ### Static build
 
 ```bash
@@ -108,14 +116,20 @@ npm run preview   # preview the production build locally
 
 ### Docker (via setara-platform)
 
-The frontend image is built and orchestrated by `setara-platform`:
+`setara-platform` runs the published frontend image by default:
 
 ```bash
 # From setara-platform directory:
-docker compose up frontend
+SETARA_UI_IMAGE=ghcr.io/ygrip/setara-ui:latest ./scripts/compose.sh up frontend
 
 # Or start the full stack:
 make live
+```
+
+Use the platform build overlay when testing unpublished local UI changes:
+
+```bash
+./scripts/compose.sh -f docker-compose.yml -f docker-compose.build.yml up --build frontend
 ```
 
 The `Dockerfile` in this repo performs a Node build stage and serves the output via a minimal runtime image.

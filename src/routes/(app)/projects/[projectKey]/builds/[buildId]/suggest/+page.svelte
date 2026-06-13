@@ -5,6 +5,7 @@
   import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   const projectKey = $derived(page.params.projectKey);
   const buildId = $derived(page.params.buildId);
@@ -129,10 +130,12 @@
       steps={suggestionThinkingSteps}
     />
   {:else if error}
-    <div class="error-banner">
-      <strong>Error:</strong> {error}
-      <Button variant="secondary" onclick={load}>Retry</Button>
-    </div>
+    <AppAlert tone="error" title="Error">
+      <div class="alert-row">
+        <span>{error}</span>
+        <Button variant="secondary" onclick={load}>Retry</Button>
+      </div>
+    </AppAlert>
   {:else if done}
     <div class="success-banner">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
@@ -178,7 +181,7 @@
       </div>
 
       {#if addError}
-        <div class="error-banner">{addError}</div>
+        <AppAlert tone="error">{addError}</AppAlert>
       {/if}
 
       <div class="suggestions-list">
@@ -221,10 +224,11 @@
   .page-sub { margin: 0; color: var(--color-text-muted); font-size: 0.88rem; }
   .back-link { color: var(--color-accent); text-decoration: none; font-size: 0.85rem; white-space: nowrap; }
 
-  .error-banner, .success-banner { padding: 16px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
-  .error-banner { background: color-mix(in srgb, #dc2626, transparent 90%); border: 1px solid color-mix(in srgb, #dc2626, transparent 70%); color: #dc2626; }
+  .success-banner { padding: 16px 20px; border-radius: 8px; margin-bottom: 20px; display: flex; align-items: center; gap: 12px; }
   .success-banner { background: color-mix(in srgb, #16a34a, transparent 90%); border: 1px solid color-mix(in srgb, #16a34a, transparent 70%); color: #16a34a; flex-wrap: wrap; }
-  .error-banner :global(button) { margin-left: auto; }
+  :global(.page > .app-alert),
+  :global(.suggestions-section > .app-alert) { margin-bottom: 20px; }
+  .alert-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .primary-btn { display: inline-flex; align-items: center; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--color-accent); color: #fff; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .primary-btn:disabled { opacity: 0.5; cursor: default; }
 

@@ -6,6 +6,7 @@
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
   import Button from '$lib/components/Button.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import type { BackendStep } from '$lib/components/scenario/step-grid.types';
   import type { TagInput as TagInputType } from '$lib/api/testcases';
 
@@ -146,8 +147,8 @@
     <p class="page-subtitle">Draft a new scenario in the selected repository directory.</p>
   </div>
 
-  {#if data.error}<div class="error-banner">Could not load directories — {data.error}</div>{/if}
-  {#if actionError}<div class="error-banner">{actionError}</div>{/if}
+  {#if data.error}<AppAlert tone="error" title="Could not load directories">{data.error}</AppAlert>{/if}
+  {#if actionError}<AppAlert tone="error">{actionError}</AppAlert>{/if}
 
   <form class="scenario-form" onsubmit={handleSubmit}>
 
@@ -316,12 +317,7 @@
   .page-title { font-size: clamp(1.15rem, 4vw, 1.5rem); font-weight: 700; margin: 0 0 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
 
-  .error-banner {
-    background: color-mix(in srgb, var(--color-danger), transparent 90%);
-    color: var(--color-danger);
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
-    border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px;
-  }
+  :global(.page > .app-alert) { margin-bottom: 16px; }
 
   /* ── Form ───────────────────────────────────────────────────────── */
   /*

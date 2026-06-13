@@ -25,6 +25,9 @@ jobs:
       - name: Type check (svelte-check)
         run: npm run check
 
+      - name: UI verification
+        run: npm run test:ui
+
       - name: Build verification
         run: npm run build
 

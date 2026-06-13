@@ -1,5 +1,6 @@
 <script lang="ts">
   import AiThinkingPanel from './AiThinkingPanel.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let {
     reviewUrl,
@@ -140,7 +141,7 @@
 {:else}
   <div class="review-idle">
     {#if error}
-      <p class="idle-error">{error}</p>
+      <AppAlert tone="error">{error}</AppAlert>
     {/if}
     <button class="request-btn" onclick={requestReview}>
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
@@ -309,12 +310,6 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
-  }
-
-  .idle-error {
-    font-size: 0.85rem;
-    color: var(--color-danger, #dc2626);
-    margin: 0;
   }
 
   .request-btn {

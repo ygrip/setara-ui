@@ -12,7 +12,11 @@
     type ImportResult,
     type ImportValidationResult
   } from '$lib/api/testcases';
-  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
+  import AppSkeleton from '$lib/ui/display/AppSkeleton.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import AppProgress from '$lib/ui/feedback/AppProgress.svelte';
+  import AppSpinner from '$lib/ui/loading/AppSpinner.svelte';
+  import AppStepper, { type AppStep } from '$lib/ui/navigation/AppStepper.svelte';
 
   let { data } = $props();
 
@@ -48,6 +52,11 @@
 
   const stepLabels = ['Upload', 'Review', 'Import', 'Done'];
   const stepMap: Record<Step, number> = { upload: 0, validated: 1, importing: 2, done: 3 };
+  const workflowSteps = $derived(stepLabels.map((label, index) => ({
+    id: label.toLowerCase(),
+    label,
+    state: stepMap[step] > index ? 'complete' : stepMap[step] === index ? 'active' : 'pending'
+  } satisfies AppStep)));
 
   // Load history on mount
   $effect(() => {
@@ -229,21 +238,10 @@
     <a class="btn-outline" href="/projects/{data.projectKey}/repository">← Repository</a>
   </div>
 
-  <!-- Progress stepper -->
-  <div class="stepper">
-    {#each stepLabels as label, i}
-      <div class="step" class:active={stepMap[step] === i} class:done={stepMap[step] > i}>
-        <span class="step-circle">{stepMap[step] > i ? '✓' : i + 1}</span>
-        <span class="step-label">{label}</span>
-      </div>
-      {#if i < stepLabels.length - 1}
-        <div class="step-line" class:filled={stepMap[step] > i}></div>
-      {/if}
-    {/each}
-  </div>
+  <AppStepper steps={workflowSteps} />
 
   {#if error}
-    <div class="error-banner">{error}</div>
+    <AppAlert tone="error">{error}</AppAlert>
   {/if}
 
   <!-- ── Step 1: Upload ────────────────────────────────────────── -->
@@ -418,7 +416,7 @@
     <div class="importing-state glass">
       {#if pollingJobId}
         <!-- Async: polling -->
-        <SetaraLoader mode="progress" size={72} label="Import queued" />
+        <AppSpinner mode="progress" size={72} label="Import queued" />
         <h2>Import queued</h2>
         <p>Your file has <strong>more than 500 rows</strong> and is being processed in the background.</p>
         {#if polledJob}
@@ -432,9 +430,12 @@
               <strong>{polledJob.processedRows} / {polledJob.totalRows}</strong>
             </div>
             {#if polledJob.totalRows > 0}
-              <div class="progress-bar-wrap">
-                <div class="progress-bar" style="width: {Math.round(polledJob.processedRows / polledJob.totalRows * 100)}%"></div>
-              </div>
+              <AppProgress
+                value={polledJob.processedRows}
+                max={polledJob.totalRows}
+                tone={polledJob.status === 'FAILED' ? 'error' : 'info'}
+                showValue
+              />
             {/if}
           </div>
         {:else}
@@ -442,7 +443,7 @@
         {/if}
       {:else}
         <!-- Sync: regular processing -->
-        <SetaraLoader mode="progress" size={72} label="Importing scenarios" />
+        <AppSpinner mode="progress" size={72} label="Importing scenarios" />
         <h2>Importing scenarios…</h2>
         <p>Creating directories, parsing steps, and saving scenarios. This may take a moment.</p>
       {/if}
@@ -531,7 +532,11 @@
     </div>
 
     {#if historyError}
-      <div class="error-banner">{historyError}</div>
+      <AppAlert tone="error">{historyError}</AppAlert>
+    {:else if historyLoading && history.length === 0}
+      <div class="history-skeleton" aria-label="Loading import history">
+        <AppSkeleton height="2.75rem" lines={3} />
+      </div>
     {:else if history.length === 0 && !historyLoading}
       <div class="empty-history">No imports yet for this project.</div>
     {:else}
@@ -587,15 +592,7 @@
   .page-title { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: var(--color-text); margin: 0 0 0.25rem; }
   .page-subtitle { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; }
 
-  /* Stepper */
-  .stepper { display: flex; align-items: center; margin-bottom: 2rem; flex-wrap: wrap; gap: 0.25rem; }
-  .step { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; color: var(--color-text-muted); }
-  .step.active .step-circle { background: var(--color-accent); color: #fff; border-color: var(--color-accent); }
-  .step.active .step-label { color: var(--color-text); font-weight: 600; }
-  .step.done .step-circle { background: var(--color-status-passed); color: #fff; border-color: var(--color-status-passed); }
-  .step-circle { width: 1.75rem; height: 1.75rem; border-radius: 50%; border: 2px solid var(--color-border); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.75rem; background: var(--color-surface); flex-shrink: 0; transition: all 0.2s; }
-  .step-line { flex: 1; height: 2px; background: var(--color-border); margin: 0 0.5rem; transition: background 0.2s; }
-  .step-line.filled { background: var(--color-status-passed); }
+  :global(.page > .app-stepper) { margin-bottom: 2rem; }
 
   /* Layout */
   .wizard-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start; }
@@ -603,9 +600,7 @@
     .wizard-layout { grid-template-columns: 1fr; }
     .page { padding: 1.25rem 1rem; }
     .page-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
-    .stepper { margin-bottom: 1.25rem; }
-    .step-label { font-size: 0.72rem; }
-    .step-line { min-width: 16px; max-width: 32px; }
+    :global(.page > .app-stepper) { margin-bottom: 1.25rem; }
     .glass { padding: 1rem; }
     .stats-row { gap: 0.5rem; }
     .stat { min-width: 56px; }
@@ -749,6 +744,7 @@
   .history-section { margin-top: 3rem; }
   .history-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
   .empty-history { color: var(--color-text-muted); font-size: 0.875rem; padding: 2rem; text-align: center; border: 1px dashed var(--color-border); border-radius: 8px; }
+  .history-skeleton { padding: 1rem; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); }
   .history-table-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
   .history-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .history-table th { text-align: left; padding: 0.6rem 1rem; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
@@ -762,9 +758,6 @@
   .date-cell { white-space: nowrap; font-size: 0.75rem; }
   .table-link { color: var(--color-accent); text-decoration: none; font-size: 1rem; padding: 0.2rem 0.4rem; border-radius: 4px; }
   .table-link:hover { background: var(--color-accent-subtle); }
-
-  /* Error banner */
-  .error-banner { background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); color: var(--color-status-failed); border-radius: 8px; padding: 0.75rem 1rem; font-size: 0.875rem; margin-bottom: 1rem; }
 
   /* ── Mobile: history table card layout ───────────────────────── */
   @media (max-width: 640px) {
@@ -799,9 +792,5 @@
     .history-table td[data-label=""] { justify-content: flex-end; }
     .col-hide-mobile { display: none !important; }
     .file-cell { max-width: none; white-space: normal; word-break: break-all; }
-    /* Stepper on small screens: shrink step labels */
-    .step { gap: 0.3rem; }
-    .step-label { display: none; }
-    .step.active .step-label { display: inline; }
   }
 </style>

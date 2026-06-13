@@ -7,6 +7,7 @@
   import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
   import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
   import { MockWebSocket, isStaticMockMode } from '$lib/mock/websocket';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -252,9 +253,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner">
-      Could not connect to backend — {data.error}
-    </div>
+    <AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>
   {/if}
 
   <!-- Metric cards row -->
@@ -487,15 +486,7 @@
     50% { opacity: 0.5; transform: scale(0.8); }
   }
 
-  .error-banner {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 20px;
-    font-size: 0.875rem;
-  }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
 
   .metrics-row {
     display: grid;

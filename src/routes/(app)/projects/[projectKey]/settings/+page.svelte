@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { updateProject } from '$lib/api/projects';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -67,9 +68,9 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner">Could not load project — {data.error}</div>
+    <AppAlert tone="error" title="Could not load project">{data.error}</AppAlert>
   {/if}
-  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
   {#if saved}<div class="success-banner">Project settings saved.</div>{/if}
 
   {#if data.project}
@@ -140,8 +141,8 @@
   .toggle-row span { display: grid; gap: 3px; color: var(--color-text); }
   .toggle-row small { color: var(--color-text-muted); }
   .form-actions { display: flex; justify-content: flex-end; }
-  .error-banner, .success-banner { border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; margin-bottom: 16px; }
-  .error-banner { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; }
+  :global(.page > .app-alert), .success-banner { margin-bottom: 16px; }
+  .success-banner { border-radius: var(--radius); padding: 12px 16px; font-size: 0.875rem; }
   .success-banner { background: color-mix(in srgb, var(--color-success), transparent 88%); color: var(--color-success); border: 1px solid color-mix(in srgb, var(--color-success), transparent 70%); }
   @media (max-width: 720px) {
     .field-grid { grid-template-columns: 1fr; }

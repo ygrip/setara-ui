@@ -5,6 +5,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, mockRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
   import { isMockMode } from '$lib/mock/client';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let roles = $state<ConfigRole[]>([]);
   let permissions = $state<AvailablePermission[]>([]);
@@ -126,7 +127,7 @@
 </svelte:head>
 
 <div class="section-wrap">
-  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
   {#if loading}
     <p class="muted">Loading roles…</p>
   {:else}
@@ -206,7 +207,7 @@
 <!-- Create role modal -->
 <Modal open={showCreate} title="Create Role" size="sm" onclose={() => showCreate = false}>
   <div class="modal-body">
-    {#if createError}<div class="error-banner">{createError}</div>{/if}
+    {#if createError}<AppAlert tone="error">{createError}</AppAlert>{/if}
     <label class="field">
       <span>Key <span class="req">*</span></span>
       <input bind:value={createForm.key} placeholder="QA_LEAD" />
@@ -414,15 +415,6 @@
     gap: 6px;
     font-size: 0.82rem;
     cursor: pointer;
-  }
-
-  .error-banner {
-    background: color-mix(in srgb, var(--color-danger), transparent 90%);
-    color: var(--color-danger);
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
-    border-radius: var(--radius);
-    padding: 10px 14px;
-    font-size: 0.85rem;
   }
 
   .muted { color: var(--color-text-muted); }

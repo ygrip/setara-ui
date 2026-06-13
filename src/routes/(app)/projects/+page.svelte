@@ -5,6 +5,7 @@
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { createProject, type Project } from '$lib/api/projects';
   import { getValidSession, hasPermission } from '$lib/auth';
 
@@ -87,9 +88,7 @@
   </div>
 
   {#if data.error}
-    <div class="error-banner">
-      Could not connect to backend — {data.error}
-    </div>
+    <AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>
   {/if}
 
   {#if filtered.length === 0 && !data.error}
@@ -205,15 +204,7 @@
     border-color: var(--color-accent);
   }
 
-  .error-banner {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 20px;
-    font-size: 0.875rem;
-  }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
 
   .empty-state {
     text-align: center;

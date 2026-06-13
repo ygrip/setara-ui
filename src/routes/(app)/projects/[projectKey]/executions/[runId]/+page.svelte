@@ -6,6 +6,9 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import ScenarioResultDetail from '$lib/components/ScenarioResultDetail.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import AppProgress from '$lib/ui/feedback/AppProgress.svelte';
+  import RunSessionTimeline from '$lib/ui/domain/RunSessionTimeline.svelte';
   import { wsManager } from '$lib/stores/websocket.svelte';
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRunResults } from '$lib/api/runs';
@@ -208,7 +211,7 @@
   </nav>
 
   {#if data.error}
-    <div class="error-banner">Could not load run — {data.error}</div>
+    <AppAlert tone="error" title="Could not load run">{data.error}</AppAlert>
   {:else if run}
 
     <!-- Header -->
@@ -258,12 +261,7 @@
     <div class="section">
       <h2 class="section-title">Progress</h2>
       <div class="progress-row">
-        <div class="progress-bar-wrap" aria-label="Pass rate">
-          <div class="progress-bar">
-            <div class="progress-fill" style="width: {passRate}%"></div>
-          </div>
-          <span class="progress-label">{passRate}% pass rate</span>
-        </div>
+        <AppProgress value={passRate} max={100} label="Pass rate" tone={failedScenarios > 0 ? 'warning' : 'success'} showValue />
         <span class="duration-chip">{duration(run.startedAt, run.finishedAt)}</span>
       </div>
     </div>
@@ -341,15 +339,7 @@
               Scenario results update as the execution worker processes queued automation events.
             </p>
             {#if events.length > 0}
-              <div class="event-feed">
-                {#each events as event}
-                  <div class="event-item">
-                    <span class="event-type">{event.type}</span>
-                    <span>{event.message ?? event.status ?? 'Execution update'}</span>
-                    <span class="event-time">{formatDate(event.occurredAt)}</span>
-                  </div>
-                {/each}
-              </div>
+              <RunSessionTimeline {events} />
             {/if}
           </div>
         </div>
@@ -442,15 +432,7 @@
   .sep { opacity: 0.5; }
   .mono { font-family: ui-monospace, monospace; font-size: 0.85em; }
 
-  .error-banner {
-    background: color-mix(in srgb, var(--color-danger), transparent 90%);
-    color: var(--color-danger);
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    margin-bottom: 20px;
-  }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
 
   /* ── Run header ────────────────────────────────────────────── */
   .run-header {
@@ -601,33 +583,8 @@
     gap: 16px;
   }
 
-  .progress-bar-wrap {
-    display: flex;
-    align-items: center;
-    gap: 12px;
+  .progress-row :global(.app-progress) {
     flex: 1;
-  }
-
-  .progress-bar {
-    flex: 1;
-    height: 8px;
-    background: var(--color-border);
-    border-radius: 4px;
-    overflow: hidden;
-    max-width: 400px;
-  }
-
-  .progress-fill {
-    height: 100%;
-    background: var(--color-success);
-    border-radius: 4px;
-    transition: width 0.4s ease;
-  }
-
-  .progress-label {
-    font-size: 0.8rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
   }
 
   .duration-chip {
@@ -679,26 +636,8 @@
     line-height: 1.6;
   }
 
-  .event-feed { display: grid; gap: 8px; margin-top: 4px; }
+  .live-section :global(.app-timeline) { margin-top: 4px; }
 
-  .event-item {
-    display: grid;
-    grid-template-columns: minmax(130px, auto) 1fr auto;
-    gap: 12px;
-    align-items: center;
-    padding: 8px 10px;
-    background: var(--color-bg);
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    font-size: 0.78rem;
-  }
-
-  .event-type {
-    font-family: ui-monospace, monospace;
-    color: var(--color-accent);
-  }
-
-  .event-time { color: var(--color-text-muted); font-size: 0.75rem; }
 
   /* ── Results table ─────────────────────────────────────────── */
   .results-header {
@@ -803,10 +742,6 @@
     .chart-layout {
       grid-template-columns: 1fr;
       justify-items: start;
-    }
-
-    .event-item {
-      grid-template-columns: 1fr;
     }
   }
 </style>

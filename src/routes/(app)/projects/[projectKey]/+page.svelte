@@ -4,6 +4,8 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
+  import StatusCard from '$lib/components/StatusCard.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { type ApiKey } from '$lib/api/apikeys';
 
   let copiedField = $state<string | null>(null);
@@ -92,7 +94,7 @@
   </nav>
 
   {#if data.error}
-    <div class="error-banner">Could not load project — {data.error}</div>
+    <AppAlert tone="error" title="Could not load project">{data.error}</AppAlert>
   {:else if data.project}
     <!-- Project header -->
     <div class="project-header">
@@ -122,14 +124,12 @@
         variant="default"
         icon="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"
       />
-      <div class="last-run-card">
-        <span class="last-run-label">Last Run Status</span>
-        {#if data.runs.length > 0}
-          <Badge text={lastRunStatus} variant={lastRunVariant} />
-        {:else}
-          <span class="no-runs">No runs yet</span>
-        {/if}
-      </div>
+      <StatusCard
+        label="Last Run Status"
+        status={data.runs.length > 0 ? lastRunStatus : 'No runs yet'}
+        variant={data.runs.length > 0 ? lastRunVariant : 'neutral'}
+        detail={data.runs.length > 0 ? 'Latest automation session' : 'Waiting for first automation result'}
+      />
       <MetricCard
         label="Scenarios"
         value={data.statistic?.totalScenarios ?? 0}
@@ -308,15 +308,7 @@
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
 
-  .error-banner {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    font-size: 0.875rem;
-    margin-bottom: 20px;
-  }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
 
   .project-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 
@@ -342,32 +334,10 @@
   .metrics-row {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    grid-auto-rows: 1fr;
+    align-items: stretch;
     gap: 16px;
     margin-bottom: 28px;
-  }
-
-  .last-run-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-    padding: 14px 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .last-run-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    font-weight: 700;
-    color: var(--color-text-muted);
-  }
-
-  .no-runs {
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
   }
 
   .section {

@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import DataTable from '$lib/components/DataTable.svelte';
   import { listSquadCoverage, listSquadProjectCoverage, type SquadCoverage, type SquadProjectCoverage } from '$lib/api/statistics';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -104,7 +105,7 @@
     </div>
   </div>
 
-  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
 
   <section class="section">
     <div class="section-heading">
@@ -231,14 +232,7 @@
   .bold { font-weight: 600; }
   .link { color: var(--color-accent); text-decoration: none; }
   .empty-cell { text-align: center; color: var(--color-text-muted); padding: 20px; }
-  .error-banner {
-    background: #fee2e2;
-    color: var(--color-danger);
-    border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 12px 16px;
-    margin-bottom: 20px;
-  }
+  :global(.page > .app-alert) { margin-bottom: 20px; }
 
   @media (max-width: 720px) {
     .section-heading { flex-direction: column; align-items: stretch; }

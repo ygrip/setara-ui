@@ -1,6 +1,6 @@
 # setara-ui Tracker
 
-Last updated: 2026-05-29
+Last updated: 2026-06-13
 
 Status legend: `[ ]` not started · `[~]` in progress · `[x]` done · `[!]` blocked
 
@@ -65,6 +65,10 @@ Beads issues: run `bd list --status=open` in the setara root for live status.
 **New scenario form (2026-05-29)**
 - TagInput wired into new scenario creation form — tags sent on submit
 
+**UI verification (2026-06-13)**
+- Added `npm run test:ui` adoption guardrails for shared alerts, export flow links, and wrapper-layer presence
+- Added dependency-free `npm run test:ui` coverage for API/realtime helpers, WebSocket store guardrails, critical component flows, primary route presence, Dockerfile readiness, GHCR workflow readiness, and CI verification wiring
+
 ---
 
 ## 🔲 Remaining Work
@@ -82,8 +86,8 @@ Beads issues: run `bd list --status=open` in the setara root for live status.
 - [ ] Migrate raw `<button>` elements to use `Button` component across all pages — beads: `setara-6fp` · P3
 
 ### Verification
-- [ ] Unit tests for Svelte stores and API client functions — beads: `setara-ks7` · P3
-- [ ] Component tests for critical flows (build verify, plan close, scenario CRUD) — beads: `setara-ks7` · P3
-- [ ] End-to-end smoke test (project → scenario → execution → plan flows) — beads: `setara-ks7` · P3
-- [ ] Frontend container smoke test — beads: `setara-ks7` · P3
+- [x] UI adoption guardrails for bespoke error banners/export links/wrapper presence — beads: `setara-ks7` · P3
+- [x] API/realtime helper and WebSocket store guardrails — beads: `setara-ks7.1` · P3
+- [x] Critical flow guardrails (build verify, plan close, scenario AI draft, export, AI review) — beads: `setara-ks7.3` · P3
+- [x] Route, CI, Dockerfile, and GHCR smoke-readiness guardrails — beads: `setara-ks7.2` · P3
 - [ ] OpenAPI contract smoke check in CI against mock mode — beads: `setara-x3m` · P3

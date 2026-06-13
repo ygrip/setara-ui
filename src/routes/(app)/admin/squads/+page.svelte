@@ -4,6 +4,7 @@
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { listAllSquads, createSquad, updateSquad, deleteSquad, getSquadDetail, addSquadMember, removeSquadMember, searchUsers, type Squad, type SquadMember, type UserDetail } from '$lib/api/organization';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
@@ -84,8 +85,8 @@
 
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
-  {#if data.error}<div class="error-banner">Could not connect — {data.error}</div>{/if}
-  {#if error}<div class="error-banner">{error}</div>{/if}
+  {#if data.error}<AppAlert tone="error" title="Could not connect">{data.error}</AppAlert>{/if}
+  {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
 
   <Card padding="md">
     <h2 class="panel-title">Squads</h2>
@@ -168,7 +169,6 @@
 
 <style>
   .section-wrap{display:flex;flex-direction:column;gap:20px}.page-title{font-size:1.5rem;font-weight:700;margin-bottom:4px}
-  .error-banner{background:#fee2e2;color:var(--color-danger);border:1px solid #fecaca;border-radius:var(--radius);padding:12px 16px;font-size:.875rem}
   .panel-title{font-size:1rem;font-weight:600;margin-bottom:14px;color:var(--color-text)}
   .section-title{font-size:.9rem;font-weight:600;margin:16px 0 8px;color:var(--color-text)}
   .empty-text{color:var(--color-text-muted);font-size:.875rem}.muted{color:var(--color-text-muted)}.bold{font-weight:500}.p-4{padding:16px}
