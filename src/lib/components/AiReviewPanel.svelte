@@ -21,6 +21,10 @@
     summary: string | null;
     recommendation: string | null;
     message: string | null;
+    generatedAt?: string | null;
+    provider?: string | null;
+    model?: string | null;
+    reviewType?: string | null;
   }
 
   let loading = $state(false);
@@ -125,6 +129,12 @@
 
     {#if result.message}
       <p class="review-note">{result.message}</p>
+    {/if}
+
+    {#if result.model || result.generatedAt}
+      <p class="review-meta">
+        {#if result.model}{result.model}{result.provider ? ` · ${result.provider}` : ''}{/if}{result.generatedAt ? ` · ${new Date(result.generatedAt).toLocaleString()}` : ''}
+      </p>
     {/if}
   </div>
 {:else}
@@ -285,6 +295,13 @@
     font-size: 0.78rem;
     color: var(--color-text-muted);
     font-style: italic;
+  }
+
+  .review-meta {
+    margin: 10px 0 0;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    opacity: 0.65;
   }
 
   .review-idle {

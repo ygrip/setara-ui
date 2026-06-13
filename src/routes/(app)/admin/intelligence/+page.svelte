@@ -162,6 +162,7 @@
     {/if}
 
     <!-- AI Feature Flags -->
+    {@const aiConfigured = data.health?.intelligenceEnabled ?? false}
     <div class="flags-section">
       <div class="flags-section-header">
         <div>
@@ -170,6 +171,9 @@
         </div>
         {#if flagsSaved}<span class="flags-saved-badge">Saved</span>{/if}
       </div>
+      {#if !aiConfigured}
+        <p class="flags-unconfigured">AI intelligence is not configured — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate these flags.</p>
+      {/if}
       <div class="flags-grid">
         {#each flagDefs as def}
           <div class="flag-row">
@@ -181,7 +185,7 @@
               class="toggle-btn"
               class:toggle-on={localFlags[def.key]}
               onclick={() => toggleFlag(def.key, !localFlags[def.key])}
-              disabled={flagsBusy}
+              disabled={flagsBusy || !aiConfigured}
               aria-pressed={localFlags[def.key]}
               aria-label="Toggle {def.label}"
             >
@@ -271,6 +275,8 @@
   .flag-name { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 2px; }
   .flag-desc { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
   .flags-error { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-danger, #dc2626); }
+  .flags-unconfigured { margin: 0 0 14px; font-size: 0.82rem; color: var(--color-text-muted); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 90%); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706), transparent 70%); border-radius: 6px; padding: 8px 12px; }
+  .flags-unconfigured code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
 
   /* Toggle switch */
   .toggle-btn { position: relative; flex-shrink: 0; width: 44px; height: 24px; border-radius: 12px; border: none; background: var(--color-border); cursor: pointer; transition: background 0.2s; padding: 0; }
