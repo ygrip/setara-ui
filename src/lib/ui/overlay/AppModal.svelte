@@ -19,7 +19,7 @@
     sm: 'xs', md: 'md', lg: 'lg', xl: 'xl', full: 'xl'
   };
 
-  let isOpen = $state(open);
+  let isOpen = $state(false);
 
   $effect(() => { isOpen = open; });
   $effect(() => { if (!isOpen) onclose?.(); });

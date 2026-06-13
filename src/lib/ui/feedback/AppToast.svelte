@@ -20,7 +20,7 @@
     children?: import('svelte').Snippet;
   } = $props();
 
-  let toastStatus = $state(open);
+  let toastStatus = $state(true);
 
   $effect(() => { toastStatus = open; });
   $effect(() => { if (!toastStatus) onclose?.(); });

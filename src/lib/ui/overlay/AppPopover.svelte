@@ -11,8 +11,10 @@
     children?: import('svelte').Snippet;
   } = $props();
 
-  let isOpen = $state(open);
+  let isOpen = $state(false);
   const uid = `pop-${Math.random().toString(36).slice(2, 8)}`;
+
+  $effect(() => { isOpen = open; });
 </script>
 
 <span class="app-popover">

@@ -17,9 +17,11 @@
     children?: import('svelte').Snippet;
   } = $props();
 
-  let isOpen = $state(open);
+  let isOpen = $state(false);
   const uid = `dd-${Math.random().toString(36).slice(2, 8)}`;
-  const placement = align === 'start' ? 'bottom-start' : 'bottom-end';
+  const placement = $derived(align === 'start' ? 'bottom-start' : 'bottom-end');
+
+  $effect(() => { isOpen = open; });
 </script>
 
 <div class="app-dropdown">

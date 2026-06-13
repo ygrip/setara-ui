@@ -15,7 +15,7 @@
     children?: import('svelte').Snippet;
   } = $props();
 
-  let isOpen = $state(open);
+  let isOpen = $state(false);
 
   $effect(() => { isOpen = open; });
   $effect(() => { if (!isOpen) onclose?.(); });
