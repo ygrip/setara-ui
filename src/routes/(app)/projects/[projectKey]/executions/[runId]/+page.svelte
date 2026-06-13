@@ -9,6 +9,7 @@
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRunResults } from '$lib/api/runs';
   import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
+  import { getApiBaseUrl } from '$lib/api/config';
 
   let { data }: {
     data: {
@@ -157,6 +158,8 @@
   const skippedScenarios = $derived(run?.skippedScenarios ?? results.filter(r => r.status === 'SKIPPED').length);
   const passRate = $derived(totalScenarios ? Math.round((passedScenarios / totalScenarios) * 100) : 0);
   const shortRunId = $derived(data.runId.slice(0, 8));
+  const reportXlsxUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/runs/${data.runId}/report?format=xlsx`);
+  const reportPdfUrl = $derived(`${getApiBaseUrl()}/api/projects/${data.projectKey}/runs/${data.runId}/report?format=pdf`);
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
   const runDonut = $derived({
     labels: ['Passed', 'Failed', 'Skipped'],
@@ -219,6 +222,10 @@
           class:socket-pill--live={wsManager.state === 'live'}
           class:socket-pill--reconnecting={wsManager.state === 'connecting'}
         >{wsManager.state}</span>
+      </div>
+      <div class="export-actions">
+        <a class="export-btn" href={reportXlsxUrl} download>Export XLSX</a>
+        <a class="export-btn" href={reportPdfUrl} download>Export PDF</a>
       </div>
     </div>
 
@@ -447,7 +454,14 @@
   }
 
   /* ── Run header ────────────────────────────────────────────── */
-  .run-header { margin-bottom: 24px; }
+  .run-header {
+    margin-bottom: 24px;
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
 
   .run-header-top {
     display: flex;
@@ -455,6 +469,19 @@
     gap: 12px;
     flex-wrap: wrap;
   }
+
+  .export-actions { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+  .export-btn {
+    font-size: 0.78rem;
+    padding: 4px 10px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: background 0.15s, color 0.15s;
+  }
+  .export-btn:hover { background: var(--color-bg-hover, #f3f4f6); color: var(--color-text); }
 
   .run-id    { color: var(--color-text-muted); font-size: 0.875rem; }
   .run-runner {
