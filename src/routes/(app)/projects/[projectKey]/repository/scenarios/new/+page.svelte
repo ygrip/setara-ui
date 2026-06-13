@@ -17,6 +17,8 @@
   let showDirectoryPicker = $state(false);
   let suggesting = $state(false);
   let suggestError = $state('');
+  let suggestInfo = $state('');
+  let suggestDraftHint = $state(false);
   let directoryFilter = $state('');
   let name = $state('');
   let priority = $state('MEDIUM');
@@ -55,6 +57,8 @@
     if (!name.trim() || suggesting) return;
     suggesting = true;
     suggestError = '';
+    suggestInfo = '';
+    suggestDraftHint = false;
     try {
       const directoryPath = breadcrumbNodes.map(n => n.name);
       const result = await suggestScenarioSteps(data.projectKey, {
@@ -74,11 +78,18 @@
           description: null,
           expectation: null
         }));
+        suggestDraftHint = true;
       } else {
-        suggestError = result.message ?? 'No steps were generated. Try a more specific scenario name.';
+        const msg = result.message ?? 'No steps were generated. Try a more specific scenario name.';
+        const isDisabled = msg.toLowerCase().includes('not enabled') || msg.toLowerCase().includes('not available');
+        if (isDisabled) {
+          suggestInfo = msg;
+        } else {
+          suggestError = msg;
+        }
       }
     } catch (err) {
-      suggestError = (err as Error).message;
+      suggestError = 'Could not reach AI provider. Your draft steps are unchanged — try again or add steps manually.';
     } finally {
       suggesting = false;
     }
@@ -210,18 +221,32 @@
           <h2 class="section-title">Steps</h2>
           <p class="steps-hint">Scroll left–right inside the table to see all columns.</p>
         </div>
-        <button
-          type="button"
-          class="suggest-btn"
-          onclick={handleSuggestSteps}
-          disabled={!name.trim() || busy || suggesting}
-          title={!name.trim() ? 'Enter a scenario name first' : 'Suggest steps using AI'}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
-          {suggesting ? 'Thinking…' : 'Suggest steps'}
-        </button>
+        <div class="suggest-wrap">
+          <button
+            type="button"
+            class="suggest-btn"
+            onclick={handleSuggestSteps}
+            disabled={!name.trim() || busy || suggesting}
+            aria-label={!name.trim() ? 'Enter a scenario name first to enable AI suggestions' : 'Suggest steps using AI'}
+            title={!name.trim() ? 'Enter a scenario name first' : 'Generate BDD draft steps from your scenario name and context'}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
+            {suggesting ? 'Thinking…' : 'Suggest steps'}
+          </button>
+          <span class="suggest-caption">AI drafts · always editable</span>
+        </div>
       </div>
 
+      {#if suggestDraftHint}
+        <div class="suggest-draft-hint" role="status">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          AI-generated drafts — review and edit each step before saving. These are never auto-saved.
+          <button type="button" class="hint-dismiss" onclick={() => suggestDraftHint = false} aria-label="Dismiss">✕</button>
+        </div>
+      {/if}
+      {#if suggestInfo}
+        <div class="suggest-info" role="status">{suggestInfo}</div>
+      {/if}
       {#if suggestError}
         <div class="suggest-error" role="alert">{suggestError}</div>
       {/if}
@@ -418,6 +443,56 @@
   .suggest-btn:disabled {
     opacity: 0.45;
     cursor: not-allowed;
+  }
+
+  .suggest-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .suggest-caption {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    opacity: 0.75;
+  }
+
+  .suggest-draft-hint {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8rem;
+    color: color-mix(in srgb, var(--color-accent), #333 30%);
+    background: color-mix(in srgb, var(--color-accent), transparent 92%);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 65%);
+    border-radius: 6px;
+    padding: 8px 12px;
+    margin-bottom: 10px;
+  }
+
+  .hint-dismiss {
+    margin-left: auto;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    padding: 0 2px;
+    line-height: 1;
+    opacity: 0.6;
+  }
+  .hint-dismiss:hover { opacity: 1; }
+
+  .suggest-info {
+    font-size: 0.825rem;
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-text-muted, #666), transparent 92%);
+    border: 1px solid color-mix(in srgb, var(--color-text-muted, #666), transparent 75%);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
   }
 
   .suggest-error {
