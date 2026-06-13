@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Dropdown } from 'flowbite-svelte';
+
   let {
     label,
     align = 'end',
@@ -14,10 +16,22 @@
     trigger?: import('svelte').Snippet;
     children?: import('svelte').Snippet;
   } = $props();
+
+  let isOpen = $state(open);
+  const uid = `dd-${Math.random().toString(36).slice(2, 8)}`;
+  const placement = align === 'start' ? 'bottom-start' : 'bottom-end';
 </script>
 
-<div class="app-dropdown" class:app-dropdown--open={open}>
-  <button class="app-dropdown__trigger" type="button" aria-haspopup="menu" aria-expanded={open} {disabled} onclick={() => open = !open}>
+<div class="app-dropdown">
+  <button
+    id={uid}
+    class="app-dropdown__trigger"
+    type="button"
+    aria-haspopup="menu"
+    aria-expanded={isOpen}
+    {disabled}
+    onclick={() => (isOpen = !isOpen)}
+  >
     {#if trigger}
       {@render trigger()}
     {:else}
@@ -25,11 +39,10 @@
       <span aria-hidden="true">⌄</span>
     {/if}
   </button>
-  {#if open}
-    <div class="app-dropdown__menu app-dropdown__menu--{align}" role="menu">
-      {@render children?.()}
-    </div>
-  {/if}
+
+  <Dropdown triggeredBy="#{uid}" {placement} bind:isOpen class="app-dropdown__menu" role="menu">
+    {@render children?.()}
+  </Dropdown>
 </div>
 
 <style>
@@ -51,6 +64,7 @@
     color: var(--color-text);
     cursor: pointer;
     font-weight: 700;
+    font-family: var(--font-body);
   }
 
   .app-dropdown__trigger:hover:not(:disabled) {
@@ -63,48 +77,36 @@
     cursor: not-allowed;
   }
 
-  .app-dropdown__menu {
-    position: absolute;
-    top: calc(100% + 8px);
-    z-index: 130;
-    min-width: 180px;
-    max-width: min(280px, calc(100vw - 24px));
-    padding: 6px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-md);
+  :global(.app-dropdown__menu) {
+    min-width: 180px !important;
+    max-width: min(280px, calc(100vw - 24px)) !important;
+    padding: 6px !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius) !important;
+    background: var(--color-surface) !important;
+    box-shadow: var(--shadow-md) !important;
   }
 
-  .app-dropdown__menu--start {
-    left: 0;
+  :global(.app-dropdown__menu button),
+  :global(.app-dropdown__menu a) {
+    width: 100% !important;
+    min-height: 34px !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 10px !important;
+    border-radius: 6px !important;
+    border: 0 !important;
+    background: transparent !important;
+    color: var(--color-text) !important;
+    text-align: left !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
   }
 
-  .app-dropdown__menu--end {
-    right: 0;
-  }
-
-  .app-dropdown__menu :global(button),
-  .app-dropdown__menu :global(a) {
-    width: 100%;
-    min-height: 34px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    border: 0;
-    background: transparent;
-    color: var(--color-text);
-    text-align: left;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  .app-dropdown__menu :global(button:hover),
-  .app-dropdown__menu :global(a:hover) {
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
+  :global(.app-dropdown__menu button:hover),
+  :global(.app-dropdown__menu a:hover) {
+    background: var(--color-accent-subtle) !important;
+    color: var(--color-accent) !important;
   }
 </style>
-

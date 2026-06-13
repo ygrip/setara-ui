@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { lockBodyScroll } from '$lib/scroll-lock';
+  import { Drawer } from 'flowbite-svelte';
 
   let {
     open = false,
@@ -15,66 +15,41 @@
     children?: import('svelte').Snippet;
   } = $props();
 
-  function handleBackdrop(e: MouseEvent) {
-    if (e.target === e.currentTarget) onclose?.();
-  }
+  let isOpen = $state(open);
 
-  function handleKeydown(e: KeyboardEvent) {
-    if (e.key === 'Escape') onclose?.();
-  }
-
-  $effect(() => {
-    if (!open) return;
-    return lockBodyScroll();
-  });
+  $effect(() => { isOpen = open; });
+  $effect(() => { if (!isOpen) onclose?.(); });
 </script>
 
-{#if open}
-  <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
-  <div class="app-drawer-backdrop" role="dialog" aria-modal="true" aria-label={title} tabindex="-1" onclick={handleBackdrop} onkeydown={handleKeydown}>
-    <aside class="app-drawer app-drawer--{side}">
-      <header class="app-drawer__header">
-        <h2>{title}</h2>
-        <button type="button" aria-label="Close drawer" onclick={onclose}>×</button>
-      </header>
-      <div class="app-drawer__body">
-        {@render children?.()}
-      </div>
-    </aside>
+<Drawer bind:open={isOpen} placement={side} outsideclose class="app-drawer">
+  <header class="app-drawer__header">
+    <h2>{title}</h2>
+    <button type="button" aria-label="Close drawer" onclick={() => { isOpen = false; }}>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <path d="M12 4L4 12M4 4l8 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </header>
+  <div class="app-drawer__body">
+    {@render children?.()}
   </div>
-{/if}
+</Drawer>
 
 <style>
-  .app-drawer-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 140;
-    display: flex;
-    background: rgba(0, 0, 0, 0.42);
-    backdrop-filter: blur(6px);
-    -webkit-backdrop-filter: blur(6px);
-    overflow: hidden;
+  :global(.app-drawer) {
+    width: min(440px, 100vw) !important;
+    height: 100dvh !important;
+    display: flex !important;
+    flex-direction: column !important;
+    border: 1px solid var(--color-border) !important;
+    background: color-mix(in srgb, var(--color-surface), transparent 3%) !important;
+    box-shadow: var(--shadow-md) !important;
+    overflow: hidden !important;
+    border-radius: 0 !important;
   }
 
-  .app-drawer {
-    width: min(440px, 100vw);
-    height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    border: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-surface), transparent 3%);
-    box-shadow: var(--shadow-md);
-  }
-
-  .app-drawer--left {
-    margin-right: auto;
-    border-left: 0;
-  }
-
-  .app-drawer--right {
-    margin-left: auto;
-    border-right: 0;
-  }
+  :global(.app-drawer.left-0) { border-left: 0 !important; }
+  :global(.app-drawer.right-0) { border-right: 0 !important; }
 
   .app-drawer__header {
     flex: 0 0 auto;
@@ -89,9 +64,11 @@
   .app-drawer__header h2 {
     min-width: 0;
     font-size: 1rem;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    margin: 0;
   }
 
   .app-drawer__header button {
@@ -102,8 +79,10 @@
     background: transparent;
     color: var(--color-text-muted);
     cursor: pointer;
-    font-size: 1.2rem;
-    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
   }
 
   .app-drawer__header button:hover {
@@ -120,9 +99,6 @@
   }
 
   @media (max-width: 520px) {
-    .app-drawer {
-      width: 100vw;
-    }
+    :global(.app-drawer) { width: 100vw !important; }
   }
 </style>
-

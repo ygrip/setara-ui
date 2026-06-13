@@ -102,8 +102,12 @@
               <td data-label="Tribe" class="muted">{squad.tribeName ?? '—'}</td>
               <td data-label="Created">{formatDate(squad.createdAt)}</td>
               <td data-label="">
-                <Button variant="ghost" size="sm" iconOnly onclick={() => openEdit(squad)} title="Edit" ariaLabel="Edit squad">✎</Button>
-                <Button variant="danger" size="sm" iconOnly onclick={() => handleDelete(squad)} title="Delete" ariaLabel="Delete squad">✕</Button>
+                <Button variant="ghost" iconOnly onclick={() => openEdit(squad)} title="Edit" ariaLabel="Edit squad">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.333 2a1.886 1.886 0 0 1 2.667 2.667L5.333 13.333 2 14l.667-3.333L11.333 2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </Button>
+                <Button variant="danger" iconOnly onclick={() => handleDelete(squad)} title="Delete" ariaLabel="Delete squad">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </Button>
               </td>
             </tr>
           {/each}

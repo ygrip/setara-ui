@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { Popover } from 'flowbite-svelte';
+
   let {
     open = false,
     trigger,
@@ -8,18 +10,19 @@
     trigger?: import('svelte').Snippet;
     children?: import('svelte').Snippet;
   } = $props();
+
+  let isOpen = $state(open);
+  const uid = `pop-${Math.random().toString(36).slice(2, 8)}`;
 </script>
 
-<div class="app-popover">
-  <button type="button" class="app-popover__trigger" aria-expanded={open} onclick={() => open = !open}>
+<span class="app-popover">
+  <button type="button" id={uid} class="app-popover__trigger" aria-expanded={isOpen}>
     {@render trigger?.()}
   </button>
-  {#if open}
-    <div class="app-popover__panel">
-      {@render children?.()}
-    </div>
-  {/if}
-</div>
+  <Popover triggeredBy="#{uid}" trigger="click" arrow={false} bind:isOpen class="app-popover__panel">
+    {@render children?.()}
+  </Popover>
+</span>
 
 <style>
   .app-popover {
@@ -35,17 +38,15 @@
     cursor: pointer;
   }
 
-  .app-popover__panel {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    z-index: 130;
-    width: min(320px, calc(100vw - 24px));
-    padding: 12px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    box-shadow: var(--shadow-md);
+  :global(.app-popover__panel) {
+    width: min(320px, calc(100vw - 24px)) !important;
+    padding: 12px !important;
+    border: 1px solid var(--color-border) !important;
+    border-radius: var(--radius) !important;
+    background: var(--color-surface) !important;
+    box-shadow: var(--shadow-md) !important;
+    font-family: var(--font-body) !important;
+    color: var(--color-text) !important;
+    font-size: 0.875rem !important;
   }
 </style>
-

@@ -1,6 +1,7 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { readFileSync, writeFileSync } from 'node:fs';
+import tailwindcss from '@tailwindcss/vite';
 
 function pruneUnusedSvelteKitServerImport() {
   return {
@@ -26,11 +27,11 @@ function pruneUnusedSvelteKitServerImport() {
 }
 
 export default defineConfig({
-  plugins: [pruneUnusedSvelteKitServerImport(), sveltekit()],
+  plugins: [tailwindcss(), pruneUnusedSvelteKitServerImport(), sveltekit()],
   ssr: {
     // layercake ships uncompiled .svelte files in dist/; tell Vite to bundle
     // them through the Svelte plugin instead of letting Node's ESM loader fail.
-    noExternal: ['layerchart', 'layercake']
+    noExternal: ['layerchart', 'layercake', 'flowbite-svelte']
   },
   build: {
     chunkSizeWarningLimit: 1200,
@@ -41,6 +42,7 @@ export default defineConfig({
           if (id.includes('@revolist')) return 'vendor-revogrid';
           if (id.includes('chart.js')) return 'vendor-charts';
           if (id.includes('highlight.js') || id.includes('marked')) return 'vendor-markdown';
+          if (id.includes('flowbite')) return 'vendor-flowbite';
           if (id.includes('@melt-ui') || id.includes('bits-ui') || id.includes('formsnap') || id.includes('sveltekit-superforms')) {
             return 'vendor-ui-primitives';
           }

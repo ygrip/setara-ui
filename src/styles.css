@@ -1,3 +1,23 @@
+/* ── Tailwind v4 ────────────────────────────────────────────── */
+@import "tailwindcss";
+
+/* Map setara accent to Tailwind's primary color palette */
+@theme {
+  --color-primary-50: #ECFCFB;
+  --color-primary-100: #d4f6f4;
+  --color-primary-200: #a8eee9;
+  --color-primary-300: #5EF2D6;
+  --color-primary-400: #1ccfc8;
+  --color-primary-500: #00AFA5;
+  --color-primary-600: #008B84;
+  --color-primary-700: #006b66;
+  --color-primary-800: #004a47;
+  --color-primary-900: #002d2b;
+}
+
+/* Tailwind dark variant matches our data-theme attribute */
+@custom-variant dark ([data-theme="dark"] &);
+
 /* ── Design tokens ─────────────────────────────────────────── */
 :root {
   /* Core palette */
