@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/state';
+  import { navigating, page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
@@ -471,6 +471,13 @@
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
         <span><strong>Preview mode</strong> — Showing sample data. Connect a live backend to see your real results.</span>
+      </div>
+    {/if}
+
+    {#if navigating.to}
+      <div class="route-skeleton" role="status" aria-live="polite" aria-label="Loading page">
+        <span class="route-skeleton__bar route-skeleton__bar--short"></span>
+        <span class="route-skeleton__bar"></span>
       </div>
     {/if}
 
@@ -1214,6 +1221,55 @@
     border-bottom-color: color-mix(in srgb, var(--color-accent), transparent 60%);
   }
 
+  .route-skeleton {
+    position: sticky;
+    top: var(--topbar-height);
+    z-index: 45;
+    display: grid;
+    gap: 7px;
+    padding: 10px 32px;
+    border-bottom: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-bg), transparent 6%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    pointer-events: none;
+  }
+
+  .route-skeleton__bar {
+    display: block;
+    width: min(420px, 72vw);
+    height: 9px;
+    border-radius: 999px;
+    background: linear-gradient(90deg,
+      color-mix(in srgb, var(--color-border), transparent 28%),
+      color-mix(in srgb, var(--color-accent), transparent 74%),
+      color-mix(in srgb, var(--color-border), transparent 28%)
+    );
+    background-size: 220% 100%;
+    animation: route-skeleton-shimmer 1.1s ease-in-out infinite;
+  }
+
+  .route-skeleton__bar--short {
+    width: min(220px, 44vw);
+    height: 7px;
+  }
+
+  @keyframes route-skeleton-shimmer {
+    from { background-position: 120% 0; }
+    to { background-position: -120% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-icon-anim,
+    .brand-name,
+    .topbar-brand-inline-text,
+    .search-placeholder,
+    .live-dot,
+    .route-skeleton__bar {
+      animation: none;
+    }
+  }
+
   /* ── Mobile backdrop ── */
   .backdrop {
     position: fixed;
@@ -1436,6 +1492,10 @@
 
     .content {
       padding: 20px 16px;
+    }
+
+    .route-skeleton {
+      padding: 9px 16px;
     }
   }
 </style>

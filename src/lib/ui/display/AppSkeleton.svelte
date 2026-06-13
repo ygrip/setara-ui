@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { Skeleton } from 'flowbite-svelte';
-
   let {
     width = '100%',
     height = '1rem',
@@ -18,7 +16,7 @@
 
 <div class="app-skeleton-group {className}" aria-hidden="true" style="--sk-w:{width};--sk-h:{height};--sk-r:{radius}">
   {#each Array(Math.max(1, lines)) as _, i}
-    <Skeleton class="app-skeleton" style={`width:${i === lines - 1 && lines > 1 ? '72%' : width}`} />
+    <span class="app-skeleton" style={`width:${i === lines - 1 && lines > 1 ? '72%' : width}`}></span>
   {/each}
 </div>
 
@@ -29,16 +27,17 @@
     width: 100%;
   }
 
-  :global(.app-skeleton) {
-    height: var(--sk-h, 1rem) !important;
-    border-radius: var(--sk-r, 8px) !important;
+  .app-skeleton {
+    display: block;
+    height: var(--sk-h, 1rem);
+    border-radius: var(--sk-r, 8px);
     background: linear-gradient(90deg,
       color-mix(in srgb, var(--color-border), transparent 35%),
       color-mix(in srgb, var(--color-surface), var(--color-border) 22%),
       color-mix(in srgb, var(--color-border), transparent 35%)
-    ) !important;
-    background-size: 220% 100% !important;
-    animation: app-skeleton-shimmer 1.35s ease-in-out infinite !important;
+    );
+    background-size: 220% 100%;
+    animation: app-skeleton-shimmer 1.35s ease-in-out infinite;
   }
 
   @keyframes app-skeleton-shimmer {

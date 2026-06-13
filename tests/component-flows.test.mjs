@@ -55,8 +55,9 @@ describe('Critical component interaction guardrails', () => {
     assert.match(source, /handleExport\('pdf'\)/);
     assert.match(source, /handleExport\('xlsx'\)/);
     assert.match(source, /previewMode/);
-    assert.match(source, /Report export is unavailable in preview mode/);
-    assert.match(source, /AppAlert tone="error"/);
+    assert.match(source, /notify\.error/);
+    assert.match(source, /Connect a live Setara backend to download reports/);
+    assert.match(source, /Could not export/);
     assert.doesNotMatch(source, /window\.location\.href/);
   });
 

@@ -110,7 +110,12 @@
               <td data-label="Name" class="bold">{user.displayName}</td>
               <td data-label="Created">{formatDate(user.createdAt)}</td>
               <td data-label="">
-                <Button variant="ghost" size="sm" iconOnly onclick={() => openSquadModal(user)} title="Manage squads" ariaLabel="Manage squads">⚙</Button>
+                <Button variant="ghost" size="sm" iconOnly onclick={() => openSquadModal(user)} title="Manage squads" ariaLabel="Manage squads">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z"/>
+                    <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.86l.05.05a2 2 0 1 1-2.83 2.83l-.05-.05A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 1.55V21a2 2 0 0 1-4 0v-.05a1.7 1.7 0 0 0-1-1.55 1.7 1.7 0 0 0-1.86.34l-.05.05a2 2 0 1 1-2.83-2.83l.05-.05A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 0 1 0-4h.05A1.7 1.7 0 0 0 4.6 9a1.7 1.7 0 0 0-.34-1.86l-.05-.05a2 2 0 1 1 2.83-2.83l.05.05A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 0 1 4 0v.05a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.86-.34l.05-.05a2 2 0 1 1 2.83 2.83l-.05.05A1.7 1.7 0 0 0 19.4 9c.24.6.83 1 1.55 1H21a2 2 0 0 1 0 4h-.05c-.72 0-1.31.4-1.55 1Z"/>
+                  </svg>
+                </Button>
               </td>
             </tr>
           {/each}
@@ -127,7 +132,11 @@
       <h3 class="section-title">Current Squads</h3>
       <div class="member-list">
         {#each squadUserDetail.squads as m}
-          <div class="member-row"><span><strong>{m.displayName}</strong> — {m.email}</span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove" ariaLabel="Remove from squad">✕</Button></div>
+          <div class="member-row"><span><strong>{m.displayName}</strong> — {m.email}</span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove" ariaLabel="Remove from squad">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </Button></div>
         {/each}
       </div>
     {/if}

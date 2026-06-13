@@ -1,8 +1,18 @@
 import type { LoadEvent } from '@sveltejs/kit';
+import { isMockMode } from '$lib/mock/client';
 
 export const ssr = false;
 
 export async function load({ fetch }: LoadEvent) {
+  if (isMockMode()) {
+    return {
+      health: null,
+      flags: null,
+      error: null,
+      unavailableReason: 'Intelligence and feature flags require a live Setara backend.'
+    };
+  }
+
   try {
     const [healthRes, flagsRes] = await Promise.all([
       fetch('/api/admin/intelligence/health'),

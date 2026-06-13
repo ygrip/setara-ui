@@ -103,12 +103,15 @@
   .btn-icon {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     flex-shrink: 0;
   }
 
-  .btn-icon :global(svg) {
+  .btn :global(svg) {
     width: 16px;
     height: 16px;
+    flex: 0 0 16px;
+    display: block;
   }
 
   .btn--sm {
@@ -119,19 +122,24 @@
 
   .btn--icon {
     width: 34px;
+    height: 34px;
     min-width: 34px;
     padding: 0;
     gap: 0;
+    font-size: 0;
+    line-height: 1;
   }
 
   .btn--icon.btn--sm {
     width: 30px;
+    height: 30px;
     min-width: 30px;
   }
 
-  .btn--sm .btn-icon :global(svg) {
+  .btn--sm :global(svg) {
     width: 14px;
     height: 14px;
+    flex-basis: 14px;
   }
 
   .btn--md {

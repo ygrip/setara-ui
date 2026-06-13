@@ -152,7 +152,11 @@
     {#if members.length > 0}
       <div class="member-list">
         {#each members as m}
-          <div class="member-row"><span><strong>{m.displayName}</strong> <span class="muted">{m.email}</span></span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveMember(m.userId)} title="Remove" ariaLabel="Remove member">✕</Button></div>
+          <div class="member-row"><span><strong>{m.displayName}</strong> <span class="muted">{m.email}</span></span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveMember(m.userId)} title="Remove" ariaLabel="Remove member">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true">
+              <path d="M18 6 6 18M6 6l12 12"/>
+            </svg>
+          </Button></div>
         {/each}
       </div>
     {:else}<p class="muted">No members.</p>{/if}
