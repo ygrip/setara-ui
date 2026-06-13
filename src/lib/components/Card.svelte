@@ -32,6 +32,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     box-shadow: var(--shadow);
+    height: 100%;
     min-width: 0;
     color: inherit;
     text-decoration: none;

@@ -60,6 +60,7 @@
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     display: flex;
+    height: 100%;
     overflow: hidden;
     min-width: 140px;
     min-height: 116px;

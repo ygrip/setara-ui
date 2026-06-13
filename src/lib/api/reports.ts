@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import { isMockMode } from '$lib/mock/client';
 
 export type ReportFormat = 'pdf' | 'xlsx';
 
@@ -48,23 +49,53 @@ async function errorMessage(response: Response): Promise<string> {
   if (contentType.includes('application/json')) {
     try {
       const body = await response.json();
-      return body.message ?? body.error ?? body.detail ?? fallback;
+      return sanitizeErrorText(body.message ?? body.error ?? body.detail ?? fallback);
     } catch {
       return fallback;
     }
   }
 
+  if (contentType.includes('text/html')) {
+    return 'Report export is not available from this UI host. Check the Setara API connection and try again.';
+  }
+
   const text = await response.text().catch(() => '');
-  return text.trim() || fallback;
+  return sanitizeErrorText(text.trim() || fallback);
+}
+
+function sanitizeErrorText(value: string): string {
+  const text = value.trim();
+  if (!text) return 'Unable to export report.';
+  if (/^\s*<!doctype html/i.test(text) || /^\s*<html[\s>]/i.test(text)) {
+    return 'Report export is not available from this UI host. Check the Setara API connection and try again.';
+  }
+  return text.length > 240 ? `${text.slice(0, 237)}...` : text;
+}
+
+function isReportContentType(contentType: string, format: ReportFormat): boolean {
+  if (!contentType) return true;
+  const normalized = contentType.toLowerCase();
+  return normalized.includes(MIME_BY_FORMAT[format])
+    || normalized.includes('application/octet-stream')
+    || normalized.includes('application/force-download');
 }
 
 export async function downloadReport(path: string, format: ReportFormat, fallbackName: string): Promise<void> {
+  if (isMockMode()) {
+    throw new Error('Report export is unavailable in preview mode. Connect a live Setara backend to download reports.');
+  }
+
   const response = await fetch(reportUrl(path, format), {
     headers: { Accept: MIME_BY_FORMAT[format] },
     credentials: 'include'
   });
 
   if (!response.ok) {
+    throw new Error(await errorMessage(response));
+  }
+
+  const contentType = response.headers.get('content-type') ?? '';
+  if (!isReportContentType(contentType, format)) {
     throw new Error(await errorMessage(response));
   }
 

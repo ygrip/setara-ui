@@ -605,10 +605,43 @@
   .build-meta-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
   .build-meta-text { margin: 0; font-size: 0.875rem; color: var(--color-text); line-height: 1.55; }
   .requirements-text { white-space: pre-wrap; word-break: break-word; }
-  .visual-panel { display: grid; grid-template-columns: minmax(360px, 520px) 1fr; gap: 28px; align-items: center; border: 1px solid var(--color-border); background: var(--color-surface); border-radius: var(--radius); padding: 24px; margin-bottom: 24px; }
-  .chart-wrap { display: flex; justify-content: center; }
-  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; }
-  .metrics div { border: 1px solid var(--color-border); border-radius: var(--radius); padding: 14px; background: var(--color-bg); }
+  .visual-panel {
+    display: grid;
+    grid-template-columns: minmax(360px, 520px) minmax(0, 1fr);
+    gap: 28px;
+    align-items: stretch;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    border-radius: var(--radius);
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .chart-wrap {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 360px;
+  }
+  .metrics {
+    align-self: center;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(112px, 1fr);
+    gap: 14px;
+    min-width: 0;
+  }
+  .metrics div {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    padding: 16px;
+    background: var(--color-bg);
+    min-height: 112px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    min-width: 0;
+  }
   .metrics span { display: block; color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
   .metrics strong { font-size: 1.35rem; }
   .section { margin-top: 22px; }
@@ -625,7 +658,7 @@
     .page-header { flex-direction: column; }
     .header-actions { justify-content: flex-start; flex-wrap: wrap; }
     .visual-panel { grid-template-columns: 1fr; gap: 16px; padding: 16px; }
-    .chart-wrap { max-width: 320px; margin: 0 auto; }
+    .chart-wrap { max-width: 320px; min-height: 280px; margin: 0 auto; }
     .metrics { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 500px) {

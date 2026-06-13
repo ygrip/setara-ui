@@ -1,5 +1,6 @@
 <script lang="ts">
   import { downloadReport, type ReportFormat } from '$lib/api/reports';
+  import { isMockMode } from '$lib/mock/client';
 
   let {
     reportPath,
@@ -14,6 +15,7 @@
   let open = $state(false);
   let busy = $state<ReportFormat | null>(null);
   let error = $state('');
+  const previewMode = isMockMode();
 
   const exportIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg>';
   const pdfIcon = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M8 13h1.5a1.5 1.5 0 0 1 0 3H8v-5"/><path d="M13 16v-5h1.5a2.5 2.5 0 0 1 0 5H13"/><path d="M18 11h-2v5"/></svg>';
@@ -21,12 +23,18 @@
 
   async function handleExport(format: ReportFormat) {
     if (busy) return;
+    if (previewMode) {
+      open = false;
+      error = 'Report export is unavailable in preview mode. Connect a live Setara backend to download reports.';
+      return;
+    }
     busy = format;
     error = '';
     try {
       await downloadReport(reportPath, format, filenameBase);
       open = false;
     } catch (e) {
+      open = false;
       error = e instanceof Error ? e.message : 'Unable to export report.';
     } finally {
       busy = null;
@@ -41,7 +49,8 @@
     aria-haspopup="menu"
     aria-expanded={open}
     disabled={!!busy}
-    onclick={() => open = !open}
+    title={previewMode ? 'Connect a live Setara backend to download reports' : undefined}
+    onclick={() => { error = ''; open = !open; }}
   >
     <span class="trigger-icon">{@html exportIcon}</span>
     <span>{busy ? `Exporting ${busy.toUpperCase()}…` : label}</span>
@@ -183,6 +192,8 @@
     right: 0;
     z-index: 60;
     width: min(320px, 80vw);
+    max-height: 7rem;
+    overflow: hidden;
     margin: 0;
     padding: 9px 11px;
     border: 1px solid color-mix(in srgb, var(--color-danger), transparent 65%);
