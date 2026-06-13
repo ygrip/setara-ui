@@ -1,7 +1,7 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
-COPY package.json ./
-RUN npm install
+COPY package.json package-lock.json ./
+RUN npm ci
 
 FROM node:22-alpine AS build
 WORKDIR /app
@@ -18,5 +18,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/build ./build
 COPY --from=build /app/package.json ./package.json
+
+# Run as non-root
+USER node
+
 EXPOSE 3000
+HEALTHCHECK --interval=10s --timeout=5s --retries=5 --start-period=10s \
+  CMD wget -q -O /dev/null http://localhost:3000/ || exit 1
 CMD ["node", "build"]
