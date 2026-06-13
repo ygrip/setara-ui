@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createScenario, type TestDirectory } from '$lib/api/testcases';
+  import { createScenario, suggestScenarioSteps, type TestDirectory } from '$lib/api/testcases';
+  import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
@@ -14,6 +15,8 @@
   let actionError = $state('');
   let nodeId = $state('');
   let showDirectoryPicker = $state(false);
+  let suggesting = $state(false);
+  let suggestError = $state('');
   let directoryFilter = $state('');
   let name = $state('');
   let priority = $state('MEDIUM');
@@ -46,6 +49,39 @@
       current = current.parentId ? byId.get(current.parentId) : undefined;
     }
     return result;
+  }
+
+  async function handleSuggestSteps() {
+    if (!name.trim() || suggesting) return;
+    suggesting = true;
+    suggestError = '';
+    try {
+      const directoryPath = breadcrumbNodes.map(n => n.name);
+      const result = await suggestScenarioSteps(data.projectKey, {
+        scenarioName: name.trim(),
+        directoryNodeId: nodeId || undefined,
+        directoryPath: directoryPath.length > 0 ? directoryPath : undefined,
+        tags: tags.length > 0 ? tags.map(t => ({ sanitized: t.sanitized ?? '', display: t.display })) : undefined,
+        existingSteps: detailSteps.filter(s => s.name?.trim())
+          .map(s => ({ keyword: s.keyword, name: s.name.trim() })),
+        maxSteps: 8
+      });
+      if (result.suggestions.length > 0) {
+        detailSteps = result.suggestions.map(s => ({
+          sequenceNo: s.sequenceNo,
+          keyword: s.keyword,
+          name: s.name,
+          description: null,
+          expectation: null
+        }));
+      } else {
+        suggestError = result.message ?? 'No steps were generated. Try a more specific scenario name.';
+      }
+    } catch (err) {
+      suggestError = (err as Error).message;
+    } finally {
+      suggesting = false;
+    }
   }
 
   async function handleSubmit(e: SubmitEvent) {
@@ -169,13 +205,40 @@
 
     <!-- ── Steps ─────────────────────────────────────────────────── -->
     <section class="section steps-section">
-      <h2 class="section-title">Steps</h2>
-      <p class="steps-hint">Scroll left–right inside the table to see all columns.</p>
-      <SetaraStepGridEditor
-        steps={detailSteps}
-        readonly={busy}
-        onchange={(updated) => { detailSteps = updated; }}
-      />
+      <div class="steps-header">
+        <div>
+          <h2 class="section-title">Steps</h2>
+          <p class="steps-hint">Scroll left–right inside the table to see all columns.</p>
+        </div>
+        <button
+          type="button"
+          class="suggest-btn"
+          onclick={handleSuggestSteps}
+          disabled={!name.trim() || busy || suggesting}
+          title={!name.trim() ? 'Enter a scenario name first' : 'Suggest steps using AI'}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
+          {suggesting ? 'Thinking…' : 'Suggest steps'}
+        </button>
+      </div>
+
+      {#if suggestError}
+        <div class="suggest-error" role="alert">{suggestError}</div>
+      {/if}
+
+      {#if suggesting}
+        <AiThinkingPanel
+          title="Suggesting steps"
+          subtitle="Analyzing scenario name and context to generate BDD steps."
+          steps={['Reading scenario name', 'Analyzing project context', 'Generating BDD steps', 'Formatting suggestions']}
+        />
+      {:else}
+        <SetaraStepGridEditor
+          steps={detailSteps}
+          readonly={busy}
+          onchange={(updated) => { detailSteps = updated; }}
+        />
+      {/if}
     </section>
 
     <!-- ── Actions ───────────────────────────────────────────────── -->
@@ -313,15 +376,58 @@
   .dir-path { color: var(--color-text-muted); font-size: 0.78rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
   /* ── Steps section ───────────────────────────────────────────────── */
+  .steps-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+  }
+
   .section-title { font-size: 1rem; font-weight: 700; margin: 0 0 4px; }
   .steps-hint {
     font-size: 0.75rem; color: var(--color-text-muted);
-    margin: 0 0 12px;
-    /* Only show on small screens where horizontal scrolling is needed */
+    margin: 0;
     display: none;
   }
   @media (max-width: 720px) {
     .steps-hint { display: block; }
+  }
+
+  .suggest-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 7px 12px;
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 50%);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+    color: var(--color-accent);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: background 0.15s, border-color 0.15s;
+  }
+  .suggest-btn:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-accent), transparent 80%);
+    border-color: var(--color-accent);
+  }
+  .suggest-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .suggest-error {
+    font-size: 0.825rem;
+    color: var(--color-warning, #f59e0b);
+    background: color-mix(in srgb, #f59e0b, transparent 90%);
+    border: 1px solid color-mix(in srgb, #f59e0b, transparent 70%);
+    border-radius: 6px;
+    padding: 10px 14px;
+    margin-bottom: 12px;
   }
 
   /* ── Actions ─────────────────────────────────────────────────────── */

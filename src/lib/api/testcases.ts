@@ -514,3 +514,39 @@ export async function getProjectTags(projectKey: string): Promise<TagView[]> {
   if (!res.ok) return [];
   return res.json();
 }
+
+export interface StepSuggestion {
+  sequenceNo: number;
+  keyword: string;
+  name: string;
+  confidence: number | null;
+  reason: string | null;
+}
+
+export interface StepSuggestionResponse {
+  suggestions: StepSuggestion[];
+  message: string | null;
+}
+
+export interface SuggestStepsRequest {
+  scenarioName: string;
+  projectDescription?: string;
+  directoryNodeId?: string;
+  directoryPath?: string[];
+  tags?: { sanitized: string; display: string }[];
+  existingSteps?: { keyword: string; name: string }[];
+  maxSteps?: number;
+}
+
+export async function suggestScenarioSteps(
+  projectKey: string,
+  request: SuggestStepsRequest
+): Promise<StepSuggestionResponse> {
+  if (isMockMode()) return { suggestions: [], message: 'AI step suggestion is not available in mock mode.' };
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/steps/suggest`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+  return res.json();
+}
