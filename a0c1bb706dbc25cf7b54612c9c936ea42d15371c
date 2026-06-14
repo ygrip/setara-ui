@@ -1,0 +1,23 @@
+Dockerfile
+  8389e4e996781514 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "a0c1bb706dbc25cf7b54612c9c936ea42d15371c",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 0,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
