@@ -6,6 +6,10 @@
 
 <p align="center">SvelteKit 5 frontend for Setara — real-time test execution dashboard, scenario repository, and build tracking</p>
 
+<p align="center">
+  <a href="https://github.com/ygrip/setara-ui/pkgs/container/setara-ui"><img src="https://img.shields.io/badge/GHCR-setara--ui-blue?logo=docker" alt="Docker" /></a>
+</p>
+
 ---
 
 ## Prerequisites
