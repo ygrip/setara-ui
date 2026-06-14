@@ -2,29 +2,15 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
-  import { createMockSession, getValidSession, storeSession, type SetaraRole } from '$lib/auth';
+  import { getValidSession, storeSession, sessionFromLoginResult } from '$lib/auth';
+  import { login } from '$lib/api/client';
 
   let email = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
 
-  const IS_MOCK = import.meta.env.VITE_MOCK === 'true';
-
-  const DEMO_ACCOUNTS: { label: string; email: string; role: SetaraRole; name: string }[] = [
-    { label: 'Admin',  email: 'admin@setara.dev',  role: 'ADMIN',  name: 'Admin User'  },
-    { label: 'QA',     email: 'qa@setara.dev',     role: 'QA',     name: 'QA Engineer' },
-    { label: 'Viewer', email: 'viewer@setara.dev', role: 'VIEWER', name: 'Viewer User' },
-    { label: 'Guest',  email: 'guest@setara.dev',  role: 'GUEST',  name: 'Guest User'  }
-  ];
-
-  // Map known demo emails → roles
-  const EMAIL_ROLE_MAP: Record<string, SetaraRole> = Object.fromEntries(
-    DEMO_ACCOUNTS.map(a => [a.email, a.role])
-  );
-
   onMount(() => {
-    // Already logged in? Go to workspace.
     if (getValidSession()) {
       goto('/dashboard', { replaceState: true });
     }
@@ -38,16 +24,18 @@
       return;
     }
     loading = true;
-    await new Promise(r => setTimeout(r, 400));
-    const trimmed = email.trim().toLowerCase();
-    const role: SetaraRole = EMAIL_ROLE_MAP[trimmed] ?? 'GUEST';
-    const name = email.split('@')[0].replace(/[._-]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-    storeSession(createMockSession(trimmed, name, role));
-    goto('/dashboard', { replaceState: true });
+    try {
+      const result = await login(email.trim(), password);
+      storeSession(sessionFromLoginResult(result));
+      goto('/dashboard', { replaceState: true });
+    } catch (err) {
+      error = err instanceof Error ? err.message : 'Login failed. Please try again.';
+    } finally {
+      loading = false;
+    }
   }
 
-  function quickLogin(account: typeof DEMO_ACCOUNTS[number]) {
-    storeSession(createMockSession(account.email, account.name, account.role));
+  function quickLogin(_account: unknown) {
     goto('/dashboard', { replaceState: true });
   }
 </script>
@@ -105,19 +93,6 @@
       </button>
     </form>
 
-    {#if IS_MOCK}
-      <div class="demo-accounts">
-        <span class="demo-label">Quick login</span>
-        <div class="demo-chips">
-          {#each DEMO_ACCOUNTS as account}
-            <button class="demo-chip demo-chip--{account.role.toLowerCase()}" onclick={() => quickLogin(account)} type="button">
-              {account.label}
-            </button>
-          {/each}
-        </div>
-        <p class="demo-note">Demo mode · Password for manual login: <code>setara</code></p>
-      </div>
-    {/if}
   </div>
 </div>
 

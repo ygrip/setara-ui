@@ -1,4 +1,4 @@
-export type SetaraRole = 'GUEST' | 'ADMIN' | 'QA' | 'VIEWER';
+export type SetaraRole = 'GUEST' | 'SYSTEM_ADMIN' | 'ADMIN' | 'QA_LEAD' | 'QA' | 'DEVELOPER' | 'VIEWER';
 
 export type SetaraSession = {
   email: string;
@@ -7,31 +7,37 @@ export type SetaraSession = {
   permissions: string[];
   accessToken: string;
   expiresAt: string;
-  refreshExpiresAt: string;
 };
 
 const SESSION_KEY = 'setara_session';
-const REFRESH_KEY = 'setara_refresh';
-const ACCESS_TTL_MS = 30 * 60 * 1000;
-const REFRESH_TTL_MS = 8 * 60 * 60 * 1000;
 
 const ROLE_PERMISSIONS: Record<SetaraRole, string[]> = {
-  GUEST: ['project:read', 'scenario:read', 'execution:read', 'plan:read'],
-  ADMIN: ['project:read', 'project:write', 'scenario:read', 'scenario:write', 'execution:read', 'plan:read', 'plan:write', 'settings:read', 'settings:write', 'user:read', 'user:write'],
-  QA: ['project:read', 'scenario:read', 'scenario:write', 'execution:read', 'plan:read', 'plan:write', 'settings:read'],
-  VIEWER: ['project:read', 'scenario:read', 'execution:read', 'plan:read']
+  GUEST:        ['project:read', 'scenario:read', 'execution:read', 'plan:read'],
+  VIEWER:       ['project:read', 'scenario:read', 'execution:read', 'plan:read', 'build:read'],
+  DEVELOPER:    ['project:read', 'scenario:read', 'execution:read', 'execution:write', 'plan:read', 'build:read'],
+  QA:           ['project:read', 'scenario:read', 'scenario:write', 'execution:read', 'execution:write', 'plan:read', 'plan:write', 'settings:read', 'build:read', 'build:write', 'build:verify'],
+  QA_LEAD:      ['project:read', 'project:write', 'scenario:read', 'scenario:write', 'execution:read', 'execution:write', 'plan:read', 'plan:write', 'settings:read', 'settings:write', 'build:read', 'build:write', 'build:verify'],
+  ADMIN:        ['project:read', 'project:write', 'scenario:read', 'scenario:write', 'execution:read', 'execution:write', 'plan:read', 'plan:write', 'settings:read', 'settings:write', 'user:read', 'user:write', 'build:read', 'build:write', 'build:verify'],
+  SYSTEM_ADMIN: ['project:read', 'project:write', 'scenario:read', 'scenario:write', 'execution:read', 'execution:write', 'plan:read', 'plan:write', 'settings:read', 'settings:write', 'user:read', 'user:write', 'build:read', 'build:write', 'build:verify'],
 };
 
-export function createMockSession(email: string, name: string, role: SetaraRole = 'GUEST'): SetaraSession {
-  const now = Date.now();
+export function sessionFromLoginResult(result: {
+  token: string;
+  email: string;
+  displayName: string;
+  systemRole: string;
+  expiresAt: string;
+}): SetaraSession {
+  const role = (result.systemRole as SetaraRole) in ROLE_PERMISSIONS
+    ? (result.systemRole as SetaraRole)
+    : 'GUEST';
   return {
-    email,
-    name,
+    email: result.email,
+    name: result.displayName,
     role,
     permissions: ROLE_PERMISSIONS[role],
-    accessToken: `mock_access_${crypto.randomUUID?.() ?? now}`,
-    expiresAt: new Date(now + ACCESS_TTL_MS).toISOString(),
-    refreshExpiresAt: new Date(now + REFRESH_TTL_MS).toISOString()
+    accessToken: result.token,
+    expiresAt: result.expiresAt,
   };
 }
 
@@ -39,14 +45,13 @@ export function storeSession(session: SetaraSession) {
   const json = JSON.stringify(session);
   sessionStorage.setItem(SESSION_KEY, json);
   localStorage.setItem(SESSION_KEY, json);
-  localStorage.setItem(REFRESH_KEY, JSON.stringify({ email: session.email, refreshExpiresAt: session.refreshExpiresAt }));
 }
 
 export function getSession(): SetaraSession | null {
   const raw = sessionStorage.getItem(SESSION_KEY) ?? localStorage.getItem(SESSION_KEY);
   if (!raw) return null;
   try {
-    return normalizeSession(JSON.parse(raw));
+    return JSON.parse(raw) as SetaraSession;
   } catch {
     clearSession();
     return null;
@@ -57,45 +62,15 @@ export function getValidSession(): SetaraSession | null {
   const session = getSession();
   if (!session) return null;
   if (new Date(session.expiresAt).getTime() > Date.now()) return session;
-  return refreshSession();
-}
-
-export function refreshSession(): SetaraSession | null {
-  const session = getSession();
-  if (!session) return null;
-  if (new Date(session.refreshExpiresAt).getTime() <= Date.now()) {
-    clearSession();
-    return null;
-  }
-  const refreshed: SetaraSession = {
-    ...session,
-    accessToken: `mock_access_${crypto.randomUUID?.() ?? Date.now()}`,
-    expiresAt: new Date(Date.now() + ACCESS_TTL_MS).toISOString()
-  };
-  storeSession(refreshed);
-  return refreshed;
+  clearSession();
+  return null;
 }
 
 export function clearSession() {
   sessionStorage.removeItem(SESSION_KEY);
   localStorage.removeItem(SESSION_KEY);
-  localStorage.removeItem(REFRESH_KEY);
 }
 
 export function hasPermission(session: SetaraSession | null, permission: string) {
   return !!session?.permissions?.includes(permission);
-}
-
-function normalizeSession(raw: Partial<SetaraSession>): SetaraSession {
-  const role = raw.role && ROLE_PERMISSIONS[raw.role] ? raw.role : 'GUEST';
-  const now = Date.now();
-  return {
-    email: raw.email ?? '',
-    name: raw.name ?? raw.email ?? 'Setara User',
-    role,
-    permissions: raw.permissions?.length ? raw.permissions : ROLE_PERMISSIONS[role],
-    accessToken: raw.accessToken ?? `mock_access_${now}`,
-    expiresAt: raw.expiresAt ?? new Date(now + ACCESS_TTL_MS).toISOString(),
-    refreshExpiresAt: raw.refreshExpiresAt ?? new Date(now + REFRESH_TTL_MS).toISOString()
-  };
 }
