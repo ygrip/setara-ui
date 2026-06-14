@@ -1,0 +1,27 @@
+src/lib/auth.ts
+  8389e4e996781514 1,15-21,24-33,35-36,39-40,54,65-66
+src/routes/login/+page.svelte
+  8389e4e996781514 5-6,27-35,38
+src/lib/api/client.ts
+  8389e4e996781514 2,4-29,31-32,36-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "3e3e8faf0f2884e9f10600b0bd0378800ee82162",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 72,
+      "total_deletions": 90,
+      "accepted_lines": 72,
+      "overriden_lines": 0
+    }
+  }
+}
