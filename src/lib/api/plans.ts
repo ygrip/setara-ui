@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListAllPlans } from '$lib/mock/client';
@@ -69,15 +69,6 @@ export interface PlanMetrics {
   notExecuted: number;
   passPercentage: number;
   executionCoverage: number;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 /** Global plans list — optionally filtered by squad */

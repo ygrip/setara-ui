@@ -1,6 +1,7 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { isMockMode } from '$lib/mock/client';
+  import { apiFetch } from '$lib/api/client';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
@@ -33,14 +34,14 @@
     localFlags = { ...localFlags, [key]: value };
     flagsBusy = true; flagsError = ''; flagsSaved = false;
     try {
-      const res = await fetch('/api/admin/intelligence/feature-flags', {
+      const res = await apiFetch('/api/admin/intelligence/feature-flags', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [key]: value })
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        flagsError = (json as any).message ?? `Failed to update (HTTP ${res.status})`;
+        flagsError = (json as any).error ?? `Failed to update (HTTP ${res.status})`;
         localFlags = { ...localFlags, [key]: prev };
       } else {
         localFlags = await res.json();
@@ -60,11 +61,11 @@
     reindexBusy = true;
     reindexResult = '';
     try {
-      const res = await fetch(`/api/admin/intelligence/reindex?projectKey=${encodeURIComponent(reindexProjectKey)}`, { method: 'POST' });
+      const res = await apiFetch(`/api/admin/intelligence/reindex?projectKey=${encodeURIComponent(reindexProjectKey)}`, { method: 'POST' });
       const json = await res.json();
       reindexResult = res.ok
         ? `Queued ${json.queuedScenarios} scenarios for project ${json.projectKey}`
-        : `Error: ${json.message ?? res.status}`;
+        : `Error: ${json.error ?? res.status}`;
     } catch (e: any) {
       reindexResult = `Error: ${e.message}`;
     } finally {
@@ -76,9 +77,9 @@
     createIndexBusy = true;
     createIndexResult = '';
     try {
-      const res = await fetch('/api/admin/intelligence/create-index', { method: 'POST' });
+      const res = await apiFetch('/api/admin/intelligence/create-index', { method: 'POST' });
       const json = await res.json();
-      createIndexResult = json.message ?? (res.ok ? 'Done' : `HTTP ${res.status}`);
+      createIndexResult = json.message ?? json.error ?? (res.ok ? 'Done' : `HTTP ${res.status}`);
       if (res.ok) invalidateAll();
     } catch (e: any) {
       createIndexResult = `Error: ${e.message}`;

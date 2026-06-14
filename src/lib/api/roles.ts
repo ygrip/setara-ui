@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import { isMockMode } from '$lib/mock/client';
 
 export interface ConfigRole {
@@ -16,15 +16,6 @@ export interface AvailablePermission {
   area: string;
   key: string;
   label: string;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function listConfigRoles(): Promise<ConfigRole[]> {

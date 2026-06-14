@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import { authHeaders } from './client';
 import { isMockMode } from '$lib/mock/client';
 
 export type ReportFormat = 'pdf' | 'xlsx';
@@ -86,8 +87,7 @@ export async function downloadReport(path: string, format: ReportFormat, fallbac
   }
 
   const response = await fetch(reportUrl(path, format), {
-    headers: { Accept: MIME_BY_FORMAT[format] },
-    credentials: 'include'
+    headers: { Accept: MIME_BY_FORMAT[format], ...authHeaders() }
   });
 
   if (!response.ok) {

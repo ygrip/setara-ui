@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import type { ReleasePlan, PlanBuild, PlanMetrics } from './plans';
@@ -6,15 +6,6 @@ import { isMockMode, mockGetSquadPlanMetrics, mockListAllPlans, mockGetSquadPlan
 
 // Re-export shared types for convenience
 export type { ReleasePlan, PlanBuild, PlanMetrics };
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
-}
 
 // ── Squad plan list & detail ────────────────────────────────────────────
 

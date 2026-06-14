@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListRuns, mockGetRun, mockListRunResults, mockGetRunHeatmap } from '$lib/mock/client';
@@ -58,15 +58,6 @@ export interface ScenarioRunResult {
   exceptionMessage: string | null;
 }
 
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
-}
-
 export async function listRuns(projectKey: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<AutomationRun>> {
   if (isMockMode()) return mockListRuns(projectKey, cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/projects/${projectKey}/runs${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
@@ -93,5 +84,6 @@ export async function getRunHeatmap(projectKey: string, days = 182): Promise<Hea
   if (isMockMode()) return mockGetRunHeatmap(projectKey, days);
   const params = new URLSearchParams({ days: String(days) });
   const res = await apiFetch(`/api/projects/${projectKey}/runs/heatmap?${params}`);
+  if (!res.ok) return [];
   return res.json();
 }

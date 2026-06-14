@@ -1,6 +1,7 @@
 <script lang="ts">
   import AiThinkingPanel from './AiThinkingPanel.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
+  import { authHeaders } from '$lib/api/client';
   import { normalizeErrorMessage, readJsonOrThrow } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
@@ -53,7 +54,7 @@
     error = '';
     result = null;
     try {
-      const res = await fetch(apiReviewUrl(), { method: 'POST', credentials: 'include' });
+      const res = await fetch(apiReviewUrl(), { method: 'POST', headers: authHeaders() });
       const json = await readJsonOrThrow<AiReviewResult>(res, aiReviewUnavailableMessage);
       if (json.message && !json.summary && !json.findings?.length) {
         error = json.message;

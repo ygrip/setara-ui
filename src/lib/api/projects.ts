@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListProjects, mockGetProject } from '$lib/mock/client';
@@ -11,15 +11,6 @@ export interface Project {
   description: string | null;
   active?: boolean;
   createdAt: string;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function listProjects(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Project>> {

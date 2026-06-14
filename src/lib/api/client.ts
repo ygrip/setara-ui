@@ -29,7 +29,7 @@ export async function login(email: string, password: string) {
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
-    throw new Error(body.message ?? 'Invalid email or password');
+    throw new Error(body.error ?? 'Invalid email or password');
   }
   return response.json();
 }

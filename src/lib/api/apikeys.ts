@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import { isMockMode, mockListApiKeys, mockCreateApiKey, mockRevokeApiKey, mockRotateApiKey } from '$lib/mock/client';
 
 export interface ApiKey {
@@ -8,15 +8,6 @@ export interface ApiKey {
   scopes: string;
   createdAt: string;
   revokedAt: string | null;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function listApiKeys(projectKey: string): Promise<ApiKey[]> {

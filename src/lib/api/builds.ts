@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
 import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion } from '$lib/mock/client';
 
@@ -77,15 +77,6 @@ export interface BuildAuditEvent {
   actor: string | null;
   occurredAt: string;
   metadata: Record<string, unknown> | null;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function listBuilds(projectKey: string, status?: string, sortBy?: string, sortDir?: string): Promise<ProjectBuild[]> {

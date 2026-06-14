@@ -1,5 +1,7 @@
 import type { LoadEvent } from '@sveltejs/kit';
 import { isMockMode } from '$lib/mock/client';
+import { getApiBaseUrl } from '$lib/api/config';
+import { authHeaders } from '$lib/api/client';
 
 export const ssr = false;
 
@@ -13,10 +15,13 @@ export async function load({ fetch }: LoadEvent) {
     };
   }
 
+  const base = getApiBaseUrl();
+  const headers = authHeaders();
+
   try {
     const [healthRes, flagsRes] = await Promise.all([
-      fetch('/api/admin/intelligence/health'),
-      fetch('/api/admin/intelligence/feature-flags')
+      fetch(`${base}/api/admin/intelligence/health`, { headers }),
+      fetch(`${base}/api/admin/intelligence/feature-flags`, { headers })
     ]);
     const health = healthRes.ok ? await healthRes.json() : null;
     const flags = flagsRes.ok ? await flagsRes.json() : null;

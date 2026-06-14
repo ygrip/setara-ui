@@ -1,4 +1,5 @@
 import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
 import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
 
@@ -66,15 +67,6 @@ export interface ManualExecution {
   finishedAt: string | null;
   durationMs: number | null;
   createdAt: string;
-}
-
-async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`, init);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function listDirectories(projectKey: string, parentId?: string | null, status = 'ACTIVE'): Promise<TestDirectory[]> {

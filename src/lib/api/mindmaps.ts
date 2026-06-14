@@ -1,4 +1,4 @@
-import { getApiBaseUrl } from './config';
+import { apiFetch } from './client';
 import { isMockMode } from '$lib/mock/client';
 import { mockNodesByProject, mockPlansByProject, mockScenariosByProject, mockSquadPlans, mockPlanBuilds, mockBuildsByProject } from '$lib/mock/data';
 
@@ -51,15 +51,6 @@ export interface MapTarget {
   entityType: string;
   entityId: string;
   href: string;
-}
-
-async function apiFetch(path: string): Promise<Response> {
-  const res = await fetch(`${getApiBaseUrl()}${path}`);
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API error ${res.status}: ${text || res.statusText}`);
-  }
-  return res;
 }
 
 export async function getPlanQualityMap(projectKey: string, planId: string, options: {
