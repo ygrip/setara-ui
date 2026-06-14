@@ -1,0 +1,25 @@
+tests/component-flows.test.mjs
+  8389e4e996781514 70
+tests/api-client.test.mjs
+  8389e4e996781514 72-74,77,89
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "e01f4bbf78ed1d1ae4e104717bde96a4db7a4a01",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 6,
+      "total_deletions": 3,
+      "accepted_lines": 6,
+      "overriden_lines": 0
+    }
+  }
+}
