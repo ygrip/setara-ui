@@ -69,9 +69,12 @@ describe('API client helpers', () => {
       'src/lib/api/organization.ts'
     ];
 
+    // All modules must route API calls through the shared apiFetch from client.ts,
+    // which injects auth headers and handles 401 redirects centrally.
+    // testcases.ts also uses getApiBaseUrl() directly for non-apiFetch URLs (imports, exports).
     const missingGuards = clients.filter((file) => {
       const source = read(file);
-      return !source.includes('getApiBaseUrl()') || !source.includes('!res.ok');
+      return !source.includes("from './client'") && !source.includes('getApiBaseUrl()');
     });
 
     assert.deepEqual(missingGuards, []);
@@ -83,7 +86,7 @@ describe('API client helpers', () => {
     assert.match(source, /contentType\.includes\('text\/html'\)/);
     assert.match(source, /<!doctype html/i);
     assert.match(source, /window\.location\.origin/);
-    assert.match(source, /credentials: 'include'/);
+    assert.match(source, /authHeaders\(\)/);
     assert.match(source, /URL\.createObjectURL/);
     assert.match(source, /blob\.size === 0/);
   });

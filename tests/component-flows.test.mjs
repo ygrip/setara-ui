@@ -67,7 +67,7 @@ describe('Critical component interaction guardrails', () => {
     assert.match(source, /AiThinkingPanel/);
     assert.match(source, /loading = true/);
     assert.match(source, /getApiBaseUrl/);
-    assert.match(source, /fetch\(apiReviewUrl\(\), \{ method: 'POST', credentials: 'include' \}\)/);
+    assert.match(source, /fetch\(apiReviewUrl\(\), \{ method: 'POST', headers: authHeaders\(\) \}\)/);
     assert.match(source, /readJsonOrThrow<AiReviewResult>/);
     assert.match(source, /normalizeErrorMessage/);
     assert.match(source, /AppAlert tone="error"/);
