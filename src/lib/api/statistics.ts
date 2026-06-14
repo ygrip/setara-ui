@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import {
   isMockMode,
   mockListProjectStatistics,
@@ -61,14 +62,14 @@ export interface SquadProjectCoverage {
 export async function listProjectStatistics(): Promise<ProjectStatistic[]> {
   if (isMockMode()) return mockListProjectStatistics();
   const res = await apiFetch('/api/statistics/projects/latest');
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function listProjectStatisticHistory(projectKey: string, days = 30): Promise<ProjectStatistic[]> {
   if (isMockMode()) return mockListProjectStatisticHistory(projectKey, days);
   const params = new URLSearchParams({ days: String(days) });
   const res = await apiFetch(`/api/statistics/projects/${projectKey}/history?${params}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getDashboardSummary(): Promise<DashboardSummary> {
@@ -93,7 +94,7 @@ export async function getDashboardSummary(): Promise<DashboardSummary> {
     };
   }
   const res = await apiFetch('/api/statistics/dashboard/summary');
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function listAggregateStatisticHistory(start: string, end: string, groupedBy: 'daily' | 'weekly' | 'monthly'): Promise<AggregateStatisticPoint[]> {
@@ -153,7 +154,7 @@ export async function listAggregateStatisticHistory(start: string, end: string, 
   }
   const params = new URLSearchParams({ start, end, grouped_by: groupedBy });
   const res = await apiFetch(`/api/statistics/projects/aggregate-history?${params}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function listSquadCoverage(params: {
@@ -219,7 +220,7 @@ export async function listSquadCoverage(params: {
   if (params.sortBy) query.set('sort_by', params.sortBy);
   if (params.sortDir) query.set('sort_dir', params.sortDir);
   const res = await apiFetch(`/api/statistics/coverage/squads?${query}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function listSquadProjectCoverage(squadId: string, params: {
@@ -252,5 +253,5 @@ export async function listSquadProjectCoverage(squadId: string, params: {
   if (params.sortBy) query.set('sort_by', params.sortBy);
   if (params.sortDir) query.set('sort_dir', params.sortDir);
   const res = await apiFetch(`/api/statistics/coverage/squads/${squadId}/projects?${query}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }

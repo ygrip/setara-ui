@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import type { ReleasePlan, PlanBuild, PlanMetrics } from './plans';
@@ -18,7 +19,7 @@ export async function listSquadPlans(
 ): Promise<CursorPage<ReleasePlan>> {
   if (isMockMode()) return mockListAllPlans(squadId, cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/squads/${squadId}/plans${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function createSquadPlan(
@@ -37,13 +38,13 @@ export async function createSquadPlan(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getSquadPlan(squadId: string, planId: string): Promise<ReleasePlan> {
   if (isMockMode()) return mockGetSquadPlan(squadId, planId);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 // ── Build membership ────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ export async function getSquadPlan(squadId: string, planId: string): Promise<Rel
 export async function listSquadPlanBuilds(squadId: string, planId: string): Promise<PlanBuild[]> {
   if (isMockMode()) return mockListSquadPlanBuilds(squadId, planId);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/builds`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function addSquadPlanBuild(
@@ -64,7 +65,7 @@ export async function addSquadPlanBuild(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function removeSquadPlanBuild(squadId: string, planId: string, buildId: string): Promise<void> {
@@ -83,7 +84,7 @@ export async function closeSquadPlan(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 // ── Metrics ─────────────────────────────────────────────────────────────
@@ -110,5 +111,5 @@ export interface SquadPlanMetrics {
 export async function getSquadPlanMetrics(squadId: string, planId: string): Promise<SquadPlanMetrics> {
   if (isMockMode()) return mockGetSquadPlanMetrics(squadId, planId) as Promise<SquadPlanMetrics>;
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/metrics`);
-  return res.json();
+  return readJsonOrThrow(res);
 }

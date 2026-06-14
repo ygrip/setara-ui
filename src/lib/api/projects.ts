@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListProjects, mockGetProject } from '$lib/mock/client';
@@ -16,13 +17,13 @@ export interface Project {
 export async function listProjects(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Project>> {
   if (isMockMode()) return mockListProjects(cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/projects${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<Project>>(res);
 }
 
 export async function getProject(projectKey: string): Promise<Project> {
   if (isMockMode()) return mockGetProject(projectKey);
   const res = await apiFetch(`/api/projects/${projectKey}`);
-  return res.json();
+  return readJsonOrThrow<Project>(res);
 }
 
 export async function createProject(body: {
@@ -35,7 +36,7 @@ export async function createProject(body: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<Project>(res);
 }
 
 export async function updateProject(projectKey: string, body: {
@@ -49,5 +50,5 @@ export async function updateProject(projectKey: string, body: {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<Project>(res);
 }

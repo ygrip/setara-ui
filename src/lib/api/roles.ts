@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import { isMockMode } from '$lib/mock/client';
 
 export interface ConfigRole {
@@ -21,12 +22,12 @@ export interface AvailablePermission {
 export async function listConfigRoles(): Promise<ConfigRole[]> {
   if (isMockMode()) return mockConfigRoles;
   const res = await apiFetch('/api/admin/roles');
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getConfigRole(id: string): Promise<ConfigRole> {
   const res = await apiFetch(`/api/admin/roles/${id}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function createConfigRole(body: { key: string; label: string; description?: string | null; color?: string | null }): Promise<ConfigRole> {
@@ -41,7 +42,7 @@ export async function createConfigRole(body: { key: string; label: string; descr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function updateConfigRole(id: string, body: { label?: string; description?: string | null; color?: string | null }): Promise<ConfigRole> {
@@ -58,7 +59,7 @@ export async function updateConfigRole(id: string, body: { label?: string; descr
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function deleteConfigRole(id: string): Promise<void> {
@@ -76,7 +77,7 @@ export async function getRolePermissions(id: string): Promise<string[]> {
     return role ? (mockRolePermissions[role.key] ?? []) : [];
   }
   const res = await apiFetch(`/api/admin/roles/${id}/permissions`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function setRolePermissions(id: string, entries: { area: string; permissionKey: string }[]): Promise<string[]> {
@@ -90,13 +91,13 @@ export async function setRolePermissions(id: string, entries: { area: string; pe
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(entries)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function listAvailablePermissions(): Promise<AvailablePermission[]> {
   if (isMockMode()) return mockPermissions;
   const res = await apiFetch('/api/admin/roles/available-permissions');
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export const mockConfigRoles: ConfigRole[] = [

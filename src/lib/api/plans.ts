@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListAllPlans } from '$lib/mock/client';
@@ -83,5 +84,5 @@ export async function listAllPlans(
   const params = buildCursorParams(cursor, limit, sortBy, sortDir);
   const squadParam = squadId ? `${params ? '&' : '?'}squad_id=${squadId}` : '';
   const res = await apiFetch(`/api/plans${params}${squadParam}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<ReleasePlan>>(res);
 }

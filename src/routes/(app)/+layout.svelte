@@ -490,7 +490,7 @@
     <footer class="app-footer">
       <span>© 2026 Setara</span>
       <span class="footer-sep" aria-hidden="true">·</span>
-      <span>v0.1.0-alpha</span>
+      <span>v0.1.0</span>
     </footer>
   </div>
 </div>

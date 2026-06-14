@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import { isMockMode, mockListApiKeys, mockCreateApiKey, mockRevokeApiKey, mockRotateApiKey } from '$lib/mock/client';
 
 export interface ApiKey {
@@ -13,7 +14,7 @@ export interface ApiKey {
 export async function listApiKeys(projectKey: string): Promise<ApiKey[]> {
   if (isMockMode()) return mockListApiKeys(projectKey);
   const res = await apiFetch(`/api/projects/${projectKey}/api-keys`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function createApiKey(
@@ -26,7 +27,7 @@ export async function createApiKey(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function revokeApiKey(projectKey: string, apiKeyId: string): Promise<void> {
@@ -44,5 +45,5 @@ export async function rotateApiKey(
   const res = await apiFetch(`/api/projects/${projectKey}/api-keys/${apiKeyId}/rotate`, {
     method: 'POST'
   });
-  return res.json();
+  return readJsonOrThrow(res);
 }

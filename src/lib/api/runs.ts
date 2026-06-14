@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListRuns, mockGetRun, mockListRunResults, mockGetRunHeatmap } from '$lib/mock/client';
@@ -61,13 +62,13 @@ export interface ScenarioRunResult {
 export async function listRuns(projectKey: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<AutomationRun>> {
   if (isMockMode()) return mockListRuns(projectKey, cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/projects/${projectKey}/runs${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<AutomationRun>>(res);
 }
 
 export async function getRun(projectKey: string, runId: string): Promise<AutomationRun> {
   if (isMockMode()) return mockGetRun(projectKey, runId);
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}`);
-  return res.json();
+  return readJsonOrThrow<AutomationRun>(res);
 }
 
 export async function listRunResults(projectKey: string, runId: string, tags?: string[], tagMode?: string): Promise<ScenarioRunResult[]> {
@@ -77,7 +78,7 @@ export async function listRunResults(projectKey: string, runId: string, tags?: s
   if (tagMode) params.set('tagMode', tagMode);
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results${qs}`);
-  return res.json();
+  return readJsonOrThrow<ScenarioRunResult[]>(res);
 }
 
 export async function getRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {

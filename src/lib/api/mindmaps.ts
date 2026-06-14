@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import { isMockMode } from '$lib/mock/client';
 import { mockNodesByProject, mockPlansByProject, mockScenariosByProject, mockSquadPlans, mockPlanBuilds, mockBuildsByProject } from '$lib/mock/data';
 
@@ -65,13 +66,13 @@ export async function getPlanQualityMap(projectKey: string, planId: string, opti
     riskOnly: String(options.riskOnly ?? false)
   });
   const res = await apiFetch(`/api/projects/${projectKey}/plans/${planId}/quality-map?${params}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getSquadPlanQualityMap(squadId: string, planId: string): Promise<SetaraMap> {
   if (isMockMode()) return mockSquadPlanQualityMap(squadId, planId);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/quality-map`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function getDirectoryCoverageMap(projectKey: string, directoryId: string, options: {
@@ -86,7 +87,7 @@ export async function getDirectoryCoverageMap(projectKey: string, directoryId: s
     riskOnly: String(options.riskOnly ?? false)
   });
   const res = await apiFetch(`/api/projects/${projectKey}/directories/${directoryId}/coverage-map?${params}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 function mockPlanQualityMap(projectKey: string, planId: string, options: { includeScenarios?: boolean; riskOnly?: boolean }): SetaraMap {

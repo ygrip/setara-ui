@@ -1,4 +1,5 @@
 import { apiFetch } from './client';
+import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import { isMockMode, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads } from '$lib/mock/client';
@@ -35,7 +36,7 @@ export interface Membership {
 export async function listTribes(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Tribe>> {
   if (isMockMode()) return mockListTribes(cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/tribes${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<Tribe>>(res);
 }
 
 export async function createTribe(body: { name: string }): Promise<Tribe> {
@@ -44,13 +45,13 @@ export async function createTribe(body: { name: string }): Promise<Tribe> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<Tribe>(res);
 }
 
 export async function listSquads(tribeId: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
   if (isMockMode()) return mockListSquads(tribeId, cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/tribes/${tribeId}/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<Squad>>(res);
 }
 
 export async function createSquad(tribeId: string, body: { name: string }): Promise<Squad> {
@@ -59,25 +60,25 @@ export async function createSquad(tribeId: string, body: { name: string }): Prom
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<Squad>(res);
 }
 
 export async function listUsers(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<User>> {
   if (isMockMode()) return mockListUsers(cursor, limit, sortBy, sortDir);
   const res = await apiFetch(`/api/users${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<User>>(res);
 }
 
 export async function listAllSquads(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
   if (isMockMode()) return mockListAllSquads(cursor, limit);
   const res = await apiFetch(`/api/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<Squad>>(res);
 }
 
 export async function getSquad(squadId: string): Promise<Squad> {
   if (isMockMode()) return mockGetSquad(squadId);
   const res = await apiFetch(`/api/squads/${squadId}`);
-  return res.json();
+  return readJsonOrThrow<Squad>(res);
 }
 
 export async function createUser(body: { email: string; displayName: string }): Promise<User> {
@@ -86,7 +87,7 @@ export async function createUser(body: { email: string; displayName: string }): 
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<User>(res);
 }
 
 export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' | 'QA_LEAD' | 'DEVELOPER' }): Promise<Membership> {
@@ -98,7 +99,7 @@ export async function assignProjectRole(projectKey: string, body: { email: strin
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<Membership>(res);
 }
 
 // ── Tribe detail / update / delete ──────────────────────────────
@@ -111,14 +112,14 @@ export interface TribeDetail {
 
 export async function getTribe(tribeId: string): Promise<TribeDetail> {
   const res = await apiFetch(`/api/tribes/${tribeId}`);
-  return res.json();
+  return readJsonOrThrow<TribeDetail>(res);
 }
 
 export async function updateTribe(tribeId: string, body: { name?: string; description?: string | null; leadId?: string | null }): Promise<TribeDetail> {
   const res = await apiFetch(`/api/tribes/${tribeId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<TribeDetail>(res);
 }
 
 export async function deleteTribe(tribeId: string): Promise<void> {
@@ -141,14 +142,14 @@ export interface SquadMember {
 
 export async function getSquadDetail(squadId: string): Promise<SquadDetail> {
   const res = await apiFetch(`/api/squads/${squadId}/detail`);
-  return res.json();
+  return readJsonOrThrow<SquadDetail>(res);
 }
 
 export async function updateSquad(squadId: string, body: { name?: string; description?: string | null; tribeId?: string | null; leadId?: string | null }): Promise<SquadDetail> {
   const res = await apiFetch(`/api/squads/${squadId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<SquadDetail>(res);
 }
 
 export async function deleteSquad(squadId: string): Promise<void> {
@@ -159,7 +160,7 @@ export async function addSquadMember(squadId: string, body: { email: string; rol
   const res = await apiFetch(`/api/squads/${squadId}/members`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
-  return res.json();
+  return readJsonOrThrow<SquadMember>(res);
 }
 
 export async function removeSquadMember(squadId: string, userId: string): Promise<void> {
@@ -181,5 +182,5 @@ export async function searchUsers(q?: string, cursor?: string, limit?: number): 
   if (limit) params.set('limit', String(limit));
   const qs = params.toString();
   const res = await apiFetch(`/api/users/search${qs ? '?' + qs : ''}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<UserDetail>>(res);
 }
