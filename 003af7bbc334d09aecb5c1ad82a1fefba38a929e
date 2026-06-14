@@ -1,0 +1,33 @@
+src/lib/api/reports.ts
+  8389e4e996781514 2,90
+src/routes/(app)/admin/intelligence/+page.ts
+  8389e4e996781514 3-4,18-20,23-24
+src/routes/(app)/admin/intelligence/+page.svelte
+  8389e4e996781514 4,37,44,64,68,80,82
+src/lib/components/AiReviewPanel.svelte
+  8389e4e996781514 4,57
+src/lib/api/client.ts
+  8389e4e996781514 32
+src/lib/api/runs.ts
+  8389e4e996781514 87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "003af7bbc334d09aecb5c1ad82a1fefba38a929e",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 20,
+      "total_deletions": 12,
+      "accepted_lines": 20,
+      "overriden_lines": 0
+    }
+  }
+}
