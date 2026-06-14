@@ -1,0 +1,23 @@
+src/routes/login/+page.svelte
+  8389e4e996781514 6,8,16,18-25,52-60,122-138,287-343
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "cc390afe8d05cb4ef7b6c066fb09f9e84e5db24a",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 97,
+      "total_deletions": 1,
+      "accepted_lines": 97,
+      "overriden_lines": 0
+    }
+  }
+}
