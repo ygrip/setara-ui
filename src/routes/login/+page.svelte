@@ -3,8 +3,9 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
-  import { getValidSession, storeSession, sessionFromLoginResult } from '$lib/auth';
+  import { getValidSession, storeSession, sessionFromLoginResult, type SetaraRole } from '$lib/auth';
   import { login } from '$lib/api/client';
+  import { isMockMode } from '$lib/mock/client';
 
   let email = $state('');
   let password = $state('');
@@ -12,6 +13,16 @@
   let loading = $state(false);
 
   const reason = $derived(page.url.searchParams.get('reason'));
+  const isDemo = isMockMode();
+
+  const DEMO_ACCOUNTS: { label: string; role: SetaraRole; email: string; variant: string }[] = [
+    { label: 'Admin',     role: 'SYSTEM_ADMIN', email: 'admin@demo.setara.local',     variant: 'admin'  },
+    { label: 'QA Lead',   role: 'QA_LEAD',      email: 'qa.lead@demo.setara.local',   variant: 'qalead' },
+    { label: 'QA',        role: 'QA',           email: 'qa@demo.setara.local',        variant: 'qa'     },
+    { label: 'Developer', role: 'DEVELOPER',    email: 'dev@demo.setara.local',       variant: 'dev'    },
+    { label: 'Viewer',    role: 'VIEWER',       email: 'viewer@demo.setara.local',    variant: 'viewer' },
+    { label: 'Guest',     role: 'GUEST',        email: 'guest@demo.setara.local',     variant: 'guest'  },
+  ];
 
   onMount(() => {
     if (getValidSession()) {
@@ -36,6 +47,17 @@
     } finally {
       loading = false;
     }
+  }
+
+  function quickLogin(account: typeof DEMO_ACCOUNTS[0]) {
+    storeSession(sessionFromLoginResult({
+      token: 'demo-token',
+      email: account.email,
+      displayName: account.label,
+      systemRole: account.role,
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+    }));
+    goto('/dashboard', { replaceState: true });
   }
 
 </script>
@@ -96,6 +118,23 @@
         {/if}
       </button>
     </form>
+
+    {#if isDemo}
+      <div class="demo-accounts">
+        <span class="demo-label">Quick login — demo accounts</span>
+        <div class="demo-chips">
+          {#each DEMO_ACCOUNTS as account}
+            <button
+              class="demo-chip demo-chip--{account.variant}"
+              onclick={() => quickLogin(account)}
+            >
+              {account.label}
+            </button>
+          {/each}
+        </div>
+        <p class="demo-note">No changes are saved in demo mode.</p>
+      </div>
+    {/if}
 
   </div>
 </div>
@@ -243,6 +282,63 @@
   .submit-btn:disabled {
     opacity: 0.6;
     cursor: not-allowed;
+  }
+
+  .demo-accounts {
+    margin-top: 24px;
+    border-top: 1px solid var(--color-border);
+    padding-top: 20px;
+  }
+
+  .demo-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-text-muted);
+    margin-bottom: 10px;
+  }
+
+  .demo-chips {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+
+  .demo-chip {
+    padding: 6px 14px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text);
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    font-family: inherit;
+  }
+
+  .demo-chip--admin  { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
+  .demo-chip--admin:hover  { background: #7c3aed18; border-color: #7c3aed; }
+  .demo-chip--qalead { border-color: #0891b240; color: #0891b2; background: #0891b20a; }
+  .demo-chip--qalead:hover { background: #0891b218; border-color: #0891b2; }
+  .demo-chip--qa     { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
+  .demo-chip--qa:hover { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
+  .demo-chip--dev    { border-color: #15803d40; color: #15803d; background: #15803d0a; }
+  .demo-chip--dev:hover { background: #15803d18; border-color: #15803d; }
+  .demo-chip--viewer { border-color: #0284c740; color: #0284c7; background: #0284c70a; }
+  .demo-chip--viewer:hover { background: #0284c718; border-color: #0284c7; }
+  .demo-chip--guest  { border-color: var(--color-border); color: var(--color-text-muted); }
+  .demo-chip--guest:hover { background: var(--color-accent-subtle); border-color: var(--color-accent); color: var(--color-accent); }
+
+  .demo-note {
+    text-align: center;
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    opacity: 0.7;
+    margin: 0;
   }
 
 </style>
