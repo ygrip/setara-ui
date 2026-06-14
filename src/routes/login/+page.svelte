@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
+  import { browser } from '$app/environment';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import { getValidSession, storeSession, sessionFromLoginResult, type SetaraRole } from '$lib/auth';
@@ -12,7 +13,7 @@
   let error = $state('');
   let loading = $state(false);
 
-  const reason = $derived(page.url.searchParams.get('reason'));
+  const reason = $derived(browser ? page.url.searchParams.get('reason') : null);
   const isDemo = isMockMode();
 
   const DEMO_ACCOUNTS: { label: string; role: SetaraRole; email: string; variant: string }[] = [
