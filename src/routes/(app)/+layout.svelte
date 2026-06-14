@@ -4,7 +4,7 @@
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
-  import { clearSession, getValidSession, hasPermission, refreshSession, type SetaraSession } from '$lib/auth';
+  import { clearSession, getValidSession, hasPermission, type SetaraSession } from '$lib/auth';
   import { isMockMode } from '$lib/mock/client';
   import { lockBodyScroll } from '$lib/scroll-lock';
 
@@ -86,8 +86,8 @@
     }
 
     function handleFocus() {
-      const refreshed = refreshSession();
-      if (refreshed) session = refreshed;
+      const valid = getValidSession();
+      if (valid) session = valid;
       else goto('/login');
     }
 

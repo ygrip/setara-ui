@@ -3,29 +3,57 @@
   import { goto } from '$app/navigation';
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
-  import { clearSession, getValidSession, storeSession, type SetaraSession } from '$lib/auth';
+  import { clearSession, getValidSession, type SetaraSession } from '$lib/auth';
+  import { changePassword } from '$lib/api/client';
+  import { isMockMode } from '$lib/mock/client';
 
   let session = $state<SetaraSession | null>(null);
-  let editName = $state('');
-  let saved = $state(false);
+  const isDemo = isMockMode();
+
+  // Change password form
+  let currentPassword = $state('');
+  let newPassword = $state('');
+  let confirmPassword = $state('');
+  let pwLoading = $state(false);
+  let pwError = $state('');
+  let pwToast = $state('');
 
   onMount(() => {
     session = getValidSession();
     if (!session) { goto('/login'); return; }
-    editName = session.name;
   });
-
-  function saveChanges() {
-    if (!session) return;
-    session = { ...session, name: editName };
-    storeSession(session);
-    saved = true;
-    setTimeout(() => { saved = false; }, 2000);
-  }
 
   function signOut() {
     clearSession();
     goto('/login');
+  }
+
+  async function handleChangePassword() {
+    pwError = '';
+    pwToast = '';
+
+    if (!newPassword) { pwError = 'New password is required.'; return; }
+    if (newPassword.length < 8) { pwError = 'New password must be at least 8 characters.'; return; }
+    if (newPassword !== confirmPassword) { pwError = 'Passwords do not match.'; return; }
+
+    if (isDemo) {
+      pwToast = 'demo';
+      currentPassword = '';
+      newPassword = '';
+      confirmPassword = '';
+      return;
+    }
+
+    pwLoading = true;
+    try {
+      await changePassword(currentPassword, newPassword);
+      clearSession();
+      goto('/login?reason=password_changed');
+    } catch (err: unknown) {
+      pwError = err instanceof Error ? err.message : 'Failed to change password.';
+    } finally {
+      pwLoading = false;
+    }
   }
 </script>
 
@@ -36,70 +64,121 @@
 <div class="page">
   <div class="page-header">
     <h1 class="page-title">Profile</h1>
-    <p class="page-subtitle">Manage your account details</p>
+    <p class="page-subtitle">Manage your account</p>
   </div>
 
   {#if session}
     <Card padding="sm">
       <div class="profile-card-content">
-      <!-- Avatar -->
-      <div class="avatar-section">
-        <div class="avatar-large">
-          {session.name?.[0]?.toUpperCase() ?? '?'}
-        </div>
-        <div class="avatar-info">
-          <span class="avatar-name">{session.name}</span>
-          <span class="avatar-email">{session.email}</span>
-          <span class="avatar-role">{session.role}</span>
-        </div>
-      </div>
-
-      <div class="divider"></div>
-
-      <!-- Edit form -->
-      <div class="form-section">
-        <div class="form-group">
-          <label class="form-label" for="display-name">Display name</label>
-          <input
-            id="display-name"
-            class="form-input"
-            type="text"
-            bind:value={editName}
-            placeholder="Your name"
-          />
+        <!-- Avatar -->
+        <div class="avatar-section">
+          <div class="avatar-large">
+            {session.name?.[0]?.toUpperCase() ?? '?'}
+          </div>
+          <div class="avatar-info">
+            <span class="avatar-name">{session.name}</span>
+            <span class="avatar-email">{session.email}</span>
+            <span class="avatar-role">{session.role}</span>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="email">Email</label>
-          <input
-            id="email"
-            class="form-input form-input--readonly"
-            type="email"
-            value={session.email}
-            readonly
-          />
-          <span class="form-hint">Email cannot be changed here.</span>
+        <div class="divider"></div>
+
+        <!-- Account info -->
+        <div class="form-section">
+          <div class="form-group">
+            <label class="form-label" for="email">Email</label>
+            <input
+              id="email"
+              class="form-input form-input--readonly"
+              type="email"
+              value={session.email}
+              readonly
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="role">Role</label>
+            <input
+              id="role"
+              class="form-input form-input--readonly"
+              type="text"
+              value={session.role}
+              readonly
+            />
+          </div>
         </div>
 
-        <div class="form-group">
-          <label class="form-label" for="role">Role</label>
-          <input
-            id="role"
-            class="form-input form-input--readonly"
-            type="text"
-            value={session.role}
-            readonly
-          />
-          <span class="form-hint">Role comes from the active session.</span>
+        <div class="divider"></div>
+
+        <!-- Change password -->
+        <div class="form-section">
+          <div class="section-title">Change password</div>
+
+          {#if pwToast === 'demo'}
+            <div class="toast toast--info">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              <span><strong>Demo mode</strong> — password changes are not saved.</span>
+            </div>
+          {/if}
+
+          {#if pwError}
+            <div class="toast toast--error">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {pwError}
+            </div>
+          {/if}
+
+          <div class="form-group">
+            <label class="form-label" for="current-password">Current password</label>
+            <input
+              id="current-password"
+              class="form-input"
+              type="password"
+              bind:value={currentPassword}
+              autocomplete="current-password"
+            />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="new-password">New password</label>
+            <input
+              id="new-password"
+              class="form-input"
+              type="password"
+              bind:value={newPassword}
+              autocomplete="new-password"
+            />
+            <span class="form-hint">At least 8 characters.</span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="confirm-password">Confirm new password</label>
+            <input
+              id="confirm-password"
+              class="form-input"
+              type="password"
+              bind:value={confirmPassword}
+              autocomplete="new-password"
+            />
+          </div>
+
+          <div class="form-actions">
+            <Button variant="primary" onclick={handleChangePassword} disabled={pwLoading}>
+              {pwLoading ? 'Changing…' : 'Change password'}
+            </Button>
+          </div>
         </div>
 
-        <div class="form-actions">
-          <Button variant="primary" onclick={saveChanges}>
-            {saved ? 'Saved!' : 'Save changes'}
-          </Button>
+        <div class="divider"></div>
+
+        <div class="form-section form-section--compact">
           <Button variant="danger" onclick={signOut}>Sign out</Button>
         </div>
-      </div>
       </div>
     </Card>
   {/if}
@@ -112,9 +191,7 @@
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
 
-  .profile-card-content {
-    overflow: hidden;
-  }
+  .profile-card-content { overflow: hidden; }
 
   .avatar-section {
     display: flex;
@@ -169,16 +246,21 @@
     padding: 3px 7px;
   }
 
-  .divider {
-    height: 1px;
-    background: var(--color-border);
-  }
+  .divider { height: 1px; background: var(--color-border); }
 
   .form-section {
     padding: 24px 28px;
     display: flex;
     flex-direction: column;
     gap: 20px;
+  }
+
+  .form-section--compact { padding: 20px 28px; }
+
+  .section-title {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--color-text);
   }
 
   .form-group {
@@ -202,6 +284,7 @@
     background: var(--color-bg);
     color: var(--color-text);
     font-size: 0.9rem;
+    font-family: inherit;
     transition: border-color 0.15s;
     outline: none;
   }
@@ -223,10 +306,30 @@
   }
 
   .form-actions {
-    display: flex;
-    align-items: center;
-    gap: 12px;
     padding-top: 4px;
   }
 
+  .toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 0.82rem;
+    font-weight: 500;
+  }
+
+  .toast--info {
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    color: var(--color-accent);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+  }
+
+  .toast--error {
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--color-danger);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+  }
+
+  .toast strong { font-weight: 700; }
 </style>

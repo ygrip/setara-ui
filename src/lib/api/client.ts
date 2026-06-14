@@ -34,6 +34,18 @@ export async function login(email: string, password: string) {
   return response.json();
 }
 
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const response = await apiFetch('/api/auth/change-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to change password');
+  }
+}
+
 export async function getHealth(): Promise<{ status: string; service: string }> {
   const response = await fetch(`${getApiBaseUrl()}/api/health`);
   if (!response.ok) throw new Error(`Health check failed: ${response.status}`);

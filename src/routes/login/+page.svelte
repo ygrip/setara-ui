@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import { getValidSession, storeSession, sessionFromLoginResult } from '$lib/auth';
@@ -9,6 +10,8 @@
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
+
+  const reason = $derived(page.url.searchParams.get('reason'));
 
   onMount(() => {
     if (getValidSession()) {
@@ -35,9 +38,6 @@
     }
   }
 
-  function quickLogin(_account: unknown) {
-    goto('/dashboard', { replaceState: true });
-  }
 </script>
 
 <svelte:head>
@@ -53,6 +53,10 @@
 
     <h1 class="login-title">Sign in to Setara</h1>
     <p class="login-sub">Test case management and automation reporting</p>
+
+    {#if reason === 'password_changed'}
+      <div class="info-msg">Password changed — please sign in with your new password.</div>
+    {/if}
 
     <form onsubmit={handleSubmit} class="form" novalidate>
       <label class="field">
@@ -199,6 +203,16 @@
     font-size: 0.8rem;
   }
 
+  .info-msg {
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    color: var(--color-accent);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    font-size: 0.8rem;
+    margin-bottom: 4px;
+  }
+
   .submit-btn {
     padding: 11px 16px;
     background: var(--color-accent);
@@ -231,64 +245,4 @@
     cursor: not-allowed;
   }
 
-  .demo-accounts {
-    margin-top: 24px;
-    border-top: 1px solid var(--color-border);
-    padding-top: 20px;
-  }
-
-  .demo-label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--color-text-muted);
-    margin-bottom: 10px;
-  }
-
-  .demo-chips {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    margin-bottom: 12px;
-  }
-
-  .demo-chip {
-    padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text);
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
-    font-family: inherit;
-  }
-
-  .demo-chip:hover { background: var(--color-accent-subtle); border-color: var(--color-accent); color: var(--color-accent); }
-  .demo-chip--admin  { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
-  .demo-chip--admin:hover  { background: #7c3aed18; border-color: #7c3aed; }
-  .demo-chip--qa     { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
-  .demo-chip--qa:hover { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
-  .demo-chip--viewer { border-color: #0284c740; color: #0284c7; background: #0284c70a; }
-  .demo-chip--viewer:hover { background: #0284c718; border-color: #0284c7; }
-  .demo-chip--guest  { border-color: var(--color-border); color: var(--color-text-muted); }
-
-  .demo-note {
-    text-align: center;
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    opacity: 0.7;
-  }
-
-  .demo-note code {
-    font-family: var(--font-mono, monospace);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 3px;
-    padding: 1px 5px;
-    font-size: 0.72rem;
-  }
 </style>
