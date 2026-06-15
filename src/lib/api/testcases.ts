@@ -504,6 +504,19 @@ export async function searchSimilarScenarios(
   );
 }
 
+export interface EmbeddingStatus {
+  ready: boolean;
+  pendingJobs: number;
+  indexedScenarios: number;
+}
+
+export async function getProjectEmbeddingStatus(projectKey: string): Promise<EmbeddingStatus | null> {
+  if (isMockMode()) return null;
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/embedding-status`);
+  if (!res.ok) return null;
+  return res.json();
+}
+
 export async function getProjectTags(projectKey: string): Promise<TagView[]> {
   if (isMockMode()) return mockGetProjectTags(projectKey);
   const res = await fetch(`${getApiBaseUrl()}/api/projects/${encodeURIComponent(projectKey)}/tags`);

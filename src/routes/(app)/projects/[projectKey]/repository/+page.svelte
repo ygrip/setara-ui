@@ -28,6 +28,7 @@
     getScenario,
     updateScenario,
     searchSimilarScenarios,
+    getProjectEmbeddingStatus,
     type Scenario,
     type ScenarioStep,
     type TestDirectory,
@@ -58,6 +59,7 @@
   let similarScenarios = $state<SimilarScenarioResult[]>([]);
   let similarLoading = $state(false);
   let similarError = $state('');
+  let similarIndexing = $state(false);
 
   // ── Scenario sorting ─────────────────────────────────────────
   let scenarioSortBy = $state<'key' | 'name' | 'priority' | 'automation' | 'status'>('name');
@@ -308,17 +310,23 @@
     detailDraftTags = [];
     similarScenarios = [];
     similarError = '';
+    similarIndexing = false;
   }
 
   async function fetchSimilarScenarios(scenario: Scenario) {
     similarScenarios = [];
     similarError = '';
+    similarIndexing = false;
     similarLoading = true;
     try {
       const query = [scenario.name, scenario.scenarioKey]
         .filter(Boolean)
         .join(' ');
       similarScenarios = await searchSimilarScenarios(data.projectKey, query, 8);
+      if (similarScenarios.length === 0) {
+        const status = await getProjectEmbeddingStatus(data.projectKey).catch(() => null);
+        similarIndexing = status !== null && (!status.ready || status.pendingJobs > 0);
+      }
     } catch (e) {
       similarError = (e as Error).message;
     } finally {
@@ -1195,7 +1203,11 @@
             {:else if similarError}
               <p class="similar-hint error">Similarity search unavailable: {similarError}</p>
             {:else if similarScenarios.length === 0}
-              <p class="similar-hint">No similar scenarios found.</p>
+              {#if similarIndexing}
+                <p class="similar-hint">Smart Search is still indexing this project. Try again in a minute.</p>
+              {:else}
+                <p class="similar-hint">No similar scenarios found.</p>
+              {/if}
             {:else}
               <div class="similar-list">
                 {#each similarScenarios as sim}
