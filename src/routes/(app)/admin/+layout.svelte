@@ -13,7 +13,8 @@
     { href: '/admin/users', label: 'Users', icon: '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>' },
     { href: '/admin/roles', label: 'Roles', icon: '<path d="M12 1L3 5v6c0 5.5 3.8 10.7 9 12 5.2-1.3 9-6.5 9-12V5l-9-4z"/>' },
     { href: '/admin/intelligence', label: 'Intelligence', icon: '<circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>' },
-    { href: '/admin/statistics', label: 'Statistics', icon: '<path d="M18 20V10M12 20V4M6 20v-6"/>' }
+    { href: '/admin/statistics', label: 'Statistics', icon: '<path d="M18 20V10M12 20V4M6 20v-6"/>' },
+    { href: '/admin/cache', label: 'Cache', icon: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>' }
   ];
 
   function isActive(href: string): boolean {
