@@ -192,7 +192,12 @@
     </section>
   {/if}
 
-  {#if busy}<p class="muted">Refreshing…</p>{/if}
+  {#if busy}
+    <div class="refresh-indicator" aria-live="polite" aria-label="Refreshing data">
+      <span class="spinner" aria-hidden="true"></span>
+      <span class="muted">Refreshing…</span>
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -200,6 +205,18 @@
   .page-header { margin-bottom: 24px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle, .section-subtitle, .muted { color: var(--color-text-muted); font-size: 0.875rem; }
+  .refresh-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+  .spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--color-border);
+    border-top-color: var(--color-accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
   .section { margin-bottom: 32px; }
   .section-heading {
     display: flex;

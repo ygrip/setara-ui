@@ -1255,8 +1255,8 @@
   }
 
   @keyframes route-skeleton-shimmer {
-    from { background-position: 120% 0; }
-    to { background-position: -120% 0; }
+    from { background-position: -120% 0; }
+    to { background-position: 120% 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {

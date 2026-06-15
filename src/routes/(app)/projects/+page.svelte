@@ -98,7 +98,7 @@
       </svg>
       <p>{search ? `No projects match "${search}".` : 'No projects yet. Create your first project to get started.'}</p>
     </div>
-  {:else}
+  {:else if filtered.length > 0}
     <div class="project-grid">
       {#each filtered as project}
         <Card href="/projects/{project.projectKey}" padding="lg" ariaLabel="Open {project.name}">

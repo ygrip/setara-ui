@@ -57,6 +57,10 @@
     gap: 0;
     margin-bottom: 24px;
     border-bottom: 2px solid var(--color-border);
+    position: sticky;
+    top: var(--topbar-height);
+    z-index: 50;
+    background: var(--color-bg);
   }
 
   .admin-tab {

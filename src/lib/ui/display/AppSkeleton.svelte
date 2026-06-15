@@ -16,7 +16,7 @@
 
 <div class="app-skeleton-group {className}" aria-hidden="true" style="--sk-w:{width};--sk-h:{height};--sk-r:{radius}">
   {#each Array(Math.max(1, lines)) as _, i}
-    <span class="app-skeleton" style={`width:${i === lines - 1 && lines > 1 ? '72%' : width}`}></span>
+    <span class="app-skeleton" style={`width:${i === lines - 1 && lines > 1 ? '72%' : width};animation-delay:${i * 0.12}s`}></span>
   {/each}
 </div>
 
@@ -32,16 +32,16 @@
     height: var(--sk-h, 1rem);
     border-radius: var(--sk-r, 8px);
     background: linear-gradient(90deg,
-      color-mix(in srgb, var(--color-border), transparent 35%),
-      color-mix(in srgb, var(--color-surface), var(--color-border) 22%),
-      color-mix(in srgb, var(--color-border), transparent 35%)
+      color-mix(in srgb, var(--color-border), transparent 15%),
+      color-mix(in srgb, var(--color-surface), var(--color-text) 10%),
+      color-mix(in srgb, var(--color-border), transparent 15%)
     );
     background-size: 220% 100%;
     animation: app-skeleton-shimmer 1.35s ease-in-out infinite;
   }
 
   @keyframes app-skeleton-shimmer {
-    from { background-position: 120% 0; }
-    to   { background-position: -120% 0; }
+    from { background-position: -120% 0; }
+    to   { background-position: 120% 0; }
   }
 </style>

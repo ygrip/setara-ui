@@ -6,6 +6,7 @@
   import { listConfigRoles, getRolePermissions, listAvailablePermissions, createConfigRole, deleteConfigRole, updateConfigRole, setRolePermissions, mockRolePermissions, type ConfigRole, type AvailablePermission, mockConfigRoles, mockPermissions } from '$lib/api/roles';
   import { isMockMode } from '$lib/mock/client';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import AppSkeleton from '$lib/ui/display/AppSkeleton.svelte';
 
   let roles = $state<ConfigRole[]>([]);
   let permissions = $state<AvailablePermission[]>([]);
@@ -129,7 +130,19 @@
 <div class="section-wrap">
   {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
   {#if loading}
-    <p class="muted">Loading roles…</p>
+    <div class="section-header">
+      <AppSkeleton width="60px" height="1.25rem" radius="6px" />
+    </div>
+    <div class="roles-grid">
+      {#each Array(5) as _}
+        <div class="sk-card">
+          <AppSkeleton width="80px" height="20px" radius="4px" />
+          <AppSkeleton width="120px" height="1rem" />
+          <AppSkeleton lines={2} height="0.8rem" />
+          <AppSkeleton width="100px" height="28px" radius="4px" />
+        </div>
+      {/each}
+    </div>
   {:else}
     <!-- Role cards -->
     <div class="section-header">
@@ -262,6 +275,17 @@
 
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
+
+  .sk-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius, 8px);
+    background: var(--color-surface);
+    min-height: 154px;
+  }
 
   /* Role cards */
   .roles-grid {

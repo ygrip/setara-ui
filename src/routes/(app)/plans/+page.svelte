@@ -5,6 +5,7 @@
   import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import AppSkeleton from '$lib/ui/display/AppSkeleton.svelte';
   import { listAllPlans, type ReleasePlan } from '$lib/api/plans';
   import { listAllSquads, type Squad } from '$lib/api/organization';
   import { createSquadPlan } from '$lib/api/squadPlans';
@@ -171,9 +172,7 @@
     <AppAlert tone="error">{error}</AppAlert>
   {/if}
 
-  {#if loading}
-    <div class="empty">Loading plans…</div>
-  {:else if filtered.length === 0}
+  {#if !loading && filtered.length === 0}
     <div class="empty">No release plans found.</div>
   {:else}
     <div class="table-wrap">
@@ -191,6 +190,20 @@
           </tr>
         </thead>
         <tbody>
+          {#if loading}
+            {#each Array(5) as _, i}
+              <tr class="skeleton-row">
+                <td><AppSkeleton width="64px" height="20px" radius="4px" /></td>
+                <td><AppSkeleton width="180px" /></td>
+                <td><AppSkeleton width="100px" /></td>
+                <td><AppSkeleton width="80px" /></td>
+                <td><AppSkeleton width="90px" /></td>
+                <td><AppSkeleton width="32px" /></td>
+                <td><AppSkeleton width="80px" /></td>
+                <td><AppSkeleton width="80px" /></td>
+              </tr>
+            {/each}
+          {:else}
           {#each filtered as plan (plan.id)}
             <tr
               class="plan-row"
@@ -226,6 +239,7 @@
               <td class="nowrap muted">{formatDate(plan.closedAt)}</td>
             </tr>
           {/each}
+          {/if}
         </tbody>
       </table>
     </div>
@@ -288,6 +302,7 @@
   td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
   .plan-row:last-child td { border-bottom: none; }
   .plan-row { cursor: pointer; }
+  .skeleton-row td { vertical-align: middle; padding: 14px; }
   .plan-row:hover td { background: var(--color-accent-subtle, color-mix(in srgb, var(--color-accent), transparent 94%)); }
   .plan-name-cell { display: flex; flex-direction: column; gap: 2px; }
   .plan-name { font-weight: 600; color: var(--color-text); }
