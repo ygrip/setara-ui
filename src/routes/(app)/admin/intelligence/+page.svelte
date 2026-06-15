@@ -6,13 +6,8 @@
 
   let { data } = $props();
   const isMock = isMockMode();
-  let reindexProjectKey = $state('');
-  let reindexBusy = $state(false);
-  let reindexResult = $state('');
-  let createIndexBusy = $state(false);
-  let createIndexResult = $state('');
 
-  // Feature flags
+  // ── Feature flags ─────────────────────────────────────────────────────────
   interface AiFlags { smartSearch: boolean; smartSuggestion: boolean; duplicateAnalysis: boolean; smartReview: boolean; }
   const defaultFlags: AiFlags = { smartSearch: false, smartSuggestion: false, duplicateAnalysis: false, smartReview: false };
   let localFlags = $state<AiFlags>({ ...defaultFlags });
@@ -23,10 +18,10 @@
   $effect(() => { if (data.flags) localFlags = { ...data.flags }; });
 
   const flagDefs: { key: keyof AiFlags; label: string; desc: string }[] = [
-    { key: 'smartSearch', label: 'Smart Search', desc: 'Semantic scenario search using AI embeddings' },
-    { key: 'smartSuggestion', label: 'Smart Suggestion', desc: 'AI-powered scenario suggestions for builds' },
-    { key: 'duplicateAnalysis', label: 'Duplicate Analysis', desc: 'Detect near-duplicate scenarios in the repository' },
-    { key: 'smartReview', label: 'Smart Review', desc: 'AI review summaries for builds, plans, and scenarios' }
+    { key: 'smartSearch',      label: 'Smart Search',        desc: 'Semantic scenario search using AI embeddings' },
+    { key: 'smartSuggestion',  label: 'Smart Suggestion',    desc: 'AI-powered scenario suggestions for builds' },
+    { key: 'duplicateAnalysis',label: 'Duplicate Analysis',  desc: 'Detect near-duplicate scenarios in the repository' },
+    { key: 'smartReview',      label: 'Smart Review',        desc: 'AI review summaries for builds, plans, and scenarios' }
   ];
 
   async function toggleFlag(key: keyof AiFlags, value: boolean) {
@@ -56,10 +51,16 @@
     }
   }
 
+  // ── Actions ───────────────────────────────────────────────────────────────
+  let reindexProjectKey = $state('');
+  let reindexBusy = $state(false);
+  let reindexResult = $state('');
+  let createIndexBusy = $state(false);
+  let createIndexResult = $state('');
+
   async function triggerReindex() {
     if (!reindexProjectKey.trim()) return;
-    reindexBusy = true;
-    reindexResult = '';
+    reindexBusy = true; reindexResult = '';
     try {
       const res = await apiFetch(`/api/admin/intelligence/reindex?projectKey=${encodeURIComponent(reindexProjectKey)}`, { method: 'POST' });
       const json = await res.json();
@@ -68,14 +69,11 @@
         : `Error: ${json.error ?? res.status}`;
     } catch (e: any) {
       reindexResult = `Error: ${e.message}`;
-    } finally {
-      reindexBusy = false;
-    }
+    } finally { reindexBusy = false; }
   }
 
   async function createIndex() {
-    createIndexBusy = true;
-    createIndexResult = '';
+    createIndexBusy = true; createIndexResult = '';
     try {
       const res = await apiFetch('/api/admin/intelligence/create-index', { method: 'POST' });
       const json = await res.json();
@@ -83,207 +81,296 @@
       if (res.ok) invalidateAll();
     } catch (e: any) {
       createIndexResult = `Error: ${e.message}`;
-    } finally {
-      createIndexBusy = false;
-    }
+    } finally { createIndexBusy = false; }
   }
 
-  function statusDot(ok: boolean) {
-    return ok ? '🟢' : '🔴';
+  // ── Derived ───────────────────────────────────────────────────────────────
+  function fmtDate(iso: string | null | undefined) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString();
   }
 </script>
 
 <div class="page">
   <div class="page-header">
     <h1 class="page-title">Intelligence</h1>
-    <p class="page-subtitle">AI-powered search and embedding pipeline status</p>
+    <p class="page-subtitle">AI feature configuration, pipeline status, and embedding controls</p>
   </div>
 
   {#if isMock}
-    <div class="disabled-state">
-      <div class="disabled-icon">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4M12 16h.01"/>
-        </svg>
+    <div class="empty-callout">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      <div>
+        <p class="callout-title">Not available in preview mode</p>
+        <p class="callout-body">Intelligence requires a live backend with an embedding provider configured.</p>
       </div>
-      <h2 class="disabled-title">Not available in preview mode</h2>
-      <p class="disabled-desc">The Intelligence feature requires a live backend with an embedding provider configured. This page shows real-time health and lets you manage AI indexing.</p>
-      <p class="disabled-hint">To enable: set <code>setara.intelligence.enabled=true</code> and configure an embedding provider in your backend settings.</p>
     </div>
+
   {:else}
     {#if data.error}
-      <AppAlert tone="error">
-        {data.error}
-      </AppAlert>
+      <AppAlert tone="error">{data.error}</AppAlert>
     {/if}
 
     {#if data.health}
       {@const h = data.health}
-      <div class="health-grid">
-        <div class="health-card">
-          <div class="card-label">Intelligence</div>
-          <div class="card-value">{statusDot(h.intelligenceEnabled)} {h.intelligenceEnabled ? 'Enabled' : 'Disabled'}</div>
-        </div>
-        <div class="health-card">
-          <div class="card-label">Embedding</div>
-          <div class="card-value">{statusDot(h.embeddingEnabled)} {h.embeddingEnabled ? 'Enabled' : 'Disabled'}</div>
-        </div>
-        <div class="health-card">
-          <div class="card-label">Provider</div>
-          <div class="card-value">
-            {statusDot(h.embeddingProviderActive)} {h.embeddingProviderType}
-            {#if h.embeddingDimension > 0}<span class="dim-badge">{h.embeddingDimension}d</span>{/if}
-          </div>
-        </div>
-        <div class="health-card">
-          <div class="card-label">Vector Store</div>
-          <div class="card-value">
-            {statusDot(h.vectorStoreActive && h.vectorStoreHealthy)} {h.vectorStoreType}
-            {#if !h.vectorStoreHealthy}<span class="warn-badge">Unhealthy</span>{/if}
-          </div>
-        </div>
-        <div class="health-card">
-          <div class="card-label">Pending Jobs</div>
-          <div class="card-value" class:warn={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs}</div>
-        </div>
-        <div class="health-card">
-          <div class="card-label">Last Processed</div>
-          <div class="card-value text-sm">{h.lastProcessedAt ? new Date(h.lastProcessedAt).toLocaleString() : '—'}</div>
-        </div>
+
+      <!-- ── System status bar ────────────────────────────────────────────── -->
+      <div class="status-bar" class:status-bar--on={h.intelligenceEnabled} class:status-bar--off={!h.intelligenceEnabled}>
+        <span class="status-dot" class:on={h.intelligenceEnabled}></span>
+        Intelligence is <strong>{h.intelligenceEnabled ? 'enabled' : 'disabled'}</strong>
+        {#if !h.intelligenceEnabled}
+          — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate
+        {/if}
       </div>
 
-      {#if h.lastError || h.recentErrorMessage}
-        <div class="error-section">
-          <div class="section-label">Recent Error</div>
-          <pre class="error-text">{h.lastError ?? h.recentErrorMessage}</pre>
+      <!-- ── AI features table ────────────────────────────────────────────── -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">AI Features</h2>
+          <p class="card-subtitle">Provider and model configuration for each capability</p>
         </div>
-      {/if}
+        <table class="feature-table">
+          <thead>
+            <tr>
+              <th>Feature</th>
+              <th>Status</th>
+              <th>Provider</th>
+              <th>Model</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {#each h.features as f}
+              <tr class:row--active={f.active} class:row--off={!f.enabled}>
+                <td class="col-feature">
+                  <span class="feature-name">{f.label}</span>
+                </td>
+                <td class="col-status">
+                  {#if f.active}
+                    <span class="badge badge--active">Active</span>
+                  {:else if f.enabled}
+                    <span class="badge badge--warn">Configured</span>
+                  {:else}
+                    <span class="badge badge--off">Off</span>
+                  {/if}
+                </td>
+                <td class="col-provider">{f.provider}</td>
+                <td class="col-model">
+                  <code class="model-tag">{f.model}</code>
+                </td>
+                <td class="col-notes">
+                  {#if f.key === 'embedding' && f.dimension}
+                    <span class="dim-pill">{f.dimension}d</span>
+                  {/if}
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      </section>
+
+      <!-- ── Vector store + pipeline ──────────────────────────────────────── -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Vector Store &amp; Pipeline</h2>
+        </div>
+        <div class="store-row">
+          <div class="store-col">
+            <span class="field-label">Store</span>
+            <span class="store-value">
+              <span class="status-dot sm" class:on={h.vectorStore.active && h.vectorStore.healthy} class:warn={h.vectorStore.active && !h.vectorStore.healthy}></span>
+              {h.vectorStore.displayName}
+              {#if h.vectorStore.active && !h.vectorStore.healthy}
+                <span class="badge badge--error">Unhealthy</span>
+              {/if}
+            </span>
+          </div>
+          <div class="store-col">
+            <span class="field-label">Pending jobs</span>
+            <span class="store-value" class:warn-text={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs}</span>
+          </div>
+          <div class="store-col">
+            <span class="field-label">Last processed</span>
+            <span class="store-value">{fmtDate(h.lastProcessedAt)}</span>
+          </div>
+        </div>
+        {#if h.vectorStore.lastError || h.recentErrorMessage}
+          <div class="error-block">
+            <span class="field-label">Recent error</span>
+            <pre class="error-pre">{h.vectorStore.lastError ?? h.recentErrorMessage}</pre>
+          </div>
+        {/if}
+      </section>
+
+      <!-- ── Runtime feature flags ────────────────────────────────────────── -->
+      {@const aiConfigured = h.intelligenceEnabled}
+      <section class="card">
+        <div class="card-head">
+          <div>
+            <h2 class="card-title">Runtime Feature Flags</h2>
+            <p class="card-subtitle">Toggle capabilities without restarting the server</p>
+          </div>
+          {#if flagsSaved}<span class="saved-pill">Saved</span>{/if}
+        </div>
+        {#if !aiConfigured}
+          <p class="unconfigured-note">Intelligence is not enabled — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate flags.</p>
+        {/if}
+        <div class="flags-list">
+          {#each flagDefs as def}
+            <div class="flag-row">
+              <div class="flag-info">
+                <span class="flag-name">{def.label}</span>
+                <span class="flag-desc">{def.desc}</span>
+              </div>
+              <button
+                class="toggle-btn"
+                class:toggle-on={localFlags[def.key]}
+                onclick={() => toggleFlag(def.key, !localFlags[def.key])}
+                disabled={flagsBusy || !aiConfigured}
+                aria-pressed={localFlags[def.key]}
+                aria-label="Toggle {def.label}"
+              >
+                <span class="toggle-thumb"></span>
+              </button>
+            </div>
+          {/each}
+        </div>
+        {#if flagsError}<p class="flag-error">{flagsError}</p>{/if}
+      </section>
+
+      <!-- ── Actions ──────────────────────────────────────────────────────── -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Actions</h2>
+        </div>
+        <div class="actions-grid">
+          <div class="action-block">
+            <h3 class="action-title">Reindex Project</h3>
+            <p class="action-desc">Queue all active scenarios in a project for AI embedding.</p>
+            <div class="action-row">
+              <input class="text-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
+              <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
+                {reindexBusy ? 'Queuing…' : 'Reindex'}
+              </button>
+            </div>
+            {#if reindexResult}<p class="action-result">{reindexResult}</p>{/if}
+          </div>
+
+          <div class="action-block">
+            <h3 class="action-title">Create Search Index</h3>
+            <p class="action-desc">Build the HNSW vector index after initial embedding is complete.</p>
+            <div class="action-row">
+              <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
+                {createIndexBusy ? 'Creating…' : 'Create Index'}
+              </button>
+            </div>
+            {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
+          </div>
+        </div>
+      </section>
+
     {:else if !data.error}
       <p class="empty-state">No health data available.</p>
-    {/if}
-
-    <!-- AI Feature Flags -->
-    {@const aiConfigured = data.health?.intelligenceEnabled ?? false}
-    <div class="flags-section">
-      <div class="flags-section-header">
-        <div>
-          <h2 class="flags-title">AI Feature Flags</h2>
-          <p class="flags-subtitle">Enable or disable AI capabilities system-wide. Changes take effect immediately.</p>
-        </div>
-        {#if flagsSaved}<span class="flags-saved-badge">Saved</span>{/if}
-      </div>
-      {#if !aiConfigured}
-        <p class="flags-unconfigured">AI intelligence is not configured — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate these flags.</p>
-      {/if}
-      <div class="flags-grid">
-        {#each flagDefs as def}
-          <div class="flag-row">
-            <div class="flag-info">
-              <span class="flag-name">{def.label}</span>
-              <span class="flag-desc">{def.desc}</span>
-            </div>
-            <button
-              class="toggle-btn"
-              class:toggle-on={localFlags[def.key]}
-              onclick={() => toggleFlag(def.key, !localFlags[def.key])}
-              disabled={flagsBusy || !aiConfigured}
-              aria-pressed={localFlags[def.key]}
-              aria-label="Toggle {def.label}"
-            >
-              <span class="toggle-thumb"></span>
-            </button>
-          </div>
-        {/each}
-      </div>
-      {#if flagsError}<p class="flags-error">{flagsError}</p>{/if}
-    </div>
-
-    {#if data.health}
-      <div class="actions-section">
-        <div class="action-card">
-          <h3 class="action-title">Reindex Project</h3>
-          <p class="action-desc">Queue all active test scenarios in a project to be re-processed by the AI embedding pipeline.</p>
-          <div class="action-row">
-            <input class="project-key-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
-            <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
-              {reindexBusy ? 'Queuing…' : 'Reindex'}
-            </button>
-          </div>
-          {#if reindexResult}<p class="action-result">{reindexResult}</p>{/if}
-        </div>
-
-        <div class="action-card">
-          <h3 class="action-title">Create Search Index</h3>
-          <p class="action-desc">Build the vector search index to speed up semantic similarity queries. Run this after initial indexing is complete.</p>
-          <div class="action-row">
-            <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
-              {createIndexBusy ? 'Creating…' : 'Create Index'}
-            </button>
-          </div>
-          {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
-        </div>
-      </div>
     {/if}
   {/if}
 </div>
 
 <style>
-  .page { max-width: 900px; }
-  .page-header { margin-bottom: 24px; }
+  .page { max-width: 860px; display: flex; flex-direction: column; gap: 16px; }
+  .page-header { margin-bottom: 4px; }
   .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
   .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
-  :global(.page > .app-alert) { margin-bottom: 16px; }
-  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 48px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
-  .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
-  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text); }
-  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
-  .disabled-hint { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); opacity: 0.75; }
-  .disabled-hint code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
-  .health-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .health-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; }
-  .card-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: 8px; }
-  .card-value { font-size: 0.9rem; font-weight: 600; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .card-value.warn { color: var(--color-warning, #f59e0b); }
-  .text-sm { font-size: 0.78rem; font-weight: 400; }
-  .dim-badge { font-size: 0.7rem; background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); border-radius: 4px; padding: 2px 6px; font-weight: 700; }
-  .warn-badge { font-size: 0.7rem; background: color-mix(in srgb, var(--color-danger), transparent 85%); color: var(--color-danger); border-radius: 4px; padding: 2px 6px; font-weight: 700; }
-  .error-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; margin-bottom: 24px; }
-  .section-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin-bottom: 8px; }
-  .error-text { margin: 0; font-size: 0.8rem; font-family: var(--font-mono, monospace); color: var(--color-danger); white-space: pre-wrap; word-break: break-all; }
-  .actions-section { display: flex; flex-direction: column; gap: 16px; }
-  .action-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
-  .action-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 6px; }
-  .action-desc { margin: 0 0 14px; font-size: 0.85rem; color: var(--color-text-muted); }
-  .action-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-  .project-key-input { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; min-width: 180px; }
-  .primary-btn { background: var(--color-accent); color: #fff; border: none; border-radius: var(--radius); padding: 8px 18px; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; }
-  .primary-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-  .action-result { margin: 10px 0 0; font-size: 0.85rem; color: var(--color-text-muted); }
-  .empty-state { color: var(--color-text-muted); text-align: center; padding: 40px; }
+
+  /* Status bar */
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius); font-size: 0.85rem; border: 1px solid var(--color-border); }
+  .status-bar--on { background: color-mix(in srgb, #16a34a, transparent 92%); border-color: color-mix(in srgb, #16a34a, transparent 75%); }
+  .status-bar--off { background: var(--color-surface); }
+  .status-bar code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
+
+  /* Status dot */
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
+  .status-dot.on { background: #16a34a; box-shadow: 0 0 0 2px color-mix(in srgb, #16a34a, transparent 75%); }
+  .status-dot.warn { background: var(--color-warning, #d97706); }
+  .status-dot.sm { width: 7px; height: 7px; display: inline-block; }
+
+  /* Card */
+  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
+  .card-head { margin-bottom: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .card-title { font-size: 0.9rem; font-weight: 700; margin: 0 0 3px; }
+  .card-subtitle { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
+
+  /* Feature table */
+  .feature-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+  .feature-table th { text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); padding: 0 12px 8px 0; border-bottom: 1px solid var(--color-border); }
+  .feature-table th:last-child { padding-right: 0; }
+  .feature-table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+  .feature-table td:last-child { padding-right: 0; }
+  .feature-table tr:last-child td { border-bottom: none; }
+  .feature-name { font-weight: 600; }
+  .row--off .feature-name { color: var(--color-text-muted); }
+
+  /* Badges */
+  .badge { font-size: 0.7rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
+  .badge--active { background: color-mix(in srgb, #16a34a, transparent 88%); color: #16a34a; }
+  .badge--warn   { background: color-mix(in srgb, #d97706, transparent 88%); color: #d97706; }
+  .badge--off    { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+  .badge--error  { background: color-mix(in srgb, var(--color-danger), transparent 88%); color: var(--color-danger); }
+
+  .col-provider { color: var(--color-text-muted); min-width: 72px; }
+  .col-notes { width: 56px; }
+  .model-tag { font-size: 0.78rem; font-family: var(--font-mono, monospace); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 1px 6px; }
+  .dim-pill { font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-radius: 4px; padding: 2px 6px; }
+
+  /* Vector store */
+  .store-row { display: flex; gap: 32px; flex-wrap: wrap; }
+  .store-col { display: flex; flex-direction: column; gap: 4px; }
+  .field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
+  .store-value { font-size: 0.875rem; font-weight: 600; display: flex; align-items: center; gap: 6px; }
+  .warn-text { color: var(--color-warning, #d97706); }
+  .error-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+  .error-pre { margin: 6px 0 0; font-size: 0.78rem; font-family: var(--font-mono, monospace); color: var(--color-danger); white-space: pre-wrap; word-break: break-all; }
 
   /* Feature flags */
-  .flags-section { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; margin-bottom: 24px; }
-  .flags-section-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
-  .flags-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 4px; }
-  .flags-subtitle { margin: 0; font-size: 0.82rem; color: var(--color-text-muted); }
-  .flags-saved-badge { flex-shrink: 0; font-size: 0.72rem; font-weight: 700; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; align-self: center; }
-  .flags-grid { display: grid; gap: 12px; }
+  .saved-pill { font-size: 0.72rem; font-weight: 700; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; align-self: center; }
+  .unconfigured-note { margin: 0 0 14px; font-size: 0.82rem; color: var(--color-text-muted); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 90%); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706), transparent 70%); border-radius: 6px; padding: 8px 12px; }
+  .unconfigured-note code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
+  .flags-list { display: grid; gap: 0; }
   .flag-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
   .flag-row:last-child { border-bottom: none; padding-bottom: 0; }
   .flag-row:first-child { padding-top: 0; }
   .flag-info { min-width: 0; }
   .flag-name { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 2px; }
   .flag-desc { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
-  .flags-error { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-danger, #dc2626); }
-  .flags-unconfigured { margin: 0 0 14px; font-size: 0.82rem; color: var(--color-text-muted); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 90%); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706), transparent 70%); border-radius: 6px; padding: 8px 12px; }
-  .flags-unconfigured code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
-
-  /* Toggle switch */
+  .flag-error { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-danger, #dc2626); }
   .toggle-btn { position: relative; flex-shrink: 0; width: 44px; height: 24px; border-radius: 12px; border: none; background: var(--color-border); cursor: pointer; transition: background 0.2s; padding: 0; }
   .toggle-btn.toggle-on { background: var(--color-accent); }
   .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.2s; display: block; }
   .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
+
+  /* Actions */
+  .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .action-block { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; }
+  .action-title { font-size: 0.875rem; font-weight: 700; margin: 0 0 4px; }
+  .action-desc { margin: 0 0 12px; font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.5; }
+  .action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .action-result { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-text-muted); }
+  .text-input { padding: 7px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; flex: 1; min-width: 120px; }
+  .primary-btn { background: var(--color-accent); color: #fff; border: none; border-radius: var(--radius); padding: 7px 16px; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
+  .primary-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
+  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Empty states */
+  .empty-callout { display: flex; align-items: flex-start; gap: 14px; padding: 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-muted); }
+  .callout-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 4px; color: var(--color-text); }
+  .callout-body { margin: 0; font-size: 0.85rem; }
+  .empty-state { text-align: center; padding: 40px; color: var(--color-text-muted); }
+
+  :global(.page > .app-alert) { margin: 0; }
+
+  @media (max-width: 600px) {
+    .actions-grid { grid-template-columns: 1fr; }
+    .store-row { gap: 16px; }
+    .feature-table .col-notes { display: none; }
+  }
 </style>
