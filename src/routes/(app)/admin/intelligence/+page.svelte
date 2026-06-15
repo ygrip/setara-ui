@@ -140,7 +140,7 @@
             </tr>
           </thead>
           <tbody>
-            {#each h.features as f}
+            {#each h.features ?? [] as f}
               <tr class:row--active={f.active} class:row--off={!f.enabled}>
                 <td class="col-feature">
                   <span class="feature-name">{f.label}</span>
@@ -178,26 +178,26 @@
           <div class="store-col">
             <span class="field-label">Store</span>
             <span class="store-value">
-              <span class="status-dot sm" class:on={h.vectorStore.active && h.vectorStore.healthy} class:warn={h.vectorStore.active && !h.vectorStore.healthy}></span>
-              {h.vectorStore.displayName}
-              {#if h.vectorStore.active && !h.vectorStore.healthy}
+              <span class="status-dot sm" class:on={h.vectorStore?.active && h.vectorStore?.healthy} class:warn={h.vectorStore?.active && !h.vectorStore?.healthy}></span>
+              {h.vectorStore?.displayName ?? '—'}
+              {#if h.vectorStore?.active && !h.vectorStore?.healthy}
                 <span class="badge badge--error">Unhealthy</span>
               {/if}
             </span>
           </div>
           <div class="store-col">
             <span class="field-label">Pending jobs</span>
-            <span class="store-value" class:warn-text={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs}</span>
+            <span class="store-value" class:warn-text={h.pendingEmbeddingJobs > 50}>{h.pendingEmbeddingJobs ?? '—'}</span>
           </div>
           <div class="store-col">
             <span class="field-label">Last processed</span>
             <span class="store-value">{fmtDate(h.lastProcessedAt)}</span>
           </div>
         </div>
-        {#if h.vectorStore.lastError || h.recentErrorMessage}
+        {#if h.vectorStore?.lastError || h.recentErrorMessage}
           <div class="error-block">
             <span class="field-label">Recent error</span>
-            <pre class="error-pre">{h.vectorStore.lastError ?? h.recentErrorMessage}</pre>
+            <pre class="error-pre">{h.vectorStore?.lastError ?? h.recentErrorMessage}</pre>
           </div>
         {/if}
       </section>
