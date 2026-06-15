@@ -1,0 +1,35 @@
+src/routes/(app)/projects/+page.svelte
+  8389e4e996781514 101
+src/routes/(app)/plans/+page.svelte
+  8389e4e996781514 8,175,193-206,242,305
+src/routes/(app)/admin/+layout.svelte
+  8389e4e996781514 60-63
+src/lib/ui/display/AppSkeleton.svelte
+  8389e4e996781514 19,35-37,44-45
+src/routes/(app)/+layout.svelte
+  8389e4e996781514 1258-1259
+src/routes/(app)/admin/roles/+page.svelte
+  8389e4e996781514 9,133-145,279-289
+src/routes/(app)/coverage-overview/+page.svelte
+  8389e4e996781514 195-200,208-219
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "d20962afe288003b65660a3bad981843d6f1bbfc",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 74,
+      "total_deletions": 14,
+      "accepted_lines": 74,
+      "overriden_lines": 0
+    }
+  }
+}
