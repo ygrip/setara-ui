@@ -1,0 +1,31 @@
+src/routes/(app)/admin/squads/+page.svelte
+  8389e4e996781514 96
+src/routes/(app)/admin/intelligence/+page.svelte
+  8389e4e996781514 148,157-158,160-162,164,375-376,379-412,414-415
+src/routes/(app)/admin/tribes/+page.svelte
+  8389e4e996781514 91
+src/routes/(app)/admin/statistics/+page.svelte
+  8389e4e996781514 133-138
+src/routes/(app)/admin/users/+page.svelte
+  8389e4e996781514 104
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "6c13fc039ab96f17b872f7c49166ed1bad6037a5",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 54,
+      "total_deletions": 7,
+      "accepted_lines": 54,
+      "overriden_lines": 0
+    }
+  }
+}
