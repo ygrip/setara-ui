@@ -88,7 +88,7 @@
     {#if data.tribes.length === 0}
       <p class="empty-text">No tribes yet.</p>
     {:else}
-      <DataTable>
+      <DataTable mobileCards={true}>
         {#snippet head()}
           <tr><th>Name</th><th>Created</th><th></th></tr>
         {/snippet}

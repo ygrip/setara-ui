@@ -93,7 +93,7 @@
     {#if squads.length === 0}
       <p class="empty-text">No squads yet.</p>
     {:else}
-      <DataTable>
+      <DataTable mobileCards={true}>
         {#snippet head()}<tr><th>Name</th><th>Tribe</th><th>Created</th><th></th></tr>{/snippet}
         {#snippet body()}
           {#each squads as squad}

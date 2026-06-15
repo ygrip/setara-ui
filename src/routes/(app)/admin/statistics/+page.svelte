@@ -130,4 +130,10 @@
   .result-value.range { font-size: 0.875rem; font-weight: 500; color: var(--color-text); font-family: var(--font-mono, monospace); }
 
   .error-msg { margin: 14px 0 0; font-size: 0.85rem; color: var(--color-danger, #dc2626); }
+
+  @media (max-width: 600px) {
+    .form-row { flex-direction: column; align-items: stretch; }
+    .primary-btn { align-self: flex-start; }
+    .result-grid { gap: 16px; }
+  }
 </style>

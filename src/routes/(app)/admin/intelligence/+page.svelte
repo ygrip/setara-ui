@@ -145,7 +145,7 @@
                 <td class="col-feature">
                   <span class="feature-name">{f.label}</span>
                 </td>
-                <td class="col-status">
+                <td class="col-status" data-label="Status">
                   {#if f.active}
                     <span class="badge badge--active">Active</span>
                   {:else if f.enabled}
@@ -154,11 +154,14 @@
                     <span class="badge badge--off">Off</span>
                   {/if}
                 </td>
-                <td class="col-provider">{f.provider}</td>
-                <td class="col-model">
+                <td class="col-provider" data-label="Provider">{f.provider}</td>
+                <td class="col-model" data-label="Model">
                   <code class="model-tag">{f.model}</code>
+                  {#if f.key === 'embedding' && f.dimension}
+                    <span class="dim-pill">{f.dimension}d</span>
+                  {/if}
                 </td>
-                <td class="col-notes">
+                <td class="col-notes" aria-hidden="true">
                   {#if f.key === 'embedding' && f.dimension}
                     <span class="dim-pill">{f.dimension}d</span>
                   {/if}
@@ -369,8 +372,46 @@
   :global(.page > .app-alert) { margin: 0; }
 
   @media (max-width: 600px) {
+    .page { gap: 12px; }
+    .card { padding: 14px; }
     .actions-grid { grid-template-columns: 1fr; }
     .store-row { gap: 16px; }
+
+    /* Feature table → bento cards */
+    .feature-table { display: block; }
+    .feature-table thead {
+      position: absolute; width: 1px; height: 1px;
+      padding: 0; margin: -1px; overflow: hidden;
+      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+    }
+    .feature-table tbody { display: flex; flex-direction: column; gap: 6px; }
+    .feature-table tr {
+      display: block;
+      border: 1px solid var(--color-border);
+      border-radius: var(--radius);
+      background: var(--color-bg);
+      overflow: hidden;
+    }
+    .feature-table tr.row--off { opacity: 0.7; }
+    .feature-table td { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--color-border); font-size: 0.82rem; gap: 10px; }
+    .feature-table td:last-child { border-bottom: none; }
+    .feature-table td::before {
+      content: attr(data-label);
+      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--color-text-muted);
+      flex-shrink: 0; min-width: 62px;
+    }
+    /* Feature name — card header row, no label prefix */
+    .feature-table .col-feature {
+      background: var(--color-surface);
+      font-size: 0.875rem;
+      font-weight: 600;
+      border-bottom-width: 2px;
+    }
+    .feature-table .col-feature::before { display: none; }
+    /* Notes column hidden on mobile — dimension shown inline in model cell */
     .feature-table .col-notes { display: none; }
+    /* Model cell: allow dim-pill to sit inline */
+    .feature-table .col-model { flex-wrap: wrap; align-items: center; gap: 6px; }
   }
 </style>
