@@ -223,6 +223,21 @@ export async function listSquadCoverage(params: {
   return readJsonOrThrow(res);
 }
 
+export interface BackfillResult {
+  inserted: number;
+  skipped: number;
+  from: string;
+  to: string;
+}
+
+export async function triggerBackfill(from?: string, to?: string): Promise<BackfillResult> {
+  const query = new URLSearchParams();
+  if (from) query.set('from', from);
+  if (to) query.set('to', to);
+  const res = await apiFetch(`/api/statistics/backfill?${query}`, { method: 'POST' });
+  return readJsonOrThrow(res);
+}
+
 export async function listSquadProjectCoverage(squadId: string, params: {
   project?: string;
   sortBy?: 'name' | 'coverage';

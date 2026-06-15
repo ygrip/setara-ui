@@ -2,7 +2,7 @@
   import AiThinkingPanel from './AiThinkingPanel.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { authHeaders } from '$lib/api/client';
-  import { normalizeErrorMessage, readJsonOrThrow } from '$lib/api/errors';
+  import { normalizeErrorMessage, readApiError } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let {
@@ -32,6 +32,8 @@
   }
 
   let loading = $state(false);
+  let streaming = $state(false);
+  let streamingTokens = $state('');
   let result = $state<AiReviewResult | null>(null);
   let error = $state('');
 
@@ -51,20 +53,78 @@
 
   async function requestReview() {
     loading = true;
+    streaming = false;
+    streamingTokens = '';
     error = '';
     result = null;
+
     try {
       const res = await fetch(apiReviewUrl(), { method: 'POST', headers: authHeaders() });
-      const json = await readJsonOrThrow<AiReviewResult>(res, aiReviewUnavailableMessage);
-      if (json.message && !json.summary && !json.findings?.length) {
-        error = json.message;
-      } else {
-        result = json;
+
+      if (!res.ok) {
+        const errMsg = await readApiError(res, aiReviewUnavailableMessage);
+        throw new Error(errMsg);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error(aiReviewUnavailableMessage);
+
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let doneReceived = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        const parts = buffer.split('\n\n');
+        buffer = parts.pop() ?? '';
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+
+          if (data === '[DONE]') {
+            doneReceived = true;
+            continue;
+          }
+
+          if (doneReceived) {
+            try {
+              const parsed = JSON.parse(data) as AiReviewResult;
+              if (parsed.message && !parsed.summary && !parsed.findings?.length) {
+                error = parsed.message;
+              } else {
+                result = parsed;
+              }
+            } catch {
+              error = aiReviewUnavailableMessage;
+            }
+            streaming = false;
+            loading = false;
+            continue;
+          }
+
+          if (loading) {
+            loading = false;
+            streaming = true;
+          }
+          streamingTokens += data;
+        }
+      }
+
+      // Stream ended without receiving final JSON
+      if (loading || streaming) {
+        loading = false;
+        streaming = false;
+        if (!result && !error) error = aiReviewUnavailableMessage;
       }
     } catch (e: any) {
       error = normalizeErrorMessage(e, aiReviewUnavailableMessage);
-    } finally {
       loading = false;
+      streaming = false;
     }
   }
 
@@ -95,6 +155,11 @@
       hint="This may take a moment depending on model load."
       steps={reviewSteps}
     />
+  </div>
+{:else if streaming}
+  <div class="review-shell streaming-shell">
+    <span class="review-eyebrow">AI is writing&hellip;</span>
+    <p class="streaming-tokens">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
   </div>
 {:else if result}
   <div class="review-shell">
@@ -198,6 +263,36 @@
   }
 
   .rerun-btn:hover { color: var(--color-text); border-color: var(--color-accent); }
+
+  .streaming-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .streaming-tokens {
+    margin: 0;
+    font-size: 0.82rem;
+    line-height: 1.65;
+    color: var(--color-text-muted);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 0.9em;
+    background: var(--color-accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: blink 1s step-end infinite;
+  }
+
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
 
   .review-summary {
     font-size: 0.9rem;
