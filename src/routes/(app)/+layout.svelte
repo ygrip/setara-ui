@@ -475,10 +475,7 @@
     {/if}
 
     {#if navigating.to}
-      <div class="route-skeleton" role="status" aria-live="polite" aria-label="Loading page">
-        <span class="route-skeleton__bar route-skeleton__bar--short"></span>
-        <span class="route-skeleton__bar"></span>
-      </div>
+      <div class="route-skeleton" role="status" aria-live="polite" aria-label="Loading page"></div>
     {/if}
 
     <!-- Page content -->
@@ -1222,41 +1219,26 @@
   }
 
   .route-skeleton {
-    position: sticky;
+    position: fixed;
     top: var(--topbar-height);
-    z-index: 45;
-    display: grid;
-    gap: 7px;
-    padding: 10px 32px;
-    border-bottom: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-bg), transparent 6%);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
+    left: 0;
+    right: 0;
+    height: 3px;
+    z-index: 200;
     pointer-events: none;
-  }
-
-  .route-skeleton__bar {
-    display: block;
-    width: min(420px, 72vw);
-    height: 9px;
-    border-radius: 999px;
     background: linear-gradient(90deg,
-      color-mix(in srgb, var(--color-border), transparent 28%),
-      color-mix(in srgb, var(--color-accent), transparent 74%),
-      color-mix(in srgb, var(--color-border), transparent 28%)
+      transparent 0%,
+      var(--color-accent) 35%,
+      var(--color-accent-mint) 65%,
+      transparent 100%
     );
-    background-size: 220% 100%;
-    animation: route-skeleton-shimmer 1.1s ease-in-out infinite;
+    background-size: 200% 100%;
+    animation: route-loading-sweep 1.2s ease-in-out infinite;
   }
 
-  .route-skeleton__bar--short {
-    width: min(220px, 44vw);
-    height: 7px;
-  }
-
-  @keyframes route-skeleton-shimmer {
-    from { background-position: -120% 0; }
-    to { background-position: 120% 0; }
+  @keyframes route-loading-sweep {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1265,7 +1247,7 @@
     .topbar-brand-inline-text,
     .search-placeholder,
     .live-dot,
-    .route-skeleton__bar {
+    .route-skeleton {
       animation: none;
     }
   }
@@ -1494,8 +1476,5 @@
       padding: 20px 16px;
     }
 
-    .route-skeleton {
-      padding: 9px 16px;
-    }
   }
 </style>
