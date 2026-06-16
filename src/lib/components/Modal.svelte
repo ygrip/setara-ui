@@ -131,16 +131,18 @@
   }
 
   @media (max-width: 640px) {
-    .backdrop { padding: 8px; align-items: stretch; }
+    .backdrop { padding: 12px; align-items: center; }
     .modal,
     .modal--sm,
     .modal--md,
     .modal--lg,
     .modal--xl,
     .modal--full {
-      max-width: calc(100vw - 16px);
-      max-height: calc(100dvh - 16px);
+      max-width: calc(100vw - 24px);
+      max-height: min(90vh, calc(100dvh - 24px));
       border-radius: 12px;
+      width: 100%;
+      margin: 0 auto;
     }
     .modal-header { padding: 14px 16px; }
     .modal-body { padding: 16px; }
