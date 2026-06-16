@@ -154,7 +154,14 @@
                     <span class="badge badge--off">Off</span>
                   {/if}
                 </td>
-                <td class="col-provider" data-label="Provider">{f.provider}</td>
+                <td class="col-provider" data-label="Provider">
+                  <div class="provider-cell">
+                    <span class="provider-name">{f.provider}</span>
+                    {#if f.url}
+                      <span class="provider-url" title={f.url}>{f.url}</span>
+                    {/if}
+                  </div>
+                </td>
                 <td class="col-model" data-label="Model">
                   <code class="model-tag">{f.model}</code>
                   {#if f.key === 'embedding' && f.dimension}
@@ -319,8 +326,11 @@
   .badge--off    { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
   .badge--error  { background: color-mix(in srgb, var(--color-danger), transparent 88%); color: var(--color-danger); }
 
-  .col-provider { color: var(--color-text-muted); min-width: 72px; }
+  .col-provider { min-width: 72px; }
   .col-notes { width: 56px; }
+  .provider-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .provider-name { font-weight: 500; color: var(--color-text); }
+  .provider-url { font-size: 0.7rem; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
   .model-tag { font-size: 0.78rem; font-family: var(--font-mono, monospace); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 1px 6px; }
   .dim-pill { font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-radius: 4px; padding: 2px 6px; }
 
@@ -413,5 +423,8 @@
     .feature-table .col-notes { display: none; }
     /* Model cell: allow dim-pill to sit inline */
     .feature-table .col-model { flex-wrap: wrap; align-items: center; gap: 6px; }
+    /* Provider cell: let URL fill available width and wrap */
+    .feature-table .col-provider .provider-cell { flex: 1; min-width: 0; }
+    .feature-table .col-provider .provider-url { max-width: none; white-space: normal; word-break: break-all; }
   }
 </style>
