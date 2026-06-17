@@ -1,0 +1,25 @@
+src/routes/(app)/projects/[projectKey]/repository/semantic-search/+page.svelte
+  8389e4e996781514 6-7,14,19-21,25-43,47-52,54-69,71-74,76-103,109-116,119,127,132-136,138,142-144,146-147,150-151,159-160,162-176,182-200,202,206-213,215-237,239-242,244-248,250-265,267,270-271,273-295,303-307,310-319,321-486
+src/lib/components/AiReviewPanel.svelte
+  8389e4e996781514 161-164,274-275,278-280,283-302,305,307
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "176e03557eaf04cdfdd9e3c3a9f89b815f1d4840",
+  "prompts": {
+    "8389e4e996781514": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "6ff2db34-aeab-4ebb-a486-59325122a310",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 441,
+      "total_deletions": 111,
+      "accepted_lines": 441,
+      "overriden_lines": 0
+    }
+  }
+}
