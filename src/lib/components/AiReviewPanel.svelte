@@ -89,7 +89,9 @@
         for (const part of parts) {
           const line = part.trim();
           if (!line.startsWith('data:')) continue;
-          const data = line.slice(5).trim();
+          const data = line.slice(5).replace(/\r$/, '');
+          // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
+          // spaces that separate words (e.g. " scenarios" vs "scenarios").
 
           if (data === '[DONE]') {
             doneReceived = true;
