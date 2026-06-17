@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createScenario, suggestScenarioSteps, type TestDirectory } from '$lib/api/testcases';
+  import { createScenario, suggestScenarioStepsStream, type TestDirectory } from '$lib/api/testcases';
   import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import SetaraStepGridEditor from '$lib/components/scenario/SetaraStepGridEditor.svelte';
@@ -18,6 +18,8 @@
   let nodeId = $state('');
   let showDirectoryPicker = $state(false);
   let suggesting = $state(false);
+  let suggestStreaming = $state(false);
+  let suggestTokens = $state('');
   let suggestError = $state('');
   let suggestInfo = $state('');
   let suggestDraftHint = $state(false);
@@ -58,20 +60,30 @@
   async function handleSuggestSteps() {
     if (!name.trim() || suggesting) return;
     suggesting = true;
+    suggestStreaming = false;
+    suggestTokens = '';
     suggestError = '';
     suggestInfo = '';
     suggestDraftHint = false;
     try {
       const directoryPath = breadcrumbNodes.map(n => n.name);
-      const result = await suggestScenarioSteps(data.projectKey, {
-        scenarioName: name.trim(),
-        directoryNodeId: nodeId || undefined,
-        directoryPath: directoryPath.length > 0 ? directoryPath : undefined,
-        tags: tags.length > 0 ? tags.map(t => ({ sanitized: t.sanitized ?? '', display: t.display })) : undefined,
-        existingSteps: detailSteps.filter(s => s.name?.trim())
-          .map(s => ({ keyword: s.keyword, name: s.name.trim() })),
-        maxSteps: 8
-      });
+      const result = await suggestScenarioStepsStream(
+        data.projectKey,
+        {
+          scenarioName: name.trim(),
+          directoryNodeId: nodeId || undefined,
+          directoryPath: directoryPath.length > 0 ? directoryPath : undefined,
+          tags: tags.length > 0 ? tags.map(t => ({ sanitized: t.sanitized ?? '', display: t.display })) : undefined,
+          existingSteps: detailSteps.filter(s => s.name?.trim())
+            .map(s => ({ keyword: s.keyword, name: s.name.trim() })),
+          maxSteps: 8
+        },
+        (token) => {
+          suggestStreaming = true;
+          suggestTokens += token;
+        }
+      );
+      suggestStreaming = false;
       if (result.suggestions.length > 0) {
         detailSteps = result.suggestions.map(s => ({
           sequenceNo: s.sequenceNo,
@@ -91,6 +103,7 @@
         }
       }
     } catch (err) {
+      suggestStreaming = false;
       suggestError = normalizeErrorMessage(
         err,
         'AI step suggestions are unavailable right now. Your draft steps are unchanged, so you can try again or add steps manually.'
@@ -236,7 +249,7 @@
             title={!name.trim() ? 'Enter a scenario name first' : 'Generate BDD draft steps from your scenario name and context'}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z"/><path d="M12 8v4l3 3"/></svg>
-            {suggesting ? 'Thinking…' : 'Suggest steps'}
+          {suggesting ? (suggestStreaming ? 'Streaming…' : 'Thinking…') : 'Suggest steps'}
           </button>
           <span class="suggest-caption">AI drafts · always editable</span>
         </div>
@@ -256,7 +269,15 @@
         <div class="suggest-error" role="alert">{suggestError}</div>
       {/if}
 
-      {#if suggesting}
+      {#if suggesting && suggestStreaming}
+        <div class="suggest-stream" aria-live="polite" aria-label="AI is generating steps">
+          <div class="suggest-stream-header">
+            <span class="suggest-stream-label">AI Reasoning</span>
+            <span class="suggest-stream-badge">live</span>
+          </div>
+          <p class="suggest-stream-tokens">{suggestTokens}<span class="suggest-cursor" aria-hidden="true"></span></p>
+        </div>
+      {:else if suggesting}
         <AiThinkingPanel
           title="Suggesting steps"
           subtitle="Analyzing scenario name and context to generate BDD steps."
@@ -504,6 +525,70 @@
     padding: 10px 14px;
     margin-bottom: 12px;
   }
+
+  .suggest-stream {
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 40%);
+    border-radius: var(--radius, 8px);
+    background: var(--color-surface, var(--color-bg));
+    padding: 16px;
+    margin-bottom: 12px;
+    animation: suggest-pulse-border 2s infinite;
+  }
+
+  @keyframes suggest-pulse-border {
+    0%, 100% { border-color: color-mix(in srgb, var(--color-accent), transparent 40%); }
+    50%       { border-color: var(--color-accent); }
+  }
+
+  .suggest-stream-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .suggest-stream-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-accent);
+  }
+
+  .suggest-stream-badge {
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.58rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    animation: suggest-badge-pulse 1.5s infinite;
+  }
+
+  @keyframes suggest-badge-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+  .suggest-stream-tokens {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.65;
+    color: var(--color-text);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .suggest-cursor {
+    display: inline-block;
+    width: 2px;
+    height: 0.875em;
+    background: var(--color-accent);
+    margin-left: 2px;
+    vertical-align: text-bottom;
+    animation: suggest-blink 1s step-end infinite;
+  }
+
+  @keyframes suggest-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
   /* ── Actions ─────────────────────────────────────────────────────── */
   .form-actions { display: flex; justify-content: flex-end; gap: 10px; flex-wrap: wrap; }

@@ -1,5 +1,5 @@
 import { getApiBaseUrl } from './config';
-import { apiFetch } from './client';
+import { apiFetch, authHeaders } from './client';
 import { readJsonOrThrow } from './errors';
 import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
 
@@ -561,4 +561,63 @@ export async function suggestScenarioSteps(
     res,
     'AI step suggestions are unavailable right now. Check the Intelligence configuration and try again.'
   );
+}
+
+// Streaming variant — SSE: tokens → "[DONE]" → final StepSuggestionResponse JSON.
+// Calls the callback with each token as it arrives, resolves with the parsed response.
+export async function suggestScenarioStepsStream(
+  projectKey: string,
+  request: SuggestStepsRequest,
+  onToken: (token: string) => void
+): Promise<StepSuggestionResponse> {
+  const unavailableMsg = 'AI step suggestions are unavailable right now. Check the Intelligence configuration and try again.';
+  if (isMockMode()) return { suggestions: [], message: 'AI step suggestion is not available in mock mode.' };
+
+  const base = getApiBaseUrl().replace(/\/$/, '');
+  const res = await fetch(`${base}/api/projects/${projectKey}/scenarios/steps/suggest/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
+    body: JSON.stringify(request)
+  });
+
+  if (!res.ok || !res.body) {
+    return { suggestions: [], message: unavailableMsg };
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let doneReceived = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const parts = buffer.split('\n\n');
+    buffer = parts.pop() ?? '';
+
+    for (const part of parts) {
+      const line = part.trim();
+      if (!line.startsWith('data:')) continue;
+      const data = line.slice(5).trim();
+
+      if (data === '[DONE]') {
+        doneReceived = true;
+        continue;
+      }
+
+      if (doneReceived) {
+        try {
+          return JSON.parse(data) as StepSuggestionResponse;
+        } catch {
+          return { suggestions: [], message: unavailableMsg };
+        }
+      }
+
+      onToken(data);
+    }
+  }
+
+  return { suggestions: [], message: unavailableMsg };
 }
