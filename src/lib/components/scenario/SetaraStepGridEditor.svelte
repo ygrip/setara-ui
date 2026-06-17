@@ -320,28 +320,28 @@
   {#if !readonly}
     <div class="toolbar">
       <div class="toolbar-group">
-        <button title="Add row after focused" onclick={addRow}>+ Row</button>
-        <button
+        <button type="button" title="Add row after focused" onclick={addRow}>+ Row</button>
+        <button type="button"
           title="Delete focused row (or row 0 if none selected)"
           onclick={deleteRow}
           disabled={rows.length <= 1}
           class="danger-text"
         >Delete</button>
         <span class="divider"></span>
-        <button title="Move row up" onclick={moveUp} disabled={eff() <= 0}>↑ Up</button>
-        <button
+        <button type="button" title="Move row up" onclick={moveUp} disabled={eff() <= 0}>↑ Up</button>
+        <button type="button"
           title="Move row down"
           onclick={moveDown}
           disabled={eff() >= rows.length - 1}
         >↓ Down</button>
-        <button title="Duplicate focused row (or row 0 if none selected)" onclick={duplicateRow}
+        <button type="button" title="Duplicate focused row (or row 0 if none selected)" onclick={duplicateRow}
           >Duplicate</button
         >
         <span class="divider"></span>
-        <button title="Normalize keywords (capitalize and assign AND)" onclick={normalize}
+        <button type="button" title="Normalize keywords (capitalize and assign AND)" onclick={normalize}
           >Normalize</button
         >
-        <button title="Paste and parse text into steps" onclick={() => (showPasteDialog = true)}
+        <button type="button" title="Paste and parse text into steps" onclick={() => (showPasteDialog = true)}
           >Paste & Parse</button
         >
       </div>
@@ -358,8 +358,8 @@
           <option value={50}>Spacious</option>
         </select>
         <div class="segmented">
-          <button class:active={mode === 'edit'} onclick={() => (mode = 'edit')}>Edit</button>
-          <button class:active={mode === 'preview'} onclick={() => (mode = 'preview')}
+          <button type="button" class:active={mode === 'edit'} onclick={() => (mode = 'edit')}>Edit</button>
+          <button type="button" class:active={mode === 'preview'} onclick={() => (mode = 'preview')}
             >Preview</button
           >
         </div>

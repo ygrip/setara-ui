@@ -1,5 +1,6 @@
 <script lang="ts">
   import AiThinkingPanel from './AiThinkingPanel.svelte';
+  import MarkdownBlock from './MarkdownBlock.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { authHeaders } from '$lib/api/client';
   import { normalizeErrorMessage, readApiError } from '$lib/api/errors';
@@ -49,6 +50,7 @@
   ];
 
   const aiReviewUnavailableMessage = 'AI review is unavailable right now. Check the Intelligence configuration and try again.';
+  const aiReviewEmptyMessage = 'No review was generated. The AI model may not have enough context or the review feature may not be properly configured. Try again or contact your administrator.';
 
   function apiReviewUrl(): string {
     if (/^https?:\/\//i.test(reviewUrl)) return reviewUrl;
@@ -89,20 +91,20 @@
         for (const part of parts) {
           const line = part.trim();
           if (!line.startsWith('data:')) continue;
-          const data = line.slice(5).replace(/\r$/, '');
-          // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
-          // spaces that separate words (e.g. " scenarios" vs "scenarios").
+          const payload = line.slice(5);
 
-          if (data === '[DONE]') {
+          if (payload === '[DONE]') {
             doneReceived = true;
             continue;
           }
 
           if (doneReceived) {
             try {
-              const parsed = JSON.parse(data) as AiReviewResult;
+              const parsed = JSON.parse(payload.trim()) as AiReviewResult;
               if (parsed.message && !parsed.summary && !parsed.findings?.length) {
                 error = parsed.message;
+              } else if (!parsed.summary && (!parsed.findings || parsed.findings.length === 0)) {
+                error = aiReviewEmptyMessage;
               } else {
                 result = parsed;
               }
@@ -119,17 +121,15 @@
             streaming = true;
           }
 
-          // Filter out [TOOL:xxx] events — display them as tool steps, not as streaming text
-          if (data.startsWith('[TOOL:') && data.endsWith(']')) {
-            const toolName = data.slice(6, -1);
+          if (payload.startsWith('[TOOL:') && payload.endsWith(']')) {
+            const toolName = payload.slice(6, -1);
             toolEvents = [...toolEvents, toolName];
           } else {
-            streamingTokens += data;
+            streamingTokens += payload;
           }
         }
       }
 
-      // Stream ended without receiving final JSON
       if (loading || streaming) {
         loading = false;
         streaming = false;
@@ -151,6 +151,15 @@
     }
   }
 
+  function severityBadge(severity: string): string {
+    switch (severity) {
+      case 'HIGH': return 'badge--danger';
+      case 'MEDIUM': return 'badge--warning';
+      case 'LOW': return 'badge--accent';
+      default: return 'badge--muted';
+    }
+  }
+
   function typeLabel(type: string): string {
     switch (type) {
       case 'RISK': return 'Risk';
@@ -159,10 +168,24 @@
       default: return 'Info';
     }
   }
+
+  function typeIcon(type: string): string {
+    switch (type) {
+      case 'RISK': return '⚠';
+      case 'COVERAGE': return '⊡';
+      case 'QUALITY': return '✓';
+      default: return 'ℹ';
+    }
+  }
+
+  function formattedDate(iso?: string | null): string {
+    if (!iso) return '';
+    try { return new Date(iso).toLocaleString(); } catch { return iso; }
+  }
 </script>
 
 {#if loading}
-  <div class="review-shell">
+  <div class="review-root">
     <AiThinkingPanel
       title="AI is reviewing"
       subtitle="Analyzing {label} and preparing a review."
@@ -171,29 +194,42 @@
     />
   </div>
 {:else if streaming}
-  <div class="review-shell streaming-shell">
-    <div class="streaming-header">
-      <span class="review-eyebrow">AI Reasoning</span>
-      <span class="live-badge">live</span>
-    </div>
-    {#if toolEvents.length > 0}
-      <div class="tool-events" aria-label="Context gathering steps">
-        {#each toolEvents as event}
-          <span class="tool-badge">
-            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-            {event}
-          </span>
-        {/each}
+  <div class="review-root review-streaming">
+    <div class="stream-card">
+      <div class="stream-card-header">
+        <div class="stream-card-icon">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
+        </div>
+        <span class="stream-card-label">AI Reasoning</span>
+        <span class="live-badge">live</span>
       </div>
-    {/if}
-    {#if streamingTokens}
-      <p class="streaming-tokens">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
-    {/if}
+      <div class="stream-card-divider"></div>
+      {#if toolEvents.length > 0}
+        <div class="tool-events" aria-label="Context gathering steps">
+          {#each toolEvents as event}
+            <span class="tool-badge">
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+              {event}
+            </span>
+          {/each}
+        </div>
+      {/if}
+      {#if streamingTokens}
+        <div class="stream-text-wrap">
+          <p class="stream-text">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
+        </div>
+      {/if}
+    </div>
   </div>
 {:else if result}
-  <div class="review-shell">
-    <div class="review-header">
-      <span class="review-eyebrow">AI Review</span>
+  <div class="review-root review-done">
+    <div class="done-header">
+      <div class="done-header-left">
+        <span class="done-eyebrow">AI Review</span>
+        {#if result.reviewType}
+          <span class="done-type-badge">{result.reviewType}</span>
+        {/if}
+      </div>
       <button class="rerun-btn" onclick={requestReview} title="Re-run review">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
         Re-run
@@ -201,45 +237,52 @@
     </div>
 
     {#if result.summary}
-      <p class="review-summary">{result.summary}</p>
+      <div class="bento-summary">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+        <div class="bento-summary-text">
+          <MarkdownBlock value={result.summary} collapsedHeight={0} />
+        </div>
+      </div>
     {/if}
 
     {#if result.findings?.length}
-      <ul class="findings-list">
+      <div class="bento-grid">
         {#each result.findings as finding}
-          <li class="finding {severityClass(finding.severity)}">
-            <div class="finding-meta">
-              <span class="finding-type">{typeLabel(finding.type)}</span>
-              <span class="finding-severity">{finding.severity}</span>
+          <div class="bento-finding {severityClass(finding.severity)}">
+            <div class="bento-finding-top">
+              <span class="bento-finding-icon">{typeIcon(finding.type)}</span>
+              <span class="bento-finding-type">{typeLabel(finding.type)}</span>
+              <span class="bento-finding-severity badge {severityBadge(finding.severity)}">{finding.severity}</span>
               {#if finding.confidence != null}
-                <span class="finding-confidence" title="AI confidence: {Math.round(finding.confidence * 100)}%">
-                  {Math.round(finding.confidence * 100)}% conf.
+                <span class="conf-badge" title="AI confidence: {Math.round(finding.confidence * 100)}%">
+                  {Math.round(finding.confidence * 100)}%
                 </span>
               {/if}
             </div>
-            <div class="finding-body">
-              <strong class="finding-title">{finding.title}</strong>
-              <p class="finding-detail">{finding.detail}</p>
-              {#if finding.reasoning_evidence}
-                <details class="finding-evidence">
-                  <summary>Evidence &amp; reasoning</summary>
-                  <p>{finding.reasoning_evidence}</p>
-                </details>
-              {/if}
-              {#if finding.related_requirement}
-                <span class="finding-requirement" title="Related requirement">📋 {finding.related_requirement}</span>
-              {/if}
-            </div>
-          </li>
+            <strong class="bento-finding-title">{finding.title}</strong>
+            <p class="bento-finding-detail">{finding.detail}</p>
+            {#if finding.reasoning_evidence}
+              <details class="finding-evidence">
+                <summary>Evidence &amp; reasoning</summary>
+                <p>{finding.reasoning_evidence}</p>
+              </details>
+            {/if}
+            {#if finding.related_requirement}
+              <span class="finding-requirement">📋 {finding.related_requirement}</span>
+            {/if}
+          </div>
         {/each}
-      </ul>
+      </div>
     {:else}
       <p class="no-findings">No issues found.</p>
     {/if}
 
     {#if result.recommendation}
-      <div class="review-rec">
-        <span class="rec-label">Recommendation</span>
+      <div class="bento-rec">
+        <div class="bento-rec-header">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          <span class="rec-label">Recommendation</span>
+        </div>
         <p>{result.recommendation}</p>
       </div>
     {/if}
@@ -249,10 +292,11 @@
     {/if}
 
     {#if result.model || result.generatedAt}
-      <p class="review-meta">
-        {#if result.model}{result.model}{result.provider ? ` · ${result.provider}` : ''}{/if}{result.generatedAt ? ` · ${new Date(result.generatedAt).toLocaleString()}` : ''}
-        {#if toolEvents.length > 0} · {toolEvents.length} context tool{toolEvents.length > 1 ? 's' : ''} used{/if}
-      </p>
+      <div class="done-footer">
+        <span>{result.model}{result.provider ? ` · ${result.provider}` : ''}</span>
+        {#if result.generatedAt}<span> · {formattedDate(result.generatedAt)}</span>{/if}
+        {#if toolEvents.length > 0}<span> · {toolEvents.length} tool{toolEvents.length > 1 ? 's' : ''} used</span>{/if}
+      </div>
     {/if}
   </div>
 {:else}
@@ -269,357 +313,185 @@
 {/if}
 
 <style>
-  .review-shell {
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    background: var(--color-surface);
-    padding: 20px;
+  .review-root { max-width: 100%; }
+
+  /* ── Streaming card ─────────────────────────── */
+  .review-streaming {
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 55%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent), transparent 96%), color-mix(in srgb, var(--color-accent), transparent 98%));
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--color-accent), transparent 90%);
+    animation: reasoning-glow 2.4s ease-in-out infinite;
   }
-
-  .review-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 12px;
+  @keyframes reasoning-glow {
+    0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 85%); }
+    50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent), transparent 70%); }
   }
-
-  .review-eyebrow {
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-accent);
+  .stream-card { padding: 16px 18px 18px 18px; }
+  .stream-card-header { display: flex; align-items: center; gap: 8px; }
+  .stream-card-icon {
+    display: flex; align-items: center; justify-content: center;
+    width: 28px; height: 28px; border-radius: 8px;
+    background: color-mix(in srgb, var(--color-accent), transparent 85%);
+    color: var(--color-accent); flex-shrink: 0;
   }
-
-  .rerun-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    background: none;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    color: var(--color-text-muted);
-    font: inherit;
-    font-size: 0.78rem;
-    cursor: pointer;
-    padding: 4px 10px;
-    transition: color 0.15s, border-color 0.15s;
+  .stream-card-label {
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--color-accent);
   }
-
-  .rerun-btn:hover { color: var(--color-text); border-color: var(--color-accent); }
-
-  .streaming-shell {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    border-color: color-mix(in srgb, var(--color-accent), transparent 40%);
-    animation: pulse-border 2s infinite;
+  .stream-card-divider {
+    height: 1px; margin: 10px 0 12px 0;
+    background: linear-gradient(to right,
+      color-mix(in srgb, var(--color-accent), transparent 60%),
+      color-mix(in srgb, var(--color-accent), transparent 88%) 60%, transparent);
   }
-
-  @keyframes pulse-border {
-    0%, 100% { border-color: color-mix(in srgb, var(--color-accent), transparent 40%); }
-    50% { border-color: var(--color-accent); }
-  }
-
-  .streaming-header {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-
   .live-badge {
-    background: var(--color-accent);
-    color: #fff;
-    font-size: 0.6rem;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 6px;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+    background: var(--color-accent); color: #fff;
+    font-size: 0.6rem; font-weight: 700; padding: 2px 7px;
+    border-radius: 10px; letter-spacing: 0.04em;
     animation: fade-in-out 1.5s infinite;
   }
-
   @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-
-  .streaming-tokens {
-    margin: 0;
-    font-size: 0.9rem;
-    line-height: 1.65;
-    color: var(--color-text);
-    white-space: pre-wrap;
-    word-break: break-word;
-  }
-
-  .cursor {
-    display: inline-block;
-    width: 2px;
-    height: 0.9em;
-    background: var(--color-accent);
-    margin-left: 2px;
-    vertical-align: text-bottom;
-    animation: blink 1s step-end infinite;
-  }
-
-  @keyframes blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0; }
-  }
-
-  .tool-events {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    margin-bottom: 10px;
-  }
-
+  .tool-events { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
   .tool-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 0.68rem;
-    font-weight: 600;
-    padding: 2px 8px;
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.67rem; font-weight: 600; padding: 2px 8px;
     border-radius: 10px;
     background: color-mix(in srgb, var(--color-accent), transparent 88%);
     color: var(--color-accent);
     border: 1px solid color-mix(in srgb, var(--color-accent), transparent 65%);
     white-space: nowrap;
   }
-
   .tool-badge svg { flex-shrink: 0; }
-
-  .review-summary {
-    font-size: 0.9rem;
-    line-height: 1.6;
-    color: var(--color-text);
-    margin: 0 0 16px;
+  .stream-text-wrap { max-height: 260px; overflow-y: auto; position: relative; }
+  .stream-text-wrap::before {
+    content: ''; position: sticky; top: 0; left: 0; right: 0; height: 28px;
+    background: linear-gradient(to bottom, color-mix(in srgb, var(--color-accent), transparent 96%), transparent);
+    pointer-events: none; z-index: 1;
   }
-
-  .findings-list {
-    list-style: none;
-    margin: 0 0 16px;
-    padding: 0;
-    display: grid;
-    gap: 8px;
+  .stream-text {
+    margin: 0; font-size: 0.85rem; line-height: 1.65;
+    color: var(--color-text); white-space: pre-wrap; word-break: break-word;
   }
-
-  .finding {
-    display: flex;
-    gap: 12px;
-    padding: 11px 14px;
-    border-radius: 8px;
-    border-left: 3px solid;
+  .cursor {
+    display: inline-block; width: 2px; height: 0.9em;
+    background: var(--color-accent); margin-left: 1px;
+    vertical-align: text-bottom; animation: blink 1s step-end infinite;
   }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
 
-  .finding--high { border-color: var(--color-danger, #dc2626); background: color-mix(in srgb, var(--color-danger, #dc2626), transparent 94%); }
-  .finding--medium { border-color: var(--color-warning, #d97706); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 94%); }
-  .finding--low { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 94%); }
-  .finding--info { border-color: var(--color-border); background: var(--color-bg); }
-
-  .finding-meta {
-    display: flex;
-    flex-direction: column;
-    gap: 3px;
-    min-width: 68px;
-    flex-shrink: 0;
+  /* ── Done: bento layout ────────────────────── */
+  .review-done {
+    border: 1px solid var(--color-border); border-radius: 14px;
+    background: var(--color-surface); padding: 22px 24px; box-shadow: var(--shadow-sm);
   }
-
-  .finding-type {
-    font-size: 0.67rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
+  .done-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .done-header-left { display: flex; align-items: center; gap: 8px; }
+  .done-eyebrow {
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.07em; color: var(--color-accent);
   }
-
-  .finding-severity {
-    font-size: 0.7rem;
-    font-weight: 700;
-    text-transform: uppercase;
+  .done-type-badge {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase; padding: 1px 7px;
+    border-radius: 6px; background: color-mix(in srgb, var(--color-accent), transparent 86%);
+    color: var(--color-accent); letter-spacing: 0.04em;
   }
-
-  .finding--high .finding-severity { color: var(--color-danger, #dc2626); }
-  .finding--medium .finding-severity { color: var(--color-warning, #d97706); }
-  .finding--low .finding-severity { color: var(--color-accent); }
-  .finding--info .finding-severity { color: var(--color-text-muted); }
-
-  .finding-body { flex: 1; min-width: 0; }
-
-  .finding-title {
-    display: block;
-    font-size: 0.875rem;
-    margin-bottom: 3px;
+  .rerun-btn {
+    display: inline-flex; align-items: center; gap: 5px; background: none;
+    border: 1px solid var(--color-border); border-radius: 8px;
+    color: var(--color-text-muted); font: inherit; font-size: 0.76rem;
+    cursor: pointer; padding: 4px 10px; transition: color 0.15s, border-color 0.15s;
   }
+  .rerun-btn:hover { color: var(--color-text); border-color: var(--color-accent); }
 
-  .finding-detail {
-    margin: 0;
-    font-size: 0.82rem;
-    color: var(--color-text-muted);
-    line-height: 1.5;
+  .bento-summary {
+    display: flex; gap: 10px; padding: 14px 16px;
+    background: color-mix(in srgb, var(--color-accent), transparent 94%);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 75%);
+    border-radius: 10px; margin-bottom: 14px; color: var(--color-text); line-height: 1.6;
   }
+  .bento-summary svg { flex-shrink: 0; margin-top: 2px; color: var(--color-accent); }
+  .bento-summary-text { font-size: 0.88rem; min-width: 0; }
+  .bento-summary-text :global(p) { margin: 0; }
+  .bento-summary-text :global(strong) { color: color-mix(in srgb, var(--color-text), var(--color-accent) 30%); }
 
-  .finding-confidence {
-    font-size: 0.65rem;
-    font-weight: 700;
-    padding: 1px 6px;
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--color-accent), transparent 85%);
-    color: var(--color-accent);
-    white-space: nowrap;
-    cursor: help;
+  .bento-grid { display: grid; gap: 8px; margin-bottom: 14px; }
+  .bento-finding {
+    padding: 14px 16px; border-radius: 10px; border-left: 4px solid;
+    background: var(--color-bg); transition: box-shadow 0.15s;
   }
+  .bento-finding:hover { box-shadow: 0 1px 6px color-mix(in srgb, var(--color-accent), transparent 88%); }
+  .finding--high  { border-color: var(--color-danger, #dc2626); background: color-mix(in srgb, var(--color-danger, #dc2626), transparent 96%); }
+  .finding--medium{ border-color: var(--color-warning, #d97706); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 96%); }
+  .finding--low   { border-color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 96%); }
+  .finding--info  { border-color: var(--color-border); }
 
-  .finding-evidence {
-    margin-top: 8px;
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
+  .bento-finding-top { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; }
+  .bento-finding-icon { font-size: 0.85rem; }
+  .bento-finding-type {
+    font-size: 0.62rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--color-text-muted);
   }
-
-  .finding-evidence summary {
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 0.75rem;
-    color: var(--color-accent);
-    user-select: none;
+  .badge {
+    font-size: 0.6rem; font-weight: 700; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 6px; letter-spacing: 0.04em;
   }
-
-  .finding-evidence summary:hover {
-    text-decoration: underline;
+  .badge--danger  { background: color-mix(in srgb, var(--color-danger, #dc2626), transparent 85%); color: var(--color-danger, #dc2626); }
+  .badge--warning { background: color-mix(in srgb, var(--color-warning, #d97706), transparent 85%); color: var(--color-warning, #d97706); }
+  .badge--accent  { background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); }
+  .badge--muted   { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+  .conf-badge {
+    font-size: 0.6rem; font-weight: 700; padding: 2px 7px; border-radius: 6px;
+    background: color-mix(in srgb, var(--color-accent), transparent 85%); color: var(--color-accent); cursor: help;
   }
-
-  .finding-evidence p {
-    margin: 6px 0 0;
-    line-height: 1.5;
-    padding-left: 4px;
-    border-left: 2px solid var(--color-border);
-  }
-
+  .bento-finding-title { display: block; font-size: 0.88rem; font-weight: 650; margin-bottom: 4px; color: var(--color-text); line-height: 1.4; }
+  .bento-finding-detail { margin: 0; font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.55; }
+  .finding-evidence { margin-top: 8px; font-size: 0.76rem; color: var(--color-text-muted); }
+  .finding-evidence summary { cursor: pointer; font-weight: 600; font-size: 0.73rem; color: var(--color-accent); user-select: none; }
+  .finding-evidence summary:hover { text-decoration: underline; }
+  .finding-evidence p { margin: 6px 0 0; line-height: 1.5; padding-left: 8px; border-left: 2px solid var(--color-border); }
   .finding-requirement {
-    display: inline-block;
-    margin-top: 6px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    background: var(--color-bg);
-    padding: 2px 8px;
-    border-radius: 6px;
-    border: 1px solid var(--color-border);
+    display: inline-block; margin-top: 6px; font-size: 0.7rem; font-weight: 600;
+    color: var(--color-text-muted); background: var(--color-surface);
+    padding: 2px 8px; border-radius: 6px; border: 1px solid var(--color-border);
+  }
+  .no-findings { font-size: 0.85rem; color: var(--color-text-muted); margin: 0 0 14px; }
+
+  .bento-rec {
+    background: color-mix(in srgb, var(--color-accent), transparent 93%);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+    border-radius: 10px; padding: 13px 16px; margin-bottom: 10px;
+  }
+  .bento-rec-header { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; color: var(--color-accent); }
+  .rec-label { font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .bento-rec p { margin: 0; font-size: 0.85rem; line-height: 1.55; color: var(--color-text); }
+  .review-note { margin: 10px 0 0; font-size: 0.76rem; color: var(--color-text-muted); font-style: italic; }
+  .done-footer {
+    margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--color-border);
+    font-size: 0.68rem; color: var(--color-text-muted); opacity: 0.6;
+    display: flex; flex-wrap: wrap; gap: 2px;
   }
 
-  .no-findings {
-    font-size: 0.875rem;
-    color: var(--color-text-muted);
-    margin: 0 0 16px;
-  }
-
-  .review-rec {
-    background: color-mix(in srgb, var(--color-accent), transparent 92%);
-    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 65%);
-    border-radius: 8px;
-    padding: 12px 14px;
-    margin-top: 4px;
-  }
-
-  .rec-label {
-    display: block;
-    font-size: 0.67rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-accent);
-    margin-bottom: 5px;
-  }
-
-  .review-rec p {
-    margin: 0;
-    font-size: 0.875rem;
-    line-height: 1.55;
-  }
-
-  .review-note {
-    margin: 12px 0 0;
-    font-size: 0.78rem;
-    color: var(--color-text-muted);
-    font-style: italic;
-  }
-
-  .review-meta {
-    margin: 10px 0 0;
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    opacity: 0.65;
-  }
-
-  .review-idle {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-  }
-
+  /* ── Idle ─────────────────────────────────── */
+  .review-idle { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
   .request-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 7px;
-    background: none;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    color: var(--color-accent);
-    font: inherit;
-    font-size: 0.875rem;
-    font-weight: 600;
-    cursor: pointer;
-    padding: 8px 16px;
-    transition: background 0.15s, border-color 0.15s;
+    display: inline-flex; align-items: center; gap: 7px; background: none;
+    border: 1px solid var(--color-border); border-radius: var(--radius);
+    color: var(--color-accent); font: inherit; font-size: 0.875rem; font-weight: 600;
+    cursor: pointer; padding: 8px 16px; transition: background 0.15s, border-color 0.15s;
   }
+  .request-btn:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); border-color: var(--color-accent); }
+  .idle-caption { margin: 0; font-size: 0.75rem; color: var(--color-text-muted); }
 
-  .request-btn:hover {
-    background: color-mix(in srgb, var(--color-accent), transparent 92%);
-    border-color: var(--color-accent);
-  }
-
-  .idle-caption {
-    margin: 0;
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-  }
-  /* ── Mobile Responsive ─────────────────────────────────── */
   @media (max-width: 640px) {
-    .review-shell {
-      padding: 14px;
-    }
-    .finding {
-      flex-direction: column;
-      gap: 8px;
-      padding: 10px 12px;
-    }
-    .finding-meta {
-      flex-direction: row;
-      flex-wrap: wrap;
-      gap: 6px;
-      min-width: 0;
-    }
-    .finding-title {
-      font-size: 0.82rem;
-    }
-    .finding-detail {
-      font-size: 0.78rem;
-    }
-    .finding-confidence {
-      font-size: 0.62rem;
-    }
-    .finding-evidence {
-      font-size: 0.74rem;
-    }
-    .streaming-tokens {
-      max-height: 200px;
-      font-size: 0.75rem;
-    }
-    .tool-events {
-      flex-wrap: wrap;
-    }
-    .request-btn {
-      width: 100%;
-      justify-content: center;
-    }
-  }</style>
+    .review-done { padding: 14px; }
+    .bento-finding { padding: 12px 13px; }
+    .bento-finding-top { gap: 4px; }
+    .bento-finding-title { font-size: 0.82rem; }
+    .bento-finding-detail { font-size: 0.78rem; }
+    .stream-text-wrap { max-height: 180px; }
+    .stream-text { font-size: 0.78rem; }
+    .tool-events { flex-wrap: wrap; }
+  }
+</style>
