@@ -198,10 +198,13 @@
     {#if phase === 'streaming' || (phase === 'done' && reasoning)}
       <div class="reasoning-panel" class:streaming={phase === 'streaming'}>
         <div class="reasoning-header">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
-          AI Analysis
+          <div class="reasoning-header-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
+          </div>
+          <span class="reasoning-header-label">AI Analysis</span>
           {#if phase === 'streaming'}<span class="live-badge">live</span>{/if}
         </div>
+        <div class="reasoning-divider"></div>
         <div class="reasoning-content">
           <MarkdownBlock value={reasoning} collapsedHeight={0} />
           {#if phase === 'streaming'}<span class="cursor" aria-hidden="true"></span>{/if}
@@ -365,57 +368,164 @@
   @keyframes spin { to { transform: rotate(360deg); } }
 
   .reasoning-panel {
-    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 60%);
-    background: color-mix(in srgb, var(--color-accent), transparent 95%);
-    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
-    overflow-x: auto;
-    max-width: 100%;
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 55%);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--color-accent), transparent 96%), color-mix(in srgb, var(--color-accent), transparent 98%));
+    border-radius: 12px;
+    margin-bottom: 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--color-accent), transparent 90%);
+    transition: border-color 0.3s, box-shadow 0.3s;
   }
   .reasoning-panel.streaming {
-    border-color: color-mix(in srgb, var(--color-accent), transparent 40%);
-    animation: pulse-border 2s infinite;
+    border-color: color-mix(in srgb, var(--color-accent), transparent 35%);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 85%);
+    animation: reasoning-glow 2.4s ease-in-out infinite;
   }
-  @keyframes pulse-border {
-    0%, 100% { border-color: color-mix(in srgb, var(--color-accent), transparent 40%); }
-    50% { border-color: var(--color-accent); }
+  @keyframes reasoning-glow {
+    0%, 100% { box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 85%); }
+    50% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent), transparent 70%); }
   }
+
   .reasoning-header {
-    display: flex; align-items: center; gap: 6px;
-    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.06em; color: var(--color-accent); margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 18px 0 18px;
   }
+  .reasoning-header-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-accent), transparent 85%);
+    color: var(--color-accent);
+    flex-shrink: 0;
+  }
+  .reasoning-header-label {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-accent);
+  }
+
+  .reasoning-divider {
+    height: 1px;
+    margin: 10px 18px 0 18px;
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, var(--color-accent), transparent 60%),
+      color-mix(in srgb, var(--color-accent), transparent 88%) 60%,
+      transparent
+    );
+  }
+
   .live-badge {
-    background: var(--color-accent); color: #fff;
-    font-size: 0.6rem; padding: 1px 5px; border-radius: 6px;
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 2px 7px;
+    border-radius: 10px;
+    letter-spacing: 0.04em;
     animation: fade-in-out 1.5s infinite;
   }
   @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
-  /* Markdown content inside reasoning panel — mobile-friendly */
+  /* Markdown content inside reasoning panel */
   .reasoning-content {
-    font-size: 0.9rem; line-height: 1.65;
+    padding: 12px 18px 16px 18px;
+    font-size: 0.875rem;
+    line-height: 1.7;
     color: var(--color-text);
     word-wrap: break-word;
     overflow-wrap: break-word;
     max-width: 100%;
+  }
+  .reasoning-content :global(p) {
+    margin: 0 0 10px;
+  }
+  .reasoning-content :global(p:last-child) {
+    margin-bottom: 0;
+  }
+  .reasoning-content :global(strong) {
+    color: color-mix(in srgb, var(--color-text), var(--color-accent) 30%);
+    font-weight: 700;
+  }
+  .reasoning-content :global(em) {
+    color: var(--color-text-muted);
+  }
+  .reasoning-content :global(ul),
+  .reasoning-content :global(ol) {
+    margin: 8px 0;
+    padding-left: 20px;
+  }
+  .reasoning-content :global(li) {
+    margin-bottom: 4px;
+  }
+  .reasoning-content :global(li::marker) {
+    color: var(--color-accent);
   }
   .reasoning-content :global(pre) {
     max-width: 100%;
     overflow-x: auto;
     white-space: pre-wrap;
     word-break: break-word;
+    background: #0f172a;
+    color: #e2e8f0;
+    border: 1px solid color-mix(in srgb, var(--color-border), #000 20%);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin: 8px 0;
   }
   .reasoning-content :global(code) {
     word-break: break-word;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.84em;
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+  .reasoning-content :global(pre code) {
+    background: transparent;
+    padding: 0;
   }
   .reasoning-content :global(table) {
     display: block;
     max-width: 100%;
     overflow-x: auto;
+    border-collapse: collapse;
+    margin: 8px 0;
+  }
+  .reasoning-content :global(th),
+  .reasoning-content :global(td) {
+    padding: 6px 10px;
+    border: 1px solid var(--color-border);
+    text-align: left;
+    font-size: 0.82rem;
+  }
+  .reasoning-content :global(th) {
+    background: color-mix(in srgb, var(--color-accent), transparent 92%);
+    font-weight: 700;
   }
   .reasoning-content :global(img) {
     max-width: 100%;
     height: auto;
+  }
+  .reasoning-content :global(hr) {
+    border: none;
+    border-top: 1px solid var(--color-border);
+    margin: 12px 0;
+  }
+  .reasoning-content :global(blockquote) {
+    border-left: 3px solid var(--color-accent);
+    margin: 8px 0;
+    padding: 4px 12px;
+    color: var(--color-text-muted);
+    background: color-mix(in srgb, var(--color-accent), transparent 95%);
+    border-radius: 0 6px 6px 0;
   }
 
   .cursor {
