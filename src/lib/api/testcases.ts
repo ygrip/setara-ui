@@ -588,6 +588,7 @@ export async function suggestScenarioStepsStream(
   const decoder = new TextDecoder();
   let buffer = '';
   let doneReceived = false;
+  let finalResult: StepSuggestionResponse | null = null;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -609,15 +610,29 @@ export async function suggestScenarioStepsStream(
 
       if (doneReceived) {
         try {
-          return JSON.parse(data) as StepSuggestionResponse;
+          finalResult = JSON.parse(data) as StepSuggestionResponse;
+          doneReceived = false; // reset for any subsequent events
         } catch {
-          return { suggestions: [], message: unavailableMsg };
+          // JSON parse failed — keep finalResult null, will fallback
         }
+        continue;
       }
 
       onToken(data);
     }
   }
 
+  // Stream ended — return parsed result or fallback
+  if (finalResult) return finalResult;
+  // If we got [DONE] but no JSON in the same stream, try parsing
+  // whatever remains in the buffer as a last resort
+  if (doneReceived && buffer.trim()) {
+    const leftover = buffer.trim();
+    if (leftover.startsWith('data:')) {
+      try {
+        return JSON.parse(leftover.slice(5).trim()) as StepSuggestionResponse;
+      } catch { /* fall through */ }
+    }
+  }
   return { suggestions: [], message: unavailableMsg };
 }

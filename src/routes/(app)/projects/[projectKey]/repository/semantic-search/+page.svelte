@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import MarkdownBlock from '$lib/components/MarkdownBlock.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { authHeaders } from '$lib/api/client';
@@ -195,7 +196,10 @@
           AI Analysis
           {#if phase === 'streaming'}<span class="live-badge">live</span>{/if}
         </div>
-        <p class="reasoning-text">{reasoning}{#if phase === 'streaming'}<span class="cursor" aria-hidden="true"></span>{/if}</p>
+        <div class="reasoning-content">
+          <MarkdownBlock value={reasoning} collapsedHeight={0} />
+          {#if phase === 'streaming'}<span class="cursor" aria-hidden="true"></span>{/if}
+        </div>
       </div>
     {/if}
 
@@ -372,6 +376,8 @@
     border: 1px solid color-mix(in srgb, var(--color-accent), transparent 60%);
     background: color-mix(in srgb, var(--color-accent), transparent 95%);
     border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+    overflow-x: auto;
+    max-width: 100%;
   }
   .reasoning-panel.streaming {
     border-color: color-mix(in srgb, var(--color-accent), transparent 40%);
@@ -392,10 +398,34 @@
     animation: fade-in-out 1.5s infinite;
   }
   @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .reasoning-text {
-    margin: 0; font-size: 0.9rem; line-height: 1.65;
-    color: var(--color-text); white-space: pre-wrap;
+
+  /* Markdown content inside reasoning panel — mobile-friendly */
+  .reasoning-content {
+    font-size: 0.9rem; line-height: 1.65;
+    color: var(--color-text);
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    max-width: 100%;
   }
+  .reasoning-content :global(pre) {
+    max-width: 100%;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .reasoning-content :global(code) {
+    word-break: break-word;
+  }
+  .reasoning-content :global(table) {
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .reasoning-content :global(img) {
+    max-width: 100%;
+    height: auto;
+  }
+
   .cursor {
     display: inline-block; width: 2px; height: 0.9em; background: var(--color-accent);
     margin-left: 1px; vertical-align: text-bottom; animation: blink 1s step-end infinite;
@@ -484,4 +514,20 @@
   }
   .how-step strong { display: block; font-size: 0.85rem; margin-bottom: 3px; }
   .how-step p { margin: 0; font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.5; }
+
+  /* ── Mobile Responsive ─────────────────────────────────── */
+  @media (max-width: 640px) {
+    .page-header { flex-direction: column; }
+    .page-title { font-size: 1.2rem; }
+    .search-bar {
+      flex-wrap: wrap; gap: 8px; padding: 8px 10px;
+    }
+    .search-input { font-size: 0.875rem; }
+    .reasoning-panel { padding: 10px 12px; }
+    .reasoning-content { font-size: 0.825rem; }
+    .result-card { padding: 12px 14px; }
+    .result-name { font-size: 0.875rem; }
+    .result-top { flex-direction: column; align-items: flex-start; gap: 6px; }
+    .how-grid { grid-template-columns: 1fr; }
+  }
 </style>
