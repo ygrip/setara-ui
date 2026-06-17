@@ -34,6 +34,7 @@
   let loading = $state(false);
   let streaming = $state(false);
   let streamingTokens = $state('');
+  let toolEvents = $state<string[]>([]);
   let result = $state<AiReviewResult | null>(null);
   let error = $state('');
 
@@ -55,6 +56,7 @@
     loading = true;
     streaming = false;
     streamingTokens = '';
+    toolEvents = [];
     error = '';
     result = null;
 
@@ -111,7 +113,14 @@
             loading = false;
             streaming = true;
           }
-          streamingTokens += data;
+
+          // Filter out [TOOL:xxx] events — display them as tool steps, not as streaming text
+          if (data.startsWith('[TOOL:') && data.endsWith(']')) {
+            const toolName = data.slice(6, -1);
+            toolEvents = [...toolEvents, toolName];
+          } else {
+            streamingTokens += data;
+          }
         }
       }
 
@@ -162,7 +171,19 @@
       <span class="review-eyebrow">AI Reasoning</span>
       <span class="live-badge">live</span>
     </div>
-    <p class="streaming-tokens">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
+    {#if toolEvents.length > 0}
+      <div class="tool-events" aria-label="Context gathering steps">
+        {#each toolEvents as event}
+          <span class="tool-badge">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
+            {event}
+          </span>
+        {/each}
+      </div>
+    {/if}
+    {#if streamingTokens}
+      <p class="streaming-tokens">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
+    {/if}
   </div>
 {:else if result}
   <div class="review-shell">
@@ -211,6 +232,7 @@
     {#if result.model || result.generatedAt}
       <p class="review-meta">
         {#if result.model}{result.model}{result.provider ? ` · ${result.provider}` : ''}{/if}{result.generatedAt ? ` · ${new Date(result.generatedAt).toLocaleString()}` : ''}
+        {#if toolEvents.length > 0} · {toolEvents.length} context tool{toolEvents.length > 1 ? 's' : ''} used{/if}
       </p>
     {/if}
   </div>
@@ -323,6 +345,29 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0; }
   }
+
+  .tool-events {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 10px;
+  }
+
+  .tool-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.68rem;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    color: var(--color-accent);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 65%);
+    white-space: nowrap;
+  }
+
+  .tool-badge svg { flex-shrink: 0; }
 
   .review-summary {
     font-size: 0.9rem;

@@ -34,12 +34,12 @@
     return 'var(--color-warning, #d97706)';
   }
 
-  function priorityVariant(priority: string | null): 'danger' | 'warning' | 'accent' | 'muted' {
+  function priorityVariant(priority: string | null): 'danger' | 'warning' | 'info' | 'neutral' {
     switch (priority) {
       case 'CRITICAL': return 'danger';
       case 'HIGH':     return 'warning';
-      case 'MEDIUM':   return 'accent';
-      default:         return 'muted';
+      case 'MEDIUM':   return 'info';
+      default:         return 'neutral';
     }
   }
 
@@ -245,10 +245,10 @@
 
               <div class="result-meta">
                 {#if result.priority}
-                  <Badge variant={priorityVariant(result.priority)} size="xs">{result.priority}</Badge>
+                  <Badge variant={priorityVariant(result.priority)} text={result.priority} />
                 {/if}
                 {#if result.automationStatus && result.automationStatus !== 'NONE'}
-                  <Badge variant="muted" size="xs">{result.automationStatus.replace(/_/g, ' ')}</Badge>
+                  <Badge variant="neutral" text={result.automationStatus.replace(/_/g, ' ')} />
                 {/if}
                 {#each (result.tags ?? []).slice(0, 4) as tag}
                   <span class="tag">{tag}</span>
