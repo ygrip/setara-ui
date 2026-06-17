@@ -158,7 +158,10 @@
   </div>
 {:else if streaming}
   <div class="review-shell streaming-shell">
-    <span class="review-eyebrow">AI is writing&hellip;</span>
+    <div class="streaming-header">
+      <span class="review-eyebrow">AI Reasoning</span>
+      <span class="live-badge">live</span>
+    </div>
     <p class="streaming-tokens">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
   </div>
 {:else if result}
@@ -268,13 +271,40 @@
     display: flex;
     flex-direction: column;
     gap: 10px;
+    border-color: color-mix(in srgb, var(--color-accent), transparent 40%);
+    animation: pulse-border 2s infinite;
   }
+
+  @keyframes pulse-border {
+    0%, 100% { border-color: color-mix(in srgb, var(--color-accent), transparent 40%); }
+    50% { border-color: var(--color-accent); }
+  }
+
+  .streaming-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .live-badge {
+    background: var(--color-accent);
+    color: #fff;
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    animation: fade-in-out 1.5s infinite;
+  }
+
+  @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
 
   .streaming-tokens {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: 0.9rem;
     line-height: 1.65;
-    color: var(--color-text-muted);
+    color: var(--color-text);
     white-space: pre-wrap;
     word-break: break-word;
   }

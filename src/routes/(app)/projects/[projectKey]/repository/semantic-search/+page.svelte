@@ -1,55 +1,122 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import { getApiBaseUrl } from '$lib/api/config';
+  import { authHeaders } from '$lib/api/client';
   import { normalizeErrorMessage } from '$lib/api/errors';
-  import { searchSimilarScenarios } from '$lib/api/testcases';
   import { isMockMode } from '$lib/mock/client';
 
   const isMock = isMockMode();
-
   const projectKey = $derived(page.params.projectKey);
 
-  let query = $state('');
-  let results = $state<SimilarResult[]>([]);
-  let searching = $state(false);
-  let error = $state('');
-  let searched = $state(false);
-
-  interface SimilarResult {
+  interface SmartSearchResult {
     scenarioId: string;
     scenarioKey: string;
     name: string;
     path: string | null;
+    priority: string | null;
+    automationStatus: string | null;
+    tags: string[];
     score: number;
   }
 
-  async function search() {
-    if (!query.trim()) return;
-    searching = true; error = ''; searched = true;
-    try {
-      results = await searchSimilarScenarios(projectKey ?? '', query.trim(), 15);
-    } catch (e) {
-      error = normalizeErrorMessage(
-        e,
-        'Smart Search is unavailable right now. Check the Intelligence configuration and try again.'
-      );
-      results = [];
-    } finally { searching = false; }
+  let query = $state('');
+  let reasoning = $state('');
+  let results = $state<SmartSearchResult[]>([]);
+  let phase = $state<'idle' | 'thinking' | 'streaming' | 'done' | 'error'>('idle');
+  let error = $state('');
+
+  function scoreColor(score: number): string {
+    if (score >= 0.85) return 'var(--color-success, #16a34a)';
+    if (score >= 0.65) return 'var(--color-accent)';
+    return 'var(--color-warning, #d97706)';
   }
 
-  function formatScore(score: number): string {
-    return `${(score * 100).toFixed(1)}%`;
+  function priorityVariant(priority: string | null): 'danger' | 'warning' | 'accent' | 'muted' {
+    switch (priority) {
+      case 'CRITICAL': return 'danger';
+      case 'HIGH':     return 'warning';
+      case 'MEDIUM':   return 'accent';
+      default:         return 'muted';
+    }
+  }
+
+  async function search() {
+    if (!query.trim() || phase === 'streaming' || phase === 'thinking') return;
+    phase = 'thinking';
+    reasoning = '';
+    results = [];
+    error = '';
+
+    try {
+      const base = getApiBaseUrl().replace(/\/$/, '');
+      const url = `${base}/api/projects/${projectKey}/scenarios/search/smart?q=${encodeURIComponent(query.trim())}&limit=10`;
+      const res = await fetch(url, { headers: authHeaders() });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => '');
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error('No response stream');
+
+      const decoder = new TextDecoder();
+      let buf = '';
+      let doneSeen = false;
+      phase = 'streaming';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+
+        const parts = buf.split('\n\n');
+        buf = parts.pop() ?? '';
+
+        for (const part of parts) {
+          const line = part.trim();
+          if (!line.startsWith('data:')) continue;
+          const data = line.slice(5).trim();
+
+          if (data === '[DONE]') { doneSeen = true; continue; }
+
+          if (doneSeen) {
+            try {
+              const parsed = JSON.parse(data) as { scenarios: SmartSearchResult[]; query: string };
+              results = parsed.scenarios ?? [];
+            } catch { /* ignore */ }
+            doneSeen = false;
+            phase = 'done';
+          } else {
+            reasoning += data;
+          }
+        }
+      }
+
+      if (phase !== 'done') phase = 'done';
+    } catch (e) {
+      error = normalizeErrorMessage(e, 'Smart Search is unavailable. Check the Intelligence configuration.');
+      phase = 'error';
+    }
   }
 
   function handleKeydown(e: KeyboardEvent) {
     if (e.key === 'Enter') search();
   }
+
+  function reset() {
+    phase = 'idle';
+    reasoning = '';
+    results = [];
+    error = '';
+    query = '';
+  }
 </script>
 
-<svelte:head><title>Semantic Search — {projectKey} — Setara</title></svelte:head>
+<svelte:head><title>Smart Search — {projectKey} — Setara</title></svelte:head>
 
 <div class="page">
   <nav class="breadcrumb">
@@ -57,31 +124,31 @@
     <span class="sep">›</span>
     <a href="/projects/{projectKey}/repository">Repository</a>
     <span class="sep">›</span>
-    <span>Semantic Search</span>
+    <span>Smart Search</span>
   </nav>
 
   <div class="page-header">
     <div>
-      <h1 class="page-title">Smart Search</h1>
-      <p class="page-sub">Find test scenarios by describing what they do — no need for exact keywords.</p>
+      <h1 class="page-title">
+        <svg class="title-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        Smart Search
+      </h1>
+      <p class="page-sub">Find test scenarios by describing what they do — powered by semantic similarity.</p>
     </div>
-    <Button variant="secondary" href="/projects/{projectKey}/repository">← Back to Repository</Button>
+    <Button variant="secondary" href="/projects/{projectKey}/repository">← Repository</Button>
   </div>
 
   {#if isMock}
-    <div class="disabled-state">
-      <div class="disabled-icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v4M11 15h.01"/>
-        </svg>
+    <div class="empty-hero">
+      <div class="empty-icon-wrap">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/><path d="M11 8v4M11 15h.01"/></svg>
       </div>
-      <h2 class="disabled-title">Smart Search is not available in preview mode</h2>
-      <p class="disabled-desc">This feature uses AI to find test scenarios by meaning. It requires a live backend with the Intelligence feature enabled.</p>
-      <a href="/projects/{projectKey}/repository" class="back-link">← Go back to the test repository</a>
+      <h2>Not available in preview mode</h2>
+      <p>Smart Search requires a live backend with the Intelligence feature enabled.</p>
     </div>
   {:else}
-    <div class="search-section">
-      <div class="search-bar">
+    <div class="search-bar-wrap">
+      <div class="search-bar" class:active={phase === 'streaming' || phase === 'thinking'}>
         <svg class="search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         <input
           class="search-input"
@@ -89,58 +156,143 @@
           placeholder="Describe what you're looking for… e.g. 'user login with invalid credentials'"
           bind:value={query}
           onkeydown={handleKeydown}
-          aria-label="Search by description"
+          aria-label="Search query"
+          disabled={phase === 'thinking' || phase === 'streaming'}
         />
-        <Button variant="primary" onclick={search} disabled={searching || !query.trim()}>
-          {searching ? 'Searching…' : 'Search'}
+        {#if phase === 'done' || phase === 'error'}
+          <button class="clear-btn" onclick={reset} title="Clear search" aria-label="Clear search">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        {/if}
+        <Button
+          variant="primary"
+          onclick={search}
+          disabled={phase === 'thinking' || phase === 'streaming' || !query.trim()}
+        >
+          {#if phase === 'thinking' || phase === 'streaming'}
+            <span class="btn-spinner"></span> Searching…
+          {:else}
+            Search
+          {/if}
         </Button>
       </div>
       <p class="search-hint">Tip: describe the behaviour you want to test, not the exact scenario name.</p>
     </div>
 
-    {#if error}
+    {#if phase === 'thinking'}
+      <div class="ai-thinking">
+        <div class="thinking-dots">
+          <span></span><span></span><span></span>
+        </div>
+        <span class="thinking-label">Embedding your query and searching…</span>
+      </div>
+    {/if}
+
+    {#if phase === 'streaming' || (phase === 'done' && reasoning)}
+      <div class="reasoning-panel" class:streaming={phase === 'streaming'}>
+        <div class="reasoning-header">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M12 8v4l3 3"/></svg>
+          AI Analysis
+          {#if phase === 'streaming'}<span class="live-badge">live</span>{/if}
+        </div>
+        <p class="reasoning-text">{reasoning}{#if phase === 'streaming'}<span class="cursor" aria-hidden="true"></span>{/if}</p>
+      </div>
+    {/if}
+
+    {#if phase === 'error'}
       <AppAlert tone="error" title="Smart Search unavailable">{error}</AppAlert>
     {/if}
 
-    {#if searched}
-      {#if results.length > 0}
-        <div class="results-section">
-          <h2 class="section-title">Results ({results.length})</h2>
-          <div class="results-list">
-            {#each results as result}
-              <a href="/projects/{projectKey}/repository?scenario={result.scenarioId}" class="result-card">
-                <div class="result-header">
-                  <strong class="result-key">{result.scenarioKey}</strong>
-                  <span class="result-score" style="--score:{result.score * 100}%">
-                    {formatScore(result.score)} match
-                  </span>
-                </div>
-                <span class="result-name">{result.name}</span>
-                {#if result.path}
-                  <span class="result-path">{result.path}</span>
-                {/if}
-              </a>
-            {/each}
-          </div>
+    {#if phase === 'done' && results.length === 0}
+      <div class="empty-hero">
+        <div class="empty-icon-wrap">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
         </div>
-      {:else if !searching}
-        <div class="empty-state">
-          <p>No matching scenarios found for <strong>"{query}"</strong>.</p>
-          <p class="muted">Try describing the scenario differently, or check that the Intelligence feature is enabled.</p>
-        </div>
-      {/if}
+        <h2>No matching scenarios</h2>
+        <p>No scenarios matched <strong>"{query}"</strong>. Try a different description, or check that Intelligence is enabled and scenarios are indexed.</p>
+      </div>
     {/if}
 
-    {#if !searched}
-      <div class="info-card">
+    {#if results.length > 0}
+      <div class="results-section">
+        <div class="results-header">
+          <h2 class="results-title">{results.length} scenario{results.length === 1 ? '' : 's'} found</h2>
+        </div>
+        <div class="results-list">
+          {#each results as result, i}
+            {@const pct = Math.round(result.score * 100)}
+            <a
+              href="/projects/{projectKey}/repository?scenario={result.scenarioId}"
+              class="result-card"
+              style="--i:{i}"
+            >
+              <div class="result-top">
+                <span class="result-key">{result.scenarioKey}</span>
+                <span class="result-score" style="--sc:{scoreColor(result.score)}">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                  {pct}% match
+                </span>
+              </div>
+
+              <p class="result-name">{result.name}</p>
+
+              {#if result.path}
+                <div class="result-path">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                  {result.path}
+                </div>
+              {/if}
+
+              <div class="result-meta">
+                {#if result.priority}
+                  <Badge variant={priorityVariant(result.priority)} size="xs">{result.priority}</Badge>
+                {/if}
+                {#if result.automationStatus && result.automationStatus !== 'NONE'}
+                  <Badge variant="muted" size="xs">{result.automationStatus.replace(/_/g, ' ')}</Badge>
+                {/if}
+                {#each (result.tags ?? []).slice(0, 4) as tag}
+                  <span class="tag">{tag}</span>
+                {/each}
+                {#if (result.tags?.length ?? 0) > 4}
+                  <span class="tag tag--more">+{result.tags.length - 4}</span>
+                {/if}
+              </div>
+
+              <div class="result-score-bar">
+                <div class="score-fill" style="width:{pct}%; background:{scoreColor(result.score)}"></div>
+              </div>
+            </a>
+          {/each}
+        </div>
+      </div>
+    {/if}
+
+    {#if phase === 'idle'}
+      <div class="how-it-works">
         <h3>How Smart Search works</h3>
-        <p>Instead of matching keywords, Smart Search understands the <strong>intent</strong> of your query — so you can find test cases even if you don't know their exact names.</p>
-        <ul>
-          <li>Describe the user action or behaviour to test</li>
-          <li>Find duplicate or overlapping test cases</li>
-          <li>Discover related scenarios across different folders</li>
-        </ul>
-        <p class="muted">Requires Intelligence to be enabled in your backend settings.</p>
+        <div class="how-grid">
+          <div class="how-step">
+            <span class="how-num">1</span>
+            <div>
+              <strong>Semantic embedding</strong>
+              <p>Your query is converted to a vector using the same AI model that indexed your scenarios.</p>
+            </div>
+          </div>
+          <div class="how-step">
+            <span class="how-num">2</span>
+            <div>
+              <strong>Vector similarity search</strong>
+              <p>pgvector finds scenarios whose meaning is closest to your query — not just keyword matches.</p>
+            </div>
+          </div>
+          <div class="how-step">
+            <span class="how-num">3</span>
+            <div>
+              <strong>AI reasoning</strong>
+              <p>An AI agent explains why the top results are relevant to what you are looking for.</p>
+            </div>
+          </div>
+        </div>
       </div>
     {/if}
   {/if}
@@ -148,40 +300,188 @@
 
 <style>
   .page { max-width: min(960px, 100%); }
-  .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; flex-wrap: wrap; }
+
+  .breadcrumb {
+    display: flex; gap: 8px; color: var(--color-text-muted);
+    font-size: 0.82rem; margin-bottom: 18px; flex-wrap: wrap;
+  }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .sep { opacity: 0.5; }
-  .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
-  .page-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+
+  .page-header {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    gap: 16px; margin-bottom: 24px; flex-wrap: wrap;
+  }
+  .page-title {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 1.5rem; font-weight: 700; margin: 0;
+  }
+  .title-icon { color: var(--color-accent); flex-shrink: 0; }
   .page-sub { color: var(--color-text-muted); font-size: 0.9rem; margin: 4px 0 0; }
-  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 56px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
-  .disabled-icon { width: 64px; height: 64px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
-  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text); }
-  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
-  .back-link { font-size: 0.875rem; color: var(--color-accent); text-decoration: none; font-weight: 600; }
-  .back-link:hover { text-decoration: underline; }
-  .search-section { margin-bottom: 24px; }
-  .search-bar { display: flex; gap: 10px; align-items: center; }
-  .search-icon { position: absolute; margin-left: 12px; color: var(--color-text-muted); pointer-events: none; z-index: 1; }
-  .search-input { flex: 1; padding: 10px 12px 10px 38px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.95rem; outline: none; transition: border-color 0.15s; }
-  .search-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0,175,165,0.1); }
-  .search-hint { font-size: 0.75rem; color: var(--color-text-muted); margin: 8px 0 0; }
-  :global(.page > .app-alert) { margin-bottom: 16px; }
-  .results-section { margin-top: 8px; }
-  .section-title { font-size: 1rem; font-weight: 600; margin: 0 0 12px; color: var(--color-text); }
-  .results-list { display: flex; flex-direction: column; gap: 8px; }
-  .result-card { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-surface); text-decoration: none; color: inherit; transition: border-color 0.15s, box-shadow 0.15s; }
-  .result-card:hover { border-color: var(--color-accent); box-shadow: var(--shadow); }
-  .result-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-  .result-key { font-family: var(--font-mono, monospace); font-size: 0.82rem; color: var(--color-accent); }
-  .result-score { font-size: 0.75rem; font-weight: 700; padding: 2px 8px; border-radius: 10px; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
-  .result-name { font-size: 0.925rem; font-weight: 600; color: var(--color-text); }
-  .result-path { font-size: 0.72rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
-  .empty-state { text-align: center; padding: 48px 24px; color: var(--color-text-muted); }
-  .muted { color: var(--color-text-muted); font-size: 0.85rem; }
-  .info-card { background: var(--color-accent-subtle); border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%); border-radius: var(--radius); padding: 20px; margin-top: 8px; }
-  .info-card h3 { font-size: 0.95rem; font-weight: 600; margin: 0 0 8px; color: var(--color-accent); }
-  .info-card p { font-size: 0.875rem; color: var(--color-text-muted); margin: 0 0 8px; line-height: 1.5; }
-  .info-card ul { margin: 0 0 8px; padding-left: 20px; color: var(--color-text-muted); font-size: 0.85rem; }
-  .info-card li { margin-bottom: 4px; }
+
+  .search-bar-wrap { margin-bottom: 20px; }
+  .search-bar {
+    display: flex; gap: 10px; align-items: center;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: 12px; padding: 6px 10px 6px 14px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .search-bar.active,
+  .search-bar:focus-within {
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 82%);
+  }
+  .search-icon { color: var(--color-text-muted); flex-shrink: 0; }
+  .search-input {
+    flex: 1; border: none; background: transparent; color: var(--color-text);
+    font: inherit; font-size: 0.95rem; outline: none; min-width: 0; padding: 6px 0;
+  }
+  .search-input:disabled { opacity: 0.6; }
+  .search-hint { font-size: 0.75rem; color: var(--color-text-muted); margin: 6px 0 0; }
+
+  .clear-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 24px; height: 24px; border-radius: 50%; border: none;
+    background: var(--color-bg); color: var(--color-text-muted);
+    cursor: pointer; transition: background 0.1s, color 0.1s; flex-shrink: 0;
+  }
+  .clear-btn:hover { background: var(--color-danger, #dc2626); color: #fff; }
+
+  .btn-spinner {
+    display: inline-block; width: 12px; height: 12px;
+    border: 2px solid rgba(255,255,255,0.35); border-top-color: #fff;
+    border-radius: 50%; animation: spin 0.7s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .ai-thinking {
+    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: 10px; margin-bottom: 14px; color: var(--color-text-muted); font-size: 0.875rem;
+  }
+  .thinking-dots { display: flex; gap: 5px; }
+  .thinking-dots span {
+    width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);
+    animation: bounce 1.2s infinite ease-in-out;
+  }
+  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce { 0%, 80%, 100% { transform: scale(0.75); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
+
+  .reasoning-panel {
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 60%);
+    background: color-mix(in srgb, var(--color-accent), transparent 95%);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 16px;
+  }
+  .reasoning-panel.streaming {
+    border-color: color-mix(in srgb, var(--color-accent), transparent 40%);
+    animation: pulse-border 2s infinite;
+  }
+  @keyframes pulse-border {
+    0%, 100% { border-color: color-mix(in srgb, var(--color-accent), transparent 40%); }
+    50% { border-color: var(--color-accent); }
+  }
+  .reasoning-header {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--color-accent); margin-bottom: 8px;
+  }
+  .live-badge {
+    background: var(--color-accent); color: #fff;
+    font-size: 0.6rem; padding: 1px 5px; border-radius: 6px;
+    animation: fade-in-out 1.5s infinite;
+  }
+  @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  .reasoning-text {
+    margin: 0; font-size: 0.9rem; line-height: 1.65;
+    color: var(--color-text); white-space: pre-wrap;
+  }
+  .cursor {
+    display: inline-block; width: 2px; height: 0.9em; background: var(--color-accent);
+    margin-left: 1px; vertical-align: text-bottom; animation: blink 1s step-end infinite;
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+  .results-section { margin-top: 4px; }
+  .results-header { margin-bottom: 12px; }
+  .results-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: var(--color-text-muted); }
+  .results-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .result-card {
+    display: block; padding: 16px 18px;
+    border: 1px solid var(--color-border); border-radius: 10px;
+    background: var(--color-surface); text-decoration: none; color: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+    animation: slide-in 0.25s ease both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+  }
+  .result-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--color-accent), transparent 82%);
+    transform: translateY(-1px);
+  }
+  @keyframes slide-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+  .result-top {
+    display: flex; justify-content: space-between; align-items: center;
+    gap: 12px; margin-bottom: 6px;
+  }
+  .result-key {
+    font-family: var(--font-mono, monospace); font-size: 0.78rem;
+    color: var(--color-accent); font-weight: 700;
+  }
+  .result-score {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 0.75rem; font-weight: 700; color: var(--sc);
+    background: color-mix(in srgb, var(--sc), transparent 90%);
+    padding: 2px 8px; border-radius: 10px; white-space: nowrap;
+  }
+  .result-name {
+    font-size: 0.95rem; font-weight: 600; margin: 0 0 8px;
+    color: var(--color-text); line-height: 1.4;
+  }
+  .result-path {
+    display: flex; align-items: center; gap: 5px;
+    font-size: 0.75rem; color: var(--color-text-muted);
+    font-family: var(--font-mono, monospace); margin-bottom: 10px;
+  }
+  .result-meta { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; margin-bottom: 10px; }
+  .tag {
+    font-size: 0.7rem; padding: 2px 7px; border-radius: 8px;
+    background: var(--color-bg); border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
+  }
+  .tag--more { color: var(--color-accent); border-color: color-mix(in srgb, var(--color-accent), transparent 70%); }
+  .result-score-bar {
+    height: 3px; border-radius: 2px; background: var(--color-bg); overflow: hidden;
+  }
+  .score-fill { height: 100%; border-radius: 2px; }
+
+  .empty-hero {
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    text-align: center; padding: 56px 24px;
+  }
+  .empty-icon-wrap {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+    color: var(--color-accent); display: flex; align-items: center; justify-content: center;
+  }
+  .empty-hero h2 { font-size: 1.1rem; font-weight: 700; margin: 0; }
+  .empty-hero p { font-size: 0.875rem; color: var(--color-text-muted); max-width: 480px; margin: 0; line-height: 1.6; }
+
+  .how-it-works {
+    background: var(--color-surface); border: 1px solid var(--color-border);
+    border-radius: 12px; padding: 20px; margin-top: 24px;
+  }
+  .how-it-works h3 { font-size: 0.875rem; font-weight: 700; margin: 0 0 14px; color: var(--color-accent); }
+  .how-grid { display: grid; gap: 14px; }
+  @media (min-width: 600px) { .how-grid { grid-template-columns: repeat(3, 1fr); } }
+  .how-step { display: flex; gap: 12px; }
+  .how-num {
+    flex-shrink: 0; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--color-accent); color: #fff; font-size: 0.75rem; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .how-step strong { display: block; font-size: 0.85rem; margin-bottom: 3px; }
+  .how-step p { margin: 0; font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.5; }
 </style>
