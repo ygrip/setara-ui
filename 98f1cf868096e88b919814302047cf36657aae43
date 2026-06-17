@@ -1,0 +1,35 @@
+src/routes/(app)/projects/[projectKey]/repository/+page.svelte
+  b79257b050008aa1 659-664,1233,1250,1252-1254,1264,1543-1551,1554,1558,1563-1564,1593-1597
+src/lib/api/testcases.ts
+  b79257b050008aa1 624-628
+src/routes/(app)/projects/[projectKey]/repository/semantic-search/+page.svelte
+  b79257b050008aa1 98-101
+src/lib/components/AiReviewPanel.svelte
+  b79257b050008aa1 122-125,284
+src/lib/components/DataTable.svelte
+  b79257b050008aa1 47,55,57-59,67
+src/routes/(app)/admin/cache/+page.svelte
+  b79257b050008aa1 4-6,57-58,61-70,72,74-77,79,92,96-98,101,103-104,106-108,111,113,119,121,123,127,129,142,146,152-157,159,171-172,174-178
+src/routes/(app)/admin/statistics/+page.svelte
+  b79257b050008aa1 4-6,39-40,43-52,54,56-58,62-63,66,70,72,74,97,99,104-107,109,111,114,117-119,121,131
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "98f1cf868096e88b919814302047cf36657aae43",
+  "prompts": {
+    "b79257b050008aa1": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "2f10c9da-ba4b-4fea-8600-5ea1f96a2105",
+        "model": "deepseek/deepseek-v4-pro"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 629,
+      "total_deletions": 166,
+      "accepted_lines": 614,
+      "overriden_lines": 0
+    }
+  }
+}
