@@ -28,12 +28,12 @@
     overflow-x: auto;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    /* Scroll shadow hint — indicates more content to the right */
+    /* Subtle scroll shadow — indicates more content to the right */
     background:
       linear-gradient(to right, var(--color-surface) 20px, transparent 60px) left center / 60px 100% no-repeat,
       linear-gradient(to left,  var(--color-surface) 20px, transparent 60px) right center / 60px 100% no-repeat,
-      linear-gradient(to right, rgba(0,0,0,0.08) 0px, transparent 12px) left center / 12px 100% no-repeat,
-      linear-gradient(to left,  rgba(0,0,0,0.08) 0px, transparent 12px) right center / 12px 100% no-repeat;
+      linear-gradient(to right, rgba(0,0,0,0.04) 0px, transparent 14px) left center / 14px 100% no-repeat,
+      linear-gradient(to left,  rgba(0,0,0,0.04) 0px, transparent 14px) right center / 14px 100% no-repeat;
     background-attachment: local, local, scroll, scroll;
   }
 

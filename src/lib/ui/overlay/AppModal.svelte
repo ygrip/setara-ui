@@ -40,6 +40,12 @@
     font-family: var(--font-body) !important;
   }
 
+  :global(.app-modal [data-modal-position]) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
   :global([data-theme="dark"] .app-modal) {
     background: rgba(11, 18, 32, 0.92) !important;
     border: 1px solid rgba(255,255,255,0.1) !important;

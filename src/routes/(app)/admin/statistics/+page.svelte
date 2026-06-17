@@ -31,6 +31,8 @@
   }
 </script>
 
+<svelte:head><title>Statistics — Admin — Setara</title></svelte:head>
+
 <div class="page">
   <div class="page-header">
     <h1 class="page-title">Statistics</h1>
@@ -96,7 +98,7 @@
 </div>
 
 <style>
-  .page { max-width: 720px; }
+  .page { max-width: 720px; margin: 0 auto; }
   .page-header { margin-bottom: 24px; }
   .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
   .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
+  import { page } from '$app/state';
   import { onMount } from 'svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -204,6 +205,18 @@
   // ── Init ─────────────────────────────────────────────────────
   onMount(() => {
     canWrite = hasPermission(getValidSession(), 'scenario:write');
+    // Handle ?scenario=ID parameter — auto-open scenario detail
+    const scenarioParam = page.url.searchParams.get('scenario');
+    if (scenarioParam) {
+      // Check all loaded scenarios (both live and draft)
+      const found = [...(data.scenarios ?? []), ...(data.draftScenarios ?? [])]
+        .find((s: Scenario) => s.id === scenarioParam);
+      if (found) {
+        openScenarioDetail(found);
+      } else {
+        notify.error(`Scenario ${scenarioParam} not found in this repository.`);
+      }
+    }
   });
 
   $effect(() => {
@@ -298,8 +311,6 @@
     } finally {
       detailBusy = false;
     }
-    // Fetch similar scenarios
-    fetchSimilarScenarios(scenario);
   }
 
   function closeScenarioDetail() {
@@ -1197,7 +1208,17 @@
 
           <!-- Similar scenarios -->
           <div class="similar-section">
-            <h3 class="steps-section-title">Similar Scenarios</h3>
+            <div class="similar-header">
+              <h3 class="steps-section-title">Similar Scenarios</h3>
+              <button
+                type="button"
+                class="similar-search-btn"
+                onclick={() => detailDraft && fetchSimilarScenarios(detailDraft)}
+                disabled={similarLoading}
+              >
+                {similarLoading ? 'Searching…' : (similarScenarios.length > 0 ? 'Refresh' : 'Find Similar')}
+              </button>
+            </div>
             {#if similarLoading}
               <p class="similar-hint">Searching for similar scenarios…</p>
             {:else if similarError}
@@ -1206,7 +1227,7 @@
               {#if similarIndexing}
                 <p class="similar-hint">Smart Search is still indexing this project. Try again in a minute.</p>
               {:else}
-                <p class="similar-hint">No similar scenarios found.</p>
+                <p class="similar-hint">Click "Find Similar" to discover related scenarios.</p>
               {/if}
             {:else}
               <div class="similar-list">
@@ -1220,8 +1241,8 @@
                       <span class="similar-name">{sim.name}</span>
                       {#if sim.path}<span class="similar-path">{sim.path}</span>{/if}
                     </div>
-                    <span class="similar-score" style="--score:{sim.score * 100}%">
-                      {(sim.score * 100).toFixed(0)}%
+                    <span class="similar-score" class:similar-score--high={sim.score >= 0.8} class:similar-score--mid={sim.score >= 0.5 && sim.score < 0.8} class:similar-score--low={sim.score < 0.5}>
+                      {(sim.score * 100).toFixed(0)}% match
                     </span>
                   </a>
                 {/each}
@@ -1494,6 +1515,34 @@
     padding-top: 16px;
     margin-top: 4px;
   }
+  .similar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .similar-search-btn {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 4px 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-accent);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .similar-search-btn:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent), transparent 92%);
+  }
+  .similar-search-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
   .similar-hint {
     font-size: 0.82rem;
     color: var(--color-text-muted);
@@ -1553,12 +1602,24 @@
   }
   .similar-score {
     flex-shrink: 0;
-    font-size: 0.78rem;
-    font-weight: 800;
-    padding: 3px 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 3px 10px;
     border-radius: 999px;
-    background: color-mix(in srgb, var(--color-accent), transparent calc(100% - var(--score)));
+    white-space: nowrap;
+  }
+  .similar-score--high {
+    background: color-mix(in srgb, #16a34a, transparent 88%);
+    color: #16a34a;
+  }
+  .similar-score--mid {
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
     color: var(--color-accent);
+  }
+  .similar-score--low {
+    background: var(--color-bg);
+    color: var(--color-text-muted);
+    border: 1px solid var(--color-border);
   }
 
   :global(.drawer-overlay) { position: fixed; inset: 0; z-index: 100; background: rgba(15, 23, 42, 0.42); backdrop-filter: blur(4px); }

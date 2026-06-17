@@ -244,7 +244,7 @@
 />
 
 <style>
-  .page { max-width: min(1520px, 100%); }
+  .page { max-width: min(1520px, 100%); margin: 0 auto; }
 
   .breadcrumb {
     display: flex; align-items: center; gap: 6px;

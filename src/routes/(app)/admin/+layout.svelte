@@ -52,6 +52,7 @@
 <style>
   .admin-shell {
     max-width: min(1520px, 100%);
+    margin: 0 auto;
   }
 
   .admin-tabs {

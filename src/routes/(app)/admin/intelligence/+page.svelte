@@ -91,6 +91,8 @@
   }
 </script>
 
+<svelte:head><title>Intelligence — Admin — Setara</title></svelte:head>
+
 <div class="page">
   <div class="page-header">
     <h1 class="page-title">Intelligence</h1>
@@ -286,7 +288,7 @@
 </div>
 
 <style>
-  .page { max-width: 860px; display: flex; flex-direction: column; gap: 16px; }
+  .page { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
   .page-header { margin-bottom: 4px; }
   .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
   .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
