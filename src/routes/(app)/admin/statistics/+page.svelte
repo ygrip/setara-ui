@@ -1,6 +1,9 @@
 <script lang="ts">
   import { isMockMode } from '$lib/mock/client';
   import { triggerBackfill, type BackfillResult } from '$lib/api/statistics';
+  import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
+  import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   const isMock = isMockMode();
 
@@ -33,42 +36,42 @@
 
 <svelte:head><title>Statistics — Admin — Setara</title></svelte:head>
 
-<div class="page">
-  <div class="page-header">
-    <h1 class="page-title">Statistics</h1>
-    <p class="page-subtitle">Backfill historical automation coverage statistics for all active projects</p>
-  </div>
+<div class="section-wrap">
+  <h1 class="page-title">Settings</h1>
 
   {#if isMock}
-    <div class="disabled-state">
-      <div class="disabled-icon">
-        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/>
-          <path d="M12 8v4M12 16h.01"/>
-        </svg>
+    <Card padding="md">
+      <div class="disabled-state">
+        <div class="disabled-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="12" cy="12" r="10"/>
+            <path d="M12 8v4M12 16h.01"/>
+          </svg>
+        </div>
+        <h2 class="disabled-title">Not available in preview mode</h2>
+        <p class="disabled-desc">Statistics backfill requires a live backend with a connected database.</p>
       </div>
-      <h2 class="disabled-title">Not available in preview mode</h2>
-      <p class="disabled-desc">Statistics backfill requires a live backend with a connected database.</p>
-    </div>
+    </Card>
   {:else}
-    <div class="action-card">
-      <h3 class="action-title">Backfill Date Range</h3>
-      <p class="action-desc">
+    <Card padding="md">
+      <h2 class="panel-title">Backfill Date Range</h2>
+      <p class="panel-desc">
         Computes and inserts missing statistics snapshots for all active projects within the given date range.
         Existing records are skipped. Dates are clamped to yesterday and no further back than 2 years.
       </p>
-      <div class="form-row">
+
+      <div class="inline-form">
         <label class="field">
           <span class="field-label">From</span>
-          <input class="date-input" type="date" bind:value={fromDate} disabled={busy} />
+          <input class="input" type="date" bind:value={fromDate} disabled={busy} />
         </label>
         <label class="field">
           <span class="field-label">To</span>
-          <input class="date-input" type="date" bind:value={toDate} disabled={busy} />
+          <input class="input" type="date" bind:value={toDate} disabled={busy} />
         </label>
-        <button class="primary-btn" onclick={runBackfill} disabled={busy}>
+        <Button variant="primary" onclick={runBackfill} disabled={busy}>
           {busy ? 'Running…' : 'Run Backfill'}
-        </button>
+        </Button>
       </div>
 
       {#if result}
@@ -91,38 +94,31 @@
       {/if}
 
       {#if errorMsg}
-        <p class="error-msg">{errorMsg}</p>
+        <AppAlert tone="error">{errorMsg}</AppAlert>
       {/if}
-    </div>
+    </Card>
   {/if}
 </div>
 
 <style>
-  .page { max-width: 720px; margin: 0 auto; }
-  .page-header { margin-bottom: 24px; }
-  .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
-  .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
+  .section-wrap { display: flex; flex-direction: column; gap: 20px; }
+  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 8px; color: var(--color-text); }
+  .panel-desc { margin: 0 0 16px; font-size: 0.875rem; color: var(--color-text-muted); line-height: 1.55; }
 
-  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 48px 24px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
+  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px 16px; }
   .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
-  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; color: var(--color-text); }
+  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
   .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
 
-  .action-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 24px; }
-  .action-title { font-size: 0.95rem; font-weight: 700; margin: 0 0 6px; }
-  .action-desc { margin: 0 0 20px; font-size: 0.85rem; color: var(--color-text-muted); line-height: 1.6; }
-
-  .form-row { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+  .inline-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; gap: 4px; }
   .field-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
-  .date-input { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; }
-  .date-input:disabled { opacity: 0.5; }
+  .input { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); font-size: 0.875rem; outline: none; transition: border-color 0.15s; font-family: inherit; }
+  .input:focus { border-color: var(--color-accent); }
+  .input:disabled { opacity: 0.5; }
 
-  .primary-btn { background: var(--color-accent); color: #fff; border: none; border-radius: var(--radius); padding: 8px 18px; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; align-self: flex-end; }
-  .primary-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-
-  .result-box { margin-top: 20px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; }
+  .result-box { margin-top: 16px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; }
   .result-grid { display: flex; gap: 32px; flex-wrap: wrap; }
   .result-cell { display: flex; flex-direction: column; gap: 4px; }
   .result-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
@@ -131,11 +127,8 @@
   .result-value.skipped { color: var(--color-text-muted); }
   .result-value.range { font-size: 0.875rem; font-weight: 500; color: var(--color-text); font-family: var(--font-mono, monospace); }
 
-  .error-msg { margin: 14px 0 0; font-size: 0.85rem; color: var(--color-danger, #dc2626); }
-
   @media (max-width: 600px) {
-    .form-row { flex-direction: column; align-items: stretch; }
-    .primary-btn { align-self: flex-start; }
+    .inline-form { flex-direction: column; align-items: stretch; }
     .result-grid { gap: 16px; }
   }
 </style>

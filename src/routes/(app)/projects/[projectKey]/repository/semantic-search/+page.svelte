@@ -95,7 +95,10 @@
             doneSeen = false;
             phase = 'done';
           } else {
-            reasoning += data;
+            // Strip any accidental "data:" prefix that might appear in content
+            let cleanData = data;
+            if (cleanData.startsWith('data:')) cleanData = cleanData.slice(5);
+            reasoning += cleanData;
           }
         }
       }

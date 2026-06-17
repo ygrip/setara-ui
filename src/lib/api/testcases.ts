@@ -621,6 +621,11 @@ export async function suggestScenarioStepsStream(
       }
 
       onToken(data);
+
+      // Sanitize: strip any accidental "data:" prefix in stream tokens
+      let cleanToken = data;
+      if (cleanToken.startsWith('data:')) cleanToken = cleanToken.slice(5);
+      onToken(cleanToken);
     }
   }
 

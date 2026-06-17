@@ -38,7 +38,6 @@
   let loading = $state(false);
   let streaming = $state(false);
   let streamingTokens = $state('');
-  let toolEvents = $state<string[]>([]);
   let result = $state<AiReviewResult | null>(null);
   let error = $state('');
 
@@ -61,7 +60,6 @@
     loading = true;
     streaming = false;
     streamingTokens = '';
-    toolEvents = [];
     error = '';
     result = null;
 
@@ -121,12 +119,10 @@
             streaming = true;
           }
 
-          if (payload.startsWith('[TOOL:') && payload.endsWith(']')) {
-            const toolName = payload.slice(6, -1);
-            toolEvents = [...toolEvents, toolName];
-          } else {
-            streamingTokens += payload;
-          }
+          // Sanitize: strip any accidental "data:" prefix in stream content
+          let cleanPayload = payload;
+          if (cleanPayload.startsWith('data:')) cleanPayload = cleanPayload.slice(5);
+          streamingTokens += cleanPayload;
         }
       }
 
@@ -204,16 +200,6 @@
         <span class="live-badge">live</span>
       </div>
       <div class="stream-card-divider"></div>
-      {#if toolEvents.length > 0}
-        <div class="tool-events" aria-label="Context gathering steps">
-          {#each toolEvents as event}
-            <span class="tool-badge">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>
-              {event}
-            </span>
-          {/each}
-        </div>
-      {/if}
       {#if streamingTokens}
         <div class="stream-text-wrap">
           <p class="stream-text">{streamingTokens}<span class="cursor" aria-hidden="true"></span></p>
@@ -295,7 +281,7 @@
       <div class="done-footer">
         <span>{result.model}{result.provider ? ` · ${result.provider}` : ''}</span>
         {#if result.generatedAt}<span> · {formattedDate(result.generatedAt)}</span>{/if}
-        {#if toolEvents.length > 0}<span> · {toolEvents.length} tool{toolEvents.length > 1 ? 's' : ''} used</span>{/if}
+
       </div>
     {/if}
   </div>
@@ -353,17 +339,6 @@
     animation: fade-in-out 1.5s infinite;
   }
   @keyframes fade-in-out { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
-  .tool-events { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; }
-  .tool-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 0.67rem; font-weight: 600; padding: 2px 8px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--color-accent), transparent 88%);
-    color: var(--color-accent);
-    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 65%);
-    white-space: nowrap;
-  }
-  .tool-badge svg { flex-shrink: 0; }
   .stream-text-wrap { max-height: 260px; overflow-y: auto; position: relative; }
   .stream-text-wrap::before {
     content: ''; position: sticky; top: 0; left: 0; right: 0; height: 28px;

@@ -40,10 +40,20 @@
     font-family: var(--font-body) !important;
   }
 
-  :global(.app-modal [data-modal-position]) {
+  /* Center the modal backdrop and content */
+  :global(.app-modal [role="dialog"]),
+  :global(.app-modal .fixed.inset-0),
+  :global(.app-modal .fixed) {
     display: flex !important;
     align-items: center !important;
     justify-content: center !important;
+  }
+
+  :global(.app-modal > div:first-child) {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    min-height: 100dvh;
   }
 
   :global([data-theme="dark"] .app-modal) {

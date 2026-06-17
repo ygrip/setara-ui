@@ -44,7 +44,7 @@
   }
 
   .table :global(th) {
-    background: var(--color-bg);
+    background: var(--color-surface);
     color: var(--color-text-muted);
     font-weight: 600;
     font-size: 0.75rem;
@@ -52,8 +52,11 @@
     letter-spacing: 0.04em;
     padding: 10px 16px;
     text-align: left;
-    border-bottom: 1px solid var(--color-border);
+    border-bottom: 2px solid var(--color-border);
     white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 1;
   }
 
   .table :global(td) {
@@ -61,6 +64,7 @@
     border-bottom: 1px solid var(--color-border);
     color: var(--color-text);
     vertical-align: middle;
+    background: var(--color-surface);
   }
 
   .table :global(tr:last-child td) {

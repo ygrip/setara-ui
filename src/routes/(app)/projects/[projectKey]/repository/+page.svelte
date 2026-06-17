@@ -400,6 +400,14 @@
     expandedIds = next;
   }
 
+  function expandAll() {
+    expandedIds = new Set(data.directories.map((d: TestDirectory) => d.id));
+  }
+
+  function collapseAll() {
+    expandedIds = new Set();
+  }
+
   function selectNode(nodeId: string | null) {
     selectedNodeId = nodeId;
     selectedScenarioIds = [];
@@ -648,6 +656,12 @@
       <div class="tree-topbar">
         <span class="panel-title">Test Repository</span>
         <div class="tree-topbar-actions">
+          <button class="icon-btn" title="Expand all directories" aria-label="Expand all" onclick={expandAll}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/><polyline points="6 15 12 21 18 15"/></svg>
+          </button>
+          <button class="icon-btn" title="Collapse all directories" aria-label="Collapse all" onclick={collapseAll}>
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/><polyline points="6 21 12 15 18 21"/></svg>
+          </button>
           <button class="icon-btn" title="Add root directory" aria-label="Add root directory" onclick={() => openNodeModal(null)}>{@render iconFolderPlus()}</button>
         </div>
       </div>
@@ -1216,6 +1230,7 @@
                 onclick={() => detailDraft && fetchSimilarScenarios(detailDraft)}
                 disabled={similarLoading}
               >
+                <svg class="similar-btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 {similarLoading ? 'Searching…' : (similarScenarios.length > 0 ? 'Refresh' : 'Find Similar')}
               </button>
             </div>
@@ -1232,9 +1247,11 @@
             {:else}
               <div class="similar-list">
                 {#each similarScenarios as sim}
-                  <a
-                    href="/projects/{data.projectKey}/repository?scenario={sim.scenarioId}"
+                  <button
                     class="similar-item"
+                    onclick={async () => {
+                      await openScenarioDetail({ id: sim.scenarioId } as Scenario);
+                    }}
                   >
                     <div class="similar-main">
                       <span class="similar-key">{sim.scenarioKey}</span>
@@ -1244,7 +1261,7 @@
                     <span class="similar-score" class:similar-score--high={sim.score >= 0.8} class:similar-score--mid={sim.score >= 0.5 && sim.score < 0.8} class:similar-score--low={sim.score < 0.5}>
                       {(sim.score * 100).toFixed(0)}% match
                     </span>
-                  </a>
+                  </button>
                 {/each}
               </div>
             {/if}
@@ -1523,21 +1540,28 @@
     margin-bottom: 8px;
   }
   .similar-search-btn {
-    font-size: 0.75rem;
-    font-weight: 600;
-    padding: 4px 12px;
-    border: 1px solid var(--color-border);
-    border-radius: 6px;
-    background: var(--color-surface);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8rem;
+    font-weight: 700;
+    padding: 7px 16px;
+    border: 1px solid var(--color-accent);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-accent), transparent 92%);
     color: var(--color-accent);
     cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
+    transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
     white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .similar-btn-icon {
     flex-shrink: 0;
   }
   .similar-search-btn:hover:not(:disabled) {
     border-color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent), transparent 92%);
+    background: color-mix(in srgb, var(--color-accent), transparent 85%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 82%);
   }
   .similar-search-btn:disabled {
     opacity: 0.5;
@@ -1565,8 +1589,12 @@
     border-radius: 6px;
     border: 1px solid var(--color-border);
     background: var(--color-surface);
-    text-decoration: none;
     color: var(--color-text);
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    width: 100%;
     transition: border-color 0.15s, background 0.15s;
   }
   .similar-item:hover {
