@@ -18,6 +18,9 @@
     severity: 'HIGH' | 'MEDIUM' | 'LOW' | 'INFO';
     title: string;
     detail: string;
+    confidence?: number | null;
+    reasoning_evidence?: string | null;
+    related_requirement?: string | null;
   }
 
   interface AiReviewResult {
@@ -206,10 +209,24 @@
             <div class="finding-meta">
               <span class="finding-type">{typeLabel(finding.type)}</span>
               <span class="finding-severity">{finding.severity}</span>
+              {#if finding.confidence != null}
+                <span class="finding-confidence" title="AI confidence: {Math.round(finding.confidence * 100)}%">
+                  {Math.round(finding.confidence * 100)}% conf.
+                </span>
+              {/if}
             </div>
             <div class="finding-body">
               <strong class="finding-title">{finding.title}</strong>
               <p class="finding-detail">{finding.detail}</p>
+              {#if finding.reasoning_evidence}
+                <details class="finding-evidence">
+                  <summary>Evidence &amp; reasoning</summary>
+                  <p>{finding.reasoning_evidence}</p>
+                </details>
+              {/if}
+              {#if finding.related_requirement}
+                <span class="finding-requirement" title="Related requirement">📋 {finding.related_requirement}</span>
+              {/if}
             </div>
           </li>
         {/each}
@@ -437,6 +454,54 @@
     font-size: 0.82rem;
     color: var(--color-text-muted);
     line-height: 1.5;
+  }
+
+  .finding-confidence {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 1px 6px;
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-accent), transparent 85%);
+    color: var(--color-accent);
+    white-space: nowrap;
+    cursor: help;
+  }
+
+  .finding-evidence {
+    margin-top: 8px;
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+  }
+
+  .finding-evidence summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    user-select: none;
+  }
+
+  .finding-evidence summary:hover {
+    text-decoration: underline;
+  }
+
+  .finding-evidence p {
+    margin: 6px 0 0;
+    line-height: 1.5;
+    padding-left: 4px;
+    border-left: 2px solid var(--color-border);
+  }
+
+  .finding-requirement {
+    display: inline-block;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--color-text-muted);
+    background: var(--color-bg);
+    padding: 2px 8px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border);
   }
 
   .no-findings {
