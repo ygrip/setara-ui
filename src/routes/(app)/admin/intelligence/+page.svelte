@@ -2,6 +2,9 @@
   import { invalidateAll } from '$app/navigation';
   import { isMockMode } from '$lib/mock/client';
   import { apiFetch } from '$lib/api/client';
+  import Button from '$lib/components/Button.svelte';
+  import Card from '$lib/components/Card.svelte';
+  import DataTable from '$lib/components/DataTable.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
@@ -93,20 +96,21 @@
 
 <svelte:head><title>Intelligence — Admin — Setara</title></svelte:head>
 
-<div class="page">
-  <div class="page-header">
-    <h1 class="page-title">Intelligence</h1>
-    <p class="page-subtitle">AI feature configuration, pipeline status, and embedding controls</p>
-  </div>
+<div class="section-wrap">
+  <h1 class="page-title">Settings</h1>
 
   {#if isMock}
-    <div class="empty-callout">
-      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
-      <div>
-        <p class="callout-title">Not available in preview mode</p>
-        <p class="callout-body">Intelligence requires a live backend with an embedding provider configured.</p>
+    <Card padding="md">
+      <div class="disabled-state">
+        <div class="disabled-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        </div>
+        <div>
+          <p class="disabled-title">Not available in preview mode</p>
+          <p class="disabled-desc">Intelligence requires a live backend with an embedding provider configured.</p>
+        </div>
       </div>
-    </div>
+    </Card>
 
   {:else}
     {#if data.error}
@@ -126,28 +130,23 @@
       </div>
 
       <!-- ── AI features table ────────────────────────────────────────────── -->
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">AI Features</h2>
-          <p class="card-subtitle">Provider and model configuration for each capability</p>
-        </div>
-        <table class="feature-table">
-          <thead>
+      <Card padding="md">
+        <h2 class="panel-title">AI Features</h2>
+        <p class="panel-desc">Provider and model configuration for each capability</p>
+        <DataTable>
+          {#snippet head()}
             <tr>
               <th>Feature</th>
               <th>Status</th>
               <th>Provider</th>
               <th>Model</th>
-              <th>Notes</th>
             </tr>
-          </thead>
-          <tbody>
+          {/snippet}
+          {#snippet body()}
             {#each h.features ?? [] as f}
-              <tr class:row--active={f.active} class:row--off={!f.enabled}>
-                <td class="col-feature">
-                  <span class="feature-name">{f.label}</span>
-                </td>
-                <td class="col-status" data-label="Status">
+              <tr>
+                <td data-label="Feature"><span class="feature-name">{f.label}</span></td>
+                <td data-label="Status">
                   {#if f.active}
                     <span class="badge badge--active">Active</span>
                   {:else if f.enabled}
@@ -156,7 +155,7 @@
                     <span class="badge badge--off">Off</span>
                   {/if}
                 </td>
-                <td class="col-provider" data-label="Provider">
+                <td data-label="Provider">
                   <div class="provider-cell">
                     <span class="provider-name">{f.provider}</span>
                     {#if f.url}
@@ -164,28 +163,21 @@
                     {/if}
                   </div>
                 </td>
-                <td class="col-model" data-label="Model">
+                <td data-label="Model">
                   <code class="model-tag">{f.model}</code>
-                  {#if f.key === 'embedding' && f.dimension}
-                    <span class="dim-pill">{f.dimension}d</span>
-                  {/if}
-                </td>
-                <td class="col-notes" aria-hidden="true">
                   {#if f.key === 'embedding' && f.dimension}
                     <span class="dim-pill">{f.dimension}d</span>
                   {/if}
                 </td>
               </tr>
             {/each}
-          </tbody>
-        </table>
-      </section>
+          {/snippet}
+        </DataTable>
+      </Card>
 
       <!-- ── Vector store + pipeline ──────────────────────────────────────── -->
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Vector Store &amp; Pipeline</h2>
-        </div>
+      <Card padding="md">
+        <h2 class="panel-title">Vector Store &amp; Pipeline</h2>
         <div class="store-row">
           <div class="store-col">
             <span class="field-label">Store</span>
@@ -212,20 +204,20 @@
             <pre class="error-pre">{h.vectorStore?.lastError ?? h.recentErrorMessage}</pre>
           </div>
         {/if}
-      </section>
+      </Card>
 
       <!-- ── Runtime feature flags ────────────────────────────────────────── -->
       {@const aiConfigured = h.intelligenceEnabled}
-      <section class="card">
+      <Card padding="md">
         <div class="card-head">
           <div>
-            <h2 class="card-title">Runtime Feature Flags</h2>
-            <p class="card-subtitle">Toggle capabilities without restarting the server</p>
+            <h2 class="panel-title">Runtime Feature Flags</h2>
+            <p class="panel-desc">Toggle capabilities without restarting the server</p>
           </div>
           {#if flagsSaved}<span class="saved-pill">Saved</span>{/if}
         </div>
         {#if !aiConfigured}
-          <p class="unconfigured-note">Intelligence is not enabled — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate flags.</p>
+          <div class="unconfigured-note">Intelligence is not enabled — set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate flags.</div>
         {/if}
         <div class="flags-list">
           {#each flagDefs as def}
@@ -246,24 +238,22 @@
               </button>
             </div>
           {/each}
+          {#if flagsError}<p class="flag-error">{flagsError}</p>{/if}
         </div>
-        {#if flagsError}<p class="flag-error">{flagsError}</p>{/if}
-      </section>
+      </Card>
 
       <!-- ── Actions ──────────────────────────────────────────────────────── -->
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">Actions</h2>
-        </div>
+      <Card padding="md">
+        <h2 class="panel-title">Actions</h2>
         <div class="actions-grid">
           <div class="action-block">
             <h3 class="action-title">Reindex Project</h3>
             <p class="action-desc">Queue all active scenarios in a project for AI embedding.</p>
             <div class="action-row">
-              <input class="text-input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
-              <button class="primary-btn" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
+              <input class="input" bind:value={reindexProjectKey} placeholder="Project key (e.g. PROJ)" />
+              <Button variant="primary" size="sm" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
                 {reindexBusy ? 'Queuing…' : 'Reindex'}
-              </button>
+              </Button>
             </div>
             {#if reindexResult}<p class="action-result">{reindexResult}</p>{/if}
           </div>
@@ -272,71 +262,58 @@
             <h3 class="action-title">Create Search Index</h3>
             <p class="action-desc">Build the HNSW vector index after initial embedding is complete.</p>
             <div class="action-row">
-              <button class="primary-btn" onclick={createIndex} disabled={createIndexBusy}>
+              <Button variant="primary" size="sm" onclick={createIndex} disabled={createIndexBusy}>
                 {createIndexBusy ? 'Creating…' : 'Create Index'}
-              </button>
+              </Button>
             </div>
             {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
           </div>
         </div>
-      </section>
+      </Card>
 
     {:else if !data.error}
-      <p class="empty-state">No health data available.</p>
+      <Card padding="md"><p class="empty-text">No health data available.</p></Card>
     {/if}
   {/if}
 </div>
 
 <style>
-  .page { max-width: 860px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
-  .page-header { margin-bottom: 4px; }
-  .page-title { font-size: 1.4rem; font-weight: 700; margin: 0 0 4px; }
-  .page-subtitle { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }
+  .section-wrap { display: flex; flex-direction: column; gap: 20px; }
+  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 4px; color: var(--color-text); }
+  .panel-desc { margin: 0 0 14px; font-size: 0.8rem; color: var(--color-text-muted); }
+  .empty-text { color: var(--color-text-muted); font-size: 0.875rem; text-align: center; padding: 20px; }
+
+  .disabled-state { display: flex; align-items: flex-start; gap: 14px; color: var(--color-text-muted); }
+  .disabled-icon { width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .disabled-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 4px; color: var(--color-text); }
+  .disabled-desc { margin: 0; font-size: 0.85rem; }
 
   /* Status bar */
-  .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: var(--radius); font-size: 0.85rem; border: 1px solid var(--color-border); }
+  .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--color-border); }
   .status-bar--on { background: color-mix(in srgb, #16a34a, transparent 92%); border-color: color-mix(in srgb, #16a34a, transparent 75%); }
   .status-bar--off { background: var(--color-surface); }
   .status-bar code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
 
-  /* Status dot */
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
   .status-dot.on { background: #16a34a; box-shadow: 0 0 0 2px color-mix(in srgb, #16a34a, transparent 75%); }
   .status-dot.warn { background: var(--color-warning, #d97706); }
   .status-dot.sm { width: 7px; height: 7px; display: inline-block; }
 
-  /* Card */
-  .card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
-  .card-head { margin-bottom: 16px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-  .card-title { font-size: 0.9rem; font-weight: 700; margin: 0 0 3px; }
-  .card-subtitle { margin: 0; font-size: 0.8rem; color: var(--color-text-muted); }
-
-  /* Feature table */
-  .feature-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-  .feature-table th { text-align: left; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); padding: 0 12px 8px 0; border-bottom: 1px solid var(--color-border); }
-  .feature-table th:last-child { padding-right: 0; }
-  .feature-table td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
-  .feature-table td:last-child { padding-right: 0; }
-  .feature-table tr:last-child td { border-bottom: none; }
   .feature-name { font-weight: 600; }
-  .row--off .feature-name { color: var(--color-text-muted); }
 
-  /* Badges */
   .badge { font-size: 0.7rem; font-weight: 700; border-radius: 4px; padding: 2px 7px; white-space: nowrap; }
   .badge--active { background: color-mix(in srgb, #16a34a, transparent 88%); color: #16a34a; }
   .badge--warn   { background: color-mix(in srgb, #d97706, transparent 88%); color: #d97706; }
   .badge--off    { background: var(--color-bg); color: var(--color-text-muted); border: 1px solid var(--color-border); }
   .badge--error  { background: color-mix(in srgb, var(--color-danger), transparent 88%); color: var(--color-danger); }
 
-  .col-provider { min-width: 72px; }
-  .col-notes { width: 56px; }
   .provider-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
   .provider-name { font-weight: 500; color: var(--color-text); }
   .provider-url { font-size: 0.7rem; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
   .model-tag { font-size: 0.78rem; font-family: var(--font-mono, monospace); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 1px 6px; }
-  .dim-pill { font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-radius: 4px; padding: 2px 6px; }
+  .dim-pill { font-size: 0.7rem; font-weight: 700; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-radius: 4px; padding: 2px 6px; margin-left: 6px; }
 
-  /* Vector store */
   .store-row { display: flex; gap: 32px; flex-wrap: wrap; }
   .store-col { display: flex; flex-direction: column; gap: 4px; }
   .field-label { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
@@ -345,10 +322,11 @@
   .error-block { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--color-border); }
   .error-pre { margin: 6px 0 0; font-size: 0.78rem; font-family: var(--font-mono, monospace); color: var(--color-danger); white-space: pre-wrap; word-break: break-all; }
 
-  /* Feature flags */
-  .saved-pill { font-size: 0.72rem; font-weight: 700; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; align-self: center; }
+  .card-head { margin-bottom: 14px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+  .saved-pill { font-size: 0.72rem; font-weight: 700; color: #16a34a; background: #dcfce7; border: 1px solid #86efac; border-radius: 4px; padding: 2px 8px; align-self: center; flex-shrink: 0; }
   .unconfigured-note { margin: 0 0 14px; font-size: 0.82rem; color: var(--color-text-muted); background: color-mix(in srgb, var(--color-warning, #d97706), transparent 90%); border: 1px solid color-mix(in srgb, var(--color-warning, #d97706), transparent 70%); border-radius: 6px; padding: 8px 12px; }
   .unconfigured-note code { font-size: 0.78rem; background: var(--color-bg); padding: 1px 5px; border-radius: 3px; border: 1px solid var(--color-border); }
+
   .flags-list { display: grid; gap: 0; }
   .flag-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
   .flag-row:last-child { border-bottom: none; padding-bottom: 0; }
@@ -357,76 +335,24 @@
   .flag-name { display: block; font-size: 0.875rem; font-weight: 600; margin-bottom: 2px; }
   .flag-desc { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
   .flag-error { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-danger, #dc2626); }
+
   .toggle-btn { position: relative; flex-shrink: 0; width: 44px; height: 24px; border-radius: 12px; border: none; background: var(--color-border); cursor: pointer; transition: background 0.2s; padding: 0; }
   .toggle-btn.toggle-on { background: var(--color-accent); }
   .toggle-btn:disabled { opacity: 0.5; cursor: not-allowed; }
   .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.2s; display: block; }
   .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
 
-  /* Actions */
   .actions-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  .action-block { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; }
+  .action-block { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 8px; padding: 16px; }
   .action-title { font-size: 0.875rem; font-weight: 700; margin: 0 0 4px; }
   .action-desc { margin: 0 0 12px; font-size: 0.82rem; color: var(--color-text-muted); line-height: 1.5; }
   .action-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
   .action-result { margin: 10px 0 0; font-size: 0.82rem; color: var(--color-text-muted); }
-  .text-input { padding: 7px 10px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; flex: 1; min-width: 120px; }
-  .primary-btn { background: var(--color-accent); color: #fff; border: none; border-radius: var(--radius); padding: 7px 16px; font: inherit; font-size: 0.875rem; font-weight: 600; cursor: pointer; transition: background 0.15s; white-space: nowrap; }
-  .primary-btn:hover:not(:disabled) { background: var(--color-accent-hover); }
-  .primary-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .input { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; flex: 1; min-width: 120px; outline: none; transition: border-color 0.15s; }
+  .input:focus { border-color: var(--color-accent); }
 
-  /* Empty states */
-  .empty-callout { display: flex; align-items: flex-start; gap: 14px; padding: 20px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); color: var(--color-text-muted); }
-  .callout-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 4px; color: var(--color-text); }
-  .callout-body { margin: 0; font-size: 0.85rem; }
-  .empty-state { text-align: center; padding: 40px; color: var(--color-text-muted); }
-
-  :global(.page > .app-alert) { margin: 0; }
-
-  @media (max-width: 600px) {
-    .page { gap: 12px; }
-    .card { padding: 14px; }
+  @media (max-width: 640px) {
     .actions-grid { grid-template-columns: 1fr; }
     .store-row { gap: 16px; }
-
-    /* Feature table → bento cards */
-    .feature-table { display: block; }
-    .feature-table thead {
-      position: absolute; width: 1px; height: 1px;
-      padding: 0; margin: -1px; overflow: hidden;
-      clip: rect(0,0,0,0); white-space: nowrap; border: 0;
-    }
-    .feature-table tbody { display: flex; flex-direction: column; gap: 6px; }
-    .feature-table tr {
-      display: block;
-      border: 1px solid var(--color-border);
-      border-radius: var(--radius);
-      background: var(--color-bg);
-      overflow: hidden;
-    }
-    .feature-table tr.row--off { opacity: 0.7; }
-    .feature-table td { display: flex; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--color-border); font-size: 0.82rem; gap: 10px; }
-    .feature-table td:last-child { border-bottom: none; }
-    .feature-table td::before {
-      content: attr(data-label);
-      font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.05em; color: var(--color-text-muted);
-      flex-shrink: 0; min-width: 62px;
-    }
-    /* Feature name — card header row, no label prefix */
-    .feature-table .col-feature {
-      background: var(--color-surface);
-      font-size: 0.875rem;
-      font-weight: 600;
-      border-bottom-width: 2px;
-    }
-    .feature-table .col-feature::before { display: none; }
-    /* Notes column hidden on mobile — dimension shown inline in model cell */
-    .feature-table .col-notes { display: none; }
-    /* Model cell: allow dim-pill to sit inline */
-    .feature-table .col-model { flex-wrap: wrap; align-items: center; gap: 6px; }
-    /* Provider cell: let URL fill available width and wrap */
-    .feature-table .col-provider .provider-cell { flex: 1; min-width: 0; }
-    .feature-table .col-provider .provider-url { max-width: none; white-space: normal; word-break: break-all; }
   }
 </style>

@@ -128,6 +128,7 @@
 </svelte:head>
 
 <div class="section-wrap">
+  <h1 class="page-title">Settings</h1>
   {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
   {#if loading}
     <div class="section-header">
