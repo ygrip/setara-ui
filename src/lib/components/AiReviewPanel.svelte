@@ -581,4 +581,43 @@
     font-size: 0.75rem;
     color: var(--color-text-muted);
   }
-</style>
+  /* ── Mobile Responsive ─────────────────────────────────── */
+  @media (max-width: 640px) {
+    .review-shell {
+      padding: 14px;
+    }
+    .finding {
+      flex-direction: column;
+      gap: 8px;
+      padding: 10px 12px;
+    }
+    .finding-meta {
+      flex-direction: row;
+      flex-wrap: wrap;
+      gap: 6px;
+      min-width: 0;
+    }
+    .finding-title {
+      font-size: 0.82rem;
+    }
+    .finding-detail {
+      font-size: 0.78rem;
+    }
+    .finding-confidence {
+      font-size: 0.62rem;
+    }
+    .finding-evidence {
+      font-size: 0.74rem;
+    }
+    .streaming-tokens {
+      max-height: 200px;
+      font-size: 0.75rem;
+    }
+    .tool-events {
+      flex-wrap: wrap;
+    }
+    .request-btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }</style>

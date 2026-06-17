@@ -309,10 +309,18 @@
   }
 
   @media (max-width: 720px) {
+    .ai-thinking {
+      padding: 18px;
+      gap: 16px;
+    }
     .ai-thinking-main {
       grid-template-columns: 1fr;
       justify-items: center;
       text-align: center;
+    }
+    .ai-thinking-loader {
+      width: 90px;
+      height: 90px;
     }
 
     .eyebrow {
@@ -320,7 +328,11 @@
     }
 
     .thinking-steps {
-      grid-template-columns: 1fr;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .thinking-stream {
+      display: none;
     }
   }
 

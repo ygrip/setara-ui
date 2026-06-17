@@ -3,6 +3,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import MarkdownBlock from '$lib/components/MarkdownBlock.svelte';
+  import AiThinkingPanel from '$lib/components/AiThinkingPanel.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { authHeaders } from '$lib/api/client';
@@ -181,12 +182,17 @@
     </div>
 
     {#if phase === 'thinking'}
-      <div class="ai-thinking">
-        <div class="thinking-dots">
-          <span></span><span></span><span></span>
-        </div>
-        <span class="thinking-label">Embedding your query and searching…</span>
-      </div>
+      <AiThinkingPanel
+        title="Searching scenarios"
+        subtitle="Embedding your query and searching for semantically similar scenarios."
+        hint="This may take a moment depending on model load."
+        steps={[
+          'Embedding search query',
+          'Searching vector store',
+          'Ranking results by relevance',
+          'Preparing AI analysis'
+        ]}
+      />
     {/if}
 
     {#if phase === 'streaming' || (phase === 'done' && reasoning)}
@@ -357,20 +363,6 @@
     border-radius: 50%; animation: spin 0.7s linear infinite;
   }
   @keyframes spin { to { transform: rotate(360deg); } }
-
-  .ai-thinking {
-    display: flex; align-items: center; gap: 10px; padding: 14px 16px;
-    background: var(--color-surface); border: 1px solid var(--color-border);
-    border-radius: 10px; margin-bottom: 14px; color: var(--color-text-muted); font-size: 0.875rem;
-  }
-  .thinking-dots { display: flex; gap: 5px; }
-  .thinking-dots span {
-    width: 7px; height: 7px; border-radius: 50%; background: var(--color-accent);
-    animation: bounce 1.2s infinite ease-in-out;
-  }
-  .thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
-  .thinking-dots span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%, 80%, 100% { transform: scale(0.75); opacity: 0.5; } 40% { transform: scale(1); opacity: 1; } }
 
   .reasoning-panel {
     border: 1px solid color-mix(in srgb, var(--color-accent), transparent 60%);
