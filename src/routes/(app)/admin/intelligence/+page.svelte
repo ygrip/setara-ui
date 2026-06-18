@@ -103,12 +103,10 @@
     <Card padding="md">
       <div class="disabled-state">
         <div class="disabled-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
         </div>
-        <div>
-          <p class="disabled-title">Not available in preview mode</p>
-          <p class="disabled-desc">Intelligence requires a live backend with an embedding provider configured.</p>
-        </div>
+        <h2 class="disabled-title">Not available in preview mode</h2>
+        <p class="disabled-desc">Intelligence requires a live backend with an embedding provider configured.</p>
       </div>
     </Card>
 
@@ -284,10 +282,10 @@
   .panel-desc { margin: 0 0 14px; font-size: 0.8rem; color: var(--color-text-muted); }
   .empty-text { color: var(--color-text-muted); font-size: 0.875rem; text-align: center; padding: 20px; }
 
-  .disabled-state { display: flex; align-items: flex-start; gap: 14px; color: var(--color-text-muted); }
-  .disabled-icon { width: 44px; height: 44px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
-  .disabled-title { font-weight: 700; font-size: 0.9rem; margin: 0 0 4px; color: var(--color-text); }
-  .disabled-desc { margin: 0; font-size: 0.85rem; }
+  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px 16px; }
+  .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
+  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
+  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
 
   /* Status bar */
   .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 0.85rem; border: 1px solid var(--color-border); }

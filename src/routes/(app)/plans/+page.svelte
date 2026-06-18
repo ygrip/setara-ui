@@ -299,7 +299,7 @@
   table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
   thead { background: var(--color-surface); }
   th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
-  td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+  td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; background: var(--color-surface); }
   .plan-row:last-child td { border-bottom: none; }
   .plan-row { cursor: pointer; }
   .skeleton-row td { vertical-align: middle; padding: 14px; }

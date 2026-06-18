@@ -276,6 +276,7 @@
 
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
+  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
 
   .sk-card {
     display: flex;
@@ -495,6 +496,11 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     white-space: nowrap;
+    background: var(--color-surface);
+  }
+
+  .matrix-table td {
+    background: var(--color-surface);
   }
 
   .area-col { min-width: 260px; }

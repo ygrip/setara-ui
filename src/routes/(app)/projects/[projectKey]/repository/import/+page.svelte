@@ -748,7 +748,7 @@
   .history-table-wrap { overflow-x: auto; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
   .history-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
   .history-table th { text-align: left; padding: 0.6rem 1rem; font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); background: var(--color-bg); }
-  .history-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text); vertical-align: middle; }
+  .history-table td { padding: 0.6rem 1rem; border-bottom: 1px solid var(--color-border); color: var(--color-text); vertical-align: middle; background: var(--color-surface); }
   .history-table tbody tr:last-child td { border-bottom: none; }
   .history-table tbody tr:hover { background: var(--color-accent-subtle); }
   .file-cell { font-family: var(--font-mono); font-size: 0.75rem; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

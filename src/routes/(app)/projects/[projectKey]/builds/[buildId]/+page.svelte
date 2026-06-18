@@ -682,9 +682,9 @@
   .audit-list { display: grid; gap: 14px; margin: 0; padding-left: 22px; }
   .audit-list li { padding-bottom: 12px; border-bottom: 1px solid var(--color-border); }
   .audit-list span { display: block; color: var(--color-text-muted); margin: 4px 0; }
-  .diff-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; }
+  .diff-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 0.82rem; display: block; overflow-x: auto; max-width: 100%; }
   .diff-table th { text-align: left; padding: 4px 8px; background: var(--color-bg); border: 1px solid var(--color-border); color: var(--color-text-muted); font-weight: 700; font-size: 0.75rem; text-transform: uppercase; }
-  .diff-table td { padding: 4px 8px; border: 1px solid var(--color-border); }
+  .diff-table td { padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-surface); }
   /* Modal internals */
   .modal-body { display: flex; flex-direction: column; gap: 14px; }
   .modal-warn { background: #fef3c7; border: 1px solid #d97706; border-radius: 6px; padding: 10px 12px; font-size: 0.875rem; color: #92400e; }

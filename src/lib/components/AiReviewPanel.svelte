@@ -91,6 +91,8 @@
           if (!line.startsWith('data:')) continue;
           const payload = line.slice(5);
 
+          if (payload.startsWith('[TOOL:')) continue;
+
           if (payload === '[DONE]') {
             doneReceived = true;
             continue;

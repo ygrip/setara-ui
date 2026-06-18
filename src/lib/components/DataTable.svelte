@@ -71,6 +71,10 @@
     border-bottom: none;
   }
 
+  .table :global(tr:nth-child(even) td) {
+    background: color-mix(in srgb, var(--color-bg), var(--color-surface) 50%);
+  }
+
   .table :global(tr:hover td) {
     background: var(--color-accent-subtle);
   }

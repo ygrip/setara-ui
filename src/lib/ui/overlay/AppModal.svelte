@@ -38,22 +38,17 @@
     border: 1px solid rgba(255, 255, 255, 0.6) !important;
     box-shadow: 0 24px 64px rgba(0,0,0,0.15), 0 4px 16px rgba(0,0,0,0.08) !important;
     font-family: var(--font-body) !important;
+    max-height: min(88vh, calc(100dvh - 32px)) !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
   }
 
-  /* Center the modal backdrop and content */
-  :global(.app-modal [role="dialog"]),
-  :global(.app-modal .fixed.inset-0),
-  :global(.app-modal .fixed) {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-  }
-
-  :global(.app-modal > div:first-child) {
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    min-height: 100dvh;
+  :global(.app-modal [class*="modal-body"]) {
+    overflow-y: auto !important;
+    overscroll-behavior: contain !important;
+    flex: 1 1 auto !important;
+    min-height: 0 !important;
   }
 
   :global([data-theme="dark"] .app-modal) {

@@ -208,7 +208,7 @@
   .builds-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
   .builds-table thead { background: var(--color-surface); }
   .builds-table th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
-  .builds-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; }
+  .builds-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; background: var(--color-surface); }
   .build-row:last-child td { border-bottom: none; }
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
