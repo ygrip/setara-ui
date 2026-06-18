@@ -25,9 +25,10 @@
   }
 
   interface AiReviewResult {
-    findings: AiReviewFinding[];
-    summary: string | null;
-    recommendation: string | null;
+    findings?: AiReviewFinding[] | null;
+    summary?: string | null;
+    recommendation?: string | null;
+    markdownContent?: string | null;
     message: string | null;
     generatedAt?: string | null;
     provider?: string | null;
@@ -101,9 +102,9 @@
           if (doneReceived) {
             try {
               const parsed = JSON.parse(payload.trim()) as AiReviewResult;
-              if (parsed.message && !parsed.summary && !parsed.findings?.length) {
+              if (parsed.message && !parsed.markdownContent && !parsed.summary && !parsed.findings?.length) {
                 error = parsed.message;
-              } else if (!parsed.summary && (!parsed.findings || parsed.findings.length === 0)) {
+              } else if (!parsed.markdownContent && !parsed.summary && (!parsed.findings || parsed.findings.length === 0)) {
                 error = aiReviewEmptyMessage;
               } else {
                 result = parsed;
@@ -123,6 +124,7 @@
 
           // Sanitize: strip any accidental "data:" prefix in stream content
           let cleanPayload = payload;
+          cleanPayload = cleanPayload.replace(/^data:\s*/gm, '');
           if (cleanPayload.startsWith('data:')) cleanPayload = cleanPayload.slice(5);
           streamingTokens += cleanPayload;
         }
@@ -224,7 +226,11 @@
       </button>
     </div>
 
-    {#if result.summary}
+    {#if result.markdownContent}
+      <div class="review-markdown-body">
+        <MarkdownBlock value={result.markdownContent} collapsedHeight={0} />
+      </div>
+    {:else if result.summary}
       <div class="bento-summary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
         <div class="bento-summary-text">
@@ -261,7 +267,7 @@
           </div>
         {/each}
       </div>
-    {:else}
+    {:else if !result.markdownContent && !result.summary}
       <p class="no-findings">No issues found.</p>
     {/if}
 
@@ -470,5 +476,74 @@
     .stream-text-wrap { max-height: 180px; }
     .stream-text { font-size: 0.78rem; }
     .tool-events { flex-wrap: wrap; }
+  }
+
+  /* ── Markdown review body ─────────────────── */
+  .review-markdown-body :global(h3) {
+    font-size: 1rem;
+    font-weight: 700;
+    margin: 16px 0 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .review-markdown-body :global(h4) {
+    font-size: 0.9rem;
+    font-weight: 650;
+    margin: 12px 0 4px;
+  }
+
+  .review-markdown-body :global(.sev-high) {
+    color: var(--color-danger, #dc2626);
+    font-weight: 700;
+  }
+
+  .review-markdown-body :global(.sev-medium) {
+    color: var(--color-warning, #d97706);
+    font-weight: 700;
+  }
+
+  .review-markdown-body :global(.sev-low) {
+    color: var(--color-accent);
+    font-weight: 700;
+  }
+
+  .review-markdown-body :global(.confidence) {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 1px 7px;
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-accent), transparent 85%);
+    color: var(--color-accent);
+  }
+
+  .review-markdown-body :global(blockquote) {
+    border-left: 3px solid var(--color-accent);
+    padding: 6px 12px;
+    margin: 8px 0;
+    background: color-mix(in srgb, var(--color-accent), transparent 94%);
+    border-radius: 0 6px 6px 0;
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+  }
+
+  .review-markdown-body :global(ul),
+  .review-markdown-body :global(ol) {
+    padding-left: 20px;
+    margin: 6px 0;
+  }
+
+  .review-markdown-body :global(li) {
+    margin: 3px 0;
+    line-height: 1.55;
+  }
+
+  .review-markdown-body :global(strong) {
+    color: var(--color-text);
+  }
+
+  .review-markdown-body :global(code) {
+    font-size: 0.82em;
   }
 </style>

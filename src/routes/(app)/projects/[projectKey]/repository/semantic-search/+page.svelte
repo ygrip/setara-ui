@@ -97,6 +97,7 @@
           } else {
             // Strip any accidental "data:" prefix that might appear in content
             let cleanData = data;
+            cleanData = cleanData.replace(/^data:\s*/gm, '');
             if (cleanData.startsWith('data:')) cleanData = cleanData.slice(5);
             reasoning += cleanData;
           }
