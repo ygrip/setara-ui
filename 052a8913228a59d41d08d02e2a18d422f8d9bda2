@@ -1,0 +1,104 @@
+src/routes/(app)/plans/+page.svelte
+  c3d28ba466d17595 6,83-87,180-188,308,354-357
+src/routes/(app)/projects/[projectKey]/executions/+page.svelte
+  c3d28ba466d17595 5,262-263,277,280,288,485,487-488,536-541
+src/routes/(app)/projects/[projectKey]/repository/import/+page.svelte
+  c3d28ba466d17595 19-20,57-61,64-70,252-265
+package.json
+  c3d28ba466d17595 33-36,42-43,63
+src/routes/(app)/admin/tribes/+page.svelte
+  c3d28ba466d17595 71-84,86,116,136-145,216
+src/routes/(app)/squads/[squadId]/release-plans/[planId]/+page.svelte
+  c3d28ba466d17595 530,590-592,605-607
+src/lib/mock/data.ts
+  ef527c3887daa214 1349-1352
+src/routes/(app)/squads/[squadId]/+page.svelte
+  be8199ba35604a3b 3,8,124,128-129,131,134,138,140-147,204-205,216-218,221-223
+src/routes/(app)/projects/[projectKey]/settings/api-keys/+page.svelte
+  c3d28ba466d17595 11,182,229,236
+src/lib/ui/domain/ApiKeyRotateModal.svelte
+  c3d28ba466d17595 3,20,34
+src/routes/(app)/+layout.svelte
+  c3d28ba466d17595 56,258-259
+src/routes/(app)/coverage-overview/+page.svelte
+  c3d28ba466d17595 94,99-101,111,118-152,154-159,337-340
+src/routes/(app)/projects/[projectKey]/coverage/+page.svelte
+  c3d28ba466d17595 63-103,106-108,110,112,114,116-121,123,125-142,149,157-159
+src/lib/components/MarkdownBlock.svelte
+  c3d28ba466d17595 13-15
+src/routes/(app)/projects/[projectKey]/executions/[runId]/+page.svelte
+  c3d28ba466d17595 181-186,490,492,744-749
+src/routes/(app)/squads/[squadId]/release-plans/+page.svelte
+  c3d28ba466d17595 157-158,205,241
+src/lib/components/ScenarioResultDetail.svelte
+  c3d28ba466d17595 178-197,215-220,248,470,473,475-486,490-491,493,497-501,504-515,517-519,521,524-540,546,551-553,555-569
+src/routes/(app)/projects/[projectKey]/+page.svelte
+  c3d28ba466d17595 3,8,138,172-173,175,181-199,224-228,261-294,297-298,300-301,303-304,307-313,315-318,320-325,341,343,345,347-348,355,359,378-382,384,386,396-397,406-407,412-413,416,418
+src/routes/(app)/admin/squads/+page.svelte
+  c3d28ba466d17595 67-82,121,142-151,218
+src/routes/(app)/admin/users/+page.svelte
+  c3d28ba466d17595 103-104,114-120,125-142,145,147-156,158-160,184,228,254-318,336-358
+src/routes/(app)/projects/[projectKey]/builds/[buildId]/+page.svelte
+  c3d28ba466d17595 648
+src/lib/ui/overlay/AppDropdown.svelte
+  be8199ba35604a3b 25-31,34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "052a8913228a59d41d08d02e2a18d422f8d9bda2",
+  "prompts": {
+    "be8199ba35604a3b": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "a9e0096d-4dd0-4709-ac6b-372a7e11862b",
+        "model": "deepseek/deepseek-v4-pro"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 11076,
+      "total_deletions": 542,
+      "accepted_lines": 345,
+      "overriden_lines": 0
+    },
+    "c3d28ba466d17595": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "d4931fae-0909-4854-8e71-1839da62a671",
+        "model": "deepseek/deepseek-v4-pro"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 31813,
+      "total_deletions": 724,
+      "accepted_lines": 7420,
+      "overriden_lines": 23
+    },
+    "c558f4b8f3671b67": {
+      "agent_id": {
+        "tool": "github-copilot",
+        "id": "14faf1fe-f5d6-46a4-93b7-636bcc71faff",
+        "model": "deepseek/deepseek-v4-pro"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 767,
+      "total_deletions": 37,
+      "accepted_lines": 0,
+      "overriden_lines": 0
+    },
+    "ef527c3887daa214": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b67b3c84-c1de-4255-819c-b0f3ece7637d",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 4,
+      "total_deletions": 4,
+      "accepted_lines": 4,
+      "overriden_lines": 0
+    }
+  }
+}
