@@ -1,9 +1,11 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
+  import BentoCard from '$lib/components/BentoCard.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
+  import MetricCard from '$lib/components/MetricCard.svelte';
   import type { SquadProjectCoverage } from '$lib/api/statistics';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
@@ -119,40 +121,30 @@
 
     <!-- Charts row -->
     <div class="charts-row">
-      <div class="chart-card">
-        <h2 class="chart-title">Overall Coverage</h2>
+      <BentoCard title="Overall Coverage" subtitle="{pct(coveragePct)} of {totalScenarios} scenarios automated" variant="default">
         <div class="donut-wrap">
           <DonutChart chartData={coverageDonut} size={240} />
         </div>
-        <div class="coverage-stat">
-          <strong>{pct(coveragePct)}</strong>
-          <span>of {totalScenarios} scenarios automated</span>
-        </div>
-      </div>
-      <div class="chart-card chart-card--wide">
-        <h2 class="chart-title">Pass Rate Trend (Last 7 Weeks)</h2>
+      </BentoCard>
+      <BentoCard title="Pass Rate Trend" subtitle="Last 7 Weeks" variant="default">
         <LineChart chartData={passRateChartData} />
-      </div>
+      </BentoCard>
     </div>
 
-    <!-- Volatile projects -->
+    <!-- Low Coverage Projects -->
     {#if volatileProjects.length > 0}
     <section class="section">
       <h2 class="section-title">Low Coverage Projects</h2>
-      <div class="volatile-grid">
+      <div class="metrics-row">
         {#each volatileProjects as proj}
-          <a href="/projects/{proj.projectKey}" class="volatile-card">
-            <div class="volatile-top">
-              <span class="volatile-name">{proj.projectName}</span>
-              <span class="volatile-badge volatile-badge--warn">
-                {proj.totalScenarios - proj.totalAutomated} not automated
-              </span>
-            </div>
-            <div class="volatile-pct">{pct(proj.coveragePercentage)} coverage</div>
-            <div class="volatile-bar">
-              <div class="volatile-fill" style="width:{proj.coveragePercentage}%"></div>
-            </div>
-          </a>
+          <MetricCard
+            label={proj.projectName}
+            value={pct(proj.coveragePercentage)}
+            sub={`${proj.totalScenarios - proj.totalAutomated} of ${proj.totalScenarios} not automated`}
+            variant="warning"
+            href="/projects/{proj.projectKey}"
+            ariaLabel={`Open ${proj.projectName} coverage`}
+          />
         {/each}
       </div>
     </section>
@@ -209,14 +201,8 @@
   .header-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
   h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .header-sub { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
-  .charts-row { display: grid; grid-template-columns: 240px 1fr; gap: 20px; margin-bottom: 28px; }
-  @media (min-width: 1100px) { .charts-row { grid-template-columns: 280px 1fr; } }
-  .chart-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 20px; }
-  .chart-card--wide { display: flex; flex-direction: column; }
-  .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin: 0 0 14px; }
-  .donut-wrap { display: flex; justify-content: center; margin-bottom: 12px; }
-  .coverage-stat { text-align: center; font-size: 0.875rem; color: var(--color-text-muted); }
-  .coverage-stat strong { display: block; font-size: 1.5rem; color: var(--color-text); }
+  .charts-row { display: grid; grid-template-columns: 280px 1fr; gap: 20px; margin-bottom: 28px; }
+  .donut-wrap { display: flex; justify-content: center; padding: 8px 0; }
   .section { margin-bottom: 32px; }
   .section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
   .section-title { font-size: 1rem; font-weight: 600; margin: 0 0 14px; }
@@ -227,17 +213,12 @@
   .cov-bar { flex: 1; height: 6px; background: var(--color-border); border-radius: 3px; overflow: hidden; min-width: 60px; }
   .cov-fill { height: 100%; background: #0d9488; border-radius: 3px; }
   .empty-cell { text-align: center; color: var(--color-text-muted); padding: 20px; }
-  .volatile-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
-  .volatile-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; text-decoration: none; color: var(--color-text); display: flex; flex-direction: column; gap: 10px; transition: border-color 0.15s; }
-  .volatile-card:hover { border-color: var(--color-accent); }
-  .volatile-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
-  .volatile-name { font-weight: 700; font-size: 0.875rem; }
-  .volatile-badge { font-size: 0.72rem; font-weight: 700; padding: 2px 7px; border-radius: 999px; white-space: nowrap; }
-  .volatile-badge--warn { background: #fef3c7; color: #d97706; }
-  .volatile-pct { font-size: 0.78rem; color: var(--color-text-muted); }
-  .volatile-bar { height: 5px; background: var(--color-border); border-radius: 3px; overflow: hidden; }
-  .volatile-fill { height: 100%; background: #d97706; border-radius: 3px; }
-  @media (max-width: 700px) {
+  .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  @media (max-width: 800px) {
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
     .charts-row { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
   }
 </style>

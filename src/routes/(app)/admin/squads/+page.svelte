@@ -64,9 +64,22 @@
     catch (err) { error = (err as Error).message; } finally { editing = false; }
   }
 
-  async function handleDelete(squad: Squad) {
-    if (!confirm(`Delete squad "${squad.name}"?`)) return;
-    try { await deleteSquad(squad.id); await refreshSquads(); } catch (err) { error = (err as Error).message; }
+  // Delete confirmation modal
+  let deleteOpen = $state(false);
+  let deletingSquad = $state<Squad | null>(null);
+  let deleting = $state(false);
+
+  function openDelete(squad: Squad) {
+    deletingSquad = squad;
+    deleteOpen = true;
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingSquad || deleting) return;
+    deleting = true; error = '';
+    try { await deleteSquad(deletingSquad.id); deleteOpen = false; await refreshSquads(); }
+    catch (err) { error = (err as Error).message; }
+    finally { deleting = false; }
   }
 
   async function handleAddMember() {
@@ -105,7 +118,7 @@
                 <Button variant="ghost" iconOnly onclick={() => openEdit(squad)} title="Edit" ariaLabel="Edit squad">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.333 2a1.886 1.886 0 0 1 2.667 2.667L5.333 13.333 2 14l.667-3.333L11.333 2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </Button>
-                <Button variant="danger" iconOnly onclick={() => handleDelete(squad)} title="Delete" ariaLabel="Delete squad">
+                <Button variant="danger" iconOnly onclick={() => openDelete(squad)} title="Delete" ariaLabel="Delete squad">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </Button>
               </td>
@@ -125,6 +138,16 @@
     </form>
   </Card>
 </div>
+
+<Modal open={deleteOpen} title="Delete Squad" size="sm" onclose={() => deleteOpen = false}>
+  <div class="modal-body">
+    <p class="delete-warning">Delete squad <strong>"{deletingSquad?.name}"</strong>?</p>
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => deleteOpen = false}>Cancel</Button>
+      <Button variant="danger" size="sm" onclick={handleConfirmDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete'}</Button>
+    </div>
+  </div>
+</Modal>
 
 <Modal open={editOpen} title="Edit Squad" size="lg" onclose={() => editOpen = false}>
   {#if detailLoading}<p class="muted p-4">Loading…</p>
@@ -192,6 +215,7 @@
   .member-row{display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);font-size:.85rem}
   .role-chip{display:inline-flex;padding:2px 8px;border-radius:10px;font-size:.68rem;font-weight:700;background:var(--color-accent-subtle);color:var(--color-accent)}
   .add-member-row{display:flex;gap:8px;align-items:center}.add-member-row .input{flex:1}
+  .delete-warning{color:var(--color-text);font-size:0.9rem;line-height:1.5}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:8px}
   @media(max-width:600px){.edit-grid{grid-template-columns:1fr}.add-member-row{flex-wrap:wrap}}
 </style>

@@ -178,8 +178,12 @@
   let unsub: (() => void) | null = null;
 
   onMount(() => {
-    wsManager.connect(data.projectKey, data.runId);
-    unsub = wsManager.addHandler(applyEvent);
+    // Only connect WebSocket if the run is still active (RUNNING or IN_PROGRESS)
+    const initialStatus = data.run?.status?.toUpperCase();
+    if (initialStatus === 'RUNNING' || initialStatus === 'IN_PROGRESS') {
+      wsManager.connect(data.projectKey, data.runId);
+      unsub = wsManager.addHandler(applyEvent);
+    }
   });
 
   onDestroy(() => {
@@ -483,9 +487,9 @@
   /* ── Metrics ───────────────────────────────────────────────── */
   .metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 14px;
-    margin-bottom: 28px;
+    margin-bottom: 20px;
   }
 
   /* ── Sections ──────────────────────────────────────────────── */
@@ -737,6 +741,12 @@
     font-style: italic;
   }
 
+  @media (max-width: 800px) {
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
+  }
   @media (max-width: 820px) {
     .visual-panel,
     .chart-layout {

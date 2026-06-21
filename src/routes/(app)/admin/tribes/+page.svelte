@@ -68,10 +68,22 @@
     finally { saving = false; }
   }
 
-  async function handleDelete(tribe: Tribe) {
-    if (!confirm(`Delete tribe "${tribe.name}"? Squads under it will have no tribe.`)) return;
-    try { await deleteTribe(tribe.id); await invalidateAll(); }
+  // Delete confirmation modal
+  let deleteOpen = $state(false);
+  let deletingTribe = $state<Tribe | null>(null);
+  let deleting = $state(false);
+
+  function openDelete(tribe: Tribe) {
+    deletingTribe = tribe;
+    deleteOpen = true;
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingTribe || deleting) return;
+    deleting = true; error = '';
+    try { await deleteTribe(deletingTribe.id); deleteOpen = false; await invalidateAll(); }
     catch (err) { error = (err as Error).message; }
+    finally { deleting = false; }
   }
 </script>
 
@@ -101,7 +113,7 @@
                 <Button variant="ghost" iconOnly onclick={() => openEdit(tribe)} title="Edit" ariaLabel="Edit tribe">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M11.333 2a1.886 1.886 0 0 1 2.667 2.667L5.333 13.333 2 14l.667-3.333L11.333 2z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </Button>
-                <Button variant="danger" iconOnly onclick={() => handleDelete(tribe)} title="Delete" ariaLabel="Delete tribe">
+                <Button variant="danger" iconOnly onclick={() => openDelete(tribe)} title="Delete" ariaLabel="Delete tribe">
                   <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
                 </Button>
               </td>
@@ -120,6 +132,16 @@
     </form>
   </Card>
 </div>
+
+<Modal open={deleteOpen} title="Delete Tribe" size="sm" onclose={() => deleteOpen = false}>
+  <div class="modal-body">
+    <p class="delete-warning">Delete tribe <strong>"{deletingTribe?.name}"</strong>? Squads under it will have no tribe.</p>
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => deleteOpen = false}>Cancel</Button>
+      <Button variant="danger" size="sm" onclick={handleConfirmDelete} disabled={deleting}>{deleting ? 'Deleting…' : 'Delete'}</Button>
+    </div>
+  </div>
+</Modal>
 
 <Modal open={editOpen} title="Edit Tribe" size="md" onclose={() => editOpen = false}>
   <div class="modal-body">
@@ -191,5 +213,6 @@
   .user-pick { display: flex; gap: 8px; padding: 6px 10px; border: none; background: var(--color-surface); cursor: pointer; font: inherit; font-size: 0.82rem; text-align: left; }
   .user-pick:hover { background: var(--color-accent-subtle); }
   .user-pick.selected { background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 600; }
+  .delete-warning { color: var(--color-text); font-size: 0.9rem; line-height: 1.5; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
 </style>

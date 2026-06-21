@@ -10,7 +10,9 @@
   } = $props();
 
   let expanded = $state(false);
-  const needsCollapse = $derived((value?.length ?? 0) > 900 || (value?.split('\n').length ?? 0) > 14);
+  const needsCollapse = $derived(
+    collapsedHeight > 0 && ((value?.length ?? 0) > 900 || (value?.split('\n').length ?? 0) > 14)
+  );
 </script>
 
 {#if value?.trim()}

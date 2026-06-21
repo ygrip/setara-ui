@@ -1,6 +1,7 @@
 import { getApiBaseUrl } from './config';
 import { apiFetch, authHeaders } from './client';
 import { readJsonOrThrow } from './errors';
+import type { CursorPage } from './pagination';
 import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
 
 export interface TestDirectory {
@@ -12,6 +13,16 @@ export interface TestDirectory {
   path: string;
   scenarioCount: number;
   createdAt: string;
+}
+
+export interface DirectoryMetadata {
+  id: string;
+  parentId: string | null;
+  name: string;
+  slug: string;
+  path: string;
+  childCount: number;
+  scenarioCount: number;
 }
 
 export interface TagView {
@@ -79,6 +90,19 @@ export async function listDirectories(projectKey: string, parentId?: string | nu
   return res.json();
 }
 
+export async function listDirectoryMetadata(
+  projectKey: string,
+  parentId?: string | null,
+  status = 'ACTIVE'
+): Promise<DirectoryMetadata[]> {
+  const params = new URLSearchParams();
+  if (parentId) params.set('parentId', parentId);
+  if (status) params.set('status', status);
+  const query = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/directories/metadata${query}`);
+  return readJsonOrThrow<DirectoryMetadata[]>(res);
+}
+
 export async function createDirectory(projectKey: string, body: {
   parentId?: string | null;
   name: string;
@@ -138,9 +162,14 @@ export async function listScenarios(
   sortBy?: string,
   sortDir?: string,
   tags?: string[],
-  tagMode?: string
-): Promise<Scenario[]> {
-  if (isMockMode()) return mockListScenarios(projectKey, nodeId, status);
+  tagMode?: string,
+  cursor?: string,
+  limit?: number
+): Promise<CursorPage<Scenario>> {
+  if (isMockMode()) {
+    const items = await mockListScenarios(projectKey, nodeId, status);
+    return { items, nextCursor: null, prevCursor: null };
+  }
   const params = new URLSearchParams();
   if (nodeId) params.set('nodeId', nodeId);
   if (status) params.set('status', status);
@@ -148,9 +177,11 @@ export async function listScenarios(
   if (sortDir) params.set('sortDir', sortDir);
   if (tags && tags.length) tags.forEach(t => params.append('tags', t));
   if (tagMode) params.set('tagMode', tagMode);
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios${query}`);
-  return res.json();
+  return readJsonOrThrow<CursorPage<Scenario>>(res);
 }
 
 export interface ScenarioExistsResult {
@@ -604,23 +635,24 @@ export async function suggestScenarioStepsStream(
       const data = line.slice(5).replace(/\r$/, '');
       // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
       // spaces that separate words (e.g. " scenarios" vs "scenarios").
+      // Exception: control sentinel and JSON payload are always trimmed.
 
-      if (data === '[DONE]') {
+      // Quarkus SSE sends "data: value" (space after colon), so
+      // line.slice(5) yields " [DONE]" — use trimStart() for the check only.
+      if (data.trimStart() === '[DONE]') {
         doneReceived = true;
         continue;
       }
 
       if (doneReceived) {
         try {
-          finalResult = JSON.parse(data) as StepSuggestionResponse;
+          finalResult = JSON.parse(data.trim()) as StepSuggestionResponse;
           doneReceived = false; // reset for any subsequent events
         } catch {
           // JSON parse failed — keep finalResult null, will fallback
         }
         continue;
       }
-
-      onToken(data);
 
       // Sanitize: strip any accidental "data:" prefix in stream tokens
       let cleanToken = data;

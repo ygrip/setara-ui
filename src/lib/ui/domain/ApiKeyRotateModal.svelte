@@ -1,6 +1,6 @@
 <script lang="ts">
   import Button from '$lib/components/Button.svelte';
-  import AppModal from '$lib/ui/overlay/AppModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
 
   let {
     open = false,
@@ -17,7 +17,7 @@
   } = $props();
 </script>
 
-<AppModal {open} title={mode === 'revoke' ? 'Revoke API key' : 'Rotate API key'} {onclose}>
+<Modal {open} title={mode === 'revoke' ? 'Revoke API key' : 'Rotate API key'} {onclose}>
   <div class="api-key-modal">
     {#if mode === 'revoke'}
       <p>Revoke <strong>{keyName}</strong>? Automation runners using this key will stop sending results.</p>
@@ -31,7 +31,7 @@
       </Button>
     </div>
   </div>
-</AppModal>
+</Modal>
 
 <style>
   .api-key-modal {

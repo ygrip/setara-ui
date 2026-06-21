@@ -18,8 +18,13 @@ export async function load({ params }: { params: { projectKey: string } }) {
   ]);
 
   const directories = dirResult.status === 'fulfilled' ? dirResult.value : ([] as TestDirectory[]);
-  const scenarios = scenariosResult.status === 'fulfilled' ? scenariosResult.value : ([] as Scenario[]);
-  const draftScenarios = draftsResult.status === 'fulfilled' ? draftsResult.value : ([] as Scenario[]);
+  const scenariosPage = scenariosResult.status === 'fulfilled' ? scenariosResult.value : { items: [] as Scenario[], nextCursor: null as string | null, prevCursor: null as string | null };
+  const draftsPage = draftsResult.status === 'fulfilled' ? draftsResult.value : { items: [] as Scenario[], nextCursor: null as string | null, prevCursor: null as string | null };
+
+  const scenarios = scenariosPage.items;
+  const draftScenarios = draftsPage.items;
+  const scenariosNextCursor = scenariosPage.nextCursor;
+  const draftsNextCursor = draftsPage.nextCursor;
 
   // Surface the first error encountered so the page can show an informative banner
   const firstError =
@@ -28,5 +33,5 @@ export async function load({ params }: { params: { projectKey: string } }) {
     draftsResult.status === 'rejected' ? (draftsResult.reason as Error).message :
     null;
 
-  return { projectKey, directories, scenarios, draftScenarios, error: firstError };
+  return { projectKey, directories, scenarios, draftScenarios, scenariosNextCursor, draftsNextCursor, error: firstError };
 }

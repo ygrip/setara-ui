@@ -16,7 +16,8 @@
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import AppProgress from '$lib/ui/feedback/AppProgress.svelte';
   import AppSpinner from '$lib/ui/loading/AppSpinner.svelte';
-  import AppStepper, { type AppStep } from '$lib/ui/navigation/AppStepper.svelte';
+  import * as steps from '@zag-js/steps';
+  import { useMachine, normalizeProps } from '@zag-js/svelte';
 
   let { data } = $props();
 
@@ -52,11 +53,21 @@
 
   const stepLabels = ['Upload', 'Review', 'Import', 'Done'];
   const stepMap: Record<Step, number> = { upload: 0, validated: 1, importing: 2, done: 3 };
-  const workflowSteps = $derived(stepLabels.map((label, index) => ({
-    id: label.toLowerCase(),
-    label,
-    state: stepMap[step] > index ? 'complete' : stepMap[step] === index ? 'active' : 'pending'
-  } satisfies AppStep)));
+
+  // Zag.js Steps machine — purely visual progress indicator
+  const stepsService = useMachine(steps.machine, {
+    id: 'import-stepper',
+    count: stepLabels.length,
+    linear: true,
+    orientation: 'horizontal',
+    isStepValid: () => true
+  });
+  const stepsApi = $derived(steps.connect(stepsService, normalizeProps));
+
+  // Sync step index reactively when wizard step changes
+  $effect(() => {
+    stepsApi.setStep(stepMap[step]);
+  });
 
   // Load history on mount
   $effect(() => {
@@ -238,7 +249,20 @@
     <a class="btn-outline" href="/projects/{data.projectKey}/repository">← Repository</a>
   </div>
 
-  <AppStepper steps={workflowSteps} />
+  <!-- Zag.js Steps — visual progress indicator -->
+  <div {...stepsApi.getRootProps()} class="import-stepper">
+    <div {...stepsApi.getListProps()}>
+      {#each stepLabels as label, i}
+        <div {...stepsApi.getItemProps({ index: i })}>
+          <button {...stepsApi.getTriggerProps({ index: i })}>
+            <div {...stepsApi.getIndicatorProps({ index: i })}>{i + 1}</div>
+            <span>{label}</span>
+          </button>
+          <div {...stepsApi.getSeparatorProps({ index: i })}></div>
+        </div>
+      {/each}
+    </div>
+  </div>
 
   {#if error}
     <AppAlert tone="error">{error}</AppAlert>
@@ -592,7 +616,142 @@
   .page-title { font-family: var(--font-sans); font-size: 1.6rem; font-weight: 700; color: var(--color-text); margin: 0 0 0.25rem; }
   .page-subtitle { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; }
 
-  :global(.page > .app-stepper) { margin-bottom: 2rem; }
+  .import-stepper { margin-bottom: 2rem; }
+
+  /* ── Zag.js Steps styling ─────────────────────────────────── */
+  .import-stepper [data-part="list"] {
+    display: flex;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+  .import-stepper [data-part="list"]::-webkit-scrollbar { display: none; }
+
+  .import-stepper [data-part="item"] {
+    display: flex;
+    align-items: center;
+    flex: 1 0 auto;
+    min-width: 0;
+  }
+
+  .import-stepper [data-part="trigger"] {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 12px 20px;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font-family: var(--font-body);
+    font-size: 0.82rem;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: default;
+    transition: background 0.2s, border-color 0.2s, color 0.2s;
+  }
+
+  /* borders between adjacent triggers — no border-right on last */
+  .import-stepper [data-part="item"]:not(:last-child) [data-part="trigger"] {
+    border-right: none;
+  }
+
+  .import-stepper [data-part="item"]:first-child [data-part="trigger"] {
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+
+  .import-stepper [data-part="item"]:last-child [data-part="trigger"] {
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  .import-stepper [data-part="indicator"] {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background: var(--color-border);
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    transition: background 0.2s, color 0.2s;
+  }
+
+  /* Current step */
+  .import-stepper [data-part="item"][data-current] [data-part="trigger"] {
+    background: color-mix(in srgb, var(--color-accent), transparent 92%);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+
+  .import-stepper [data-part="item"][data-current] [data-part="indicator"] {
+    background: var(--color-accent);
+    color: #fff;
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 70%);
+  }
+
+  /* Completed step */
+  .import-stepper [data-part="item"][data-complete] [data-part="trigger"] {
+    background: color-mix(in srgb, #16a34a, transparent 92%);
+    border-color: #16a34a;
+    color: #15803d;
+  }
+
+  .import-stepper [data-part="item"][data-complete] [data-part="indicator"] {
+    background: #16a34a;
+    color: #fff;
+  }
+  .import-stepper [data-part="item"][data-complete] [data-part="indicator"]::after {
+    content: '✓';
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  /* Incomplete step */
+  .import-stepper [data-part="item"][data-incomplete] [data-part="trigger"] {
+    background: var(--color-surface);
+    border-color: var(--color-border);
+    color: var(--color-text-muted);
+  }
+
+  /* Separator — hidden; borders on triggers handle visual separation */
+  .import-stepper [data-part="separator"] {
+    display: none;
+  }
+
+  /* ── Mobile: compact scrollable stepper ──────────────────── */
+  @media (max-width: 640px) {
+    .import-stepper [data-part="item"] {
+      flex: 0 0 auto;
+    }
+
+    .import-stepper [data-part="trigger"] {
+      padding: 10px 14px;
+      font-size: 0.75rem;
+      gap: 6px;
+      border-radius: 0;
+    }
+
+    .import-stepper [data-part="item"]:first-child [data-part="trigger"] {
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+
+    .import-stepper [data-part="item"]:last-child [data-part="trigger"] {
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+
+    .import-stepper [data-part="indicator"] {
+      width: 20px;
+      height: 20px;
+      font-size: 0.7rem;
+    }
+  }
 
   /* Layout */
   .wizard-layout { display: grid; grid-template-columns: 1fr 280px; gap: 1.5rem; align-items: start; }
@@ -600,7 +759,7 @@
     .wizard-layout { grid-template-columns: 1fr; }
     .page { padding: 1.25rem 1rem; }
     .page-header { flex-direction: column; align-items: flex-start; gap: 0.75rem; margin-bottom: 1.25rem; }
-    :global(.page > .app-stepper) { margin-bottom: 1.25rem; }
+    .import-stepper { margin-bottom: 1.25rem; }
     .glass { padding: 1rem; }
     .stats-row { gap: 0.5rem; }
     .stat { min-width: 56px; }

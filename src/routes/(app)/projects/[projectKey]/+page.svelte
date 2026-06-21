@@ -1,24 +1,14 @@
 <script lang="ts">
   import Badge from '$lib/components/Badge.svelte';
+  import BentoCard from '$lib/components/BentoCard.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
+  import ActionCard from '$lib/components/ActionCard.svelte';
   import StatusCard from '$lib/components/StatusCard.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { type ApiKey } from '$lib/api/apikeys';
-
-  let copiedField = $state<string | null>(null);
-
-  async function copyToClipboard(text: string, field: string) {
-    try {
-      await navigator.clipboard.writeText(text);
-      copiedField = field;
-      setTimeout(() => { copiedField = null; }, 1500);
-    } catch {
-      // fallback: ignore
-    }
-  }
 
   function buildStatusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status) {
@@ -145,46 +135,33 @@
       />
     </div>
 
-    <!-- Latest Build & Plan info -->
+    <!-- Latest Build & Plan -->
     {#if data.latestBuild || data.latestPlan}
     <div class="latest-row">
       {#if data.latestBuild}
-      <a href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" class="latest-card">
-        <div class="latest-card-header">
-          <span class="latest-label">Latest Build</span>
+      <a class="latest-card" href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" aria-label="Open latest build {data.latestBuild.name}">
+        <div class="latest-card-top">
+          <span class="latest-card-label">Latest Build</span>
           <Badge text={data.latestBuild.status} variant={buildStatusVariant(data.latestBuild.status)} />
         </div>
-        <div class="latest-card-name">{data.latestBuild.name}</div>
-        <div class="latest-card-meta">
-          <span class="mono-chip">
-            {data.latestBuild.buildKey}
-            <button class="copy-btn" onclick={(e) => { e.preventDefault(); copyToClipboard(data.latestBuild!.buildKey, 'buildKey'); }} title="Copy build key">
-              {copiedField === 'buildKey' ? '✓' : '⧉'}
-            </button>
-          </span>
-          {#if data.latestBuild.version}
-          <span class="mono-chip">
-            {data.latestBuild.version}
-            <button class="copy-btn" onclick={(e) => { e.preventDefault(); copyToClipboard(data.latestBuild!.version!, 'version'); }} title="Copy version">
-              {copiedField === 'version' ? '✓' : '⧉'}
-            </button>
-          </span>
-          {/if}
-        </div>
+        <span class="latest-card-name">{data.latestBuild.name}</span>
+        {#if data.latestBuild.version}
+          <span class="latest-card-meta">v{data.latestBuild.version}</span>
+        {/if}
       </a>
       {/if}
-
       {#if data.latestPlan}
-      <a href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" class="latest-card">
-        <div class="latest-card-header">
-          <span class="latest-label">Latest Plan</span>
-          <Badge text={data.latestPlan.status} variant={planStatusVariant(data.latestPlan.status)} />
+      <a class="latest-card" href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" aria-label="Open latest plan {data.latestPlan.name}">
+        <div class="latest-card-top">
+          <span class="latest-card-label">Latest Plan</span>
+          <Badge text={data.latestPlan.status.replace('_', ' ')} variant={planStatusVariant(data.latestPlan.status)} />
         </div>
-        <div class="latest-card-name">{data.latestPlan.name}</div>
+        <span class="latest-card-name">{data.latestPlan.name}</span>
         {#if data.latestPlan.releaseVersion}
-        <div class="latest-card-meta">
-          <span class="mono-chip">{data.latestPlan.releaseVersion}</span>
-        </div>
+          <span class="latest-card-meta">{data.latestPlan.releaseVersion}</span>
+        {/if}
+        {#if data.latestPlan.squadName}
+          <span class="latest-card-squad">{data.latestPlan.squadName}</span>
         {/if}
       </a>
       {/if}
@@ -192,25 +169,34 @@
     {/if}
 
     <div class="section">
-      <div class="panel visual-panel">
-        <div class="coverage-copy">
-          <h2 class="panel-title">Automation Coverage</h2>
-          <p class="qg-note">
-            {Number(data.statistic?.coveragePercentage ?? 0).toFixed(0)}% covered within this project.
-          </p>
-          <div class="coverage-breakdown">
-            <span><strong>{data.statistic?.totalAutomated ?? 0}</strong> automated</span>
-            <span><strong>{data.statistic?.totalAutomatable ?? 0}</strong> automatable</span>
-            <span><strong>{data.statistic?.totalScenarios ?? 0}</strong> live scenarios</span>
-          </div>
-        </div>
+    <BentoCard title="Automation Coverage" subtitle="{Number(data.statistic?.coveragePercentage ?? 0).toFixed(0)}% covered within this project" variant="default">
+      <div class="coverage-layout">
         <div class="chart-layout">
-          <DonutChart chartData={automationDonut} size={460} />
+          <DonutChart chartData={automationDonut} size={400} />
           <div class="chart-legend" aria-label="Automation coverage legend">
             <span><i class="dot automated"></i>Automated <strong>{data.statistic?.totalAutomated ?? 0}</strong></span>
             <span><i class="dot remaining"></i>Remaining <strong>{Math.max((data.statistic?.totalAutomatable ?? data.statistic?.totalScenarios ?? 0) - (data.statistic?.totalAutomated ?? 0), 0)}</strong></span>
           </div>
         </div>
+        <div class="coverage-breakdown">
+          <span><strong>{data.statistic?.totalAutomated ?? 0}</strong> automated</span>
+          <span><strong>{data.statistic?.totalAutomatable ?? 0}</strong> automatable</span>
+          <span><strong>{data.statistic?.totalScenarios ?? 0}</strong> live scenarios</span>
+        </div>
+      </div>
+    </BentoCard>
+    </div>
+
+    <!-- Quick links -->
+    <div class="section">
+      <h2 class="section-title">Quick Links</h2>
+      <div class="quick-links">
+        <ActionCard title="Test Repository" href="/projects/{data.projectKey}/repository" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/></svg>' />
+        <ActionCard title="Executions" href="/projects/{data.projectKey}/executions" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>' />
+        <ActionCard title="Release Plans" href="/projects/{data.projectKey}/release-plans" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>' />
+        <ActionCard title="Builds" href="/projects/{data.projectKey}/builds" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/></svg>' />
+        <ActionCard title="Coverage" href="/projects/{data.projectKey}/coverage" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>' />
+        <ActionCard title="Settings" href="/projects/{data.projectKey}/settings" icon='<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' />
       </div>
     </div>
 
@@ -231,65 +217,25 @@
               <th>Branch</th>
               <th>Started</th>
               <th>Duration</th>
-              <th></th>
             </tr>
           {/snippet}
           {#snippet body()}
             {#each recentRuns as run}
-              <tr>
+              <!-- svelte-ignore a11y_click_events_have_key_events -->
+              <tr
+                class="clickable-row"
+                onclick={() => window.location.href = `/projects/${data.projectKey}/executions/${run.id}`}
+              >
                 <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
                 <td class="mono">{run.runnerId}</td>
                 <td>{run.branch ?? '—'}</td>
                 <td>{formatDate(run.startedAt)}</td>
                 <td>{duration(run.startedAt, run.finishedAt)}</td>
-                <td><a href="/projects/{data.projectKey}/executions/{run.id}" class="link">View →</a></td>
               </tr>
             {/each}
           {/snippet}
         </DataTable>
       {/if}
-    </div>
-
-    <!-- Quick links -->
-    <div class="section">
-      <h2 class="section-title">Quick Links</h2>
-      <div class="quick-links">
-        <a href="/projects/{data.projectKey}/repository" class="quick-link-card">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
-          </svg>
-          <span class="ql-label">Test Repository</span>
-          <span class="ql-arrow">→</span>
-        </a>
-        <a href="/projects/{data.projectKey}/release-plans" class="quick-link-card">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-          </svg>
-          <span class="ql-label">Release Plans</span>
-          <span class="ql-arrow">→</span>
-        </a>
-        <a href="/projects/{data.projectKey}/builds" class="quick-link-card">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
-          </svg>
-          <span class="ql-label">Builds</span>
-          <span class="ql-arrow">→</span>
-        </a>
-        <a href="/projects/{data.projectKey}/coverage" class="quick-link-card">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <span class="ql-label">Coverage</span>
-          <span class="ql-arrow">→</span>
-        </a>
-        <a href="/projects/{data.projectKey}/settings" class="quick-link-card">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-          </svg>
-          <span class="ql-label">Settings</span>
-          <span class="ql-arrow">→</span>
-        </a>
-      </div>
     </div>
   {/if}
 </div>
@@ -312,37 +258,71 @@
 
   .project-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 24px; flex-wrap: wrap; }
 
-  .header-top {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 6px;
-  }
-
-  .project-name {
-    font-size: 1.5rem;
-    font-weight: 700;
-  }
-
-  .project-desc {
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    margin: 0;
-  }
+  .header-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  .project-name { font-size: 1.5rem; font-weight: 700; margin: 0; }
+  .project-desc { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
 
   .metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    grid-auto-rows: 1fr;
-    align-items: stretch;
-    gap: 16px;
-    margin-bottom: 28px;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
   }
 
-  .section {
-    margin-bottom: 28px;
+  .latest-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    margin-bottom: 20px;
   }
+  .latest-card {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 18px 20px;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .latest-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+  }
+  .latest-card-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .latest-card-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+  }
+  .latest-card-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .latest-card-meta {
+    font-size: 0.8rem;
+    color: var(--color-accent);
+    font-family: var(--font-mono, monospace);
+  }
+  .latest-card-squad {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+  }
+
+  .section { margin-bottom: 28px; }
 
   .section-header {
     display: flex;
@@ -358,42 +338,25 @@
     margin: 0 0 14px;
   }
 
-  .section-header .section-title {
-    margin: 0;
-  }
+  .section-header .section-title { margin: 0; }
 
-  .section-link {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--color-accent);
-  }
+  .section-link { font-size: 0.8rem; font-weight: 500; color: var(--color-accent); }
 
-  .panel {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 20px;
-  }
-
-  .visual-panel {
+  .coverage-layout {
     display: grid;
-    grid-template-columns: minmax(260px, 1fr) minmax(480px, auto);
-    align-items: center;
-    gap: 28px;
+    grid-template-columns: 1fr;
+    gap: 14px;
   }
 
   .chart-layout {
     display: grid;
     grid-template-columns: auto minmax(170px, 240px);
     align-items: center;
-    justify-content: end;
+    justify-content: center;
     gap: 24px;
   }
 
-  .chart-legend {
-    display: grid;
-    gap: 10px;
-  }
+  .chart-legend { display: grid; gap: 10px; }
 
   .chart-legend span {
     display: flex;
@@ -412,26 +375,15 @@
   .dot.automated { background: #0f766e; }
   .dot.remaining { background: #d1d5db; }
 
-  .coverage-copy { min-width: 0; }
-  .coverage-breakdown { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
-  .coverage-breakdown span { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; color: var(--color-text-muted); font-size: 0.82rem; }
+  .coverage-breakdown { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 4px; }
+  .coverage-breakdown span {
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+  }
   .coverage-breakdown strong { color: var(--color-text); }
-
-  .panel-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    margin-bottom: 14px;
-  }
-
-  .qg-note {
-    margin: 12px 0 0;
-    font-size: 0.8rem;
-    color: var(--color-text-muted);
-    font-style: italic;
-  }
 
   .empty-text {
     color: var(--color-text-muted);
@@ -441,11 +393,8 @@
 
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
 
-  .link {
-    color: var(--color-accent);
-    font-size: 0.8rem;
-    font-weight: 500;
-  }
+  .clickable-row { cursor: pointer; }
+  .clickable-row:hover td { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
 
   .quick-links {
     display: grid;
@@ -453,105 +402,20 @@
     gap: 12px;
   }
 
-  .quick-link-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    text-decoration: none;
-    color: var(--color-text);
-    font-weight: 500;
-    font-size: 0.875rem;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-
-  .quick-link-card:hover {
-    border-color: var(--color-accent);
-    box-shadow: var(--shadow);
-    text-decoration: none;
-    color: var(--color-accent);
-  }
-
-  .quick-link-card svg {
-    color: var(--color-text-muted);
-    flex-shrink: 0;
-  }
-
-  .quick-link-card:hover svg {
-    color: var(--color-accent);
-  }
-
-  .ql-label {
-    flex: 1;
-  }
-
-  .ql-arrow {
-    color: var(--color-text-muted);
-    font-size: 0.8rem;
-  }
-
-  .latest-row {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 14px;
-    margin-bottom: 28px;
-  }
-
-  .latest-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    padding: 16px;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
-  }
-  .latest-card:hover { border-color: var(--color-accent); box-shadow: var(--shadow); text-decoration: none; }
-
-  .latest-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .latest-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--color-text-muted); }
-  .latest-card-name { font-size: 0.925rem; font-weight: 600; color: var(--color-text); }
-  .latest-card-meta { display: flex; gap: 6px; flex-wrap: wrap; }
-  .mono-chip { display: inline-flex; align-items: center; gap: 4px; font-size: 0.7rem; font-family: var(--font-mono, monospace); background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 6px; color: var(--color-text-muted); }
-  .copy-btn { display: inline-flex; align-items: center; background: none; border: none; cursor: pointer; color: var(--color-text-muted); font-size: 0.7rem; padding: 0; }
-
   @media (max-width: 800px) {
-    .visual-panel { grid-template-columns: 1fr; gap: 16px; }
+    .metrics-row { grid-template-columns: repeat(3, 1fr); }
+    .latest-row { grid-template-columns: 1fr; }
     .chart-layout { grid-template-columns: 1fr; justify-content: center; }
     .chart-layout > :first-child { margin: 0 auto; max-width: 320px; }
-    .metrics-row { grid-template-columns: repeat(2, 1fr); }
-    .latest-row { grid-template-columns: 1fr; }
     .quick-links { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 600px) {
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+    .quick-links { grid-template-columns: 1fr; }
+    .project-header { flex-direction: column; }
+    .project-header :global(.btn) { width: 100%; justify-content: center; }
   }
   @media (max-width: 480px) {
     .metrics-row { grid-template-columns: 1fr; }
-    .quick-links { grid-template-columns: 1fr; }
-    .project-header { flex-direction: column; }
-    .project-header :global(.btn) { width: 100%; min-height: 44px; justify-content: center; }
-  }
-
-  .latest-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; margin-bottom: 28px; }
-  .latest-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-  .latest-card-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-  .latest-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.07em; font-weight: 700; color: var(--color-text-muted); }
-  .latest-card-name { font-size: 0.95rem; font-weight: 700; color: var(--color-text); }
-  .latest-card-meta { display: flex; flex-wrap: wrap; gap: 6px; }
-  .mono-chip { display: inline-flex; align-items: center; gap: 4px; font-family: ui-monospace, monospace; font-size: 0.78rem; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 4px; padding: 2px 8px; }
-  .copy-btn { border: 0; background: transparent; cursor: pointer; font-size: 0.78rem; color: var(--color-text-muted); padding: 0 2px; }
-  .copy-btn:hover { color: var(--color-accent); }
-
-  @media (max-width: 760px) {
-    .metrics-row { grid-template-columns: 1fr; }
-    .visual-panel,
-    .chart-layout {
-      grid-template-columns: 1fr;
-      justify-items: start;
-    }
   }
 </style>

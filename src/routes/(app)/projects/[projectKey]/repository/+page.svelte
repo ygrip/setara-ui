@@ -2,7 +2,6 @@
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TagFilterBar from '$lib/components/TagFilterBar.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
@@ -27,6 +26,7 @@
     rejectDraftScenarios,
     renameDirectory,
     getScenario,
+    listScenarios,
     updateScenario,
     searchSimilarScenarios,
     getProjectEmbeddingStatus,
@@ -35,6 +35,10 @@
     type TestDirectory,
     type SimilarScenarioResult
   } from '$lib/api/testcases';
+
+  import * as treeView from '@zag-js/tree-view';
+  import * as splitter from '@zag-js/splitter';
+  import { useMachine, normalizeProps } from '@zag-js/svelte';
 
   let { data } = $props();
 
@@ -46,7 +50,11 @@
   let selectedNodeId = $state<string | null>(null);
   let reviewMode = $state<'LIVE' | 'DRAFT'>('LIVE');
   let selectedScenarioIds = $state<string[]>([]);
-  let expandedIds = $state<Set<string>>(new Set());
+  let liveExtraScenarios = $state<Scenario[]>([]);
+  let draftExtraScenarios = $state<Scenario[]>([]);
+  let liveNextCursor = $state<string | null>(data.scenariosNextCursor ?? null);
+  let draftNextCursor = $state<string | null>(data.draftsNextCursor ?? null);
+  let loadingMoreScenarios = $state(false);
   let busy = $state(false);
   let actionError = $state('');
   let detailScenario = $state<Scenario | null>(null);
@@ -77,6 +85,12 @@
 
   // ── Directory toolbar (mobile collapse) ─────────────────────
   let dirActionsOpen = $state(false);
+
+  // ── Mobile view toggle (tree vs scenarios) ──────────────────
+  let showTree = $state(false);
+
+  // ── Directory filter ────────────────────────────────────────
+  let dirFilter = $state('');
 
   // ── Create directory modal ───────────────────────────────────
   let showDirectoryModal = $state(false);
@@ -111,11 +125,87 @@
   let copyResult = $state<{ createdCount: number; skippedCount: number } | null>(null);
 
   // ── Derived ──────────────────────────────────────────────────
-  const scopedScenarios = $derived(reviewMode === 'LIVE' ? data.scenarios : data.draftScenarios);
+  const allLiveScenarios = $derived([...data.scenarios, ...liveExtraScenarios]);
+  const allDraftScenarios = $derived([...data.draftScenarios, ...draftExtraScenarios]);
+  const scopedScenarios = $derived(reviewMode === 'LIVE' ? allLiveScenarios : allDraftScenarios);
+  const scopedNextCursor = $derived(reviewMode === 'LIVE' ? liveNextCursor : draftNextCursor);
   const selectedDirectory = $derived(
     data.directories.find((d: TestDirectory) => d.id === selectedNodeId) ?? null
   );
-  const tree = $derived(buildTree(data.directories, scopedScenarios));
+
+  // ── Zag.js tree-view ─────────────────────────────────────────
+  interface DirNode { id: string; name: string; children?: DirNode[]; kind?: 'dir' | 'scenario'; directScenarioCount?: number; }
+  function toDirTree(dirs: TestDirectory[]): DirNode[] {
+    const byId = new Map<string, DirNode>();
+    for (const d of dirs) byId.set(d.id, { id: d.id, name: d.name, children: [], kind: 'dir', directScenarioCount: d.scenarioCount });
+    const roots: DirNode[] = [];
+    for (const node of byId.values()) {
+      const d = dirs.find(x => x.id === node.id);
+      if (d?.parentId && byId.has(d.parentId)) {
+        byId.get(d.parentId)!.children!.push(node);
+      } else { roots.push(node); }
+    }
+    roots.sort((a, b) => a.name.localeCompare(b.name));
+    for (const node of byId.values()) {
+      node.children?.sort((a, b) => a.name.localeCompare(b.name));
+    }
+    return roots;
+  }
+
+  let treeCollection = $state(
+    treeView.collection<DirNode>({
+      nodeToValue: (node) => node.id,
+      nodeToString: (node) => node.name,
+      nodeToChildren: (node) => node.children ?? [],
+      rootNode: { id: 'ROOT', name: '', children: [] }
+    })
+  );
+
+  // Rebuild collection when directories change
+  $effect(() => {
+    void data.directories;
+    treeCollection = treeView.collection<DirNode>({
+      nodeToValue: (node) => node.id,
+      nodeToString: (node) => node.name,
+      nodeToChildren: (node) => node.children ?? [],
+      rootNode: { id: 'ROOT', name: '', children: toDirTree(data.directories) }
+    });
+  });
+
+  // Reactive props bag — Zag's $derived prop getter reads this
+  const treeProps = $state({
+    id: 'repo-tree',
+    get collection() { return treeCollection; },
+    selectionMode: 'single' as const,
+    expandOnClick: true,
+    onSelectionChange: (details: treeView.SelectionChangeDetails<DirNode>) => {
+      const sel = details.selectedValue;
+      selectedNodeId = sel.length > 0 ? sel[0] : null;
+      selectedScenarioIds = [];
+    }
+  });
+
+  const treeService = useMachine(treeView.machine, treeProps);
+
+  // $derived.by tracks treeCollection — reconnects when collection rebuilds
+  const treeApi = $derived.by(() => {
+    treeCollection; // track dependency so connect re-evaluates
+    return treeView.connect(treeService, normalizeProps);
+  });
+
+  // ── Zag.js splitter ──────────────────────────────────────────
+  const splitterService = useMachine(splitter.machine, {
+    id: 'repo-splitter',
+    defaultSize: [25, 75],
+    panels: [
+      { id: 'tree', minSize: 12, maxSize: 50 },
+      { id: 'scenario', minSize: 30 }
+    ]
+  });
+  const splitterApi = $derived(splitter.connect(splitterService, normalizeProps));
+  function totalCount(node: DirNode): number {
+    return node.directScenarioCount ?? 0;
+  }
   const visibleScenarios = $derived(
     selectedNodeId
       ? scopedScenarios.filter((s: Scenario) => s.nodeId === selectedNodeId)
@@ -159,6 +249,11 @@
     ).values()]
   );
   const selectedTitle = $derived(selectedDirectory ? selectedDirectory.name : 'All Scenarios');
+  const filteredRootChildren = $derived(
+    (treeCollection.rootNode.children ?? []).filter((n: DirNode) =>
+      !dirFilter.trim() || n.name.toLowerCase().includes(dirFilter.toLowerCase())
+    )
+  );
   const scenarioColumnHelper = createColumnHelper<Scenario>();
   const scenarioColumns = [
     scenarioColumnHelper.display({ id: 'select' }),
@@ -209,7 +304,7 @@
     const scenarioParam = page.url.searchParams.get('scenario');
     if (scenarioParam) {
       // Check all loaded scenarios (both live and draft)
-      const found = [...(data.scenarios ?? []), ...(data.draftScenarios ?? [])]
+      const found = [...allLiveScenarios, ...allDraftScenarios]
         .find((s: Scenario) => s.id === scenarioParam);
       if (found) {
         openScenarioDetail(found);
@@ -219,42 +314,7 @@
     }
   });
 
-  $effect(() => {
-    if (data.directories.length && expandedIds.size === 0) {
-      expandedIds = new Set(
-        data.directories
-          .filter((n: TestDirectory) => n.parentId === null)
-          .map((n: TestDirectory) => n.id)
-      );
-    }
-  });
-
-  // ── Tree builder ─────────────────────────────────────────────
-  function buildTree(nodes: TestDirectory[], scenarios: Scenario[]): TreeNode[] {
-    const byId = new Map<string, TreeNode>();
-    for (const node of nodes) {
-      byId.set(node.id, { ...node, children: [], directCount: 0, totalCount: 0 });
-    }
-    for (const scenario of scenarios) {
-      const node = byId.get(scenario.nodeId);
-      if (node) node.directCount += 1;
-    }
-    const roots: TreeNode[] = [];
-    for (const node of byId.values()) {
-      if (node.parentId && byId.has(node.parentId)) {
-        byId.get(node.parentId)?.children.push(node);
-      } else {
-        roots.push(node);
-      }
-    }
-    const count = (node: TreeNode): number => {
-      node.children.sort((a, b) => a.name.localeCompare(b.name));
-      node.totalCount = node.directCount + node.children.reduce((sum, child) => sum + count(child), 0);
-      return node.totalCount;
-    };
-    roots.sort((a, b) => a.name.localeCompare(b.name)).forEach(count);
-    return roots;
-  }
+  // Zag tree-view manages expand/collapse automatically
 
   // ── Sorting helpers ──────────────────────────────────────────
   function scenarioValue(scenario: Scenario, field: string): string {
@@ -275,12 +335,6 @@
   function sortIndicator(field: typeof scenarioSortBy): string {
     if (scenarioSortBy !== field) return '';
     return scenarioSortDir === 'asc' ? '↑' : '↓';
-  }
-
-  function directScenariosForNode(nodeId: string): Scenario[] {
-    return scopedScenarios
-      .filter((scenario: Scenario) => scenario.nodeId === nodeId)
-      .sort((a: Scenario, b: Scenario) => a.name.localeCompare(b.name));
   }
 
   async function openScenarioDetail(scenario: Scenario) {
@@ -392,26 +446,9 @@
     copyText(detailDraft.id, 'Scenario id', e);
   }
 
-  // ── Tree interaction ─────────────────────────────────────────
-  function toggleExpand(nodeId: string, e?: MouseEvent) {
-    e?.stopPropagation();
-    const next = new Set(expandedIds);
-    next.has(nodeId) ? next.delete(nodeId) : next.add(nodeId);
-    expandedIds = next;
-  }
-
-  function expandAll() {
-    expandedIds = new Set(data.directories.map((d: TestDirectory) => d.id));
-  }
-
-  function collapseAll() {
-    expandedIds = new Set();
-  }
-
-  function selectNode(nodeId: string | null) {
-    selectedNodeId = nodeId;
-    selectedScenarioIds = [];
-  }
+  // ── Tree interaction (Zag-managed) ──────────────────────────
+  function expandAllTree() { treeApi.expand(); }
+  function collapseAllTree() { treeApi.collapse(); }
 
   function setReviewMode(mode: 'LIVE' | 'DRAFT') {
     reviewMode = mode;
@@ -475,7 +512,8 @@
         name: directoryName.trim()
       });
       selectedNodeId = node.id;
-      expandedIds = new Set([...expandedIds, directoryParentId ?? node.id]);
+      treeApi.expand([node.id]);
+      if (directoryParentId) treeApi.expand([directoryParentId]);
       showDirectoryModal = false;
       directoryName = '';
     });
@@ -505,6 +543,26 @@
     moveTargetParentId = null;
     moveSearch = '';
     showMoveModal = true;
+  }
+
+  async function loadMoreScenarios() {
+    if (!scopedNextCursor || loadingMoreScenarios) return;
+    loadingMoreScenarios = true;
+    try {
+      const status = reviewMode === 'LIVE' ? 'ACTIVE' : 'DRAFT';
+      const page = await listScenarios(data.projectKey, null, status, undefined, undefined, undefined, undefined, scopedNextCursor);
+      if (reviewMode === 'LIVE') {
+        liveExtraScenarios = [...liveExtraScenarios, ...page.items];
+        liveNextCursor = page.nextCursor;
+      } else {
+        draftExtraScenarios = [...draftExtraScenarios, ...page.items];
+        draftNextCursor = page.nextCursor;
+      }
+    } catch {
+      // ignore load-more failures silently
+    } finally {
+      loadingMoreScenarios = false;
+    }
   }
 
   async function handleMoveDirectory() {
@@ -650,85 +708,116 @@
   {#if data.error}<AppAlert tone="error" title="Could not load repository">{data.error}</AppAlert>{/if}
   {#if actionError}<AppAlert tone="error">{actionError}</AppAlert>{/if}
 
-  <div class="repo-layout">
-    <!-- ── Directory tree ──────────────────────────────────────── -->
-    <aside class="tree-panel">
+  <!-- ── Mobile toggle bar ───────────────────────────────────── -->
+  <div class="mobile-toggle-bar">
+    <button class="mobile-toggle-btn" class:active={showTree} onclick={() => showTree = true}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      Directories
+    </button>
+    <button class="mobile-toggle-btn" class:active={!showTree} onclick={() => showTree = false}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+      Scenarios
+    </button>
+  </div>
+
+  <div {...splitterApi.getRootProps()} class="repo-layout" class:show-tree={showTree}>
+    <!-- ── Tree panel ──────────────────────────────────────── -->
+    <aside {...splitterApi.getPanelProps({ id: 'tree' })} class="tree-panel">
       <div class="tree-topbar">
         <span class="panel-title">Test Repository</span>
         <div class="tree-topbar-actions">
-          <button class="icon-btn" title="Expand all directories" aria-label="Expand all" onclick={expandAll}>
+          <button class="icon-btn" title="Expand all directories" aria-label="Expand all" onclick={expandAllTree}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/><polyline points="6 15 12 21 18 15"/></svg>
           </button>
-          <button class="icon-btn" title="Collapse all directories" aria-label="Collapse all" onclick={collapseAll}>
+          <button class="icon-btn" title="Collapse all directories" aria-label="Collapse all" onclick={collapseAllTree}>
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 15 12 9 18 15"/><polyline points="6 21 12 15 18 21"/></svg>
           </button>
           <button class="icon-btn" title="Add root directory" aria-label="Add root directory" onclick={() => openNodeModal(null)}>{@render iconFolderPlus()}</button>
         </div>
       </div>
 
+      {#snippet treeRow(node: DirNode, indexPath: number[])}
+        {#if node.kind === 'scenario'}
+          <div {...treeApi.getItemProps({ indexPath, node })} class="tree-line">
+            <span class="leaf-indent"></span>
+            <button class="scenario-leaf-btn" onclick={() => openScenarioDetail({ id: node.id } as Scenario)}>
+              <span class="node-icon file">{@render iconFile()}</span>
+              <span class="node-label">{node.name}</span>
+            </button>
+          </div>
+        {:else if (node.children?.length ?? 0) > 0}
+          {@const nodeState = treeApi.getNodeState({ indexPath, node })}
+          <div {...treeApi.getBranchProps({ indexPath, node })}>
+            <div {...treeApi.getBranchControlProps({ indexPath, node })} class="tree-line">
+              <span {...treeApi.getBranchIndicatorProps({ indexPath, node })} class="tree-caret">
+                {#if nodeState.expanded}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
+              </span>
+              <span {...treeApi.getBranchTextProps({ indexPath, node })} class="tree-node" class:active={selectedNodeId === node.id}>
+                <span class="node-icon folder">{#if nodeState.expanded}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
+                <span class="node-label"><strong>{node.name}</strong></span>
+                <span class="count-pill">{totalCount(node)}</span>
+              </span>
+            </div>
+            <div {...treeApi.getBranchContentProps({ indexPath, node })} class="tree-children">
+              <div {...treeApi.getBranchIndentGuideProps({ indexPath, node })}></div>
+              {#each node.children ?? [] as child, i}
+                {@render treeRow(child, [...indexPath, i])}
+              {/each}
+            </div>
+          </div>
+        {:else}
+          <div {...treeApi.getItemProps({ indexPath, node })} class="tree-line">
+            <span class="leaf-indent"></span>
+            <span class="tree-node" class:active={selectedNodeId === node.id}>
+              <span class="node-icon folder">{@render iconFolder()}</span>
+              <span class="node-label"><strong>{node.name}</strong></span>
+              <span class="count-pill">{totalCount(node)}</span>
+            </span>
+          </div>
+        {/if}
+      {/snippet}
+
       <div class="tree-scroll">
         <button
           class="tree-all-btn"
           class:active={selectedNodeId === null}
-          onclick={() => selectNode(null)}
+          onclick={() => { selectedNodeId = null; selectedScenarioIds = []; }}
         >
           <span class="all-icon">{@render iconLayers()}</span>
           <span class="all-label">All Scenarios</span>
-          <span class="count-pill">{scopedScenarios.length}</span>
+          <span class="count-pill">{scopedScenarios.length}{scopedNextCursor ? '+' : ''}</span>
         </button>
 
+        <div class="dir-filter-wrap">
+          <svg class="dir-filter-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            class="dir-filter-input"
+            type="search"
+            placeholder="Filter directories…"
+            bind:value={dirFilter}
+          />
+          {#if dirFilter}
+            <button class="dir-filter-clear" onclick={() => dirFilter = ''} aria-label="Clear filter">✕</button>
+          {/if}
+        </div>
+
         <div class="tree-list">
-        {#snippet treeRows(nodes: TreeNode[])}
-          {#each nodes as node}
-            <div class="tree-row">
-              <div class="tree-line">
-                <button
-                  class="tree-caret-btn"
-                  onclick={(e) => toggleExpand(node.id, e)}
-                  aria-label={expandedIds.has(node.id) ? 'Collapse' : 'Expand'}
-                  tabindex="-1"
-                >
-                  {#if node.children.length || node.directCount}
-                    {#if expandedIds.has(node.id)}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
-                  {/if}
-                </button>
-                <button
-                  class="tree-node"
-                  class:active={selectedNodeId === node.id}
-                  onclick={() => { selectNode(node.id); if (node.children.length || node.directCount) toggleExpand(node.id, new MouseEvent('click')); }}
-                >
-                  <span class="node-icon folder">{#if expandedIds.has(node.id)}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
-                  <span class="node-label"><strong>{node.name}</strong></span>
-                  <span class="count-pill">{node.totalCount}</span>
-                </button>
-              </div>
-            </div>
-            {#if expandedIds.has(node.id)}
-              <div class="tree-children">
-                {@render treeRows(node.children)}
-                {#each directScenariosForNode(node.id) as scenario}
-                  <div class="scenario-leaf">
-                    <button
-                      class="leaf-main"
-                      onclick={() => openScenarioDetail(scenario)}
-                    >
-                      <span class="leaf-indent"></span>
-                      <span class="node-icon file">{@render iconFile()}</span>
-                      <span class="node-label">{scenario.name}</span>
-                    </button>
-                  </div>
-                {/each}
-              </div>
-            {/if}
-          {/each}
-        {/snippet}
-        {@render treeRows(tree)}
+          <div {...treeApi.getTreeProps()}>
+            {#each filteredRootChildren as node, index}
+              {@render treeRow(node, [index])}
+            {/each}
+          </div>
         </div>
       </div>
     </aside>
 
+    <!-- ── Resize handle ──────────────────────────────────────── -->
+    <div {...splitterApi.getResizeTriggerProps({ id: 'tree:scenario' })} class="splitter-handle"></div>
+
     <!-- ── Scenario panel ─────────────────────────────────────── -->
-    <section class="scenario-panel">
+    <section {...splitterApi.getPanelProps({ id: 'scenario' })} class="scenario-panel">
       <div class="scenario-topbar">
         <div>
           <div class="title-row">
@@ -848,91 +937,77 @@
             : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.`}
         </div>
       {:else}
-        <DataTable mobileCards={true}>
-          {#snippet head()}
-            <tr>
-              <th>
-                <input
-                  type="checkbox"
-                  checked={selectedScenarioIds.length === sortedScenarios.length && sortedScenarios.length > 0}
-                  onchange={toggleAllVisible}
-                />
-              </th>
-              <th>
-                <button class="sort-button" onclick={() => sortScenarios('name')}>
-                  Name <span class="sort-indicator">{sortIndicator('name')}</span>
-                </button>
-              </th>
-              <th class="col-steps">Steps</th>
-              <th>
-                <button class="sort-button" onclick={() => sortScenarios('priority')}>
-                  Priority <span class="sort-indicator">{sortIndicator('priority')}</span>
-                </button>
-              </th>
-              <th class="col-auto" title="Automation Status">
-                <span class="auto-legend" title="Manual / Automatable / Automated">{@render iconManual()}&hairsp;{@render iconAutomatable()}&hairsp;{@render iconAutomated()}</span>
-              </th>
-              <th>
-                <button class="sort-button" onclick={() => sortScenarios('status')}>
-                  Status <span class="sort-indicator">{sortIndicator('status')}</span>
-                </button>
-              </th>
-            </tr>
-          {/snippet}
-          {#snippet body()}
-            {#each sortedScenarios as scenario}
-              <tr class="click-row" onclick={() => openScenarioDetail(scenario)}>
-                <td data-label="" onclick={(e) => e.stopPropagation()}>
-                  <input
-                    type="checkbox"
-                    checked={selectedScenarioIds.includes(scenario.id)}
-                    onchange={() => toggleScenario(scenario.id)}
-                  />
-                </td>
-                <td class="name-cell" data-label="Scenario" onclick={(e) => e.stopPropagation()}>
-                  <div class="name-cell-inner">
-                    <div class="name-cell-text">
-                      <span class="scenario-key">{scenario.scenarioKey}</span>
-                      <button class="name-link" onclick={() => openScenarioDetail(scenario)}>{scenario.name}</button>
-                    </div>
-                    <button class="ta-btn copy-name-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
-                  </div>
-                </td>
-                <td class="col-steps" data-label="Steps">
-                  <div class="steps-preview">
-                    {#each (scenario.steps ?? []).slice(0, 3) as step, index}
-                      <button
-                        class:washed={index >= 2}
-                        onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}
-                      >
-                        <span>{step.sequenceNo}</span>
-                        {step.keyword} {step.name}
-                      </button>
-                    {/each}
-                    {#if (scenario.steps?.length ?? 0) >= 3}
-                      <button class="show-more" onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}>Show more</button>
-                    {/if}
-                  </div>
-                </td>
-                <td data-label="Priority">
-                  <span class="status-badge priority priority-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
-                </td>
-                <td class="col-auto" data-label="Type">
-                  {#if scenario.automationStatus === 'AUTOMATED'}
-                    <span class="auto-icon is-automated" title="Automated">{@render iconAutomated()}</span>
-                  {:else if scenario.automationStatus === 'AUTOMATABLE'}
-                    <span class="auto-icon is-automatable" title="Automatable">{@render iconAutomatable()}</span>
-                  {:else}
-                    <span class="auto-icon is-manual" title="Manual only">{@render iconManual()}</span>
-                  {/if}
-                </td>
-                <td data-label="Status">
-                  <span class="status-badge status-{scenario.status.toLowerCase()}">{scenario.status}</span>
-                </td>
+        <div class="table-wrap">
+          <table class="scenarios-table">
+            <thead>
+              <tr>
+                <th class="col-check">
+                  <input type="checkbox" checked={selectedScenarioIds.length === sortedScenarios.length && sortedScenarios.length > 0} onchange={toggleAllVisible} />
+                </th>
+                <th class="th-sort" onclick={() => sortScenarios('name')}>Name {sortIndicator('name')}</th>
+                <th class="col-steps">Steps</th>
+                <th class="th-sort" onclick={() => sortScenarios('priority')}>Priority {sortIndicator('priority')}</th>
+                <th class="col-auto" title="Automation Status">
+                  <span class="auto-legend">{@render iconManual()}&hairsp;{@render iconAutomatable()}&hairsp;{@render iconAutomated()}</span>
+                </th>
+                <th class="th-sort" onclick={() => sortScenarios('status')}>Status {sortIndicator('status')}</th>
               </tr>
-            {/each}
-          {/snippet}
-        </DataTable>
+            </thead>
+            <tbody>
+              {#each sortedScenarios as scenario}
+                <tr class="scenario-row" onclick={() => openScenarioDetail(scenario)}>
+                  <td class="col-check" onclick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" checked={selectedScenarioIds.includes(scenario.id)} onchange={() => toggleScenario(scenario.id)} />
+                  </td>
+                  <td class="name-cell" onclick={(e) => e.stopPropagation()}>
+                    <div class="name-cell-inner">
+                      <div class="name-cell-text">
+                        <span class="scenario-key">{scenario.scenarioKey}</span>
+                        <button class="name-link" onclick={() => openScenarioDetail(scenario)}>{scenario.name}</button>
+                      </div>
+                      <button class="ta-btn copy-name-btn" title="Copy scenario ID" aria-label="Copy scenario ID" onclick={(e) => copyText(scenario.id, 'Scenario id', e)}>{@render iconCopy()}</button>
+                    </div>
+                  </td>
+                  <td class="col-steps">
+                    <div class="steps-preview">
+                      {#each (scenario.steps ?? []).slice(0, 3) as step, index}
+                        <button class:washed={index >= 2} onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}>
+                          <span>{step.sequenceNo}</span>
+                          {step.keyword} {step.name}
+                        </button>
+                      {/each}
+                      {#if (scenario.steps?.length ?? 0) >= 3}
+                        <button class="show-more" onclick={(e) => { e.stopPropagation(); openScenarioDetail(scenario); }}>Show more</button>
+                      {/if}
+                    </div>
+                  </td>
+                  <td>
+                    <span class="status-badge priority priority-{(scenario.priority ?? 'unset').toLowerCase()}">{scenario.priority ?? 'UNSET'}</span>
+                  </td>
+                  <td class="col-auto">
+                    {#if scenario.automationStatus === 'AUTOMATED'}
+                      <span class="auto-icon is-automated" title="Automated">{@render iconAutomated()}</span>
+                    {:else if scenario.automationStatus === 'AUTOMATABLE'}
+                      <span class="auto-icon is-automatable" title="Automatable">{@render iconAutomatable()}</span>
+                    {:else}
+                      <span class="auto-icon is-manual" title="Manual only">{@render iconManual()}</span>
+                    {/if}
+                  </td>
+                  <td>
+                    <span class="status-badge status-{scenario.status.toLowerCase()}">{scenario.status}</span>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
+          {#if scopedNextCursor}
+            <div class="load-more-wrap">
+              <button class="load-more-btn" onclick={loadMoreScenarios} disabled={loadingMoreScenarios}>
+                {loadingMoreScenarios ? 'Loading…' : 'Load more scenarios'}
+              </button>
+            </div>
+          {/if}
+        </div>
       {/if}
     </section>
   </div>
@@ -1284,7 +1359,36 @@
 <style>
   .page { max-width: none; }
   :global(.page > .app-alert) { margin-bottom: 12px; }
-  .repo-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); border: 1px solid var(--color-border); border-radius: 0; min-height: calc(100vh - 112px); overflow: hidden; background: var(--color-surface); }
+
+  /* ── Splitter layout ──────────────────────────────────────── */
+  .repo-layout {
+    display: flex;
+    height: calc(100vh - 112px);
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    overflow: hidden;
+  }
+  :global([data-scope="splitter"][data-part="panel"]) {
+    overflow: hidden;
+  }
+  .splitter-handle {
+    width: 4px;
+    min-width: 4px;
+    background: var(--color-border);
+    cursor: col-resize;
+    transition: background 0.15s;
+    flex-shrink: 0;
+    position: relative;
+  }
+  .splitter-handle:hover,
+  .splitter-handle[data-dragging] {
+    background: var(--color-accent);
+  }
+  .splitter-handle::after {
+    content: '';
+    position: absolute;
+    inset: 0 -4px;
+  }
   .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .tree-scroll { flex: 1; overflow: auto; }
   .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; -webkit-overflow-scrolling: touch; }
@@ -1394,24 +1498,128 @@
   input, select { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); padding: 8px 10px; min-width: 0; }
   input[type='checkbox'] { width: auto; }
 
+  /* ── Mobile toggle bar ───────────────────────────────────── */
+  .mobile-toggle-bar {
+    display: none;
+    margin-bottom: 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .mobile-toggle-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border: none;
+    background: var(--color-surface);
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+  }
+  .mobile-toggle-btn:first-child { border-right: 1px solid var(--color-border); }
+  .mobile-toggle-btn.active {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .mobile-toggle-btn:hover:not(.active) {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+  }
+
+  /* ── Directory filter ─────────────────────────────────────── */
+  .dir-filter-wrap {
+    display: flex;
+    align-items: center;
+    position: relative;
+    margin: 0 16px 12px;
+  }
+  .dir-filter-icon {
+    position: absolute;
+    left: 10px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+    z-index: 1;
+  }
+  .dir-filter-input {
+    width: 100%;
+    padding: 7px 30px 7px 28px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.82rem;
+    box-sizing: border-box;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .dir-filter-input:focus { border-color: var(--color-accent); }
+  .dir-filter-input::placeholder { color: var(--color-text-muted); opacity: 0.6; }
+  .dir-filter-clear {
+    position: absolute;
+    right: 6px;
+    display: inline-grid;
+    place-items: center;
+    width: 20px; height: 20px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 50%;
+    font-size: 0.65rem;
+    opacity: 0.5;
+    transition: opacity 0.15s, background 0.15s;
+  }
+  .dir-filter-clear:hover { opacity: 1; background: var(--color-border); }
   .tree-list { padding: 16px 14px 28px; }
-  .tree-row { margin-bottom: 4px; position: relative; }
   .tree-line { display: flex; align-items: center; gap: 0; position: relative; }
-  /* IDE-style connected guide lines using nested .tree-children containers */
+  /* IDE-style connected guide lines using nested containers */
   .tree-children {
-    margin-left: 13px; /* aligns with center of caret button (26px wide) */
+    margin-left: 13px;
     padding-left: 13px;
     border-left: 1px solid color-mix(in srgb, var(--color-border), transparent 25%);
   }
-  .scenario-leaf { display: flex; align-items: center; gap: 0; margin-bottom: 4px; position: relative; }
-  .tree-caret-btn { display: inline-grid; place-items: center; width: 26px; height: 38px; flex-shrink: 0; border: 0; padding: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; border-radius: 4px; }
-  .tree-caret-btn:hover { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); }
+  /* Caret — expand/collapse toggle (separate from selection row) */
+  .tree-caret {
+    display: inline-grid;
+    place-items: center;
+    width: 26px;
+    height: 38px;
+    flex-shrink: 0;
+    border: 0;
+    padding: 0;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 4px;
+  }
+  .tree-caret:hover { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .leaf-indent { display: inline-block; width: 26px; flex-shrink: 0; }
-  .tree-node,
-  .leaf-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 9px; text-align: left; border-color: transparent; background: transparent; padding: 10px 10px 10px 4px; border-radius: 8px; }
-  .tree-node.active,
-  .tree-node:hover,
-  .leaf-main:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); border-color: transparent; }
+  /* Row — selects node when clicked */
+  .tree-node {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 9px;
+    text-align: left;
+    padding: 10px 10px 10px 4px;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .tree-node:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
+  .tree-node.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
+  /* Zag branch/content open/close */
+  [data-part="branch"][data-state="open"] > [data-part="branch-content"] { display: block; }
+  [data-part="branch"][data-state="closed"] > [data-part="branch-content"] { display: none; }
   /* All Scenarios root button */
   .tree-all-btn { display: flex; align-items: center; gap: 12px; width: calc(100% - 32px); margin: 18px 16px 10px; padding: 16px 14px; border-radius: 8px; border: 1px solid transparent; background: transparent; color: var(--color-text); cursor: pointer; text-align: left; font: inherit; font-size: 0.95rem; }
   .tree-all-btn:hover,
@@ -1427,6 +1635,22 @@
   .node-icon.folder { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
   .node-icon.file { background: transparent; color: var(--color-text-muted); }
   .node-icon.small { width: 20px; height: 20px; font-size: 0.7rem; }
+  /* Scenario leaf in tree */
+  .scenario-leaf-btn {
+    flex: 1; min-width: 0;
+    display: flex; align-items: center; gap: 9px;
+    text-align: left;
+    padding: 6px 10px 6px 4px;
+    border-radius: 6px;
+    border: none;
+    background: transparent;
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.82rem;
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s;
+  }
+  .scenario-leaf-btn:hover { background: color-mix(in srgb, var(--color-accent), transparent 92%); color: var(--color-accent); }
   .node-label { min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .tree-node.active .node-label { color: var(--color-accent); }
   .node-label strong { font-weight: 750; }
@@ -1453,7 +1677,18 @@
   .bulk-bar button { padding: 5px 10px; font-size: 0.78rem; }
   .bulk-count { font-size: 0.8rem; color: var(--color-accent); font-weight: 700; min-width: 72px; }
 
-  /* Scenario table */
+  /* Scenario table (plans-style) */
+  .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; overflow-x: auto; }
+  .scenarios-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
+  .scenarios-table thead { background: var(--color-surface); }
+  .scenarios-table th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
+  .scenarios-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; background: var(--color-surface); }
+  .scenario-row:last-child td { border-bottom: none; }
+  .scenario-row { cursor: pointer; }
+  .scenario-row:hover td { background: var(--color-accent-subtle, color-mix(in srgb, var(--color-accent), transparent 94%)); }
+  .th-sort { cursor: pointer; user-select: none; }
+  .th-sort:hover { color: var(--color-accent); }
+  .col-check { width: 40px; text-align: center; }
   .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
   .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
   .scenario-panel :global(td),
@@ -1736,9 +1971,64 @@
   }
   :global(.drawer-close-btn:hover) { border-color: var(--color-accent); color: var(--color-accent); }
 
+  /* ── Mobile: stack panels, hide splitter ──────────────────── */
   @media (max-width: 1040px) {
-    .repo-layout { grid-template-columns: 1fr; }
-    .tree-panel { border-right: 0; border-bottom: 1px solid var(--color-border); max-height: 46vh; }
+    .mobile-toggle-bar { display: flex; }
+    .repo-layout {
+      flex-direction: column !important;
+      height: auto;
+      min-height: 0;
+      position: relative;
+      overflow: hidden;
+    }
+    .splitter-handle { display: none; }
+    /* Force panels to full width — override Zag splitter inline styles */
+    .tree-panel,
+    .scenario-panel {
+      width: 100% !important;
+      max-width: 100% !important;
+      min-width: 100% !important;
+      flex: none !important;
+      align-self: stretch !important;
+    }
+
+    /* Panel slide animation */
+    .tree-panel,
+    .scenario-panel {
+      transition: transform 0.3s ease, opacity 0.25s ease;
+    }
+    .tree-panel {
+      position: absolute;
+      inset: 0;
+      z-index: 1;
+      height: 100%;
+      background: var(--color-surface);
+      border-right: 0;
+      border-bottom: none;
+      max-height: none;
+      overflow-y: auto;
+      transform: translateX(-105%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .scenario-panel {
+      transform: translateX(0);
+      opacity: 1;
+      min-height: 60vh;
+    }
+
+    /* Show tree, hide scenarios */
+    .repo-layout.show-tree .tree-panel {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .repo-layout.show-tree .scenario-panel {
+      transform: translateX(105%);
+      opacity: 0;
+      pointer-events: none;
+    }
+
     .filter-bar { padding: 8px 12px; }
     .search-wrap { max-width: none; }
     .editor-grid { grid-template-columns: 1fr; }
@@ -1747,59 +2037,40 @@
     .header-actions { flex-wrap: wrap; gap: 8px; }
     .directory-toolbar { margin-top: 12px; }
     .dir-action-btn { flex: 1 1 118px; }
+    .scenarios-table { font-size: 0.82rem; }
+    .scenarios-table th,
+    .scenarios-table td { padding: 8px 10px; }
+    .dir-filter-wrap { margin: 0 10px 10px; }
   }
   @media (max-width: 720px) {
     .tree-list { padding-inline: 10px; }
-    .tree-row,
-    .scenario-leaf { padding-left: calc(var(--level) * 22px); }
     .filter-bar { display: grid; grid-template-columns: 1fr; }
     .filter-group { display: grid; align-items: stretch; }
-    /* Tabs on top, action buttons below — each stretch to fill */
     .header-actions { flex-direction: column; align-items: stretch; }
-    /* Make segmented LIVE/DRAFTS tabs equal width, filling the container */
     .segmented { width: 100%; }
     .segmented button { flex: 1; justify-content: center; }
     .header-btns { width: 100%; }
     .header-btns .dir-action-btn { flex: 1; justify-content: center; }
     /* Collapsible directory toolbar */
     .dir-toolbar-toggle {
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      width: 100%;
-      padding: 10px 12px;
-      font-size: 0.82rem;
-      font-weight: 600;
-      border: 1px solid var(--color-border);
-      border-radius: 6px;
-      background: var(--color-surface);
-      color: var(--color-text-muted);
-      cursor: pointer;
-      min-height: 44px;
-      touch-action: manipulation;
-      -webkit-tap-highlight-color: transparent;
+      display: inline-flex; align-items: center; gap: 8px; width: 100%;
+      padding: 10px 12px; font-size: 0.82rem; font-weight: 600;
+      border: 1px solid var(--color-border); border-radius: 6px;
+      background: var(--color-surface); color: var(--color-text-muted);
+      cursor: pointer; min-height: 44px;
+      touch-action: manipulation; -webkit-tap-highlight-color: transparent;
     }
-    .dir-toolbar-toggle:hover,
-    .dir-toolbar-toggle:active {
-      border-color: var(--color-accent);
-      color: var(--color-accent);
+    .dir-toolbar-toggle:hover, .dir-toolbar-toggle:active {
+      border-color: var(--color-accent); color: var(--color-accent);
       background: var(--color-accent-subtle);
     }
     .dir-toolbar-toggle span { flex: 1; text-align: left; }
     .dir-toolbar-hidden { display: none !important; }
-    .dir-toolbar-inner {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 6px;
-    }
-    .dir-toolbar-inner .dir-action-btn {
-      width: 100%;
-      min-width: 0;
-      flex: none;
-      justify-content: flex-start;
-      min-height: 44px;
-      touch-action: manipulation;
-    }
+    .dir-toolbar-inner { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+    .dir-toolbar-inner .dir-action-btn { width: 100%; min-width: 0; flex: none; justify-content: flex-start; min-height: 44px; touch-action: manipulation; }
+    /* Scenario table: collapse columns */
+    .scenarios-table .col-steps,
+    .scenarios-table .col-auto { display: none; }
   }
   /* Touch / mobile: always show copy buttons, increase tap targets */
   @media (hover: none) and (pointer: coarse) {
@@ -1808,22 +2079,13 @@
     .copy-name-btn { opacity: 1; }
     .icon-btn { width: 44px; height: 44px; }
     .dir-action-btn { min-height: 44px; }
-    .tree-caret-btn { height: 44px; }
+    .tree-caret { height: 44px; }
   }
   .tag-edit-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .editor-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
   .opt { font-weight: 400; opacity: 0.7; }
-
-  /* ── Mobile card mode for scenario table ─────────────────────── */
-  @media (max-width: 640px) {
-    /* Remove min-width constraints that break card layout */
-    .steps-preview { min-width: 0; max-width: 100%; }
-    .name-cell { min-width: 0; width: auto; }
-    /* Slim checkbox row in card mode */
-    .scenario-panel :global(.table-wrap--cards td[data-label=""]) { padding-block: 6px; }
-    /* Steps column — limit preview height to keep cards compact */
-    .col-steps .steps-preview { max-height: 72px; overflow: hidden; }
-    /* Make sure col-auto is left-aligned in card mode */
-    .col-auto { text-align: left !important; }
-  }
+  .load-more-wrap { display: flex; justify-content: center; padding: 12px 0; }
+  .load-more-btn { padding: 8px 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; cursor: pointer; }
+  .load-more-btn:hover:not(:disabled) { background: var(--color-surface-hover, var(--color-border)); }
+  .load-more-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 </style>

@@ -22,9 +22,16 @@
   const placement = $derived(align === 'start' ? 'bottom-start' : 'bottom-end');
 
   $effect(() => { isOpen = open; });
+
+  function handleItemClick(e: MouseEvent) {
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="menuitem"]')) {
+      isOpen = false;
+    }
+  }
 </script>
 
-<div class="app-dropdown">
+<div class="app-dropdown" role="presentation" onclick={handleItemClick} onkeydown={() => {}}>
   <button
     id={uid}
     class="app-dropdown__trigger"

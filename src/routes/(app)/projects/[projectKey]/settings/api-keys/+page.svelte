@@ -8,7 +8,7 @@
   import { notify } from '$lib/ui/feedback/notify';
   import ApiKeyRotateModal from '$lib/ui/domain/ApiKeyRotateModal.svelte';
   import AppDropdown from '$lib/ui/overlay/AppDropdown.svelte';
-  import AppModal from '$lib/ui/overlay/AppModal.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import { createApiKey, revokeApiKey, rotateApiKey, type ApiKey } from '$lib/api/apikeys';
 
   let { data } = $props();
@@ -179,7 +179,7 @@
   {/if}
 </div>
 
-<AppModal
+<Modal
   open={showModal}
   title={revealedKey ? 'Key Created — Save It Now' : 'New API Key'}
   onclose={() => { showModal = false; revealedKey = ''; }}
@@ -226,14 +226,14 @@
         <div class="form-error">{keyError}</div>
       {/if}
       <div class="form-actions">
-        <Button variant="secondary" onclick={() => showModal = false}>Cancel</Button>
+        <Button variant="secondary" type="button" onclick={() => showModal = false}>Cancel</Button>
         <Button variant="primary" type="submit" disabled={creating || newKeyScopes.length === 0}>
           {creating ? 'Creating…' : 'Create Key'}
         </Button>
       </div>
     </form>
   {/if}
-</AppModal>
+</Modal>
 
 <ApiKeyRotateModal
   open={!!pendingAction}

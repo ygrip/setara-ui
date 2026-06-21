@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
+  import BentoCard from '$lib/components/BentoCard.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import HeatmapCalendar from '$lib/components/HeatmapCalendar.svelte';
@@ -258,12 +259,8 @@
   <!-- ── Top charts grid ────────────────────────────────────────── -->
   <div class="charts-grid">
     <!-- Heatmap card -->
-    <section class="card chart-section" aria-label="Execution activity heatmap">
-      <div class="card-header">
-        <div class="card-header-left">
-          <h2 class="card-title">Execution Activity</h2>
-          <span class="card-subtitle">Color = pass rate</span>
-        </div>
+    <BentoCard title="Execution Activity" subtitle="Color = pass rate" variant="default">
+      <div class="card-header-right">
         <div class="period-toggle" role="group" aria-label="Time range">
           {#each PERIODS as p}
             <button
@@ -277,15 +274,10 @@
         </div>
       </div>
       <HeatmapCalendar days={heatmap} weeks={heatmapWeeks} />
-    </section>
+    </BentoCard>
 
     <!-- Pass-rate chart card -->
-    <section class="card chart-section chart-section--flex" aria-label="Pass rate trend">
-      <div class="card-header">
-        <h2 class="card-title">Pass Rate</h2>
-        <span class="card-subtitle">Scenario pass rate per day</span>
-      </div>
-
+    <BentoCard title="Pass Rate" subtitle="Scenario pass rate per day" variant="default">
       {#if passRateTrend.labels.length > 0}
         <div class="chart-fill">
           <LineChart chartData={passRateTrend} showLegend={true} />
@@ -293,7 +285,7 @@
       {:else}
         <div class="chart-empty">No data yet</div>
       {/if}
-    </section>
+    </BentoCard>
   </div>
 
   <!-- ── Filters bar ─────────────────────────────────────────────── -->
@@ -373,7 +365,6 @@
             <th class="col-hide-md">Framework</th>
             <th class="th-sort" onclick={() => toggleSort('startedAt')}>Started{sortIcon('startedAt')}</th>
             <th class="col-hide-sm th-sort" onclick={() => toggleSort('durationMs')}>Duration{sortIcon('durationMs')}</th>
-            <th class="col-action"></th>
           </tr>
         {/snippet}
         {#snippet body()}
@@ -386,14 +377,6 @@
               <td class="col-hide-md">{run.framework ?? '—'}</td>
               <td class="nowrap">{formatDate(run.startedAt)}</td>
               <td class="col-hide-sm nowrap">{duration(run.startedAt, run.finishedAt)}</td>
-              <td class="col-action">
-                <a
-                  class="open-report-link"
-                  href="/projects/{data.projectKey}/executions/{run.id}"
-                  onclick={(e) => e.stopPropagation()}
-                  aria-label="Open report for run {run.id}"
-                >Open</a>
-              </td>
             </tr>
           {/each}
         {/snippet}
@@ -499,55 +482,10 @@
   }
 
   /* ── Shared card ────────────────────────────────────── */
-  .card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    box-shadow: var(--shadow);
-  }
-
-  .chart-section {
-    padding: 20px 24px 16px;
-  }
-
-  /* Flex variant: pass-rate card stretches to full grid-row height */
-  .chart-section--flex {
+  .card-header-right {
     display: flex;
-    flex-direction: column;
-  }
-
-  /* Grows to fill the remaining card height */
-  .chart-fill {
-    flex: 1;
-    min-height: 140px;
-    position: relative;
-  }
-
-  .card-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 10px;
-    margin-bottom: 14px;
-    flex-wrap: wrap;
-  }
-
-  .card-header-left {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .card-title {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin: 0;
-  }
-
-  .card-subtitle {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+    align-items: center;
+    gap: 8px;
   }
 
   /* ── Period toggle ──────────────────────────────────── */
@@ -593,6 +531,12 @@
     font-size: 0.875rem;
     color: var(--color-text-muted);
     opacity: 0.6;
+  }
+
+  .chart-fill {
+    flex: 1;
+    min-height: 140px;
+    position: relative;
   }
 
   /* ── Sections ───────────────────────────────────────── */
@@ -738,23 +682,6 @@
   .mono { font-family: var(--font-mono); font-size: 0.78rem; }
   .nowrap { white-space: nowrap; }
 
-  /* ── Action column ──────────────────────────────────── */
-  .col-action { width: 60px; text-align: right; padding-right: 12px; }
-
-  .open-report-link {
-    font-size: 0.78rem;
-    color: var(--color-accent);
-    text-decoration: none;
-    padding: 3px 8px;
-    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
-    border-radius: 4px;
-    white-space: nowrap;
-    transition: background 0.15s;
-  }
-  .open-report-link:hover {
-    background: color-mix(in srgb, var(--color-accent), transparent 90%);
-  }
-
   /* ── Live events ────────────────────────────────────── */
   .event-feed { display: grid; gap: 8px; }
 
@@ -811,10 +738,6 @@
       min-width: 90px;
     }
 
-    .chart-section {
-      padding: 14px 16px 12px;
-    }
-
     .event-item {
       grid-template-columns: 1fr auto;
       gap: 8px;
@@ -822,12 +745,6 @@
 
     .event-type {
       grid-column: 1 / -1;
-    }
-
-    .card-header {
-      flex-direction: column;
-      gap: 4px;
-      align-items: flex-start;
     }
   }
 </style>

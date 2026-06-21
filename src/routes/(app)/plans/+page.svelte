@@ -3,13 +3,13 @@
   import { onMount } from 'svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
+  import MetricCard from '$lib/components/MetricCard.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import AppSkeleton from '$lib/ui/display/AppSkeleton.svelte';
   import { listAllPlans, type ReleasePlan } from '$lib/api/plans';
   import { listAllSquads, type Squad } from '$lib/api/organization';
   import { createSquadPlan } from '$lib/api/squadPlans';
-  import { isMockMode } from '$lib/mock/client';
 
   let plans = $state<ReleasePlan[]>([]);
   let squads = $state<Squad[]>([]);
@@ -79,6 +79,11 @@
     if (status === 'IN_PROGRESS') return 'info';
     return 'neutral';
   }
+
+  const totalPlans = $derived(plans.length);
+  const openPlans = $derived(plans.filter(p => p.status === 'OPEN').length);
+  const inProgressPlans = $derived(plans.filter(p => p.status === 'IN_PROGRESS').length);
+  const closedPlans = $derived(plans.filter(p => p.status === 'CLOSED').length);
 
   function formatDate(d: string | null | undefined) {
     if (!d) return '—';
@@ -170,6 +175,15 @@
 
   {#if error}
     <AppAlert tone="error">{error}</AppAlert>
+  {/if}
+
+  {#if !loading && totalPlans > 0}
+    <div class="metrics-row">
+      <MetricCard label="Total Plans" value={totalPlans} variant="default" icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+      <MetricCard label="Open" value={openPlans} variant="default" icon="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      <MetricCard label="In Progress" value={inProgressPlans} variant="info" icon="M13 10V3L4 14h7v7l9-11h-7z" />
+      <MetricCard label="Closed" value={closedPlans} variant="success" icon="M5 13l4 4L19 7" />
+    </div>
   {/if}
 
   {#if !loading && filtered.length === 0}
@@ -291,6 +305,7 @@
   .search-input { padding: 7px 11px 7px 30px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font: inherit; font-size: 0.85rem; min-width: 200px; outline: none; transition: border-color 0.15s, box-shadow 0.15s; }
   .search-input:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1); }
   .count { font-size: 0.8rem; color: var(--color-text-muted); margin-left: auto; }
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
   :global(.page > .app-alert) { margin-bottom: 16px; }
@@ -336,5 +351,9 @@
     .filters-bar select { width: 100%; }
     .search-wrap { width: 100%; }
     .search-input { width: 100%; }
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
   }
 </style>

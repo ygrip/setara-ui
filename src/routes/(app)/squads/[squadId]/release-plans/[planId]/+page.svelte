@@ -527,7 +527,7 @@
   .plan-desc { font-size: 0.875rem; color: var(--color-text-muted); margin: 0; max-width: 640px; }
   .plan-header-actions { display: flex; align-items: flex-start; gap: 8px; flex-wrap: wrap; }
   :global(.page > .app-alert) { margin-bottom: 20px; }
-  .metrics-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
   .section { margin-bottom: 28px; }
   .section--audit { margin-bottom: 0; }
   .section-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
@@ -587,6 +587,9 @@
   .form-error { font-size: 0.8rem; color: var(--color-danger); margin: 4px 0 0; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; }
 
+  @media (max-width: 800px) {
+    .metrics-row { grid-template-columns: repeat(2, 1fr); }
+  }
   @media (max-width: 640px) {
     .picker-layout { grid-template-columns: 1fr; }
     .picker-col--projects { border-right: none; border-bottom: 1px solid var(--color-border); padding-right: 0; padding-bottom: 12px; }
@@ -598,6 +601,9 @@
       gap: 8px;
     }
     .plan-header-actions :global(.btn) { width: 100%; justify-content: center; }
+  }
+  @media (max-width: 480px) {
+    .metrics-row { grid-template-columns: 1fr; }
   }
   .chart-section { margin: 20px 0; }
   .chart-title { font-size: 0.875rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; margin: 0 0 12px; }

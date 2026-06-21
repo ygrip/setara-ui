@@ -23,6 +23,7 @@ export interface User {
   email: string;
   displayName: string;
   createdAt: string;
+  disabledAt: string | null;
 }
 
 export interface Membership {
@@ -88,6 +89,23 @@ export async function createUser(body: { email: string; displayName: string }): 
     body: JSON.stringify(body)
   });
   return readJsonOrThrow<User>(res);
+}
+
+export async function suspendUser(userId: string, suspended: boolean): Promise<User> {
+  const res = await apiFetch(`/api/users/${userId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ suspended })
+  });
+  return readJsonOrThrow<User>(res);
+}
+
+export async function deleteUser(userId: string): Promise<void> {
+  const res = await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error((body as { error?: string }).error ?? `Failed to delete user (${res.status})`);
+  }
 }
 
 export async function assignProjectRole(projectKey: string, body: { email: string; role: 'ADMIN' | 'QA' | 'VIEWER' | 'QA_LEAD' | 'DEVELOPER' }): Promise<Membership> {

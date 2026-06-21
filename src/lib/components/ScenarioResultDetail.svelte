@@ -175,16 +175,26 @@
         {:else if scenario && scenario.steps.length > 0}
           <ol class="steps-list">
             {#each scenario.steps as step}
-              <li class="step-row">
-                <span class="step-num">{step.sequenceNo}</span>
-                <span class="step-keyword {keywordVariant(step.keyword)}">{step.keyword}</span>
-                <span class="step-name">{step.name}</span>
-                {#if step.description}
-                  <span class="step-desc"><MarkdownBlock value={step.description} collapsedHeight={180} /></span>
-                {/if}
-                {#if step.expectation}
-                  <span class="step-desc step-desc--expectation"><MarkdownBlock value={step.expectation} collapsedHeight={160} /></span>
-                {/if}
+              <li class="step-card">
+                <div class="step-card-header">
+                  <span class="step-num">{step.sequenceNo}</span>
+                  <span class="step-kw {keywordVariant(step.keyword)}">{step.keyword}</span>
+                </div>
+                <div class="step-card-body">
+                  <span class="step-text">{step.name}</span>
+                  {#if step.description}
+                    <div class="step-section">
+                      <span class="step-section-label">Description</span>
+                      <MarkdownBlock value={step.description} collapsedHeight={120} />
+                    </div>
+                  {/if}
+                  {#if step.expectation}
+                    <div class="step-section step-section--expectation">
+                      <span class="step-section-label">Expectation</span>
+                      <MarkdownBlock value={step.expectation} collapsedHeight={120} />
+                    </div>
+                  {/if}
+                </div>
               </li>
             {/each}
           </ol>
@@ -202,7 +212,12 @@
             href="/projects/{projectKey}/repository?scenario={scenario.id}"
             class="footer-link"
           >
-            Open in Repository →
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/>
+              <polyline points="15 3 21 3 21 9"/>
+              <line x1="10" y1="14" x2="21" y2="3"/>
+            </svg>
+            Open in Repository
           </a>
         </div>
       {/if}
@@ -230,7 +245,7 @@
     top: 0;
     right: 0;
     bottom: 0;
-    width: min(520px, 100vw);
+    width: min(720px, 100vw);
     background: var(--color-surface);
     border-left: 1px solid var(--color-border);
     z-index: 201;
@@ -452,66 +467,105 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 10px;
   }
 
-  .step-row {
-    display: grid;
-    grid-template-columns: 22px 50px 1fr;
-    gap: 8px;
-    align-items: baseline;
-    padding: 7px 10px;
-    border-radius: 6px;
-    background: var(--color-bg);
+  .step-card {
     border: 1px solid var(--color-border);
-    font-size: 0.8rem;
-    line-height: 1.4;
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--color-bg);
+  }
+
+  .step-card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 12px;
+    background: color-mix(in srgb, var(--color-surface), transparent 30%);
+    border-bottom: 1px solid var(--color-border);
   }
 
   .step-num {
-    font-size: 0.68rem;
+    font-size: 0.72rem;
+    font-weight: 800;
     color: var(--color-text-muted);
+    min-width: 20px;
     font-family: ui-monospace, monospace;
-    text-align: right;
-    padding-top: 1px;
   }
 
-  .step-keyword {
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
-    font-weight: 700;
-    border-radius: 3px;
-    padding: 1px 4px;
-    text-align: center;
-  }
-
-  .kw-given  { background: color-mix(in srgb, #6366f1, transparent 82%); color: #818cf8; }
-  .kw-when   { background: color-mix(in srgb, #f59e0b, transparent 82%); color: #fbbf24; }
-  .kw-then   { background: color-mix(in srgb, #10b981, transparent 82%); color: #34d399; }
-  .kw-and    { background: color-mix(in srgb, #64748b, transparent 82%); color: #94a3b8; }
-  .kw-other  { background: color-mix(in srgb, #64748b, transparent 82%); color: #94a3b8; }
-
-  .step-name {
-    color: var(--color-text);
-  }
-
-  .step-desc {
-    grid-column: 3;
+  .step-kw {
     font-size: 0.73rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .kw-given  { color: #818cf8; }
+  .kw-when   { color: #fbbf24; }
+  .kw-then   { color: #34d399; }
+  .kw-and    { color: #94a3b8; }
+  .kw-other  { color: #94a3b8; }
+
+  .step-card-body {
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .step-text {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+    line-height: 1.4;
+  }
+
+  .step-section {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    border-left: 2px solid var(--color-border);
+    padding-left: 10px;
+  }
+
+  .step-section--expectation {
+    border-left-color: var(--color-success, #0d9488);
+  }
+
+  .step-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
     color: var(--color-text-muted);
-    font-style: italic;
-    margin-top: 2px;
   }
 
   /* ── Footer links ──────────────────────────────────────────── */
   .footer-links {
-    padding-top: 4px;
+    padding-top: 16px;
     border-top: 1px solid var(--color-border);
   }
 
   .footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
     font-size: 0.8rem;
-    color: var(--color-accent);
-    font-weight: 500;
+    font-weight: 600;
+    color: #fff;
+    background: var(--color-accent);
+    padding: 9px 16px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .footer-link:hover {
+    background: color-mix(in srgb, var(--color-accent), black 12%);
+    transform: translateY(-1px);
+  }
+  .footer-link:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 </style>

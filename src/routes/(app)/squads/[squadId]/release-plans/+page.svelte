@@ -154,9 +154,8 @@
       <p class="empty-sub">Create a release plan to coordinate builds across projects and squads.</p>
     </div>
   {:else}
-    <div class="table-wrap">
-      <DataTable>
-        {#snippet head()}
+    <DataTable>
+      {#snippet head()}
           <tr>
             <th>Status</th>
             <th class="th-sort" onclick={() => toggleSort('name')}>Name{sortIndicator('name')}</th>
@@ -203,8 +202,7 @@
             </tr>
           {/each}
         {/snippet}
-      </DataTable>
-    </div>
+    </DataTable>
   {/if}
 </div>
 
@@ -240,7 +238,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1200px, 100%); display: flex; flex-direction: column; gap: 0; }
+  .page { max-width: min(1400px, 100%); display: flex; flex-direction: column; gap: 0; }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }
@@ -254,7 +252,6 @@
   .filter-input:focus { outline: none; border-color: var(--color-accent); }
   .filter-select { font: inherit; font-size: 0.875rem; padding: 7px 11px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); cursor: pointer; }
   .filter-count { font-size: 0.8rem; color: var(--color-text-muted); margin-left: auto; }
-  .table-wrap { overflow-x: auto; border-radius: var(--radius); margin-bottom: 24px; }
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
   .plan-row { cursor: pointer; }

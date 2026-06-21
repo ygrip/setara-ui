@@ -645,6 +645,7 @@
   .metrics span { display: block; color: var(--color-text-muted); font-size: 0.78rem; text-transform: uppercase; font-weight: 800; margin-bottom: 6px; }
   .metrics strong { font-size: 1.35rem; }
   .section { margin-top: 22px; }
+  .ai-review-section { margin: 20px 0; }
   .inline-btn { padding: 4px 10px; border-radius: 4px; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); font-size: 0.78rem; font-weight: 600; cursor: pointer; white-space: nowrap; }
   .inline-btn:disabled { opacity: 0.45; cursor: not-allowed; }
   .auto-lock { display: inline-flex; align-items: center; color: var(--color-text-muted); opacity: 0.45; }
