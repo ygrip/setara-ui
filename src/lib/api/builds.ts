@@ -117,7 +117,7 @@ export async function getBuild(projectKey: string, buildId: string): Promise<Pro
   return res.json();
 }
 
-export async function listBuildScenarios(projectKey: string, buildId: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<BuildScenario>> {
+export async function listBuildScenarios(projectKey: string, buildId: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string, search?: string, status?: string): Promise<CursorPage<BuildScenario>> {
   if (isMockMode()) {
     const items = await mockListBuildScenarios(projectKey, buildId);
     return { items, nextCursor: null, prevCursor: null };
@@ -127,6 +127,8 @@ export async function listBuildScenarios(projectKey: string, buildId: string, cu
   if (limit) params.set('limit', String(limit));
   if (sortBy) params.set('sort_by', sortBy);
   if (sortDir) params.set('sort_dir', sortDir);
+  if (search?.trim()) params.set('search', search.trim());
+  if (status) params.set('status', status);
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios${qs}`);
   return res.json();

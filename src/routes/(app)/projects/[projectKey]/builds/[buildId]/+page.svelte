@@ -60,25 +60,42 @@
   // Bulk remove
   let selectedIds = $state<Set<string>>(new Set());
 
-  // Scenario table search & sort
+  // Scenario table search, filter & sort — all backend-backed
   let scenarioFilter = $state('');
+  let scenarioStatusFilter = $state('');
   let scenarioSortBy = $state<'name' | 'addedAt'>('name');
   let scenarioSortDir = $state<'asc' | 'desc'>('asc');
   let reloadingSort = $state(false);
+  let scenarioSentinel = $state<HTMLElement | null>(null);
+  let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+  async function reloadScenarios() {
+    if (!build) return;
+    reloadingSort = true;
+    selectedIds = new Set();
+    try {
+      const page = await listBuildScenarios(
+        data.projectKey, build.id, undefined, 20,
+        scenarioSortBy, scenarioSortDir,
+        scenarioFilter.trim() || undefined,
+        scenarioStatusFilter || undefined
+      );
+      scenarios = page.items;
+      scenarioNextCursor = page.nextCursor;
+    } catch { /* ignore */ }
+    finally { reloadingSort = false; }
+  }
+
+  function onSearchInput() {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    searchDebounceTimer = setTimeout(reloadScenarios, 300);
+  }
 
   async function toggleScenarioSort(col: 'name' | 'addedAt') {
     const nextDir: 'asc' | 'desc' = scenarioSortBy === col ? (scenarioSortDir === 'asc' ? 'desc' : 'asc') : 'asc';
     scenarioSortBy = col;
     scenarioSortDir = nextDir;
-    // Reset pagination and reload from backend with new sort
-    if (!build) return;
-    reloadingSort = true;
-    try {
-      const page = await listBuildScenarios(data.projectKey, build.id, undefined, 20, col, nextDir);
-      scenarios = page.items;
-      scenarioNextCursor = page.nextCursor;
-    } catch { /* ignore */ }
-    finally { reloadingSort = false; }
+    await reloadScenarios();
   }
 
   function scenarioSortIcon(col: string): string {
@@ -86,11 +103,15 @@
     return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
-  // Client-side search filter only; sort order comes from backend
-  const filteredScenarios = $derived.by(() => {
-    const q = scenarioFilter.toLowerCase();
-    if (!q) return scenarios;
-    return scenarios.filter(s => s.scenarioKey.toLowerCase().includes(q) || s.name.toLowerCase().includes(q));
+  // Infinite scroll — fires loadMoreScenarios when sentinel enters viewport
+  $effect(() => {
+    const el = scenarioSentinel;
+    if (!el) return;
+    const observer = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting) loadMoreScenarios();
+    }, { rootMargin: '200px' });
+    observer.observe(el);
+    return () => observer.disconnect();
   });
 
   let copiedVersion = $state(false);
@@ -134,7 +155,12 @@
     if (!build || loadingMore || !scenarioNextCursor) return;
     loadingMore = true;
     try {
-      const page = await listBuildScenarios(data.projectKey, build.id, scenarioNextCursor, 20, scenarioSortBy, scenarioSortDir);
+      const page = await listBuildScenarios(
+        data.projectKey, build.id, scenarioNextCursor, 20,
+        scenarioSortBy, scenarioSortDir,
+        scenarioFilter.trim() || undefined,
+        scenarioStatusFilter || undefined
+      );
       scenarios = [...scenarios, ...page.items];
       scenarioNextCursor = page.nextCursor;
     } catch { /* ignore */ }
@@ -556,8 +582,17 @@
 
       <div class="filters-bar" style="margin-bottom:12px;">
         <div class="search-wrap">
-          <input class="search-input" type="search" placeholder="Search scenarios…" bind:value={scenarioFilter} aria-label="Search scenarios" />
+          <input class="search-input" type="search" placeholder="Search scenarios…" bind:value={scenarioFilter} oninput={onSearchInput} aria-label="Search scenarios" />
         </div>
+        <select class="status-filter" bind:value={scenarioStatusFilter} onchange={reloadScenarios} aria-label="Filter by status">
+          <option value="">All statuses</option>
+          <option value="NOT_EXECUTED">Not Executed</option>
+          <option value="PASSED">Passed</option>
+          <option value="FAILED">Failed</option>
+          <option value="BLOCKED">Blocked</option>
+          <option value="SKIPPED">Skipped</option>
+        </select>
+        {#if reloadingSort}<span class="filter-loading">…</span>{/if}
       </div>
 
       {#if selectedIds.size > 0}
@@ -584,7 +619,7 @@
           </tr>
         {/snippet}
         {#snippet body()}
-          {#each filteredScenarios as scenario (scenario.id)}
+          {#each scenarios as scenario (scenario.id)}
             <tr>
               <td data-label="" class="checkbox-col">
                 <input type="checkbox" checked={selectedIds.has(scenario.id)} onchange={() => toggleSelect(scenario.id)} />
@@ -615,11 +650,10 @@
         {/snippet}
       </DataTable>
       {#if scenarioNextCursor}
-        <div class="load-more-wrap">
-          <button class="load-more-btn" onclick={loadMoreScenarios} disabled={loadingMore}>
-            {loadingMore ? 'Loading…' : 'Load more scenarios'}
-          </button>
-        </div>
+        <div bind:this={scenarioSentinel} class="scroll-sentinel" aria-hidden="true"></div>
+      {/if}
+      {#if loadingMore}
+        <div class="loading-more">Loading…</div>
       {/if}
     </section>
   {/if}
@@ -838,9 +872,11 @@
   .auto-lock { display: inline-flex; align-items: center; color: var(--color-text-muted); opacity: 0.45; }
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
-  .filters-bar { display: flex; gap: .75rem; align-items: center; }
+  .filters-bar { display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
   .search-wrap { position: relative; display: flex; align-items: center; flex: 1; max-width: 320px; }
   .search-input { width: 100%; border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; }
+  .status-filter { border: 1px solid var(--color-border); border-radius: 6px; padding: 8px 10px; background: var(--color-bg); color: var(--color-text); font: inherit; font-size: 0.875rem; }
+  .filter-loading { color: var(--color-text-muted); font-size: 0.82rem; }
   .copy-inline-btn { display: inline-flex; align-items: center; background: none; border: 1px solid var(--color-border); border-radius: 3px; cursor: pointer; color: var(--color-text-muted); font-size: 0.65rem; padding: 1px 4px; margin-left: 2px; vertical-align: middle; }
   @media (max-width: 900px) {
     .page-header { flex-direction: column; }
@@ -894,11 +930,9 @@
   .add-menu-item span { display: block; font-size: 0.75rem; color: var(--color-text-muted); }
   .add-menu-item--ai strong { color: var(--color-accent); }
 
-  /* Load more */
-  .load-more-wrap { display: flex; justify-content: center; padding: 14px 0 4px; }
-  .load-more-btn { padding: 7px 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-accent); font: inherit; font-size: 0.82rem; font-weight: 600; cursor: pointer; }
-  .load-more-btn:hover { border-color: var(--color-accent); }
-  .load-more-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* Infinite scroll */
+  .scroll-sentinel { height: 1px; margin-top: 8px; }
+  .loading-more { text-align: center; padding: 14px 0 4px; color: var(--color-text-muted); font-size: 0.82rem; }
   .path-hint { font-size: 0.68rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); margin-top: 1px; }
 
   @media (max-width: 700px) {
