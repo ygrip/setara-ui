@@ -69,6 +69,16 @@
       default:      return 'kw-other';
     }
   }
+
+  function stepRunStatus(stepIndex: number): string | null {
+    if (!result?.stepsJson || stepIndex >= result.stepsJson.length) return null;
+    return result.stepsJson[stepIndex]?.status?.toUpperCase() ?? null;
+  }
+
+  function stepRunErrorMessage(stepIndex: number): string | null {
+    if (!result?.stepsJson || stepIndex >= result.stepsJson.length) return null;
+    return result.stepsJson[stepIndex]?.errorMessage ?? null;
+  }
 </script>
 
 <!-- Overlay backdrop -->
@@ -174,14 +184,28 @@
           <div class="steps-error">Could not load steps — {scenarioError}</div>
         {:else if scenario && scenario.steps.length > 0}
           <ol class="steps-list">
-            {#each scenario.steps as step}
-              <li class="step-card">
+            {#each scenario.steps as step, i}
+              {@const runStatus = stepRunStatus(i)}
+              {@const isFailed = runStatus === 'FAILED'}
+              {@const isPassed = runStatus === 'PASSED'}
+              {@const isSkipped = runStatus === 'SKIPPED'}
+              {@const stepError = stepRunErrorMessage(i)}
+              <li class="step-card" class:step-card--failed={isFailed} class:step-card--passed={isPassed} class:step-card--skipped={isSkipped}>
                 <div class="step-card-header">
                   <span class="step-num">{step.sequenceNo}</span>
                   <span class="step-kw {keywordVariant(step.keyword)}">{step.keyword}</span>
+                  {#if runStatus}
+                    <span class="step-run-status step-run-status--{runStatus.toLowerCase()}">{runStatus}</span>
+                  {/if}
                 </div>
                 <div class="step-card-body">
                   <span class="step-text">{step.name}</span>
+                  {#if isFailed && stepError}
+                    <div class="step-error-msg">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="currentColor"/></svg>
+                      <pre class="step-error-pre">{stepError}</pre>
+                    </div>
+                  {/if}
                   {#if step.description}
                     <div class="step-section">
                       <span class="step-section-label">Description</span>
@@ -475,6 +499,57 @@
     border-radius: 8px;
     overflow: hidden;
     background: var(--color-bg);
+  }
+
+  .step-card--failed {
+    border-color: color-mix(in srgb, var(--color-danger), transparent 55%);
+    background: color-mix(in srgb, var(--color-danger), transparent 96%);
+  }
+
+  .step-card--passed {
+    border-color: color-mix(in srgb, var(--color-success, #0d9488), transparent 65%);
+  }
+
+  .step-card--skipped {
+    opacity: 0.6;
+  }
+
+  .step-run-status {
+    margin-left: auto;
+    font-size: 0.65rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  .step-run-status--passed  { color: var(--color-success, #0d9488); background: color-mix(in srgb, var(--color-success, #0d9488), transparent 88%); }
+  .step-run-status--failed  { color: var(--color-danger); background: color-mix(in srgb, var(--color-danger), transparent 88%); }
+  .step-run-status--skipped { color: var(--color-text-muted); background: var(--color-surface); }
+  .step-run-status--pending { color: var(--color-warning, #f59e0b); background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 88%); }
+
+  .step-error-msg {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    color: var(--color-danger);
+    padding: 8px 10px;
+    background: color-mix(in srgb, var(--color-danger), transparent 92%);
+    border-radius: 5px;
+    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 75%);
+  }
+
+  .step-error-msg svg { flex-shrink: 0; margin-top: 2px; }
+
+  .step-error-pre {
+    font-family: ui-monospace, monospace;
+    font-size: 0.72rem;
+    margin: 0;
+    white-space: pre-wrap;
+    word-break: break-word;
+    line-height: 1.5;
+    color: var(--color-text);
   }
 
   .step-card-header {

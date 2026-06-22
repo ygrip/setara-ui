@@ -7,6 +7,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
+  import BuildScenarioDetail from '$lib/components/BuildScenarioDetail.svelte';
   import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, updateBuild, deleteBuild, listBuildPlans, type ProjectBuild, type BuildScenario, type BuildAuditEvent, type PlanSummary } from '$lib/api/builds';
 
   let { data } = $props();
@@ -59,6 +60,9 @@
 
   // Bulk remove
   let selectedIds = $state<Set<string>>(new Set());
+
+  // Scenario detail sidebar
+  let selectedBuildScenario = $state<BuildScenario | null>(null);
 
   // Scenario table search, filter & sort — all backend-backed
   let scenarioFilter = $state('');
@@ -625,9 +629,13 @@
                 <input type="checkbox" checked={selectedIds.has(scenario.id)} onchange={() => toggleSelect(scenario.id)} />
               </td>
               <td data-label="Scenario">
-                <strong>{scenario.scenarioKey}</strong>
-                <div class="muted">{scenario.name}</div>
-                {#if scenario.directoryPath}<div class="path-hint">{scenario.directoryPath}</div>{/if}
+                <!-- svelte-ignore a11y_click_events_have_key_events -->
+                <!-- svelte-ignore a11y_no_static_element_interactions -->
+                <div class="scenario-name-link" onclick={() => selectedBuildScenario = scenario} title="View details">
+                  <strong>{scenario.scenarioKey}</strong>
+                  <div class="muted">{scenario.name}</div>
+                  {#if scenario.directoryPath}<div class="path-hint">{scenario.directoryPath}</div>{/if}
+                </div>
               </td>
               <td data-label="Expected"><Badge text={scenario.expectedStatus} variant="neutral" /></td>
               <td data-label="Actual"><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
@@ -658,6 +666,13 @@
     </section>
   {/if}
 </div>
+
+<BuildScenarioDetail
+  scenario={selectedBuildScenario}
+  projectKey={data.projectKey}
+  onclose={() => selectedBuildScenario = null}
+  onupdateresult={(s) => openUpdateResult(s)}
+/>
 
 <!-- History Modal (renamed from Audit) -->
 <Modal open={auditOpen} title="Build History" size="lg" onclose={() => auditOpen = false}>
@@ -820,6 +835,8 @@
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   h2 { font-size: 1rem; margin: 0 0 12px; }
   p, .muted { color: var(--color-text-muted); margin: 0; }
+  .scenario-name-link { cursor: pointer; }
+  .scenario-name-link:hover strong { color: var(--color-accent); text-decoration: underline; }
   .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .build-meta-section { display: flex; flex-direction: column; gap: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
   .build-meta-item { display: flex; flex-direction: column; gap: 4px; }

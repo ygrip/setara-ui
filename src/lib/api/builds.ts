@@ -57,6 +57,10 @@ export interface BuildScenario {
   executedBy: string | null;
   executedAt: string | null;
   addedAt: string;
+  sourceType?: string | null;
+  sourceId?: string | null;
+  durationMs?: number | null;
+  notes?: string | null;
 }
 
 export interface RunScenarioView {

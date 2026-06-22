@@ -66,7 +66,9 @@ export async function mockListRunResults(projectKey: string, runId: string): Pro
     finishedAt: '2026-05-23T08:02:00Z',
     durationMs: 120000,
     exceptionType: index === 0 ? null : 'AssertionError',
-    exceptionMessage: index === 0 ? null : 'Expected refund state to be APPROVED'
+    exceptionMessage: index === 0 ? null : 'Expected refund state to be APPROVED',
+    stepsJson: null,
+    failedStepIndex: null
   })));
 }
 

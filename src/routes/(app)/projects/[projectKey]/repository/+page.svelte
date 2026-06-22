@@ -58,6 +58,7 @@
   let directoryCache = $state(new Map<string, Scenario[]>());
   let loadingDirectory = $state(false);
   let sentinelEl = $state<HTMLDivElement | null>(null);
+  let scrollEl = $state<HTMLDivElement | null>(null);
   let busy = $state(false);
   let actionError = $state('');
   let detailScenario = $state<Scenario | null>(null);
@@ -213,17 +214,17 @@
     return () => { cancelled = true; };
   });
 
-  // Infinite scroll: observe sentinel to load next page
+  // Infinite scroll: IntersectionObserver fires loadMoreScenarios when sentinel enters view
   $effect(() => {
     const el = sentinelEl;
-    if (!el) return;
-    const obs = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting && !loadingMoreScenarios && scopedNextCursor) {
-        loadMoreScenarios();
-      }
-    }, { rootMargin: '300px' });
-    obs.observe(el);
-    return () => obs.disconnect();
+    const container = scrollEl;
+    if (!el || !container) return;
+    const observer = new IntersectionObserver(
+      entries => { if (entries[0].isIntersecting && scopedNextCursor) loadMoreScenarios(); },
+      { root: container, rootMargin: '300px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
   });
 
   // Reactive props bag — Zag's $derived prop getter reads this
@@ -652,10 +653,8 @@
         draftExtraScenarios = [...draftExtraScenarios, ...page.items];
         draftNextCursor = page.nextCursor;
       }
-    } catch {
-      // Stop infinite scroll on error — avoid retry loop
-      if (reviewMode === 'LIVE') liveNextCursor = null;
-      else draftNextCursor = null;
+    } catch (e) {
+      console.error('[repository] loadMoreScenarios failed:', e);
     } finally {
       loadingMoreScenarios = false;
     }
@@ -1055,7 +1054,7 @@
       {/if}
 
       <!-- Scenario table -->
-      <div class="scenario-scroll">
+      <div class="scenario-scroll" bind:this={scrollEl}>
         {#if searchLoading}
           <div class="empty-state">Searching…</div>
         {:else if sortedScenarios.length === 0}

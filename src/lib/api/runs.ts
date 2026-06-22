@@ -41,6 +41,17 @@ export interface AutomationRun {
   reportPath?: string | null;
 }
 
+export interface StepRunResult {
+  keyword: string | null;
+  name: string | null;
+  line: number | null;
+  status: string | null;
+  durationMs: number | null;
+  errorMessage: string | null;
+  description: string | null;
+  expectation: string | null;
+}
+
 export interface ScenarioRunResult {
   id: string;
   runId: string;
@@ -59,6 +70,8 @@ export interface ScenarioRunResult {
   durationMs: number | null;
   exceptionType: string | null;
   exceptionMessage: string | null;
+  stepsJson: StepRunResult[] | null;
+  failedStepIndex: number | null;
 }
 
 export async function listRuns(projectKey: string, cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<AutomationRun>> {
@@ -87,6 +100,11 @@ export async function listRunResults(
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results${qs}`);
   return readJsonOrThrow<ScenarioRunResult[]>(res);
+}
+
+export async function getRunResult(projectKey: string, resultId: string): Promise<ScenarioRunResult> {
+  const res = await apiFetch(`/api/projects/${projectKey}/run-results/${resultId}`);
+  return readJsonOrThrow<ScenarioRunResult>(res);
 }
 
 export async function getRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {
