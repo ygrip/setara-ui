@@ -1,4 +1,4 @@
-import { listDirectories, listScenarios, type Scenario, type TestDirectory } from '$lib/api/testcases';
+import { listDirectories, listScenarios, countScenarios, type Scenario, type TestDirectory } from '$lib/api/testcases';
 
 async function listRepositoryDirectories(projectKey: string, parentId: string | null = null): Promise<TestDirectory[]> {
   const directories = await listDirectories(projectKey, parentId);
@@ -11,10 +11,11 @@ async function listRepositoryDirectories(projectKey: string, parentId: string | 
 export async function load({ params }: { params: { projectKey: string } }) {
   const { projectKey } = params;
 
-  const [dirResult, scenariosResult, draftsResult] = await Promise.allSettled([
+  const [dirResult, scenariosResult, draftsResult, countResult] = await Promise.allSettled([
     listRepositoryDirectories(projectKey),
     listScenarios(projectKey, null, 'ACTIVE'),
-    listScenarios(projectKey, null, 'DRAFT')
+    listScenarios(projectKey, null, 'DRAFT'),
+    countScenarios(projectKey)
   ]);
 
   const directories = dirResult.status === 'fulfilled' ? dirResult.value : ([] as TestDirectory[]);
@@ -25,6 +26,7 @@ export async function load({ params }: { params: { projectKey: string } }) {
   const draftScenarios = draftsPage.items;
   const scenariosNextCursor = scenariosPage.nextCursor;
   const draftsNextCursor = draftsPage.nextCursor;
+  const totalScenariosCount = countResult.status === 'fulfilled' ? countResult.value : null;
 
   // Surface the first error encountered so the page can show an informative banner
   const firstError =
@@ -33,5 +35,5 @@ export async function load({ params }: { params: { projectKey: string } }) {
     draftsResult.status === 'rejected' ? (draftsResult.reason as Error).message :
     null;
 
-  return { projectKey, directories, scenarios, draftScenarios, scenariosNextCursor, draftsNextCursor, error: firstError };
+  return { projectKey, directories, scenarios, draftScenarios, scenariosNextCursor, draftsNextCursor, totalScenariosCount, error: firstError };
 }

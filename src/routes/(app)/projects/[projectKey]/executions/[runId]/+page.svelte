@@ -126,6 +126,8 @@
           id: event.resultId,
           runId: event.runId,
           scenarioId: event.scenarioId,
+          scenarioKey: null,
+          sequenceNo: null,
           cucumberId: null,
           featureUri: null,
           featureName: null,
@@ -152,6 +154,48 @@
       void refreshResults();
     }
   }
+
+  // ── Filter / sort state ─────────────────────────────────────────────────────
+
+  let filterSearch = $state('');
+  let filterStatus = $state('');
+  let sortBy = $state<'sequenceNo' | 'name' | 'status' | 'duration'>('sequenceNo');
+  let sortDir = $state<'asc' | 'desc'>('asc');
+
+  function toggleSort(col: 'name' | 'status' | 'duration') {
+    if (sortBy === col) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortBy = col;
+      sortDir = 'asc';
+    }
+  }
+
+  const filteredResults = $derived.by(() => {
+    let r = results;
+    if (filterStatus) r = r.filter(x => x.status?.toUpperCase() === filterStatus);
+    if (filterSearch.trim()) {
+      const q = filterSearch.trim().toLowerCase();
+      r = r.filter(x =>
+        x.scenarioName?.toLowerCase().includes(q) ||
+        x.featureName?.toLowerCase().includes(q)
+      );
+    }
+    if (sortBy !== 'sequenceNo') {
+      r = [...r].sort((a, b) => {
+        let cmp = 0;
+        if (sortBy === 'name')     cmp = (a.scenarioName ?? '').localeCompare(b.scenarioName ?? '');
+        if (sortBy === 'status')   cmp = (a.status ?? '').localeCompare(b.status ?? '');
+        if (sortBy === 'duration') cmp = (a.durationMs ?? 0) - (b.durationMs ?? 0);
+        return sortDir === 'desc' ? -cmp : cmp;
+      });
+    }
+    return r;
+  });
+
+  const STATUSES = ['PASSED', 'FAILED', 'SKIPPED', 'PENDING', 'UNKNOWN'] as const;
+
+  function statusCount(s: string) { return results.filter(r => r.status?.toUpperCase() === s).length; }
 
   // ── Derived metrics ─────────────────────────────────────────────────────────
 
@@ -358,12 +402,69 @@
           <span class="results-hint">Click a row for detail</span>
         {/if}
       </div>
+
+      {#if results.length > 0}
+        <!-- Filter controls -->
+        <div class="filter-bar">
+          <div class="filter-search-wrap">
+            <svg class="filter-search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+            <input
+              class="filter-search-input"
+              type="search"
+              placeholder="Search by name or feature…"
+              bind:value={filterSearch}
+              aria-label="Search scenarios"
+            />
+            {#if filterSearch}
+              <button class="filter-search-clear" onclick={() => filterSearch = ''} aria-label="Clear search">×</button>
+            {/if}
+          </div>
+
+          <div class="status-tabs" role="group" aria-label="Filter by status">
+            <button
+              class="status-tab"
+              class:active={filterStatus === ''}
+              onclick={() => filterStatus = ''}
+            >All <span class="tab-count">{results.length}</span></button>
+            {#each STATUSES as s}
+              {@const count = statusCount(s)}
+              {#if count > 0}
+                <button
+                  class="status-tab status-tab--{s.toLowerCase()}"
+                  class:active={filterStatus === s}
+                  onclick={() => filterStatus = filterStatus === s ? '' : s}
+                >{s[0] + s.slice(1).toLowerCase()} <span class="tab-count">{count}</span></button>
+              {/if}
+            {/each}
+          </div>
+
+          {#if filteredResults.length !== results.length}
+            <span class="filter-count">{filteredResults.length} of {results.length}</span>
+          {/if}
+        </div>
+      {/if}
+
       <DataTable>
         {#snippet head()}
           <tr>
-            <th>Scenario</th>
-            <th>Status</th>
-            <th>Duration</th>
+            <th>
+              <button class="sort-btn" onclick={() => toggleSort('name')}>
+                Scenario
+                {#if sortBy === 'name'}<span class="sort-arrow">{sortDir === 'asc' ? '↑' : '↓'}</span>{:else}<span class="sort-arrow sort-arrow--idle">↕</span>{/if}
+              </button>
+            </th>
+            <th>
+              <button class="sort-btn" onclick={() => toggleSort('status')}>
+                Status
+                {#if sortBy === 'status'}<span class="sort-arrow">{sortDir === 'asc' ? '↑' : '↓'}</span>{:else}<span class="sort-arrow sort-arrow--idle">↕</span>{/if}
+              </button>
+            </th>
+            <th>
+              <button class="sort-btn" onclick={() => toggleSort('duration')}>
+                Duration
+                {#if sortBy === 'duration'}<span class="sort-arrow">{sortDir === 'asc' ? '↑' : '↓'}</span>{:else}<span class="sort-arrow sort-arrow--idle">↕</span>{/if}
+              </button>
+            </th>
             <th>Exception</th>
           </tr>
         {/snippet}
@@ -374,8 +475,14 @@
                 Scenarios will appear here once the execution worker processes results.
               </td>
             </tr>
+          {:else if filteredResults.length === 0}
+            <tr>
+              <td colspan="4" class="placeholder-row">
+                No scenarios match the current filters.
+              </td>
+            </tr>
           {:else}
-            {#each results as result}
+            {#each filteredResults as result}
               <!-- svelte-ignore a11y_click_events_have_key_events -->
               <tr
                 class="result-row"
@@ -642,6 +749,70 @@
 
   .live-section :global(.app-timeline) { margin-top: 4px; }
 
+
+  /* ── Filter bar ────────────────────────────────────────────── */
+  .filter-bar {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 10px; margin-bottom: 12px;
+  }
+  .filter-search-wrap {
+    position: relative; display: flex; align-items: center;
+    flex: 1; min-width: 180px; max-width: 280px;
+  }
+  .filter-search-icon {
+    position: absolute; left: 10px; color: var(--color-text-muted); pointer-events: none;
+  }
+  .filter-search-input {
+    width: 100%; padding: 6px 28px 6px 32px;
+    border: 1px solid var(--color-border); border-radius: 8px;
+    background: var(--color-surface); color: var(--color-text);
+    font: inherit; font-size: 0.82rem; outline: none;
+    transition: border-color 0.15s;
+  }
+  .filter-search-input:focus { border-color: var(--color-accent); }
+  .filter-search-clear {
+    position: absolute; right: 8px; border: none; background: transparent;
+    color: var(--color-text-muted); cursor: pointer; font-size: 1rem; padding: 0;
+    line-height: 1; display: flex; align-items: center;
+  }
+  .filter-search-clear:hover { color: var(--color-text); }
+
+  .status-tabs {
+    display: flex; flex-wrap: wrap; gap: 4px;
+  }
+  .status-tab {
+    padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+    border: 1px solid var(--color-border); background: var(--color-surface);
+    color: var(--color-text-muted); cursor: pointer; transition: all 0.12s;
+    display: inline-flex; align-items: center; gap: 5px;
+  }
+  .status-tab:hover { border-color: var(--color-accent); color: var(--color-text); }
+  .status-tab.active {
+    background: var(--color-accent); border-color: var(--color-accent); color: #fff;
+  }
+  .status-tab--passed.active  { background: var(--color-success, #16a34a); border-color: var(--color-success, #16a34a); }
+  .status-tab--failed.active  { background: var(--color-danger,  #dc2626); border-color: var(--color-danger,  #dc2626); }
+  .status-tab--skipped.active { background: var(--color-warning, #d97706); border-color: var(--color-warning, #d97706); }
+  .tab-count {
+    background: rgba(255,255,255,0.25); border-radius: 10px;
+    padding: 0 5px; font-size: 0.68rem;
+  }
+  .status-tab:not(.active) .tab-count {
+    background: var(--color-bg); color: var(--color-text-muted);
+  }
+  .filter-count {
+    font-size: 0.75rem; color: var(--color-text-muted); white-space: nowrap;
+  }
+
+  .sort-btn {
+    background: none; border: none; cursor: pointer;
+    color: inherit; font: inherit; font-weight: 600; font-size: 0.82rem;
+    padding: 0; display: inline-flex; align-items: center; gap: 4px;
+    white-space: nowrap;
+  }
+  .sort-btn:hover { color: var(--color-accent); }
+  .sort-arrow { font-size: 0.7rem; }
+  .sort-arrow--idle { opacity: 0.3; }
 
   /* ── Results table ─────────────────────────────────────────── */
   .results-header {

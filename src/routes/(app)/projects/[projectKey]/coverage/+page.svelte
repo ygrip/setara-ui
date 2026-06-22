@@ -1,21 +1,45 @@
 <script lang="ts">
   import { page } from '$app/state';
-  import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
-  import Modal from '$lib/components/Modal.svelte';
+  import BentoCard from '$lib/components/BentoCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { ProjectStatistic } from '$lib/api/statistics';
+  import { listProjectStatisticHistory } from '$lib/api/statistics';
+  import { untrack } from 'svelte';
 
-  let { data }: { data: { history: ProjectStatistic[] } } = $props();
-
-  let formulaOpen = $state(false);
+  let { data }: { data: { history: ProjectStatistic[]; defaultStart: string; defaultEnd: string } } = $props();
 
   const projectKey = $derived(page.params.projectKey);
-  const latest = $derived(data.history[0]);
+
+  let chartStart = $state(untrack(() => data.defaultStart));
+  let chartEnd = $state(untrack(() => data.defaultEnd));
+  let granularity = $state<'daily' | 'weekly'>('daily');
+  let historyData = $state<ProjectStatistic[]>(untrack(() => data.history));
+  let loadingHistory = $state(false);
+
+  async function refetchHistory() {
+    const start = chartStart, end = chartEnd;
+    if (!start || !end) return;
+    loadingHistory = true;
+    try {
+      historyData = await listProjectStatisticHistory(projectKey as string, start, end, granularity);
+    } finally {
+      loadingHistory = false;
+    }
+  }
+
+  $effect(() => {
+    // Re-fetch when granularity changes (date changes call refetchHistory directly)
+    granularity;
+    refetchHistory();
+  });
+
+  const displayData = $derived(historyData);
+
+  const latest = $derived(historyData[historyData.length - 1]);
   const notAutomatable = $derived(latest ? Math.max(0, latest.totalScenarios - latest.totalAutomatable) : 0);
 
-  // Real automation breakdown donut computed from latest stats
   const automationDonut = $derived({
     labels: ['Automated', 'Automatable (not yet)', 'Not Automatable'],
     datasets: [{
@@ -30,10 +54,10 @@
   });
 
   const coverageTrend = $derived({
-    labels: [...data.history].reverse().map(row => row.statDate.slice(5)),
+    labels: displayData.map(row => row.statDate.slice(5)),
     datasets: [{
       label: 'Coverage %',
-      data: [...data.history].reverse().map(row => row.coveragePercentage),
+      data: displayData.map(row => row.coveragePercentage),
       borderColor: '#2f8f83',
       backgroundColor: 'rgba(47, 143, 131, 0.14)',
       fill: true,
@@ -103,85 +127,72 @@
     </div>
   </div>
 
-  <!-- ── Bento grid ─────────────────────────────────────────── -->
-  <div class="bento-grid">
-    <!-- Coverage trend -->
-    <Card className="bento-card">
-      <h3 class="bento-title">Coverage Trend</h3>
-      {#if data.history.length === 0}
-        <p class="empty-text">No coverage statistics captured yet.</p>
-      {:else}
-        <div class="chart-wrap">
-          <LineChart chartData={coverageTrend} height={260} label="Daily Coverage" />
-        </div>
-      {/if}
-    </Card>
-    <!-- Automation breakdown -->
-    <Card className="bento-card">
+  <!-- ── Coverage Trend (full width) ───────────────────────── -->
+  <div class="trend-section">
+  <BentoCard title="Coverage Trend{loadingHistory ? ' …' : ''}" subtitle="Automation coverage over time" variant="default">
+    <div class="chart-controls">
+      <label>Start <input type="date" bind:value={chartStart} onchange={refetchHistory} /></label>
+      <label>End <input type="date" bind:value={chartEnd} onchange={refetchHistory} /></label>
+      <label>Group
+        <select bind:value={granularity}>
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+        </select>
+      </label>
+    </div>
+    {#if historyData.length === 0}
+      <p class="empty-text">No coverage statistics captured yet.</p>
+    {:else}
+      <LineChart chartData={coverageTrend} height={300} label="Coverage" />
+    {/if}
+  </BentoCard>
+  </div>
+
+  <!-- ── Automation Breakdown (donut left, formula right) ──── -->
+  <div class="breakdown-row">
+    <Card className="breakdown-card">
       <h3 class="bento-title">Automation Breakdown</h3>
       {#if latest}
-        <div class="donut-wrap">
-          <DonutChart chartData={automationDonut} size={220} label="Automation Status" />
-        </div>
-        <div class="donut-legend">
-          <div class="legend-item">
-            <span class="legend-dot automated-dot"></span>
-            <span class="legend-label">Automated</span>
-            <strong>{latest.totalAutomated}</strong>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot automatable-dot"></span>
-            <span class="legend-label">Automatable</span>
-            <strong>{Math.max(0, latest.totalAutomatable - latest.totalAutomated)}</strong>
-          </div>
-          <div class="legend-item">
-            <span class="legend-dot not-dot"></span>
-            <span class="legend-label">Not Automatable</span>
-            <strong>{notAutomatable}</strong>
-          </div>
+        <div class="donut-center">
+          <DonutChart chartData={automationDonut} size={400} label="Automation Status" legendPosition="bottom" />
         </div>
       {:else}
         <p class="empty-text">No coverage data available.</p>
       {/if}
     </Card>
-  </div>
 
-  <!-- Coverage info -->
-  <div class="section">
-    <div class="section-header">
-      <h2 class="section-title">Coverage Information</h2>
-      <Button variant="secondary" onclick={() => formulaOpen = true}
-        icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>'
-      >Formulas</Button>
-    </div>
-    <Card padding="md">
-      <p class="info-text">Coverage data populates once automation sessions are ingested and the execution worker processes scenario results. The trend chart shows daily snapshots; the donut breaks down the latest state.</p>
+    <Card className="breakdown-card">
+      <h3 class="bento-title">Coverage Formulas</h3>
+      <div class="formula-list">
+        <div class="formula-item">
+          <span class="formula-name">Automation Coverage</span>
+          <code class="formula-expr">automated_count / total_count × 100%</code>
+          <span class="formula-desc">Percentage of all scenarios that have been automated.</span>
+        </div>
+        <div class="formula-divider"></div>
+        <div class="formula-item">
+          <span class="formula-name">Automatable Coverage</span>
+          <code class="formula-expr">automated_count / automatable_count × 100%</code>
+          <span class="formula-desc">Percentage of automatable scenarios covered by automation.</span>
+        </div>
+        <div class="formula-divider"></div>
+        <div class="formula-item">
+          <span class="formula-name">Not Automatable</span>
+          <code class="formula-expr">total_count − automatable_count</code>
+          <span class="formula-desc">Scenarios that require manual execution only.</span>
+        </div>
+        {#if latest}
+          <div class="formula-divider"></div>
+          <div class="stat-breakdown">
+            <div class="stat-row"><span class="dot dot-auto"></span><span>Automated</span><strong>{latest.totalAutomated}</strong></div>
+            <div class="stat-row"><span class="dot dot-can"></span><span>Automatable (pending)</span><strong>{Math.max(0, latest.totalAutomatable - latest.totalAutomated)}</strong></div>
+            <div class="stat-row"><span class="dot dot-not"></span><span>Not Automatable</span><strong>{notAutomatable}</strong></div>
+          </div>
+        {/if}
+      </div>
     </Card>
   </div>
 </div>
-
-<!-- ── Formula modal ───────────────────────────────────────── -->
-<Modal open={formulaOpen} title="Coverage Formulas" size="md" onclose={() => formulaOpen = false}>
-  <div class="formula-card">
-    <div class="formula-item">
-      <span class="formula-name">Automation Coverage</span>
-      <code class="formula-expr">automated_count / total_count × 100%</code>
-      <span class="formula-desc">Percentage of all scenarios that have been automated.</span>
-    </div>
-    <div class="formula-divider"></div>
-    <div class="formula-item">
-      <span class="formula-name">Automatable Coverage</span>
-      <code class="formula-expr">automated_count / automatable_count × 100%</code>
-      <span class="formula-desc">Percentage of automatable scenarios that are covered by automation.</span>
-    </div>
-    <div class="formula-divider"></div>
-    <div class="formula-item">
-      <span class="formula-name">Manual Coverage</span>
-      <code class="formula-expr">manual_count / total_count × 100%</code>
-      <span class="formula-desc">Percentage of scenarios executed only via manual execution.</span>
-    </div>
-  </div>
-</Modal>
 
 <style>
   .page { max-width: min(1520px, 100%); }
@@ -219,47 +230,49 @@
   .stat-card-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .stat-card-bar-fill { height: 100%; background: #0d9488; border-radius: 2px; transition: width 0.4s ease; }
 
-  /* ── Bento grid ──────────────────────────────────────────── */
-  .bento-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 28px; }
-  :global(.bento-card) { display: flex; flex-direction: column; gap: 16px; }
-  .bento-title { font-size: 0.95rem; font-weight: 700; margin: 0; color: var(--color-text); }
-  .chart-wrap { flex: 1; min-height: 0; padding-top: 4px; }
+  /* ── Trend card ──────────────────────────────────────────── */
+  .trend-section { margin-bottom: 28px; }
+  .chart-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chart-controls label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;
+  }
+  .chart-controls input,
+  .chart-controls select {
+    border: 1px solid var(--color-border); border-radius: 6px;
+    background: var(--color-bg); color: var(--color-text);
+    padding: 7px 9px; font: inherit;
+  }
   .empty-text { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
 
-  .donut-wrap { display: flex; justify-content: center; }
-  .donut-legend { display: flex; flex-direction: column; gap: 8px; margin-top: 4px; }
-  .legend-item { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
-  .legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
-  .automated-dot { background: #0d9488; }
-  .automatable-dot { background: #6366f1; }
-  .not-dot { background: #94a3b8; }
-  .legend-label { flex: 1; color: var(--color-text-muted); }
-  .legend-item strong { color: var(--color-text); }
+  /* ── Breakdown row ───────────────────────────────────────── */
+  .breakdown-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  :global(.breakdown-card) { display: flex; flex-direction: column; gap: 14px; }
+  .donut-center { display: flex; justify-content: center; }
 
-  .section { margin-bottom: 28px; }
-  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; gap: 12px; }
-  .section-title { font-size: 1rem; font-weight: 600; margin: 0; color: var(--color-text); }
-  .info-text { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; line-height: 1.6; }
-
-  /* ── Formula modal (rendered in portal) ───────────────────── */
-  :global(.formula-card) {
-    background: var(--color-surface); border: 1px solid var(--color-border);
-    border-radius: var(--radius); padding: 20px;
-    display: flex; flex-direction: column; gap: 0;
-  }
-  :global(.formula-item) { display: flex; flex-direction: column; gap: 6px; padding: 14px 0; }
-  :global(.formula-name) { font-size: 0.875rem; font-weight: 600; color: var(--color-text); }
-  :global(.formula-expr) {
-    font-family: ui-monospace, monospace; font-size: 0.82rem;
+  /* ── Formula list ────────────────────────────────────────── */
+  .formula-list { display: flex; flex-direction: column; }
+  .formula-item { display: flex; flex-direction: column; gap: 5px; padding: 12px 0; }
+  .formula-name { font-size: 0.875rem; font-weight: 600; color: var(--color-text); }
+  .formula-expr {
+    font-family: ui-monospace, monospace; font-size: 0.8rem;
     background: var(--color-bg); border: 1px solid var(--color-border);
-    border-radius: 4px; padding: 5px 10px; color: var(--color-accent);
+    border-radius: 4px; padding: 4px 10px; color: var(--color-accent);
     display: inline-block; width: fit-content;
   }
-  :global(.formula-desc) { font-size: 0.8rem; color: var(--color-text-muted); }
-  :global(.formula-divider) { height: 1px; background: var(--color-border); margin: 0; }
+  .formula-desc { font-size: 0.78rem; color: var(--color-text-muted); }
+  .formula-divider { height: 1px; background: var(--color-border); }
+  .stat-breakdown { display: flex; flex-direction: column; gap: 6px; padding: 12px 0 4px; }
+  .stat-row { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; }
+  .stat-row span:nth-child(2) { flex: 1; color: var(--color-text-muted); }
+  .stat-row strong { color: var(--color-text); }
+  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+  .dot-auto { background: #0d9488; }
+  .dot-can { background: #6366f1; }
+  .dot-not { background: #94a3b8; }
 
   @media (max-width: 900px) {
-    .bento-grid { grid-template-columns: 1fr; }
+    .breakdown-row { grid-template-columns: 1fr; }
     .stats-grid { grid-template-columns: repeat(2, 1fr); }
   }
   @media (max-width: 480px) {

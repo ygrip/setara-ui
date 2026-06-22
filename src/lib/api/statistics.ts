@@ -65,9 +65,9 @@ export async function listProjectStatistics(): Promise<ProjectStatistic[]> {
   return readJsonOrThrow(res);
 }
 
-export async function listProjectStatisticHistory(projectKey: string, days = 30): Promise<ProjectStatistic[]> {
-  if (isMockMode()) return mockListProjectStatisticHistory(projectKey, days);
-  const params = new URLSearchParams({ days: String(days) });
+export async function listProjectStatisticHistory(projectKey: string, start: string, end: string, groupedBy: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<ProjectStatistic[]> {
+  if (isMockMode()) return mockListProjectStatisticHistory(projectKey, start, end, groupedBy);
+  const params = new URLSearchParams({ start, end, grouped_by: groupedBy });
   const res = await apiFetch(`/api/statistics/projects/${projectKey}/history?${params}`);
   return readJsonOrThrow(res);
 }
@@ -220,6 +220,44 @@ export async function listSquadCoverage(params: {
   if (params.sortBy) query.set('sort_by', params.sortBy);
   if (params.sortDir) query.set('sort_dir', params.sortDir);
   const res = await apiFetch(`/api/statistics/coverage/squads?${query}`);
+  return readJsonOrThrow(res);
+}
+
+export interface SquadHistoryPoint {
+  bucketDate: string;
+  totalScenarios: number;
+  totalAutomated: number;
+  coveragePercentage: number;
+  avgPassPercentage: number | null;
+}
+
+export async function listSquadHistory(
+  squadId: string,
+  start: string,
+  end: string,
+  groupedBy: 'daily' | 'weekly' | 'monthly' = 'daily'
+): Promise<SquadHistoryPoint[]> {
+  if (isMockMode()) {
+    const days = Math.max(1, Math.ceil((new Date(end).getTime() - new Date(start).getTime()) / 86_400_000));
+    const step = groupedBy === 'monthly' ? 30 : groupedBy === 'weekly' ? 7 : 1;
+    const points: SquadHistoryPoint[] = [];
+    for (let i = 0; i <= days; i += step) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const base = 55 + (i / Math.max(days, 1)) * 25;
+      const passBase = 72 + (i / Math.max(days, 1)) * 15;
+      points.push({
+        bucketDate: d.toISOString().slice(0, 10),
+        totalScenarios: 120 + Math.round(i * 0.5),
+        totalAutomated: Math.round((base / 100) * (120 + i * 0.5)),
+        coveragePercentage: Math.min(100, Math.round(base + Math.sin(i * 0.7) * 4)),
+        avgPassPercentage: Math.min(100, Math.round(passBase + Math.cos(i * 0.5) * 5))
+      });
+    }
+    return points;
+  }
+  const params = new URLSearchParams({ start, end, grouped_by: groupedBy });
+  const res = await apiFetch(`/api/statistics/coverage/squads/${squadId}/history?${params}`);
   return readJsonOrThrow(res);
 }
 

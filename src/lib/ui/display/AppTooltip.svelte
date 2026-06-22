@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { Tooltip } from 'flowbite-svelte';
-
   let {
     text,
     position = 'top',
@@ -10,34 +8,66 @@
     position?: 'top' | 'right' | 'bottom' | 'left';
     children?: import('svelte').Snippet;
   } = $props();
-
-  const uid = `tip-${Math.random().toString(36).slice(2, 8)}`;
 </script>
 
-<span id={uid} class="app-tooltip-trigger">
+<span class="app-tooltip-wrap" data-tip={text} data-pos={position}>
   {@render children?.()}
 </span>
-<Tooltip triggeredBy="#{uid}" placement={position} type="custom" class="app-tooltip">
-  {text}
-</Tooltip>
 
 <style>
-  .app-tooltip-trigger {
+  .app-tooltip-wrap {
     display: inline-flex;
     min-width: 0;
+    position: relative;
   }
 
-  :global(.app-tooltip) {
-    padding: 7px 9px !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: 6px !important;
-    background: var(--color-text) !important;
-    color: var(--color-bg) !important;
-    box-shadow: var(--shadow-md) !important;
-    font-size: 0.76rem !important;
-    line-height: 1.35 !important;
-    font-family: var(--font-body) !important;
-    max-width: min(240px, calc(100vw - 32px)) !important;
-    white-space: normal !important;
+  .app-tooltip-wrap::after {
+    content: attr(data-tip);
+    position: absolute;
+    white-space: normal;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.15s;
+    z-index: 9999;
+
+    padding: 7px 9px;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    background: var(--color-text);
+    color: var(--color-bg);
+    box-shadow: var(--shadow-md);
+    font-size: 0.76rem;
+    line-height: 1.35;
+    font-family: var(--font-body);
+    max-width: min(240px, calc(100vw - 32px));
+  }
+
+  .app-tooltip-wrap[data-pos='top']::after {
+    bottom: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .app-tooltip-wrap[data-pos='bottom']::after {
+    top: calc(100% + 6px);
+    left: 50%;
+    transform: translateX(-50%);
+  }
+
+  .app-tooltip-wrap[data-pos='left']::after {
+    right: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .app-tooltip-wrap[data-pos='right']::after {
+    left: calc(100% + 6px);
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .app-tooltip-wrap:hover::after,
+  .app-tooltip-wrap:focus-within::after {
+    opacity: 1;
   }
 </style>

@@ -71,6 +71,7 @@
         data.projectKey,
         {
           scenarioName: name.trim(),
+          projectDescription: data.project?.description || undefined,
           directoryNodeId: nodeId || undefined,
           directoryPath: directoryPath.length > 0 ? directoryPath : undefined,
           tags: tags.length > 0 ? tags.map(t => ({ sanitized: t.sanitized ?? '', display: t.display })) : undefined,

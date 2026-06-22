@@ -45,10 +45,12 @@ export interface ScenarioRunResult {
   id: string;
   runId: string;
   scenarioId: string | null;
+  scenarioKey: string | null;
   cucumberId: string | null;
   featureUri: string | null;
   featureName: string | null;
   scenarioName: string;
+  sequenceNo: number | null;
   scenarioLine: number | null;
   tags: string[] | null;
   status: string;
@@ -71,11 +73,17 @@ export async function getRun(projectKey: string, runId: string): Promise<Automat
   return readJsonOrThrow<AutomationRun>(res);
 }
 
-export async function listRunResults(projectKey: string, runId: string, tags?: string[], tagMode?: string): Promise<ScenarioRunResult[]> {
+export async function listRunResults(
+  projectKey: string,
+  runId: string,
+  opts?: { status?: string; search?: string; sortBy?: string; sortDir?: string }
+): Promise<ScenarioRunResult[]> {
   if (isMockMode()) return mockListRunResults(projectKey, runId);
   const params = new URLSearchParams();
-  if (tags && tags.length) tags.forEach(t => params.append('tags', t));
-  if (tagMode) params.set('tagMode', tagMode);
+  if (opts?.status) params.set('status', opts.status);
+  if (opts?.search?.trim()) params.set('search', opts.search.trim());
+  if (opts?.sortBy) params.set('sortBy', opts.sortBy);
+  if (opts?.sortDir) params.set('sortDir', opts.sortDir);
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/results${qs}`);
   return readJsonOrThrow<ScenarioRunResult[]>(res);

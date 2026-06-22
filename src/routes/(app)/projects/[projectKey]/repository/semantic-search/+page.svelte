@@ -7,7 +7,7 @@
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { getApiBaseUrl } from '$lib/api/config';
   import { authHeaders } from '$lib/api/client';
-  import { normalizeErrorMessage } from '$lib/api/errors';
+  import { normalizeErrorMessage, readApiError } from '$lib/api/errors';
   import { isMockMode } from '$lib/mock/client';
 
   const isMock = isMockMode();
@@ -58,8 +58,7 @@
       const res = await fetch(url, { headers: authHeaders() });
 
       if (!res.ok) {
-        const text = await res.text().catch(() => '');
-        throw new Error(text || `HTTP ${res.status}`);
+        throw new Error(await readApiError(res, 'Smart Search is unavailable. Check the Intelligence configuration.'));
       }
 
       const reader = res.body?.getReader();
@@ -67,8 +66,7 @@
 
       const decoder = new TextDecoder();
       let buf = '';
-      let doneSeen = false;
-      phase = 'streaming';
+      let resultsSeen = false;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -85,17 +83,20 @@
           // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
           // spaces that separate words (e.g. " scenarios" vs "scenarios").
 
-          if (data === '[DONE]') { doneSeen = true; continue; }
+          if (data === '[RESULTS]') { resultsSeen = true; continue; }
 
-          if (doneSeen) {
+          if (data === '[DONE]') { phase = 'done'; continue; }
+
+          if (resultsSeen) {
+            // JSON payload immediately after [RESULTS] — show results before LLM streams
             try {
               const parsed = JSON.parse(data) as { scenarios: SmartSearchResult[]; query: string };
               results = parsed.scenarios ?? [];
             } catch { /* ignore */ }
-            doneSeen = false;
-            phase = 'done';
+            resultsSeen = false;
+            phase = 'streaming';
           } else {
-            // Strip any accidental "data:" prefix that might appear in content
+            // LLM reasoning token — strip any accidental "data:" prefix
             let cleanData = data;
             cleanData = cleanData.replace(/^data:\s*/gm, '');
             if (cleanData.startsWith('data:')) cleanData = cleanData.slice(5);

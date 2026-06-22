@@ -164,7 +164,8 @@ export async function listScenarios(
   tags?: string[],
   tagMode?: string,
   cursor?: string,
-  limit?: number
+  limit?: number,
+  search?: string
 ): Promise<CursorPage<Scenario>> {
   if (isMockMode()) {
     const items = await mockListScenarios(projectKey, nodeId, status);
@@ -179,9 +180,20 @@ export async function listScenarios(
   if (tagMode) params.set('tagMode', tagMode);
   if (cursor) params.set('cursor', cursor);
   if (limit) params.set('limit', String(limit));
+  if (search && search.trim()) params.set('search', search.trim());
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios${query}`);
   return readJsonOrThrow<CursorPage<Scenario>>(res);
+}
+
+export async function countScenarios(projectKey: string, status = 'ACTIVE'): Promise<number> {
+  if (isMockMode()) {
+    const items = await mockListScenarios(projectKey, null, status);
+    return items.length;
+  }
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/count?status=${encodeURIComponent(status)}`);
+  const data = await readJsonOrThrow<{ total: number }>(res);
+  return data.total;
 }
 
 export interface ScenarioExistsResult {
@@ -457,10 +469,14 @@ export interface ImportJobView {
   issues: ImportIssue[];
 }
 
-export async function listImportJobs(projectKey: string): Promise<ImportJobView[]> {
-  if (isMockMode()) return [];
-  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/history`);
-  return res.json();
+export async function listImportJobs(projectKey: string, cursor?: string, limit?: number): Promise<CursorPage<ImportJobView>> {
+  if (isMockMode()) return { items: [], nextCursor: null, prevCursor: null };
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
+  const qs = params.toString() ? `?${params.toString()}` : '';
+  const res = await apiFetch(`/api/projects/${projectKey}/scenarios/import/history${qs}`);
+  return readJsonOrThrow(res);
 }
 
 export async function getImportJob(projectKey: string, importId: string): Promise<ImportJobView> {
@@ -522,12 +538,14 @@ export interface SimilarScenarioResult {
 export async function searchSimilarScenarios(
   projectKey: string,
   query: string,
-  limit = 10
+  limit = 10,
+  excludeId?: string
 ): Promise<SimilarScenarioResult[]> {
   if (isMockMode()) return [];
   const params = new URLSearchParams();
   params.set('q', query);
   params.set('limit', String(limit));
+  if (excludeId) params.set('excludeId', excludeId);
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/similar?${params}`);
   return readJsonOrThrow<SimilarScenarioResult[]>(
     res,

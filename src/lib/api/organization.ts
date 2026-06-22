@@ -24,6 +24,7 @@ export interface User {
   displayName: string;
   createdAt: string;
   disabledAt: string | null;
+  pendingPasswordChange: boolean;
 }
 
 export interface Membership {
@@ -82,7 +83,10 @@ export async function getSquad(squadId: string): Promise<Squad> {
   return readJsonOrThrow<Squad>(res);
 }
 
-export async function createUser(body: { email: string; displayName: string }): Promise<User> {
+export async function createUser(body: { email: string; displayName: string; password: string; systemAdmin?: boolean }): Promise<User> {
+  if (isMockMode()) {
+    return { id: `user-${Date.now()}`, email: body.email, displayName: body.displayName, createdAt: new Date().toISOString(), disabledAt: null, pendingPasswordChange: true };
+  }
   const res = await apiFetch('/api/users', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Dropdown } from 'flowbite-svelte';
+  import { onMount } from 'svelte';
 
   let {
     label,
@@ -18,22 +18,36 @@
   } = $props();
 
   let isOpen = $state(false);
-  const uid = `dd-${Math.random().toString(36).slice(2, 8)}`;
-  const placement = $derived(align === 'start' ? 'bottom-start' : 'bottom-end');
+  let menuEl = $state<HTMLElement | null>(null);
+  let triggerEl = $state<HTMLElement | null>(null);
 
   $effect(() => { isOpen = open; });
 
   function handleItemClick(e: MouseEvent) {
     const target = e.target as HTMLElement;
-    if (target.closest('[role="menuitem"]')) {
-      isOpen = false;
-    }
+    if (target.closest('[role="menuitem"]')) isOpen = false;
   }
+
+  function handleKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') isOpen = false;
+  }
+
+  onMount(() => {
+    function handleOutside(e: MouseEvent) {
+      if (isOpen && !triggerEl?.contains(e.target as Node) && !menuEl?.contains(e.target as Node)) {
+        isOpen = false;
+      }
+    }
+    document.addEventListener('click', handleOutside, true);
+    return () => document.removeEventListener('click', handleOutside, true);
+  });
 </script>
 
-<div class="app-dropdown" role="presentation" onclick={handleItemClick} onkeydown={() => {}}>
+<svelte:window onkeydown={handleKeydown} />
+
+<div class="app-dropdown" role="presentation" onclick={handleItemClick}>
   <button
-    id={uid}
+    bind:this={triggerEl}
     class="app-dropdown__trigger"
     type="button"
     aria-haspopup="menu"
@@ -49,9 +63,16 @@
     {/if}
   </button>
 
-  <Dropdown triggeredBy="#{uid}" {placement} bind:isOpen class="app-dropdown__menu" role="menu">
-    {@render children?.()}
-  </Dropdown>
+  {#if isOpen}
+    <div
+      bind:this={menuEl}
+      class="app-dropdown__menu"
+      class:align-start={align === 'start'}
+      role="menu"
+    >
+      {@render children?.()}
+    </div>
+  {/if}
 </div>
 
 <style>
@@ -86,36 +107,46 @@
     cursor: not-allowed;
   }
 
-  :global(.app-dropdown__menu) {
-    min-width: 180px !important;
-    max-width: min(280px, calc(100vw - 24px)) !important;
-    padding: 6px !important;
-    border: 1px solid var(--color-border) !important;
-    border-radius: var(--radius) !important;
-    background: var(--color-surface) !important;
-    box-shadow: var(--shadow-md) !important;
+  .app-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    z-index: 200;
+    min-width: 180px;
+    max-width: min(280px, calc(100vw - 24px));
+    padding: 6px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: var(--color-surface);
+    box-shadow: var(--shadow-md);
   }
 
-  :global(.app-dropdown__menu button),
-  :global(.app-dropdown__menu a) {
-    width: 100% !important;
-    min-height: 34px !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
-    padding: 8px 10px !important;
-    border-radius: 6px !important;
-    border: 0 !important;
-    background: transparent !important;
-    color: var(--color-text) !important;
-    text-align: left !important;
-    text-decoration: none !important;
-    cursor: pointer !important;
+  .app-dropdown__menu.align-start {
+    right: auto;
+    left: 0;
   }
 
-  :global(.app-dropdown__menu button:hover),
-  :global(.app-dropdown__menu a:hover) {
-    background: var(--color-accent-subtle) !important;
-    color: var(--color-accent) !important;
+  .app-dropdown__menu :global(button),
+  .app-dropdown__menu :global(a) {
+    width: 100%;
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    border: 0;
+    background: transparent;
+    color: var(--color-text);
+    text-align: left;
+    text-decoration: none;
+    cursor: pointer;
+    font: inherit;
+  }
+
+  .app-dropdown__menu :global(button:hover),
+  .app-dropdown__menu :global(a:hover) {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
   }
 </style>

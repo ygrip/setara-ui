@@ -47,6 +47,24 @@ export async function getSquadPlan(squadId: string, planId: string): Promise<Rel
   return readJsonOrThrow(res);
 }
 
+export async function updateSquadPlan(
+  squadId: string,
+  planId: string,
+  body: { name?: string; releaseVersion?: string | null; releaseDate?: string | null; description?: string | null; updatedBy?: string | null }
+): Promise<ReleasePlan> {
+  const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return readJsonOrThrow(res);
+}
+
+export async function deleteSquadPlan(squadId: string, planId: string, deletedBy?: string | null): Promise<void> {
+  const params = deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : '';
+  await apiFetch(`/api/squads/${squadId}/plans/${planId}${params}`, { method: 'DELETE' });
+}
+
 // ── Build membership ────────────────────────────────────────────────────
 
 export async function listSquadPlanBuilds(squadId: string, planId: string): Promise<PlanBuild[]> {
@@ -111,5 +129,23 @@ export interface SquadPlanMetrics {
 export async function getSquadPlanMetrics(squadId: string, planId: string): Promise<SquadPlanMetrics> {
   if (isMockMode()) return mockGetSquadPlanMetrics(squadId, planId) as Promise<SquadPlanMetrics>;
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/metrics`);
+  return readJsonOrThrow(res);
+}
+
+export interface PlanLifecycleEvent {
+  id: string;
+  eventType: string;
+  actor: string | null;
+  description: string | null;
+  occurredAt: string;
+}
+
+export async function getSquadPlanLifecycle(squadId: string, planId: string): Promise<PlanLifecycleEvent[]> {
+  if (isMockMode()) return [
+    { id: '1', eventType: 'PLAN_CREATED', actor: 'admin', description: 'Plan created', occurredAt: new Date(Date.now() - 7 * 86400000).toISOString() },
+    { id: '2', eventType: 'BUILD_ADDED', actor: 'admin', description: 'Build added', occurredAt: new Date(Date.now() - 5 * 86400000).toISOString() },
+    { id: '3', eventType: 'STATUS_CHANGED', actor: null, description: 'Status changed to IN_PROGRESS', occurredAt: new Date(Date.now() - 3 * 86400000).toISOString() },
+  ];
+  const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/lifecycle`);
   return readJsonOrThrow(res);
 }

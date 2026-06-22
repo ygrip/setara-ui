@@ -1,7 +1,7 @@
 <script lang="ts">
   import { goto, invalidateAll } from '$app/navigation';
   import { page } from '$app/state';
-  import { onMount } from 'svelte';
+  import { onMount, untrack } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
   import TagFilterBar from '$lib/components/TagFilterBar.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
@@ -52,9 +52,12 @@
   let selectedScenarioIds = $state<string[]>([]);
   let liveExtraScenarios = $state<Scenario[]>([]);
   let draftExtraScenarios = $state<Scenario[]>([]);
-  let liveNextCursor = $state<string | null>(data.scenariosNextCursor ?? null);
-  let draftNextCursor = $state<string | null>(data.draftsNextCursor ?? null);
+  let liveNextCursor = $state<string | null>(untrack(() => data.scenariosNextCursor) ?? null);
+  let draftNextCursor = $state<string | null>(untrack(() => data.draftsNextCursor) ?? null);
   let loadingMoreScenarios = $state(false);
+  let directoryCache = $state(new Map<string, Scenario[]>());
+  let loadingDirectory = $state(false);
+  let sentinelEl = $state<HTMLDivElement | null>(null);
   let busy = $state(false);
   let actionError = $state('');
   let detailScenario = $state<Scenario | null>(null);
@@ -78,6 +81,11 @@
   let filterAutomation = $state<string>('');
   let filterPriority = $state<string>('');
   let filterSearch = $state<string>('');
+
+  // ── Server-side search state ─────────────────────────────────
+  let searchResults = $state<Scenario[] | null>(null);
+  let searchLoading = $state(false);
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
   // ── Tag filters ──────────────────────────────────────────────
   let filterTags = $state<string[]>([]);
@@ -172,6 +180,52 @@
     });
   });
 
+  // Fetch all scenarios for the selected directory
+  $effect(() => {
+    const nodeId = selectedNodeId;
+    const mode = reviewMode;
+    if (!nodeId) return;
+    const cKey = `${nodeId}__${mode}`;
+    if (directoryCache.has(cKey)) return;
+
+    let cancelled = false;
+    loadingDirectory = true;
+    const status = mode === 'LIVE' ? 'ACTIVE' : 'DRAFT';
+
+    (async () => {
+      const all: Scenario[] = [];
+      let cursor: string | undefined = undefined;
+      try {
+        do {
+          const pg = await listScenarios(data.projectKey, nodeId, status, undefined, undefined, undefined, undefined, cursor);
+          if (cancelled) return;
+          all.push(...pg.items);
+          cursor = pg.nextCursor ?? undefined;
+        } while (cursor);
+        directoryCache = new Map([...directoryCache, [cKey, all]]);
+      } catch {
+        // fall back to filtered scopedScenarios on error
+      } finally {
+        if (!cancelled) loadingDirectory = false;
+      }
+    })();
+
+    return () => { cancelled = true; };
+  });
+
+  // Infinite scroll: observe sentinel to load next page
+  $effect(() => {
+    const el = sentinelEl;
+    if (!el) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting && !loadingMoreScenarios && scopedNextCursor) {
+        loadMoreScenarios();
+      }
+    }, { rootMargin: '300px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  });
+
   // Reactive props bag — Zag's $derived prop getter reads this
   const treeProps = $state({
     id: 'repo-tree',
@@ -206,19 +260,45 @@
   function totalCount(node: DirNode): number {
     return node.directScenarioCount ?? 0;
   }
+  const dirCacheKey = $derived(selectedNodeId ? `${selectedNodeId}__${reviewMode}` : null);
   const visibleScenarios = $derived(
     selectedNodeId
-      ? scopedScenarios.filter((s: Scenario) => s.nodeId === selectedNodeId)
+      ? (dirCacheKey && directoryCache.has(dirCacheKey)
+          ? directoryCache.get(dirCacheKey)!
+          : scopedScenarios.filter((s: Scenario) => s.nodeId === selectedNodeId))
       : scopedScenarios
   );
+
+  // When filterSearch changes, debounce API call
+  $effect(() => {
+    const q = filterSearch;
+    if (searchTimer) clearTimeout(searchTimer);
+    if (!q.trim()) {
+      searchResults = null;
+      searchLoading = false;
+      return;
+    }
+    searchLoading = true;
+    searchTimer = setTimeout(async () => {
+      try {
+        const status = reviewMode === 'LIVE' ? 'ACTIVE' : 'DRAFT';
+        const pg = await listScenarios(data.projectKey, selectedNodeId ?? null, status, undefined, undefined, undefined, undefined, undefined, undefined, q.trim());
+        searchResults = pg.items;
+      } catch {
+        searchResults = null;
+      } finally {
+        searchLoading = false;
+      }
+    }, 350);
+  });
+
+  // Base scenarios: use server search results when search is active, else visibleScenarios
+  const baseScenarios = $derived(filterSearch.trim() ? (searchResults ?? []) : visibleScenarios);
+
   const filteredScenarios = $derived(
-    visibleScenarios.filter((s: Scenario) => {
+    baseScenarios.filter((s: Scenario) => {
       if (filterAutomation && s.automationStatus !== filterAutomation) return false;
       if (filterPriority && s.priority !== filterPriority) return false;
-      if (filterSearch.trim()) {
-        const q = filterSearch.toLowerCase();
-        if (!s.name?.toLowerCase().includes(q) && !s.scenarioKey?.toLowerCase().includes(q)) return false;
-      }
       // Tag filter: client-side, ANY or ALL mode
       if (filterTags.length > 0) {
         const scenarioSans = (s.tags ?? []).map(t => t.sanitized);
@@ -249,10 +329,23 @@
     ).values()]
   );
   const selectedTitle = $derived(selectedDirectory ? selectedDirectory.name : 'All Scenarios');
-  const filteredRootChildren = $derived(
-    (treeCollection.rootNode.children ?? []).filter((n: DirNode) =>
-      !dirFilter.trim() || n.name.toLowerCase().includes(dirFilter.toLowerCase())
-    )
+  // Flat search: recursively collect all matching dirs when filter is active
+  function flatSearchDirs(nodes: DirNode[], q: string, path: string[] = []): { node: DirNode; breadcrumb: string }[] {
+    const out: { node: DirNode; breadcrumb: string }[] = [];
+    for (const n of nodes) {
+      const currentPath = [...path, n.name];
+      if (n.name.toLowerCase().includes(q.toLowerCase())) {
+        out.push({ node: n, breadcrumb: path.join(' / ') });
+      }
+      if (n.children?.length) out.push(...flatSearchDirs(n.children, q, currentPath));
+    }
+    return out;
+  }
+  const filteredRootChildren = $derived(treeCollection.rootNode.children ?? []);
+  const flatFilteredDirs = $derived(
+    dirFilter.trim()
+      ? flatSearchDirs(treeCollection.rootNode.children ?? [], dirFilter.trim())
+      : null
   );
   const scenarioColumnHelper = createColumnHelper<Scenario>();
   const scenarioColumns = [
@@ -387,7 +480,7 @@
       const query = [scenario.name, scenario.scenarioKey]
         .filter(Boolean)
         .join(' ');
-      similarScenarios = await searchSimilarScenarios(data.projectKey, query, 8);
+      similarScenarios = await searchSimilarScenarios(data.projectKey, query, 8, scenario.id);
       if (similarScenarios.length === 0) {
         const status = await getProjectEmbeddingStatus(data.projectKey).catch(() => null);
         similarIndexing = status !== null && (!status.ready || status.pendingJobs > 0);
@@ -456,6 +549,7 @@
     filterAutomation = '';
     filterPriority = '';
     filterSearch = '';
+    searchResults = null;
   }
 
   function toggleScenario(id: string) {
@@ -559,7 +653,9 @@
         draftNextCursor = page.nextCursor;
       }
     } catch {
-      // ignore load-more failures silently
+      // Stop infinite scroll on error — avoid retry loop
+      if (reviewMode === 'LIVE') liveNextCursor = null;
+      else draftNextCursor = null;
     } finally {
       loadingMoreScenarios = false;
     }
@@ -785,7 +881,7 @@
         >
           <span class="all-icon">{@render iconLayers()}</span>
           <span class="all-label">All Scenarios</span>
-          <span class="count-pill">{scopedScenarios.length}{scopedNextCursor ? '+' : ''}</span>
+          <span class="count-pill">{reviewMode === 'LIVE' ? (data.totalScenariosCount ?? scopedScenarios.length) : scopedScenarios.length}{reviewMode === 'LIVE' ? '' : (scopedNextCursor ? '+' : '')}</span>
         </button>
 
         <div class="dir-filter-wrap">
@@ -804,11 +900,32 @@
         </div>
 
         <div class="tree-list">
-          <div {...treeApi.getTreeProps()}>
-            {#each filteredRootChildren as node, index}
-              {@render treeRow(node, [index])}
-            {/each}
-          </div>
+          {#if flatFilteredDirs !== null}
+            {#if flatFilteredDirs.length === 0}
+              <div class="dir-filter-empty">No directories match</div>
+            {:else}
+              {#each flatFilteredDirs as { node, breadcrumb }}
+                <button
+                  class="dir-flat-result"
+                  class:active={selectedNodeId === node.id}
+                  onclick={() => { selectedNodeId = node.id; selectedScenarioIds = []; dirFilter = ''; }}
+                >
+                  <span class="node-icon folder">{@render iconFolder()}</span>
+                  <span class="dir-flat-text">
+                    {#if breadcrumb}<span class="dir-flat-path">{breadcrumb} /</span>{/if}
+                    <span class="dir-flat-name">{node.name}</span>
+                  </span>
+                  <span class="count-pill">{totalCount(node)}</span>
+                </button>
+              {/each}
+            {/if}
+          {:else}
+            <div {...treeApi.getTreeProps()}>
+              {#each filteredRootChildren as node, index}
+                {@render treeRow(node, [index])}
+              {/each}
+            </div>
+          {/if}
         </div>
       </div>
     </aside>
@@ -822,7 +939,15 @@
         <div>
           <div class="title-row">
             <h1>{selectedTitle}</h1>
-            <span class="scenario-count-badge">{sortedScenarios.length} scenarios</span>
+            <span class="scenario-count-badge">
+              {#if searchLoading}
+                Searching…
+              {:else if !filterSearch.trim() && !filterAutomation && !filterPriority && !filterTags.length && !selectedNodeId && reviewMode === 'LIVE'}
+                {data.totalScenariosCount ?? sortedScenarios.length}{scopedNextCursor ? '+' : ''} scenarios
+              {:else}
+                {sortedScenarios.length}{!filterSearch.trim() && scopedNextCursor ? '+' : ''} scenarios
+              {/if}
+            </span>
           </div>
           <p class="panel-subtitle">{selectedDirectory?.path ?? data.projectKey}</p>
           {#if selectedDirectory}
@@ -898,7 +1023,7 @@
         {#if filterAutomation || filterPriority || filterSearch.trim()}
           <button
             class="clear-filter"
-            onclick={() => { filterAutomation = ''; filterPriority = ''; filterSearch = ''; }}
+            onclick={() => { filterAutomation = ''; filterPriority = ''; filterSearch = ''; searchResults = null; }}
           >✕ Clear</button>
         {/if}
       </div>
@@ -930,17 +1055,20 @@
       {/if}
 
       <!-- Scenario table -->
-      {#if sortedScenarios.length === 0}
-        <div class="empty-state">
-          {filteredScenarios.length < visibleScenarios.length
-            ? 'No scenarios match the current filters.'
-            : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.`}
-        </div>
-      {:else}
-        <div class="table-wrap">
-          <table class="scenarios-table">
-            <thead>
-              <tr>
+      <div class="scenario-scroll">
+        {#if searchLoading}
+          <div class="empty-state">Searching…</div>
+        {:else if sortedScenarios.length === 0}
+          <div class="empty-state">
+            {filteredScenarios.length < baseScenarios.length
+              ? 'No scenarios match the current filters.'
+              : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.`}
+          </div>
+        {:else}
+          <div class="table-wrap">
+            <table class="scenarios-table">
+              <thead>
+                <tr>
                 <th class="col-check">
                   <input type="checkbox" checked={selectedScenarioIds.length === sortedScenarios.length && sortedScenarios.length > 0} onchange={toggleAllVisible} />
                 </th>
@@ -1000,15 +1128,12 @@
               {/each}
             </tbody>
           </table>
-          {#if scopedNextCursor}
-            <div class="load-more-wrap">
-              <button class="load-more-btn" onclick={loadMoreScenarios} disabled={loadingMoreScenarios}>
-                {loadingMoreScenarios ? 'Loading…' : 'Load more scenarios'}
-              </button>
+            <div class="scroll-sentinel" bind:this={sentinelEl}>
+              {#if loadingMoreScenarios}<span class="loading-more-text">Loading…</span>{/if}
             </div>
-          {/if}
-        </div>
-      {/if}
+          </div>
+        {/if}
+      </div>
     </section>
   </div>
 </div>
@@ -1359,11 +1484,14 @@
 <style>
   .page { max-width: none; }
   :global(.page > .app-alert) { margin-bottom: 12px; }
+  /* Footer not relevant on full-viewport layout */
+  :global(.app-footer) { display: none; }
 
   /* ── Splitter layout ──────────────────────────────────────── */
   .repo-layout {
     display: flex;
-    height: calc(100vh - 112px);
+    /* topbar (56px) + content padding top+bottom (64px) = 120px */
+    height: calc(100vh - 120px);
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     overflow: hidden;
@@ -1391,7 +1519,8 @@
   }
   .tree-panel { border-right: 1px solid var(--color-border); background: var(--color-surface); min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
   .tree-scroll { flex: 1; overflow: auto; }
-  .scenario-panel { min-width: 0; padding: 0 0 14px; background: var(--color-bg); overflow: auto; -webkit-overflow-scrolling: touch; }
+  .scenario-panel { min-width: 0; padding: 0; background: var(--color-bg); overflow: hidden; display: flex; flex-direction: column; }
+  .scenario-scroll { flex: 1; min-height: 0; overflow: auto; -webkit-overflow-scrolling: touch; padding-bottom: 14px; }
   .tree-topbar,
   .scenario-topbar { min-height: 66px; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--color-border); }
   .tree-topbar-actions,
@@ -1578,6 +1707,28 @@
   }
   .dir-filter-clear:hover { opacity: 1; background: var(--color-border); }
   .tree-list { padding: 16px 14px 28px; }
+  .dir-filter-empty { padding: 12px 4px; font-size: 0.78rem; color: var(--color-text-muted); text-align: center; }
+  .dir-flat-result {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--color-text);
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    margin-bottom: 2px;
+    transition: background 0.12s;
+  }
+  .dir-flat-result:hover { background: var(--color-accent-subtle); }
+  .dir-flat-result.active { background: var(--color-accent-subtle); color: var(--color-accent); }
+  .dir-flat-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .dir-flat-path { font-size: 0.68rem; color: var(--color-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dir-flat-name { font-size: 0.8rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .tree-line { display: flex; align-items: center; gap: 0; position: relative; }
   /* IDE-style connected guide lines using nested containers */
   .tree-children {
@@ -1678,9 +1829,10 @@
   .bulk-count { font-size: 0.8rem; color: var(--color-accent); font-weight: 700; min-width: 72px; }
 
   /* Scenario table (plans-style) */
-  .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; overflow-x: auto; }
+  /* overflow must stay off table-wrap — any overflow value creates a scroll container that blocks thead sticky */
+  .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); }
   .scenarios-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
-  .scenarios-table thead { background: var(--color-surface); }
+  .scenarios-table thead { background: var(--color-surface); position: sticky; top: 0; z-index: 10; }
   .scenarios-table th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
   .scenarios-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; background: var(--color-surface); }
   .scenario-row:last-child td { border-bottom: none; }
@@ -1689,7 +1841,7 @@
   .th-sort { cursor: pointer; user-select: none; }
   .th-sort:hover { color: var(--color-accent); }
   .col-check { width: 40px; text-align: center; }
-  .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; }
+  .scenario-panel :global(.table-wrap) { border: 0; border-radius: 0; overflow: visible; }
   .scenario-panel :global(th) { text-transform: uppercase; letter-spacing: 0.04em; font-size: 0.73rem; }
   .scenario-panel :global(td),
   .scenario-panel :global(th) { padding: 16px 18px; vertical-align: middle; }
@@ -2029,6 +2181,9 @@
       pointer-events: none;
     }
 
+    /* On mobile, scroll via .content — revert panel flex constraints */
+    .scenario-panel { display: block; overflow: visible; padding-bottom: 14px; }
+    .scenario-scroll { overflow: visible; padding-bottom: 0; }
     .filter-bar { padding: 8px 12px; }
     .search-wrap { max-width: none; }
     .editor-grid { grid-template-columns: 1fr; }
@@ -2084,8 +2239,6 @@
   .tag-edit-field { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
   .editor-label { font-size: 0.78rem; font-weight: 600; color: var(--color-text-muted); }
   .opt { font-weight: 400; opacity: 0.7; }
-  .load-more-wrap { display: flex; justify-content: center; padding: 12px 0; }
-  .load-more-btn { padding: 8px 20px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; cursor: pointer; }
-  .load-more-btn:hover:not(:disabled) { background: var(--color-surface-hover, var(--color-border)); }
-  .load-more-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+  .scroll-sentinel { height: 40px; display: flex; align-items: center; justify-content: center; }
+  .loading-more-text { font-size: 0.78rem; color: var(--color-text-muted); }
 </style>

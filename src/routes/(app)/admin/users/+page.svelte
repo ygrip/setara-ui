@@ -3,7 +3,7 @@
   import Card from '$lib/components/Card.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { listUsers, searchUsers, addSquadMember, removeSquadMember, getSquadDetail, assignProjectRole, suspendUser, deleteUser, type User, type UserDetail, type Squad, type SquadDetail, type SquadMember } from '$lib/api/organization';
+  import { listUsers, searchUsers, addSquadMember, removeSquadMember, getSquadDetail, assignProjectRole, suspendUser, deleteUser, createUser, type User, type UserDetail, type Squad, type SquadDetail, type SquadMember } from '$lib/api/organization';
   import { getValidSession } from '$lib/auth';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
@@ -106,6 +106,26 @@
     try { await removeSquadMember(squadId, userId); message = 'Removed from squad.'; if (squadUser) { const d = (await searchUsers(squadUser.email)).items[0]; squadUserDetail = d ?? null; } }
     catch (err) { error = (err as Error).message; }
   }
+
+  // Create user
+  let createOpen = $state(false);
+  let createEmail = $state('');
+  let createName = $state('');
+  let createPassword = $state('');
+  let createAdmin = $state(false);
+  let createBusy = $state(false);
+
+  async function handleCreateUser() {
+    if (!createEmail.trim() || !createName.trim() || !createPassword.trim()) return;
+    createBusy = true; error = '';
+    try {
+      const user = await createUser({ email: createEmail.trim(), displayName: createName.trim(), password: createPassword, systemAdmin: createAdmin });
+      users = [user, ...users];
+      message = `User ${user.displayName} created.`;
+      createOpen = false;
+      createEmail = ''; createName = ''; createPassword = ''; createAdmin = false;
+    } catch (err) { error = (err as Error).message; } finally { createBusy = false; }
+  }
 </script>
 
 <svelte:head><title>Users — Admin — Setara</title></svelte:head>
@@ -116,6 +136,7 @@
       <h1 class="page-title">Users</h1>
       <p class="page-sub">Manage user access — assign project roles and squad membership.</p>
     </div>
+    <Button variant="primary" size="sm" onclick={() => createOpen = true}>Create User</Button>
   </div>
 
   {#if data.error}<AppAlert tone="error" title="Could not connect">{data.error}</AppAlert>{/if}
@@ -168,12 +189,15 @@
           {#each users as user}
             {@const isSelf = user.email === currentEmail}
             {@const isSuspended = !!user.disabledAt}
+            {@const isPending = !!user.pendingPasswordChange}
             <tr class:row-suspended={isSuspended}>
               <td data-label="Email">{user.email}</td>
               <td data-label="Name" class="bold">{user.displayName}</td>
               <td data-label="Status">
                 {#if isSuspended}
                   <span class="status-chip status-suspended">Suspended</span>
+                {:else if isPending}
+                  <span class="status-chip status-pending">Pending</span>
                 {:else}
                   <span class="status-chip status-active">Active</span>
                 {/if}
@@ -213,6 +237,21 @@
     {/if}
   </Card>
 </div>
+
+<Modal open={createOpen} title="Create User" size="sm" onclose={() => createOpen = false}>
+  <div class="modal-body">
+    <p class="muted" style="font-size:0.82rem">The user will be required to change their password on first login.</p>
+    {#if error}<div class="toast toast--error">{error}</div>{/if}
+    <div class="form-field"><label class="form-label" for="cu-email">Email</label><input id="cu-email" class="input" type="email" bind:value={createEmail} placeholder="user@example.com" required /></div>
+    <div class="form-field"><label class="form-label" for="cu-name">Display Name</label><input id="cu-name" class="input" bind:value={createName} placeholder="Full name" required /></div>
+    <div class="form-field"><label class="form-label" for="cu-pwd">Temporary Password</label><input id="cu-pwd" class="input" type="password" bind:value={createPassword} placeholder="Min 8 characters" required /></div>
+    <label class="form-check"><input type="checkbox" bind:checked={createAdmin} /> <span>System Admin</span></label>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <Button variant="secondary" size="sm" onclick={() => createOpen = false}>Cancel</Button>
+      <Button variant="primary" size="sm" onclick={handleCreateUser} disabled={createBusy || !createEmail.trim() || !createName.trim() || !createPassword.trim()}>{createBusy ? 'Creating…' : 'Create'}</Button>
+    </div>
+  </div>
+</Modal>
 
 <Modal open={deleteOpen} title="Delete User" size="sm" onclose={() => { deleteOpen = false; deleteTarget = null; }}>
   <div class="modal-body">
@@ -333,9 +372,17 @@
     background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 85%);
     color: color-mix(in srgb, var(--color-warning, #f59e0b), #000 30%);
   }
+  .status-pending {
+    background: color-mix(in srgb, #8b5cf6, transparent 85%);
+    color: #7c3aed;
+  }
 
   /* Modal styles */
   .modal-body { display: flex; flex-direction: column; gap: 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 0.8rem; font-weight: 600; color: var(--color-text); }
+  .form-check { display: flex; align-items: center; gap: 8px; font-size: 0.875rem; color: var(--color-text); cursor: pointer; }
+  .toast--error { background: #fee2e2; color: var(--color-danger); border: 1px solid #fecaca; border-radius: var(--radius); padding: 8px 12px; font-size: 0.8rem; }
   .section-title { font-size: 0.9rem; font-weight: 600; margin: 0; color: var(--color-text); }
   .member-list { display: flex; flex-direction: column; gap: 6px; }
   .member-row {

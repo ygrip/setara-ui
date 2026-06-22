@@ -53,6 +53,8 @@ export async function mockListRunResults(projectKey: string, runId: string): Pro
     id: `result-${runId}-${index}`,
     runId,
     scenarioId: scenario.id,
+    scenarioKey: scenario.scenarioKey ?? null,
+    sequenceNo: index + 1,
     cucumberId: scenario.cucumberId,
     featureUri: scenario.featureUri,
     featureName: scenario.featureName,
@@ -561,27 +563,31 @@ export async function mockListProjectStatistics(): Promise<ProjectStatistic[]> {
   });
 }
 
-export async function mockListProjectStatisticHistory(projectKey: string, days = 30): Promise<ProjectStatistic[]> {
+export async function mockListProjectStatisticHistory(projectKey: string, start: string, end: string, groupedBy: 'daily' | 'weekly' | 'monthly' = 'daily'): Promise<ProjectStatistic[]> {
   await delay(120);
   const project = mockProjects.find(item => item.projectKey === projectKey);
   if (!project) return [];
   const [latest] = await mockListProjectStatistics().then(rows => rows.filter(row => row.projectKey === projectKey));
   if (!latest) return [];
-  const cappedDays = Math.max(1, Math.min(days, 30));
+  const startMs = new Date(start).getTime();
+  const endMs = new Date(end).getTime();
+  const days = Math.max(1, Math.ceil((endMs - startMs) / 86_400_000) + 1);
+  const step = groupedBy === 'monthly' ? 30 : groupedBy === 'weekly' ? 7 : 1;
   const baseCoverage = latest.coveragePercentage;
-  return Array.from({ length: cappedDays }, (_, index) => {
-    const dayOffset = index;
-    const date = new Date('2026-05-28T00:00:00Z');
-    date.setUTCDate(date.getUTCDate() - dayOffset);
-    const coverage = Math.max(0, Math.min(100, baseCoverage - dayOffset * 1.4));
-    return {
+  const points: ProjectStatistic[] = [];
+  for (let i = 0; i < days; i += step) {
+    const date = new Date(startMs + i * 86_400_000);
+    const offset = days - 1 - i;
+    const coverage = Math.max(0, Math.min(100, baseCoverage - offset * 0.8));
+    points.push({
       ...latest,
       id: `${latest.id}-${date.toISOString().slice(0, 10)}`,
       statDate: date.toISOString().slice(0, 10),
       coveragePercentage: Number(coverage.toFixed(2)),
       updatedAt: date.toISOString()
-    };
-  });
+    });
+  }
+  return points;
 }
 
 export async function mockGetSquad(squadId: string): Promise<Squad> {

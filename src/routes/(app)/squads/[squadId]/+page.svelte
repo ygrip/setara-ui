@@ -6,14 +6,68 @@
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
-  import type { SquadProjectCoverage } from '$lib/api/statistics';
+  import type { SquadProjectCoverage, SquadHistoryPoint } from '$lib/api/statistics';
+  import { listSquadHistory } from '$lib/api/statistics';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import { untrack } from 'svelte';
 
   let { data } = $props();
 
   let projectSearch = $state('');
   let squadSortBy = $state<'projectName' | 'coveragePercentage' | 'totalScenarios'>('coveragePercentage');
   let squadSortDir = $state<'asc' | 'desc'>('asc');
+
+  // ── Trend chart controls ─────────────────────────────────────
+  let chartStart = $state(untrack(() => data.squadHistoryStart) ?? '');
+  let chartEnd = $state(untrack(() => data.squadHistoryEnd) ?? '');
+  let granularity = $state<'daily' | 'weekly' | 'monthly'>('daily');
+  let historyData = $state<SquadHistoryPoint[]>(untrack(() => data.squadHistory) ?? []);
+  let loadingHistory = $state(false);
+
+  async function refetchSquadHistory() {
+    if (!chartStart || !chartEnd) return;
+    loadingHistory = true;
+    try {
+      historyData = await listSquadHistory(data.squadId, chartStart, chartEnd, granularity);
+    } finally {
+      loadingHistory = false;
+    }
+  }
+
+  // displayHistory = raw API data (server already handles grouping)
+  const displayHistory = $derived(historyData);
+
+  const trendChartData = $derived({
+    labels: displayHistory.map(r => r.bucketDate.slice(5)),
+    datasets: [
+      {
+        label: 'Coverage %',
+        data: displayHistory.map(r => r.coveragePercentage),
+        borderColor: '#0d9488',
+        backgroundColor: 'rgba(13, 148, 136, 0.12)',
+        fill: true,
+        tension: 0.4,
+        yAxisID: 'y'
+      },
+      {
+        label: 'Pass %',
+        data: displayHistory.map(r => r.avgPassPercentage ?? null),
+        borderColor: '#6366f1',
+        backgroundColor: 'rgba(99, 102, 241, 0.08)',
+        fill: false,
+        tension: 0.4,
+        borderDash: [4, 3],
+        yAxisID: 'y1',
+        spanGaps: false
+      }
+    ]
+  });
+
+  const avgPassPct = $derived.by(() => {
+    const pts = displayHistory.filter(r => r.avgPassPercentage != null);
+    if (pts.length === 0) return null;
+    return pts.reduce((s, r) => s + (r.avgPassPercentage ?? 0), 0) / pts.length;
+  });
 
   function toggleSort(col: 'projectName' | 'coveragePercentage' | 'totalScenarios') {
     if (squadSortBy === col) squadSortDir = squadSortDir === 'asc' ? 'desc' : 'asc';
@@ -59,20 +113,6 @@
       borderWidth: 0
     }]
   });
-
-  const passRateChartData = {
-    labels: ['Wk 1', 'Wk 2', 'Wk 3', 'Wk 4', 'Wk 5', 'Wk 6', 'Wk 7'],
-    datasets: [{
-      label: 'Pass Rate %',
-      data: [72, 78, 75, 82, 85, 80, 88],
-      borderColor: '#0d9488',
-      backgroundColor: 'rgba(13, 148, 136, 0.12)',
-      fill: true,
-      tension: 0.4,
-      pointRadius: 4,
-      pointBackgroundColor: '#0d9488'
-    }]
-  };
 
   // Top 3 volatile = lowest coverage percentage
   const volatileProjects = $derived.by(() => {
@@ -126,8 +166,29 @@
           <DonutChart chartData={coverageDonut} size={240} />
         </div>
       </BentoCard>
-      <BentoCard title="Pass Rate Trend" subtitle="Last 7 Weeks" variant="default">
-        <LineChart chartData={passRateChartData} />
+      <BentoCard title="Coverage Trend{loadingHistory ? ' …' : ''}" subtitle="Automation coverage over time" variant="default">
+        <div class="chart-controls">
+          <label>Start <input type="date" bind:value={chartStart} onchange={refetchSquadHistory} /></label>
+          <label>End <input type="date" bind:value={chartEnd} onchange={refetchSquadHistory} /></label>
+          <label>Group
+            <select bind:value={granularity} onchange={refetchSquadHistory}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </label>
+          {#if avgPassPct != null}
+            <div class="pass-avg-badge">
+              <span class="pass-avg-label">Avg Pass</span>
+              <span class="pass-avg-value">{avgPassPct.toFixed(1)}%</span>
+            </div>
+          {/if}
+        </div>
+        {#if historyData.length === 0}
+          <p class="trend-empty">No coverage history available.</p>
+        {:else}
+          <LineChart chartData={trendChartData} height={260} label="Coverage" />
+        {/if}
       </BentoCard>
     </div>
 
@@ -214,6 +275,26 @@
   .cov-fill { height: 100%; background: #0d9488; border-radius: 3px; }
   .empty-cell { text-align: center; color: var(--color-text-muted); padding: 20px; }
   .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .chart-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chart-controls label {
+    display: flex; flex-direction: column; gap: 4px;
+    font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;
+  }
+  .chart-controls input,
+  .chart-controls select {
+    border: 1px solid var(--color-border); border-radius: 6px;
+    background: var(--color-bg); color: var(--color-text);
+    padding: 7px 9px; font: inherit;
+  }
+  .trend-empty { color: var(--color-text-muted); font-size: 0.85rem; margin: 16px 0; }
+  .pass-avg-badge {
+    display: flex; flex-direction: column; gap: 2px;
+    background: color-mix(in srgb, #6366f1, transparent 88%);
+    border: 1px solid color-mix(in srgb, #6366f1, transparent 70%);
+    border-radius: 8px; padding: 5px 10px;
+  }
+  .pass-avg-label { font-size: 0.68rem; font-weight: 600; color: #6366f1; text-transform: uppercase; letter-spacing: 0.04em; }
+  .pass-avg-value { font-size: 1rem; font-weight: 800; color: #6366f1; line-height: 1.1; }
   @media (max-width: 800px) {
     .metrics-row { grid-template-columns: repeat(2, 1fr); }
     .charts-row { grid-template-columns: 1fr; }

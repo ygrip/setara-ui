@@ -1,52 +1,78 @@
 <script lang="ts">
+  import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
-  import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { createBuild, type ProjectBuild } from '$lib/api/builds';
+  import { createBuild, listBuilds, type ProjectBuild } from '$lib/api/builds';
 
   let { data } = $props();
 
-  let allBuilds = $state<ProjectBuild[]>([]);
+  let builds = $state<ProjectBuild[]>([]);
+  let nextCursor = $state<string | null>(null);
+  let loadingMore = $state(false);
+  let hasMore = $derived(nextCursor !== null);
+
   let showCreate = $state(false);
   let creating = $state(false);
   let createError = $state('');
   let form = $state({ name: '', buildKey: '', version: '', description: '', requirements: '' });
   let statusFilter = $state('');
   let nameFilter = $state('');
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let sortBy = $state<'name' | 'createdAt' | 'verifiedAt'>('createdAt');
-  let sortDir = $state<'asc' | 'desc'>('desc');
+  let sentinel: HTMLElement;
 
   $effect(() => {
-    allBuilds = data.builds;
-    sortBy = (data.sortBy as 'name' | 'createdAt' | 'verifiedAt') ?? 'createdAt';
-    sortDir = (data.sortDir as 'asc' | 'desc') ?? 'desc';
+    builds = data.buildsPage.items;
+    nextCursor = data.buildsPage.nextCursor;
   });
 
-  function toggleSort(col: typeof sortBy) {
-    const nextDir: 'asc' | 'desc' = sortBy === col ? (sortDir === 'asc' ? 'desc' : 'asc') : (col === 'name' ? 'asc' : 'desc');
-    const params = new URLSearchParams(window.location.search);
-    params.set('sort_by', col);
-    params.set('sort_dir', nextDir);
-    goto(`?${params.toString()}`);
-  }
-
-  function sortIndicator(col: string) {
-    if (sortBy !== col) return '';
-    return sortDir === 'asc' ? ' ↑' : ' ↓';
-  }
-
-  // Client-side search/status filter only (sort is backend-owned)
-  const builds = $derived.by(() => {
-    const q = nameFilter.trim().toLowerCase();
-    return allBuilds.filter(b => {
-      const matchStatus = !statusFilter || b.status === statusFilter;
-      const matchName = !q || b.name.toLowerCase().includes(q) || (b.buildKey ?? '').toLowerCase().includes(q) || (b.version ?? '').toLowerCase().includes(q);
-      return matchStatus && matchName;
+  // Immediate re-fetch when status changes (nameFilter read without tracking)
+  $effect(() => {
+    const status = statusFilter || undefined;
+    const search = untrack(() => nameFilter.trim()) || undefined;
+    listBuilds(data.projectKey, status, undefined, undefined, search).then(page => {
+      builds = page.items;
+      nextCursor = page.nextCursor;
     });
   });
+
+  // Debounced re-fetch when name search changes (statusFilter read without tracking)
+  $effect(() => {
+    const q = nameFilter;
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      const status = untrack(() => statusFilter) || undefined;
+      listBuilds(data.projectKey, status, undefined, undefined, q.trim() || undefined).then(page => {
+        builds = page.items;
+        nextCursor = page.nextCursor;
+      });
+    }, 350);
+  });
+
+  async function loadMore() {
+    if (!nextCursor || loadingMore) return;
+    loadingMore = true;
+    try {
+      const page = await listBuilds(data.projectKey, statusFilter || undefined, nextCursor, undefined, nameFilter.trim() || undefined);
+      builds = [...builds, ...page.items];
+      nextCursor = page.nextCursor;
+    } finally {
+      loadingMore = false;
+    }
+  }
+
+  onMount(() => {
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '200px' });
+    if (sentinel) obs.observe(sentinel);
+    return () => obs.disconnect();
+  });
+
+  // No client-side filtering — results come from backend
+  const filtered = $derived(builds);
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
     switch (status) {
@@ -78,7 +104,7 @@
         description: form.description.trim() || undefined,
         requirements: form.requirements.trim() || undefined
       });
-      allBuilds = [created, ...allBuilds];
+      builds = [created, ...builds];
       showCreate = false;
       form = { name: '', buildKey: '', version: '', description: '', requirements: '' };
     } catch (error) {
@@ -125,7 +151,7 @@
       <option value="IN_PROGRESS">In Progress</option>
       <option value="VERIFIED">Verified</option>
     </select>
-    <span class="count">{builds.length} build{builds.length !== 1 ? 's' : ''}</span>
+    <span class="count">{filtered.length}{hasMore ? '+' : ''} build{filtered.length !== 1 ? 's' : ''}</span>
   </div>
 
   <section class="section">
@@ -133,18 +159,18 @@
       <table class="builds-table">
         <thead>
           <tr>
-            <th class="th-sort" onclick={() => toggleSort('name')}>Build{sortIndicator('name')}</th>
+            <th>Build</th>
             <th>Status</th>
             <th class="col-hide-sm">Version</th>
             <th>Scenarios</th>
             <th>Pass</th>
             <th class="col-hide-sm">Execution</th>
-            <th class="th-sort col-hide-xs" onclick={() => toggleSort('createdAt')}>Created{sortIndicator('createdAt')}</th>
-            <th class="th-sort col-hide-sm" onclick={() => toggleSort('verifiedAt')}>Verified{sortIndicator('verifiedAt')}</th>
+            <th class="col-hide-xs">Created</th>
+            <th class="col-hide-sm">Verified</th>
           </tr>
         </thead>
         <tbody>
-          {#each builds as build (build.id)}
+          {#each filtered as build (build.id)}
             <tr class="build-row" onclick={() => goto(`/projects/${data.projectKey}/builds/${build.id}`)}>
               <td class="name-cell">
                 <span class="build-name">{build.name}</span>
@@ -165,11 +191,14 @@
               <td class="nowrap muted col-hide-sm">{formatDate(build.verifiedAt)}</td>
             </tr>
           {/each}
-          {#if builds.length === 0}
+          {#if filtered.length === 0 && !loadingMore}
             <tr><td colspan="8" class="empty-cell">No builds found.</td></tr>
           {/if}
         </tbody>
       </table>
+    </div>
+    <div bind:this={sentinel} class="sentinel">
+      {#if loadingMore}<span class="loading-more">Loading…</span>{/if}
     </div>
   </section>
 </div>
@@ -210,8 +239,6 @@
   .builds-table th { padding: 10px 14px; text-align: left; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border); white-space: nowrap; }
   .builds-table td { padding: 12px 14px; border-bottom: 1px solid var(--color-border); vertical-align: middle; background: var(--color-surface); }
   .build-row:last-child td { border-bottom: none; }
-  .th-sort { cursor: pointer; user-select: none; }
-  .th-sort:hover { color: var(--color-accent); }
   .build-row { cursor: pointer; }
   .build-row:hover td { background: color-mix(in srgb, var(--color-accent), transparent 94%); }
   .name-cell { display: flex; flex-direction: column; gap: 2px; }
@@ -221,6 +248,8 @@
   .num { font-variant-numeric: tabular-nums; color: var(--color-text-muted); }
   .nowrap { white-space: nowrap; }
   .empty-cell { text-align: center; padding: 48px; color: var(--color-text-muted); font-size: 0.875rem; }
+  .sentinel { height: 1px; }
+  .loading-more { display: block; text-align: center; padding: 16px; color: var(--color-text-muted); font-size: 0.82rem; }
   .form { display: grid; gap: 14px; }
   .form label { display: grid; gap: 6px; color: var(--color-text-muted); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; }
   .form input, .form textarea { width: 100%; border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text); border-radius: 6px; padding: 10px 12px; font: inherit; text-transform: none; }

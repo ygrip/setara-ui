@@ -41,13 +41,15 @@
           },
           y: {
             grid: { color: 'rgba(125,149,137,0.12)' },
-            ticks: { color: '#7d9589', font: { size: 11 } },
-            min: 0
+            ticks: { color: '#7d9589', font: { size: 11 }, callback: (value: any) => `${value}%` },
+            min: 0,
+            max: 100
           },
           y1: {
+            display: 'auto',
             position: 'right',
             grid: { drawOnChartArea: false },
-            ticks: { color: '#7d9589', font: { size: 11 }, callback: value => `${value}%` },
+            ticks: { color: '#7d9589', font: { size: 11 }, callback: (value: any) => `${value}%` },
             min: 0,
             max: 100
           }
@@ -71,7 +73,7 @@
 
 <style>
   /* height: 100% fills parent when no inline height is set; overridden by inline style when height prop is provided */
-  .chart-wrap { position: relative; width: 100%; height: 100%; }
+  .chart-wrap { position: relative; width: 100%; height: 100%; margin-bottom: 16px; }
   .chart-label {
     font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
     letter-spacing: 0.06em; color: var(--color-text-muted);

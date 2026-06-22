@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import {
     executeImport,
     getImportJob,
@@ -42,8 +42,11 @@
 
   // ── History ───────────────────────────────────────────────────────
   let history = $state<ImportJobView[]>([]);
+  let historyNextCursor = $state<string | null>(null);
   let historyLoading = $state(false);
+  let historyLoadingMore = $state(false);
   let historyError = $state('');
+  let historySentinel = $state<HTMLElement | null>(null);
 
   const filteredIssues = $derived(
     (validation?.issues ?? result?.issues ?? polledJob?.issues ?? []).filter(
@@ -82,13 +85,35 @@
     historyLoading = true;
     historyError = '';
     try {
-      history = await listImportJobs(data.projectKey);
+      const page = await listImportJobs(data.projectKey);
+      history = page.items;
+      historyNextCursor = page.nextCursor;
     } catch (e) {
       historyError = (e as Error).message;
     } finally {
       historyLoading = false;
     }
   }
+
+  async function loadMoreHistory() {
+    if (!historyNextCursor || historyLoadingMore) return;
+    historyLoadingMore = true;
+    try {
+      const page = await listImportJobs(data.projectKey, historyNextCursor);
+      history = [...history, ...page.items];
+      historyNextCursor = page.nextCursor;
+    } finally {
+      historyLoadingMore = false;
+    }
+  }
+
+  onMount(() => {
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMoreHistory();
+    }, { rootMargin: '200px' });
+    if (historySentinel) obs.observe(historySentinel);
+    return () => obs.disconnect();
+  });
 
   function startPolling(importId: string) {
     pollingJobId = importId;
@@ -600,6 +625,9 @@
           </tbody>
         </table>
       </div>
+      <div bind:this={historySentinel} style="height:1px">
+        {#if historyLoadingMore}<div class="history-loading-more">Loading…</div>{/if}
+      </div>
     {/if}
   </div>
 </div>
@@ -607,6 +635,7 @@
 <style>
   .page { max-width: min(1520px, 100%); margin: 0 auto; padding: 2rem 1.5rem; }
 
+  .history-loading-more { text-align: center; padding: 12px; color: var(--color-text-muted); font-size: 0.82rem; }
   .breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1.5rem; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
   .breadcrumb a:hover { text-decoration: underline; }

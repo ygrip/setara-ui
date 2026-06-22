@@ -25,13 +25,23 @@ function fieldAsString(value: unknown): string | null {
   return typeof value === 'string' && value.trim() ? value.trim() : null;
 }
 
+function isTechnicalMessage(text: string): boolean {
+  return /java\.|Error id [0-9a-f-]{36}|at com\.|BootstrapMethod|VirtualMachine|NullPointer|ClassCast|OutOfMemory/i.test(
+    text
+  );
+}
+
 function messageFromJson(value: unknown): string | null {
   if (!value || typeof value !== 'object') return null;
   const body = value as Record<string, unknown>;
-  return fieldAsString(body.message)
-    ?? fieldAsString(body.error)
-    ?? fieldAsString(body.detail)
-    ?? fieldAsString(body.title);
+  const msg =
+    fieldAsString(body.message) ??
+    fieldAsString(body.error) ??
+    fieldAsString(body.detail) ??
+    fieldAsString(body.title) ??
+    fieldAsString(body.details); // Quarkus unhandled exception format
+  if (msg && isTechnicalMessage(msg)) return null;
+  return msg;
 }
 
 export function normalizeErrorMessage(error: unknown, fallback = DEFAULT_API_ERROR): string {

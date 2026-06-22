@@ -12,12 +12,13 @@ export async function load({ params }: { params: { projectKey: string } }) {
     getProject(projectKey),
     listRuns(projectKey),
     listApiKeys(projectKey),
-    listProjectStatisticHistory(projectKey, 1),
+    listProjectStatisticHistory(projectKey, new Date(Date.now() - 86_400_000).toISOString().slice(0, 10), new Date().toISOString().slice(0, 10)),
     listBuilds(projectKey)
   ]);
 
   const project = projectResult.status === 'fulfilled' ? projectResult.value : null as Project | null;
-  const builds = buildsResult.status === 'fulfilled' ? buildsResult.value : [] as ProjectBuild[];
+  const buildsPage = buildsResult.status === 'fulfilled' ? buildsResult.value : { items: [] as ProjectBuild[], nextCursor: null, prevCursor: null };
+  const builds = buildsPage.items;
   const latestBuild = builds[0] ?? null;
 
   // Get latest plan for this project's squad

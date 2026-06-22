@@ -7,6 +7,7 @@ export type SetaraSession = {
   permissions: string[];
   accessToken: string;
   expiresAt: string;
+  pendingPasswordChange?: boolean;
 };
 
 const SESSION_KEY = 'setara_session';
@@ -27,6 +28,7 @@ export function sessionFromLoginResult(result: {
   displayName: string;
   systemRole: string;
   expiresAt: string;
+  pendingPasswordChange?: boolean;
 }): SetaraSession {
   const role = (result.systemRole as SetaraRole) in ROLE_PERMISSIONS
     ? (result.systemRole as SetaraRole)
@@ -38,6 +40,7 @@ export function sessionFromLoginResult(result: {
     permissions: ROLE_PERMISSIONS[role],
     accessToken: result.token,
     expiresAt: result.expiresAt,
+    pendingPasswordChange: result.pendingPasswordChange ?? false,
   };
 }
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { invalidateAll } from '$app/navigation';
+  import { invalidateAll, goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
@@ -10,11 +10,12 @@
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import {
-    addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan,
-    type PlanBuild, type ReleasePlan, type SquadPlanMetrics
+    addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan, updateSquadPlan, deleteSquadPlan,
+    type PlanBuild, type PlanLifecycleEvent, type ReleasePlan, type SquadPlanMetrics
   } from '$lib/api/squadPlans';
   import { listBuilds, type ProjectBuild } from '$lib/api/builds';
   import { listProjects, type Project } from '$lib/api/projects';
+  import { getValidSession } from '$lib/auth';
 
   let { data }: {
     data: {
@@ -24,13 +25,15 @@
       plan: ReleasePlan | null;
       builds: PlanBuild[];
       metrics: SquadPlanMetrics | null;
+      lifecycle: PlanLifecycleEvent[];
       error: string | null;
     }
   } = $props();
 
   let builds = $state<PlanBuild[]>([]);
   let metrics = $state<SquadPlanMetrics | null>(null);
-  $effect(() => { builds = data.builds; metrics = data.metrics; });
+  let lifecycle = $state<PlanLifecycleEvent[]>([]);
+  $effect(() => { builds = data.builds; metrics = data.metrics; lifecycle = data.lifecycle ?? []; });
 
   let busy = $state(false);
   let actionError = $state('');
@@ -42,10 +45,21 @@
   let pickerBuilds = $state<ProjectBuild[]>([]);
   let pickerProjectKey = $state('');
   let pickerFilter = $state('');
+  let pickerProjectFilter = $state('');
   let pickerLoading = $state(false);
 
   // Close plan modal
   let showClose = $state(false);
+
+  // Edit plan modal
+  let showEditPlan = $state(false);
+  let editPlanName = $state('');
+  let editPlanVersion = $state('');
+  let editPlanReleaseDate = $state('');
+  let editPlanDescription = $state('');
+
+  // Delete plan confirm
+  let showDeletePlan = $state(false);
 
   const existingBuildIds = $derived(new Set(builds.map(b => b.buildId)));
   const reportPath = $derived(`/api/squads/${data.squadId}/plans/${data.planId}/report`);
@@ -124,12 +138,25 @@
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
+  function formatEventType(t: string): string {
+    return t.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function eventVariant(t: string): string {
+    if (t === 'PLAN_CREATED') return 'create';
+    if (t === 'BUILD_ADDED') return 'add';
+    if (t === 'BUILD_REMOVED') return 'remove';
+    if (t === 'STATUS_CHANGED') return 'status';
+    return 'default';
+  }
+
   async function openBuildPicker() {
     showBuildPicker = true;
     pickerProjects = [];
     pickerBuilds = [];
     pickerProjectKey = '';
     pickerFilter = '';
+    pickerProjectFilter = '';
     pickerLoading = true;
     try {
       const result = await listProjects();
@@ -144,15 +171,23 @@
   async function selectPickerProject(key: string) {
     pickerProjectKey = key;
     pickerBuilds = [];
+    pickerFilter = '';
     pickerLoading = true;
     try {
-      pickerBuilds = await listBuilds(key);
+      const page = await listBuilds(key);
+      pickerBuilds = page.items ?? [];
     } catch {
       pickerBuilds = [];
     } finally {
       pickerLoading = false;
     }
   }
+
+  const filteredPickerProjects = $derived(
+    pickerProjectFilter.trim()
+      ? pickerProjects.filter(p => `${p.name} ${p.projectKey}`.toLowerCase().includes(pickerProjectFilter.toLowerCase()))
+      : pickerProjects
+  );
 
   const filteredPickerBuilds = $derived(
     pickerBuilds.filter(b => {
@@ -184,6 +219,48 @@
       await invalidateAll();
     } catch (e) {
       actionError = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  function openEditPlan() {
+    editPlanName = data.plan?.name ?? '';
+    editPlanVersion = data.plan?.releaseVersion ?? '';
+    editPlanReleaseDate = data.plan?.releaseDate ? (data.plan.releaseDate as string).slice(0, 10) : '';
+    editPlanDescription = data.plan?.description ?? '';
+    showEditPlan = true;
+  }
+
+  async function handleEditPlan() {
+    busy = true;
+    actionError = '';
+    try {
+      await updateSquadPlan(data.squadId, data.planId, {
+        name: editPlanName || undefined,
+        releaseVersion: editPlanVersion || null,
+        releaseDate: editPlanReleaseDate || null,
+        description: editPlanDescription || null,
+        updatedBy: getValidSession()?.name ?? null
+      });
+      showEditPlan = false;
+      await invalidateAll();
+    } catch (e) {
+      actionError = (e as Error).message;
+    } finally {
+      busy = false;
+    }
+  }
+
+  async function handleDeletePlan() {
+    busy = true;
+    actionError = '';
+    try {
+      await deleteSquadPlan(data.squadId, data.planId, getValidSession()?.name ?? null);
+      await goto(`/squads/${data.squadId}/release-plans`);
+    } catch (e) {
+      actionError = (e as Error).message;
+      showDeletePlan = false;
     } finally {
       busy = false;
     }
@@ -243,6 +320,16 @@
       </div>
       <div class="plan-header-actions">
         <ReportExportMenu reportPath={reportPath} filenameBase={reportFilename} />
+        {#if data.plan.status !== 'CLOSED'}
+          <Button variant="secondary" onclick={openEditPlan} disabled={busy}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>'
+          >Edit</Button>
+        {/if}
+        {#if data.plan.status === 'OPEN'}
+          <Button variant="danger" onclick={() => { showDeletePlan = true; }} disabled={busy}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+          >Delete</Button>
+        {/if}
         <Button variant="secondary" href="/squads/{data.squadId}/release-plans/{data.planId}/quality-map"
           icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10"/><path d="M2 12h20"/></svg>'
         >
@@ -395,29 +482,28 @@
       {/if}
     </section>
 
-    <!-- Lifecycle info -->
+    <!-- Lifecycle -->
     <section class="section section--audit">
       <h2 class="section-title">Lifecycle</h2>
-      <div class="lifecycle-grid">
-        <div class="lc-item">
-          <span class="lc-label">Opened</span>
-          <span class="lc-value">{formatDateTime(data.plan.openedAt)}</span>
-          {#if data.plan.openedBy}<span class="lc-actor">{data.plan.openedBy}</span>{/if}
+      {#if lifecycle.length === 0}
+        <p class="empty-text">No lifecycle events recorded.</p>
+      {:else}
+        <div class="lc-timeline">
+          {#each lifecycle as event}
+            <div class="lc-row">
+              <span class="lc-dot lc-dot--{eventVariant(event.eventType)}"></span>
+              <div class="lc-body">
+                <span class="lc-type">{formatEventType(event.eventType)}</span>
+                {#if event.description}<span class="lc-desc">{event.description}</span>{/if}
+              </div>
+              <div class="lc-meta">
+                {#if event.actor}<span class="lc-actor">{event.actor}</span>{/if}
+                <span class="lc-date">{formatDateTime(event.occurredAt)}</span>
+              </div>
+            </div>
+          {/each}
         </div>
-        {#if data.plan.inProgressAt}
-          <div class="lc-item">
-            <span class="lc-label">In Progress</span>
-            <span class="lc-value">{formatDateTime(data.plan.inProgressAt)}</span>
-          </div>
-        {/if}
-        {#if data.plan.status === 'CLOSED' && data.plan.closedAt}
-          <div class="lc-item">
-            <span class="lc-label">Closed</span>
-            <span class="lc-value">{formatDateTime(data.plan.closedAt)}</span>
-            {#if data.plan.closedBy}<span class="lc-actor">{data.plan.closedBy}</span>{/if}
-          </div>
-        {/if}
-      </div>
+      {/if}
     </section>
   {/if}
 </div>
@@ -428,13 +514,22 @@
     <!-- Project list -->
     <div class="picker-col picker-col--projects">
       <h3 class="picker-col-title">Projects</h3>
+      <div class="picker-search">
+        <input
+          class="field-input"
+          type="search"
+          placeholder="Filter projects…"
+          bind:value={pickerProjectFilter}
+          aria-label="Filter projects"
+        />
+      </div>
       {#if pickerLoading && pickerProjects.length === 0}
         <p class="picker-loading">Loading…</p>
-      {:else if pickerProjects.length === 0}
-        <p class="picker-empty">No projects found.</p>
+      {:else if filteredPickerProjects.length === 0}
+        <p class="picker-empty">{pickerProjects.length === 0 ? 'No projects found.' : 'No projects match filter.'}</p>
       {:else}
         <ul class="picker-list">
-          {#each pickerProjects as project (project.id)}
+          {#each filteredPickerProjects as project (project.id)}
             <li>
               <button
                 class="picker-item"
@@ -491,6 +586,47 @@
   {#if actionError}<p class="form-error">{actionError}</p>{/if}
   <div class="modal-actions">
     <Button variant="secondary" size="sm" onclick={() => { showBuildPicker = false; }}>Close</Button>
+  </div>
+</Modal>
+
+<!-- Edit plan modal -->
+<Modal open={showEditPlan} title="Edit Release Plan" size="sm" onclose={() => { showEditPlan = false; }}>
+  <div class="field">
+    <label class="field-label" for="edit-plan-name">Name</label>
+    <input id="edit-plan-name" class="field-input" bind:value={editPlanName} placeholder="Plan name" />
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-plan-version">Release Version</label>
+    <input id="edit-plan-version" class="field-input" bind:value={editPlanVersion} placeholder="e.g. 2.4.0" />
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-plan-date">Release Date</label>
+    <input id="edit-plan-date" class="field-input" type="date" bind:value={editPlanReleaseDate} />
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-plan-desc">Description</label>
+    <textarea id="edit-plan-desc" class="field-textarea" bind:value={editPlanDescription} rows={3}></textarea>
+  </div>
+  {#if actionError}<p class="form-error">{actionError}</p>{/if}
+  <div class="modal-actions">
+    <Button variant="secondary" size="sm" onclick={() => { showEditPlan = false; }}>Cancel</Button>
+    <Button variant="primary" size="sm" onclick={handleEditPlan} disabled={busy || !editPlanName.trim()}>
+      {busy ? 'Saving…' : 'Save Changes'}
+    </Button>
+  </div>
+</Modal>
+
+<!-- Delete plan confirmation -->
+<Modal open={showDeletePlan} title="Delete Release Plan" size="sm" onclose={() => { showDeletePlan = false; }}>
+  <p class="close-confirm">
+    Delete <strong>{data.plan?.name}</strong>? This cannot be undone. Only plans with no active builds can be deleted.
+  </p>
+  {#if actionError}<p class="form-error">{actionError}</p>{/if}
+  <div class="modal-actions">
+    <Button variant="secondary" size="sm" onclick={() => { showDeletePlan = false; }}>Cancel</Button>
+    <Button variant="danger" size="sm" onclick={handleDeletePlan} disabled={busy}>
+      {busy ? 'Deleting…' : 'Delete Plan'}
+    </Button>
   </div>
 </Modal>
 
@@ -553,12 +689,23 @@
   .empty-state { text-align: center; padding: 48px 24px; color: var(--color-text-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
   .empty-title { font-size: 0.925rem; margin: 0 0 8px; color: var(--color-text); }
   .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
-  /* Lifecycle */
-  .lifecycle-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; padding: 16px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
-  .lc-item { display: flex; flex-direction: column; gap: 3px; }
-  .lc-label { font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); }
-  .lc-value { font-size: 0.875rem; color: var(--color-text); }
-  .lc-actor { font-size: 0.75rem; color: var(--color-text-muted); font-family: var(--font-mono); }
+  /* Lifecycle timeline */
+  .lc-timeline { display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; }
+  .lc-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }
+  .lc-row:last-child { border-bottom: none; }
+  .lc-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; margin-top: 4px; }
+  .lc-dot--create { background: #6366f1; }
+  .lc-dot--add { background: #16a34a; }
+  .lc-dot--remove { background: var(--color-danger, #dc2626); }
+  .lc-dot--status { background: #f59e0b; }
+  .lc-dot--default { background: var(--color-text-muted); }
+  .lc-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .lc-type { font-size: 0.8rem; font-weight: 700; color: var(--color-text); text-transform: capitalize; }
+  .lc-desc { font-size: 0.78rem; color: var(--color-text-muted); }
+  .lc-meta { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+  .lc-actor { font-size: 0.72rem; color: var(--color-text-muted); font-family: var(--font-mono); }
+  .lc-date { font-size: 0.72rem; color: var(--color-text-muted); white-space: nowrap; }
+  .empty-text { font-size: 0.85rem; color: var(--color-text-muted); margin: 0; }
   /* Build picker */
   .picker-layout { display: grid; grid-template-columns: 200px 1fr; gap: 16px; min-height: 320px; }
   .picker-col-title { font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-muted); margin: 0 0 8px; }

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
@@ -6,7 +7,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
-  import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, type ProjectBuild, type BuildScenario, type BuildAuditEvent } from '$lib/api/builds';
+  import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, updateBuild, deleteBuild, listBuildPlans, type ProjectBuild, type BuildScenario, type BuildAuditEvent, type PlanSummary } from '$lib/api/builds';
 
   let { data } = $props();
 
@@ -36,6 +37,25 @@
   // Verify notes modal (when there are failed scenarios)
   let verifyNotesOpen = $state(false);
   let verifyNotes = $state('');
+
+  // Edit build modal
+  let showEditBuild = $state(false);
+  let editBuildName = $state('');
+  let editBuildVersion = $state('');
+  let editBuildDescription = $state('');
+  let editBuildRequirements = $state('');
+  let editBuildBusy = $state(false);
+  let editBuildError = $state('');
+
+  // Delete build confirm
+  let showDeleteBuild = $state(false);
+  let deleteBuildBusy = $state(false);
+  let deleteBuildError = $state('');
+
+  // Associated plans
+  let associatedPlans = $state<PlanSummary[]>([]);
+  const deleteBuildBlockedPlans = $derived(associatedPlans.filter(p => p.status === 'CLOSED'));
+  const deleteBuildWarnPlans = $derived(associatedPlans.filter(p => p.status !== 'CLOSED'));
 
   // Bulk remove
   let selectedIds = $state<Set<string>>(new Set());
@@ -85,6 +105,10 @@
     scenarioPrevCursor = data.scenariosPage?.prevCursor ?? null;
     auditEvents = data.auditPage?.items ?? [];
     auditNextCursor = data.auditPage?.nextCursor ?? null;
+    // Load associated plans
+    if (data.build) {
+      listBuildPlans(data.projectKey, data.build.id).then(plans => { associatedPlans = plans; }).catch(() => {});
+    }
   });
 
   const chartData = $derived({
@@ -335,6 +359,57 @@
       verifying = false;
     }
   }
+
+  function openEditBuild() {
+    editBuildName = build?.name ?? '';
+    editBuildVersion = build?.version ?? '';
+    editBuildDescription = build?.description ?? '';
+    editBuildRequirements = build?.requirements ?? '';
+    editBuildError = '';
+    showEditBuild = true;
+  }
+
+  async function handleEditBuild() {
+    if (!build) return;
+    editBuildBusy = true;
+    editBuildError = '';
+    try {
+      build = await updateBuild(data.projectKey, build.id, {
+        name: editBuildName || undefined,
+        version: editBuildVersion || null,
+        description: editBuildDescription || null,
+        requirements: editBuildRequirements || null
+      });
+      showEditBuild = false;
+    } catch (e) {
+      editBuildError = (e as Error).message;
+    } finally {
+      editBuildBusy = false;
+    }
+  }
+
+  async function handleDeleteBuild() {
+    if (!build) return;
+    deleteBuildBusy = true;
+    deleteBuildError = '';
+    try {
+      await deleteBuild(data.projectKey, build.id);
+      await goto(`/projects/${data.projectKey}/builds`);
+    } catch (e) {
+      deleteBuildError = (e as Error).message;
+      showDeleteBuild = false;
+    } finally {
+      deleteBuildBusy = false;
+    }
+  }
+
+  function planStatusVariant(status: string): 'success' | 'info' | 'neutral' {
+    switch (status?.toUpperCase()) {
+      case 'CLOSED': return 'success';
+      case 'IN_PROGRESS': return 'info';
+      default: return 'neutral';
+    }
+  }
 </script>
 
 <svelte:head>
@@ -403,6 +478,14 @@
         >
           {verifying ? 'Verifying…' : 'Verify Build'}
         </Button>
+        <Button variant="secondary" onclick={openEditBuild}
+          icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4z"/></svg>'
+        >Edit</Button>
+        {#if build.status !== 'VERIFIED'}
+          <Button variant="danger" onclick={() => { showDeleteBuild = true; deleteBuildError = ''; }}
+            icon='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>'
+          >Delete</Button>
+        {/if}
       </div>
     </header>
 
@@ -441,6 +524,32 @@
     <section class="section ai-review-section">
       <AiReviewPanel reviewUrl="/api/projects/{data.projectKey}/builds/{data.buildId}/ai-review" label="this build" />
     </section>
+
+    {#if associatedPlans.length > 0}
+      <section class="section">
+        <h2>Release Plans</h2>
+        <DataTable>
+          {#snippet head()}
+            <tr>
+              <th>Plan Name</th>
+              <th>Squad</th>
+              <th>Release Version</th>
+              <th>Status</th>
+            </tr>
+          {/snippet}
+          {#snippet body()}
+            {#each associatedPlans as plan (plan.id)}
+              <tr class="clickable-row" onclick={() => goto(`/squads/${plan.squadId}/release-plans/${plan.id}`)}>
+                <td data-label="Plan Name"><strong>{plan.name}</strong></td>
+                <td data-label="Squad">{plan.squadName ?? '—'}</td>
+                <td data-label="Release Version">{plan.releaseVersion ? `v${plan.releaseVersion}` : '—'}</td>
+                <td data-label="Status"><Badge text={plan.status} variant={planStatusVariant(plan.status)} /></td>
+              </tr>
+            {/each}
+          {/snippet}
+        </DataTable>
+      </section>
+    {/if}
 
     <section class="section">
       <h2>Scenario Status</h2>
@@ -591,6 +700,84 @@
   </div>
 </Modal>
 
+<!-- Edit build modal -->
+<Modal open={showEditBuild} title="Edit Build" size="sm" onclose={() => { showEditBuild = false; }}>
+  <div class="field">
+    <label class="field-label" for="edit-build-name">Name</label>
+    <input id="edit-build-name" class="field-input" bind:value={editBuildName} placeholder="Build name" />
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-build-version">Version</label>
+    <input id="edit-build-version" class="field-input" bind:value={editBuildVersion} placeholder="e.g. 2.4.0" />
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-build-desc">Description</label>
+    <textarea id="edit-build-desc" class="field-textarea" bind:value={editBuildDescription} rows={3}></textarea>
+  </div>
+  <div class="field" style="margin-top:12px">
+    <label class="field-label" for="edit-build-req">Requirements</label>
+    <textarea id="edit-build-req" class="field-textarea" bind:value={editBuildRequirements} rows={3}></textarea>
+  </div>
+  {#if editBuildError}<p class="form-error">{editBuildError}</p>{/if}
+  <div class="modal-actions">
+    <Button variant="secondary" size="sm" onclick={() => { showEditBuild = false; }}>Cancel</Button>
+    <Button variant="primary" size="sm" onclick={handleEditBuild} disabled={editBuildBusy || !editBuildName.trim()}>
+      {editBuildBusy ? 'Saving…' : 'Save Changes'}
+    </Button>
+  </div>
+</Modal>
+
+<!-- Delete build confirmation -->
+<Modal open={showDeleteBuild} title="Delete Build" size="sm" onclose={() => { showDeleteBuild = false; }}>
+  {#if deleteBuildBlockedPlans.length > 0}
+    <p class="modal-warn modal-warn--error">
+      Cannot delete <strong>{build?.name}</strong>. This build is part of
+      {deleteBuildBlockedPlans.length === 1 ? 'a closed release plan' : `${deleteBuildBlockedPlans.length} closed release plans`}
+      and cannot be removed:
+    </p>
+    <ul class="plan-warning-list">
+      {#each deleteBuildBlockedPlans as p (p.id)}
+        <li><strong>{p.name}</strong>{p.releaseVersion ? ` · v${p.releaseVersion}` : ''}</li>
+      {/each}
+    </ul>
+    <p class="modal-hint">Closed plans are locked. Contact a squad lead if this build needs to be removed.</p>
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => { showDeleteBuild = false; }}>Close</Button>
+    </div>
+  {:else if deleteBuildWarnPlans.length > 0}
+    <p class="modal-warn">
+      Deleting <strong>{build?.name}</strong> will also revoke it from
+      {deleteBuildWarnPlans.length === 1 ? 'this release plan' : `these ${deleteBuildWarnPlans.length} release plans`}:
+    </p>
+    <ul class="plan-warning-list">
+      {#each deleteBuildWarnPlans as p (p.id)}
+        <li>
+          <span class="plan-warning-name">{p.name}</span>
+          {#if p.squadName}<span class="plan-warning-meta">{p.squadName}</span>{/if}
+          {#if p.releaseVersion}<span class="plan-warning-meta">v{p.releaseVersion}</span>{/if}
+        </li>
+      {/each}
+    </ul>
+    <p class="modal-hint">This cannot be undone.</p>
+    {#if deleteBuildError}<p class="form-error">{deleteBuildError}</p>{/if}
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => { showDeleteBuild = false; }}>Cancel</Button>
+      <Button variant="danger" size="sm" onclick={handleDeleteBuild} disabled={deleteBuildBusy}>
+        {deleteBuildBusy ? 'Deleting…' : 'Revoke & Delete'}
+      </Button>
+    </div>
+  {:else}
+    <p class="modal-warn">Delete <strong>{build?.name}</strong>? This cannot be undone.</p>
+    {#if deleteBuildError}<p class="form-error">{deleteBuildError}</p>{/if}
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => { showDeleteBuild = false; }}>Cancel</Button>
+      <Button variant="danger" size="sm" onclick={handleDeleteBuild} disabled={deleteBuildBusy}>
+        {deleteBuildBusy ? 'Deleting…' : 'Delete Build'}
+      </Button>
+    </div>
+  {/if}
+</Modal>
+
 <style>
   .page { max-width: min(1560px, 100%); }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
@@ -721,4 +908,23 @@
     .add-menu-item { padding: 12px; gap: 8px; }
     .add-menu-item svg { width: 14px; height: 14px; }
   }
+
+  .clickable-row { cursor: pointer; }
+  .clickable-row:hover td { background: var(--color-surface-hover, var(--color-surface)); }
+
+  /* Edit/delete modal fields */
+  .field { display: flex; flex-direction: column; gap: 6px; }
+  .field-label { font-size: 0.8rem; font-weight: 600; color: var(--color-text-muted); }
+  .field-input, .field-textarea { font: inherit; font-size: 0.875rem; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); width: 100%; box-sizing: border-box; }
+  .field-input:focus, .field-textarea:focus { outline: none; border-color: var(--color-accent); }
+  .field-textarea { resize: vertical; }
+  .form-error { font-size: 0.8rem; color: var(--color-danger); margin: 4px 0 0; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 12px; }
+  .modal-warn { font-size: 0.875rem; color: var(--color-text); margin: 0 0 10px; }
+  .modal-warn--error { color: var(--color-danger); }
+  .modal-hint { font-size: 0.8rem; color: var(--color-text-muted); margin: 8px 0 0; }
+  .plan-warning-list { margin: 8px 0; padding-left: 18px; font-size: 0.875rem; display: flex; flex-direction: column; gap: 4px; }
+  .plan-warning-list li { display: flex; align-items: center; gap: 8px; }
+  .plan-warning-name { font-weight: 500; }
+  .plan-warning-meta { font-size: 0.75rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
 </style>

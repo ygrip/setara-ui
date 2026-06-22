@@ -72,17 +72,24 @@ export interface PlanMetrics {
   executionCoverage: number;
 }
 
-/** Global plans list — optionally filtered by squad */
+/** Global plans list — optionally filtered by squad and/or status */
 export async function listAllPlans(
   squadId?: string,
   cursor?: string,
   limit?: number,
   sortBy?: string,
-  sortDir?: string
+  sortDir?: string,
+  status?: string
 ): Promise<CursorPage<ReleasePlan>> {
   if (isMockMode()) return mockListAllPlans(squadId, cursor, limit, sortBy, sortDir);
-  const params = buildCursorParams(cursor, limit, sortBy, sortDir);
-  const squadParam = squadId ? `${params ? '&' : '?'}squad_id=${squadId}` : '';
-  const res = await apiFetch(`/api/plans${params}${squadParam}`);
+  const urlParams = new URLSearchParams();
+  if (cursor) urlParams.set('cursor', cursor);
+  if (limit) urlParams.set('limit', String(limit));
+  if (sortBy) urlParams.set('sort_by', sortBy);
+  if (sortDir) urlParams.set('sort_dir', sortDir);
+  if (squadId) urlParams.set('squad_id', squadId);
+  if (status) urlParams.set('status', status);
+  const qs = urlParams.toString() ? `?${urlParams.toString()}` : '';
+  const res = await apiFetch(`/api/plans${qs}`);
   return readJsonOrThrow<CursorPage<ReleasePlan>>(res);
 }

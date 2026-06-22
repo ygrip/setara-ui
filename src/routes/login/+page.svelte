@@ -42,7 +42,7 @@
     try {
       const result = await login(email.trim(), password);
       storeSession(sessionFromLoginResult(result));
-      goto('/dashboard', { replaceState: true });
+      goto(result.pendingPasswordChange ? '/profile?reason=set_password' : '/dashboard', { replaceState: true });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Login failed. Please try again.';
     } finally {

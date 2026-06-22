@@ -1346,10 +1346,10 @@ export const mockSquads: Record<string, Squad[]> = {
 };
 
 export const mockUsers: User[] = [
-  { id: 'user-1', email: 'alice@example.com', displayName: 'Alice Johnson', createdAt: '2026-01-05T00:00:00Z', disabledAt: null },
-  { id: 'user-2', email: 'bob@example.com', displayName: 'Bob Martinez', createdAt: '2026-01-06T00:00:00Z', disabledAt: null },
-  { id: 'user-3', email: 'carol@example.com', displayName: 'Carol Kim', createdAt: '2026-01-07T00:00:00Z', disabledAt: null },
-  { id: 'user-4', email: 'david@example.com', displayName: 'David Chen', createdAt: '2026-01-08T00:00:00Z', disabledAt: null },
+  { id: 'user-1', email: 'alice@example.com', displayName: 'Alice Johnson', createdAt: '2026-01-05T00:00:00Z', disabledAt: null, pendingPasswordChange: false },
+  { id: 'user-2', email: 'bob@example.com', displayName: 'Bob Martinez', createdAt: '2026-01-06T00:00:00Z', disabledAt: null, pendingPasswordChange: false },
+  { id: 'user-3', email: 'carol@example.com', displayName: 'Carol Kim', createdAt: '2026-01-07T00:00:00Z', disabledAt: null, pendingPasswordChange: false },
+  { id: 'user-4', email: 'david@example.com', displayName: 'David Chen', createdAt: '2026-01-08T00:00:00Z', disabledAt: null, pendingPasswordChange: false },
 ];
 
 export const passRateTrend = {

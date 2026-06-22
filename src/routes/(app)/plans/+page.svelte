@@ -32,7 +32,8 @@
       const page = await listAllPlans(
         selectedSquad || undefined,
         undefined, 200,
-        sortBy, sortDir
+        sortBy, sortDir,
+        selectedStatus || undefined
       );
       plans = page.items;
     } catch (e) {
@@ -47,7 +48,13 @@
       const page = await listAllSquads(undefined, 100);
       squads = page.items ?? [];
     } catch { /* ignore */ }
-    await loadPlans();
+  });
+
+  // Re-fetch when status or squad filter changes (also fires on initial mount)
+  $effect(() => {
+    void selectedStatus;
+    void selectedSquad;
+    loadPlans();
   });
 
   async function toggleSort(col: typeof sortBy) {
@@ -65,13 +72,11 @@
     return sortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
-  // Client-side filter only; order is backend-owned
+  // Name filter stays client-side (200-record cap already loaded from backend)
   const filtered = $derived.by(() => {
-    let result = plans;
-    if (selectedStatus) result = result.filter(p => p.status === selectedStatus);
     const q = nameFilter.trim().toLowerCase();
-    if (q) result = result.filter(p => p.name.toLowerCase().includes(q) || (p.releaseVersion ?? '').toLowerCase().includes(q));
-    return result;
+    if (!q) return plans;
+    return plans.filter(p => p.name.toLowerCase().includes(q) || (p.releaseVersion ?? '').toLowerCase().includes(q));
   });
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {

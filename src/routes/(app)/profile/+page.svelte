@@ -1,14 +1,18 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
+  import { page } from '$app/state';
+  import { browser } from '$app/environment';
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
-  import { clearSession, getValidSession, type SetaraSession } from '$lib/auth';
+  import { clearSession, getValidSession, storeSession, type SetaraSession } from '$lib/auth';
   import { changePassword } from '$lib/api/client';
   import { isMockMode } from '$lib/mock/client';
 
   let session = $state<SetaraSession | null>(null);
   const isDemo = isMockMode();
+  const mustChangePassword = $derived(!!session?.pendingPasswordChange);
+  const reason = $derived(browser ? page.url.searchParams.get('reason') : null);
 
   // Change password form
   let currentPassword = $state('');
@@ -37,6 +41,7 @@
     if (newPassword !== confirmPassword) { pwError = 'Passwords do not match.'; return; }
 
     if (isDemo) {
+      if (session) { session = { ...session, pendingPasswordChange: false }; storeSession(session); }
       pwToast = 'demo';
       currentPassword = '';
       newPassword = '';
@@ -66,6 +71,13 @@
     <h1 class="page-title">Profile</h1>
     <p class="page-subtitle">Manage your account</p>
   </div>
+
+  {#if mustChangePassword || reason === 'set_password'}
+    <div class="pending-banner">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <span>Your account was created with a temporary password. Please change it below before continuing.</span>
+    </div>
+  {/if}
 
   {#if session}
     <Card padding="sm">
@@ -190,6 +202,16 @@
   .page-header { margin-bottom: 28px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .page-subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
+
+  .pending-banner {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 12px 16px; border-radius: var(--radius);
+    background: color-mix(in srgb, var(--color-warning, #f59e0b), transparent 88%);
+    color: color-mix(in srgb, var(--color-warning, #f59e0b), #000 30%);
+    border: 1px solid color-mix(in srgb, var(--color-warning, #f59e0b), transparent 60%);
+    font-size: 0.875rem; margin-bottom: 16px;
+  }
+  .pending-banner svg { flex-shrink: 0; margin-top: 1px; }
 
   .profile-card-content { overflow: hidden; }
 

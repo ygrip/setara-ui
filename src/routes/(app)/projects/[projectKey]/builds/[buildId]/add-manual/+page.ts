@@ -14,13 +14,13 @@ export async function load({ params }: { params: { projectKey: string; buildId: 
   const [build, directories, scenarios] = await Promise.allSettled([
     getBuild(projectKey, buildId).catch(() => null),
     listAllDirectories(projectKey),
-    listScenarios(projectKey, null, 'ACTIVE').catch(() => [] as Scenario[])
+    listScenarios(projectKey, null, 'ACTIVE').catch(() => ({ items: [] as Scenario[], nextCursor: null, prevCursor: null }))
   ]);
   return {
     projectKey,
     buildId,
     build: build.status === 'fulfilled' ? build.value : null,
     directories: directories.status === 'fulfilled' ? directories.value : [] as TestDirectory[],
-    scenarios: scenarios.status === 'fulfilled' ? scenarios.value : [] as Scenario[]
+    scenarios: scenarios.status === 'fulfilled' ? scenarios.value.items : [] as Scenario[]
   };
 }

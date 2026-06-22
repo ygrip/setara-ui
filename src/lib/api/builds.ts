@@ -79,15 +79,19 @@ export interface BuildAuditEvent {
   metadata: Record<string, unknown> | null;
 }
 
-export async function listBuilds(projectKey: string, status?: string, sortBy?: string, sortDir?: string): Promise<ProjectBuild[]> {
-  if (isMockMode()) return mockListBuilds(projectKey);
+export async function listBuilds(projectKey: string, status?: string, cursor?: string, limit?: number, search?: string): Promise<CursorPage<ProjectBuild>> {
+  if (isMockMode()) {
+    const items = await mockListBuilds(projectKey);
+    return { items, nextCursor: null, prevCursor: null };
+  }
   const params = new URLSearchParams();
   if (status) params.set('status', status);
-  if (sortBy) params.set('sort_by', sortBy);
-  if (sortDir) params.set('sort_dir', sortDir);
+  if (search) params.set('search', search);
+  if (cursor) params.set('cursor', cursor);
+  if (limit) params.set('limit', String(limit));
   const qs = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/builds${qs}`);
-  return res.json();
+  return readJsonOrThrow(res);
 }
 
 export async function createBuild(projectKey: string, body: {
@@ -254,4 +258,39 @@ export async function bulkAddScenarios(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
+}
+
+export async function updateBuild(
+  projectKey: string,
+  buildId: string,
+  body: { name?: string; version?: string | null; description?: string | null; requirements?: string | null }
+): Promise<ProjectBuild> {
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  return readJsonOrThrow(res);
+}
+
+export async function deleteBuild(projectKey: string, buildId: string): Promise<void> {
+  await apiFetch(`/api/projects/${projectKey}/builds/${buildId}`, { method: 'DELETE' });
+}
+
+export interface PlanSummary {
+  id: string;
+  name: string;
+  status: string;
+  squadId: string | null;
+  squadName: string | null;
+  releaseVersion: string | null;
+}
+
+export async function listBuildPlans(projectKey: string, buildId: string): Promise<PlanSummary[]> {
+  if (isMockMode()) return [
+    { id: 'mock-plan-1', name: 'Release v1.0', status: 'IN_PROGRESS', squadId: 'sq-1', squadName: 'Backend Squad', releaseVersion: 'v1.0' },
+    { id: 'mock-plan-2', name: 'Hotfix v0.9.1', status: 'CLOSED', squadId: 'sq-1', squadName: 'Backend Squad', releaseVersion: 'v0.9.1' }
+  ];
+  const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/plans`);
+  return readJsonOrThrow(res);
 }

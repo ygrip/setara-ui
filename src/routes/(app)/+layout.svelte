@@ -67,6 +67,10 @@
       goto('/login');
       return;
     }
+    if (session.pendingPasswordChange && !page.url.pathname.startsWith('/profile')) {
+      goto('/profile?reason=set_password');
+      return;
+    }
 
     function handleKeydown(e: KeyboardEvent) {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -858,6 +862,8 @@
     min-width: 0;
     display: flex;
     flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
   }
 
   /* ── Top bar ── */
@@ -867,10 +873,9 @@
     gap: 12px;
     height: var(--topbar-height);
     padding: 0 20px;
-    background: rgba(248, 250, 252, 0.78);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-bottom: 1px solid rgba(203, 213, 225, 0.5);
+    background: #ffffff;
+    border-bottom: 2px solid rgba(0, 175, 165, 0.25);
+    box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
     position: sticky;
     top: 0;
     z-index: 50;
@@ -1174,7 +1179,9 @@
   /* Content */
   .content {
     flex: 1;
+    min-height: 0;
     padding: 32px;
+    overflow-y: auto;
   }
 
   /* Footer */
