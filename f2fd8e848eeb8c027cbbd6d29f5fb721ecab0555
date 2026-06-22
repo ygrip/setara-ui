@@ -1,0 +1,73 @@
+vite.config.ts
+  ef527c3887daa214 45
+src/lib/mock/client.ts
+  ef527c3887daa214 56-57
+src/routes/(app)/projects/[projectKey]/repository/+page.svelte
+  ef527c3887daa214 4,55-56,58-60,183-228,263,266-268,884,1131-1132,1134,2242-2243
+src/routes/(app)/projects/[projectKey]/builds/[buildId]/add-manual/+page.ts
+  ef527c3887daa214 17
+src/lib/api/statistics.ts
+  ef527c3887daa214 226-263
+src/routes/(app)/projects/[projectKey]/coverage/+page.svelte
+  ef527c3887daa214 8-9,14-20,22-24,26,28-31,36-40,57,60,130,142-145,147,150-153,156,164-192,233,245,248-251,253-258,260,263-272,275
+src/routes/(app)/profile/+page.svelte
+  ef527c3887daa214 4-5,8,14-15,44,75-81,206-215
+src/routes/(app)/squads/[squadId]/+page.svelte
+  ef527c3887daa214 9-10,12,20-26,29,33-36,38-49,51-71,169,180-189,191,288-297
+src/routes/(app)/+layout.svelte
+  ef527c3887daa214 70-73
+src/routes/(app)/projects/[projectKey]/+page.ts
+  ef527c3887daa214 15,20-21
+src/routes/(app)/projects/[projectKey]/repository/import/+page.svelte
+  ef527c3887daa214 2,45,47,88-90,98-116,628-630,638
+src/lib/api/organization.ts
+  ef527c3887daa214 27,86-89
+src/routes/(app)/plans/+page.svelte
+  ef527c3887daa214 35-36,53-57,75,78-79
+src/lib/mock/data.ts
+  ef527c3887daa214 1349-1352
+src/routes/(app)/admin/users/+page.svelte
+  ef527c3887daa214 6,109-128,139,192,199-200,241-244,248-255,375-378,382-385
+src/routes/(app)/projects/[projectKey]/builds/+page.ts
+  ef527c3887daa214 1,10,13-16,20
+src/routes/login/+page.svelte
+  ef527c3887daa214 45
+src/routes/(app)/projects/[projectKey]/builds/[buildId]/+page.svelte
+  ef527c3887daa214 57-58,732-747,749-770,778,923-929
+src/routes/(app)/squads/[squadId]/+page.ts
+  ef527c3887daa214 2,8-12,14-15,21
+src/lib/auth.ts
+  ef527c3887daa214 10,31,43
+src/routes/(app)/projects/[projectKey]/repository/+page.ts
+  ef527c3887daa214 1,14,17-18,29,38
+src/lib/api/builds.ts
+  ef527c3887daa214 82-86,89-91,94
+src/routes/(app)/projects/[projectKey]/builds/+page.svelte
+  ef527c3887daa214 2,7,11-15,22,24,27-28,31-39,41-63,66-71,74-75,107,154,168-169,173,194,200-201,251-252
+src/lib/api/plans.ts
+  ef527c3887daa214 75,81-82,85-93
+src/lib/api/testcases.ts
+  ef527c3887daa214 189-198,472-479
+src/routes/(app)/projects/[projectKey]/executions/[runId]/+page.svelte
+  ef527c3887daa214 129-130,158-199,405-446,450-467,478-483,485,753-816
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "f2fd8e848eeb8c027cbbd6d29f5fb721ecab0555",
+  "prompts": {
+    "ef527c3887daa214": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "b67b3c84-c1de-4255-819c-b0f3ece7637d",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 919,
+      "total_deletions": 282,
+      "accepted_lines": 740,
+      "overriden_lines": 52
+    }
+  }
+}
