@@ -139,7 +139,9 @@
           finishedAt: event.occurredAt,
           durationMs: null,
           exceptionType: null,
-          exceptionMessage: null
+          exceptionMessage: null,
+          stepsJson: null,
+          failedStepIndex: null
         }, ...results];
       } else {
         // Update status in case it changed.

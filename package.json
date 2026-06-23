@@ -21,7 +21,9 @@
     "build:demo": "cross-env VITE_MOCK=true BUILD_TARGET=demo vite build"
   },
   "overrides": {
-    "cookie": "^0.7.0"
+    "cookie": "^0.7.0",
+    "js-yaml": "^4.2.0",
+    "ts-deepmerge": "^8.0.0"
   },
   "dependencies": {
     "@melt-ui/svelte": "^0.86.6",
