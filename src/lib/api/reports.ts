@@ -83,7 +83,7 @@ function isReportContentType(contentType: string, format: ReportFormat): boolean
 
 export async function downloadReport(path: string, format: ReportFormat, fallbackName: string): Promise<void> {
   if (isMockMode()) {
-    throw new Error('Report export is unavailable in preview mode. Connect a live Setara backend to download reports.');
+    throw new Error('Report export is not available in demo mode.');
   }
 
   const response = await fetch(reportUrl(path, format), {
