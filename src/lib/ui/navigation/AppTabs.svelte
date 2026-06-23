@@ -1,9 +1,5 @@
 <script lang="ts">
-  export type AppTab = {
-    id: string;
-    label: string;
-    disabled?: boolean;
-  };
+  import type { AppTab } from './AppTabs.types';
 
   let {
     tabs,

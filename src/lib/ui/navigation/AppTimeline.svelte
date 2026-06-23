@@ -1,13 +1,6 @@
 <script lang="ts">
   import type { AppTone } from '$lib/ui/types';
-
-  export type AppTimelineItem = {
-    id: string;
-    title: string;
-    detail?: string;
-    meta?: string;
-    tone?: AppTone;
-  };
+  import type { AppTimelineItem } from './AppTimeline.types';
 
   let {
     items

@@ -214,13 +214,15 @@
     return () => { cancelled = true; };
   });
 
-  // Infinite scroll: IntersectionObserver fires loadMoreScenarios when sentinel enters view
+  // Infinite scroll: re-create observer whenever cursor changes so the new observer
+  // immediately fires if the sentinel is still in view after a page load.
   $effect(() => {
     const el = sentinelEl;
     const container = scrollEl;
-    if (!el || !container) return;
+    const cursor = scopedNextCursor; // tracked dependency — effect re-runs on cursor change
+    if (!el || !container || !cursor) return;
     const observer = new IntersectionObserver(
-      entries => { if (entries[0].isIntersecting && scopedNextCursor) loadMoreScenarios(); },
+      entries => { if (entries[0].isIntersecting) loadMoreScenarios(); },
       { root: container, rootMargin: '300px' }
     );
     observer.observe(el);

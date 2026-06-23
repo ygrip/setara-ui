@@ -179,6 +179,10 @@
     -webkit-text-fill-color: transparent;
     color: transparent;
     animation: brand-shimmer 5s ease-in-out infinite;
+    filter: drop-shadow(1px 0px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(-1px 0px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(0px 1px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(0px -1px 1px rgba(94,242,214,0.15));
   }
 
   @keyframes brand-shimmer {

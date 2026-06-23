@@ -5,6 +5,7 @@
   import Badge from './Badge.svelte';
   import SetaraLoader from './SetaraLoader.svelte';
   import MarkdownBlock from './MarkdownBlock.svelte';
+  import ReproduceModal from './ReproduceModal.svelte';
   import { lockBodyScroll } from '$lib/scroll-lock';
 
   interface Props {
@@ -68,14 +69,57 @@
     }
   }
 
-  function stepRunStatus(stepIndex: number): string | null {
-    if (!runResult?.stepsJson || stepIndex >= runResult.stepsJson.length) return null;
-    return runResult.stepsJson[stepIndex]?.status?.toUpperCase() ?? null;
+  function _stepRunResult(stepName: string): StepRunResult | null {
+    if (!runResult?.stepsJson) return null;
+    return runResult.stepsJson.find(s => s.name === stepName) ?? null;
   }
 
-  function stepRunError(stepIndex: number): string | null {
-    if (!runResult?.stepsJson || stepIndex >= runResult.stepsJson.length) return null;
-    return runResult.stepsJson[stepIndex]?.errorMessage ?? null;
+  function stepRunStatus(stepName: string): string | null {
+    return _stepRunResult(stepName)?.status?.toUpperCase() ?? null;
+  }
+
+  function stepRunError(stepName: string): string | null {
+    return _stepRunResult(stepName)?.errorMessage ?? null;
+  }
+
+  function stepRunDuration(stepName: string): string | null {
+    const ms = _stepRunResult(stepName)?.durationMs;
+    if (ms == null) return null;
+    if (ms < 1000) return `${ms}ms`;
+    return `${(ms / 1000).toFixed(1)}s`;
+  }
+
+  const failedSteps = $derived(
+    runResult?.stepsJson?.filter(s => s.status?.toUpperCase() === 'FAILED') ?? []
+  );
+
+  let showReproduceModal = $state(false);
+
+  const hasReproduceData = $derived(
+    scenario?.latestStatus === 'FAILED' && (
+      failedSteps.length > 0 ||
+      runResult?.exceptionType ||
+      runResult?.exceptionMessage ||
+      scenario?.exceptionType ||
+      (scenario?.failedStepIndex != null && scenarioDetail != null)
+    )
+  );
+
+  function buildReproduceSteps() {
+    if (!scenarioDetail) return [];
+    return scenarioDetail.steps.map(s => {
+      const r = runResult ? _stepRunResult(s.name) : null;
+      const isFailed = r
+        ? r.status?.toUpperCase() === 'FAILED'
+        : (scenario?.failedStepIndex != null && s.sequenceNo - 1 === scenario.failedStepIndex);
+      return {
+        num: s.sequenceNo,
+        keyword: s.keyword,
+        name: s.name,
+        failed: isFailed,
+        errorMessage: r?.errorMessage ?? null
+      };
+    });
   }
 
   function fmt(iso: string | null): string {
@@ -159,18 +203,17 @@
         </div>
       {/if}
 
-      {#if runResult?.exceptionType || runResult?.exceptionMessage}
-        <div class="exception-block">
-          <div class="exception-header">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-              <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><circle cx="12" cy="16" r="1" fill="currentColor"/>
-            </svg>
-            <span class="exception-type">{runResult?.exceptionType ?? 'Error'}</span>
-          </div>
-          {#if runResult?.exceptionMessage}
-            <pre class="exception-message">{runResult.exceptionMessage}</pre>
-          {/if}
-        </div>
+      {#if hasReproduceData}
+        <button class="reproduce-trigger" onclick={() => { showReproduceModal = true; }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+            <line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>
+          </svg>
+          How to Reproduce
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true" class="trigger-arrow">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
       {/if}
 
       {#if scenario.source !== 'AUTOMATION' && onupdateresult}
@@ -199,16 +242,20 @@
           </div>
         {:else if scenarioDetail && scenarioDetail.steps.length > 0}
           <ol class="steps-list">
-            {#each scenarioDetail.steps as step, i}
-              {@const runStatus = stepRunStatus(i)}
+            {#each scenarioDetail.steps as step}
+              {@const runStatus = stepRunStatus(step.name)}
               {@const isFailed = runStatus === 'FAILED'}
               {@const isPassed = runStatus === 'PASSED'}
               {@const isSkipped = runStatus === 'SKIPPED'}
-              {@const stepError = stepRunError(i)}
+              {@const stepError = stepRunError(step.name)}
+              {@const stepDur = stepRunDuration(step.name)}
               <li class="step-card" class:step-card--failed={isFailed} class:step-card--passed={isPassed} class:step-card--skipped={isSkipped}>
                 <div class="step-card-header">
                   <span class="step-num">{step.sequenceNo}</span>
                   <span class="step-kw {keywordVariant(step.keyword)}">{step.keyword}</span>
+                  {#if stepDur}
+                    <span class="step-duration">{stepDur}</span>
+                  {/if}
                   {#if runStatus}
                     <span class="step-run-status step-run-status--{runStatus.toLowerCase()}">{runStatus}</span>
                   {/if}
@@ -248,6 +295,16 @@
 
     </div>
   </div>
+
+  {#if showReproduceModal}
+    <ReproduceModal
+      scenarioName={scenario.name}
+      steps={buildReproduceSteps()}
+      exceptionType={runResult?.exceptionType ?? scenario.exceptionType}
+      exceptionMessage={runResult?.exceptionMessage ?? null}
+      onclose={() => { showReproduceModal = false; }}
+    />
+  {/if}
 {/if}
 
 <style>
@@ -367,31 +424,30 @@
   .notes-block { display: flex; flex-direction: column; gap: 4px; }
   .notes-text { font-size: 0.82rem; color: var(--color-text); margin: 0; line-height: 1.5; }
 
-  .exception-block {
-    background: color-mix(in srgb, var(--color-danger), transparent 92%);
-    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 70%);
-    border-radius: var(--radius);
-    padding: 14px;
-  }
-
-  .exception-header {
-    display: flex;
+  .reproduce-trigger {
+    display: inline-flex;
     align-items: center;
     gap: 7px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    padding: 9px 14px;
+    border-radius: 7px;
+    border: 1px solid color-mix(in srgb, var(--color-danger), transparent 55%);
+    background: color-mix(in srgb, var(--color-danger), transparent 92%);
     color: var(--color-danger);
-    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    align-self: flex-start;
   }
 
-  .exception-type { font-family: ui-monospace, monospace; font-size: 0.78rem; font-weight: 600; }
+  .reproduce-trigger:hover {
+    background: color-mix(in srgb, var(--color-danger), transparent 84%);
+    border-color: color-mix(in srgb, var(--color-danger), transparent 35%);
+  }
 
-  .exception-message {
-    font-family: ui-monospace, monospace;
-    font-size: 0.75rem;
-    color: var(--color-text);
-    white-space: pre-wrap;
-    word-break: break-word;
-    margin: 0;
-    line-height: 1.6;
+  .trigger-arrow {
+    margin-left: auto;
+    opacity: 0.6;
   }
 
   .action-row { display: flex; gap: 8px; }
@@ -490,6 +546,17 @@
   .kw-then   { color: #34d399; }
   .kw-and    { color: #94a3b8; }
   .kw-other  { color: #94a3b8; }
+
+  .step-duration {
+    font-size: 0.65rem;
+    color: var(--color-text-muted);
+    font-family: ui-monospace, monospace;
+    margin-left: auto;
+  }
+
+  .step-duration + .step-run-status {
+    margin-left: 6px;
+  }
 
   .step-run-status {
     margin-left: auto;

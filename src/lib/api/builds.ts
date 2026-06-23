@@ -61,6 +61,8 @@ export interface BuildScenario {
   sourceId?: string | null;
   durationMs?: number | null;
   notes?: string | null;
+  exceptionType?: string | null;
+  failedStepIndex?: number | null;
 }
 
 export interface RunScenarioView {

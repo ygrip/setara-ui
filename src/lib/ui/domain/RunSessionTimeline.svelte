@@ -1,13 +1,7 @@
 <script lang="ts">
-  import AppTimeline, { type AppTimelineItem } from '$lib/ui/navigation/AppTimeline.svelte';
-
-  export type RunSessionEvent = {
-    id?: string;
-    type: string;
-    message?: string | null;
-    status?: string | null;
-    occurredAt: string;
-  };
+  import AppTimeline from '$lib/ui/navigation/AppTimeline.svelte';
+  import type { AppTimelineItem } from '$lib/ui/navigation/AppTimeline.types';
+  import type { RunSessionEvent } from './RunSessionTimeline.types';
 
   let {
     events

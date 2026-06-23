@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount, untrack } from 'svelte';
   import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
@@ -21,34 +20,37 @@
   let nameFilter = $state('');
   let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
-  let sentinel: HTMLElement;
+  let sentinel = $state<HTMLElement | null>(null);
 
+  // Sync from SSR / SvelteKit route reloads
   $effect(() => {
     builds = data.buildsPage.items;
     nextCursor = data.buildsPage.nextCursor;
   });
 
-  // Immediate re-fetch when status changes (nameFilter read without tracking)
+  // Combined filter effect — single effect, skip initial mount (SSR already loaded)
+  let filterMounted = false;
   $effect(() => {
-    const status = statusFilter || undefined;
-    const search = untrack(() => nameFilter.trim()) || undefined;
-    listBuilds(data.projectKey, status, undefined, undefined, search).then(page => {
-      builds = page.items;
-      nextCursor = page.nextCursor;
-    });
-  });
-
-  // Debounced re-fetch when name search changes (statusFilter read without tracking)
-  $effect(() => {
+    const status = statusFilter;
     const q = nameFilter;
+    if (!filterMounted) { filterMounted = true; return; }
     if (searchTimer) clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
-      const status = untrack(() => statusFilter) || undefined;
-      listBuilds(data.projectKey, status, undefined, undefined, q.trim() || undefined).then(page => {
-        builds = page.items;
-        nextCursor = page.nextCursor;
-      });
-    }, 350);
+      listBuilds(data.projectKey, status || undefined, undefined, undefined, q.trim() || undefined)
+        .then(page => { builds = page.items; nextCursor = page.nextCursor; });
+    }, 300);
+  });
+
+  // Infinite scroll — $effect tracks nextCursor so observer is re-created on each new page
+  $effect(() => {
+    const el = sentinel;
+    const cursor = nextCursor; // tracked dependency — effect re-runs when cursor changes
+    if (!el || !cursor) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+    return () => obs.disconnect();
   });
 
   async function loadMore() {
@@ -62,14 +64,6 @@
       loadingMore = false;
     }
   }
-
-  onMount(() => {
-    const obs = new IntersectionObserver((entries) => {
-      if (entries[0].isIntersecting) loadMore();
-    }, { rootMargin: '200px' });
-    if (sentinel) obs.observe(sentinel);
-    return () => obs.disconnect();
-  });
 
   // No client-side filtering — results come from backend
   const filtered = $derived(builds);

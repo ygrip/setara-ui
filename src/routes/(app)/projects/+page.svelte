@@ -1,33 +1,33 @@
 <script lang="ts">
   import { invalidateAll } from '$app/navigation';
   import { onMount } from 'svelte';
-  import Badge from '$lib/components/Badge.svelte';
   import Button from '$lib/components/Button.svelte';
-  import Card from '$lib/components/Card.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
-  import { createProject, type Project } from '$lib/api/projects';
+  import { createProject, listProjects, type Project } from '$lib/api/projects';
   import { getValidSession, hasPermission } from '$lib/auth';
+  import { formatNumber, formatPercent } from '$lib/utils/format';
 
   let { data } = $props();
 
   let canWrite = $state(false);
   let search = $state('');
+  let sortBy = $state('createdAt');
+  let sortDir = $state('desc');
   let showModal = $state(false);
   let creating = $state(false);
   let createError = $state('');
 
-  // Form state
+  let projects = $state<Project[]>(data.projects);
+  let nextCursor = $state<string | null>(data.nextCursor);
+  let loading = $state(false);
+  let sentinel = $state<HTMLElement | null>(null);
+
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  let filterMounted = false;
+
   let formName = $state('');
   let formDesc = $state('');
-
-  const filtered = $derived(
-    data.projects.filter(
-      (p: Project) =>
-        p.name.toLowerCase().includes(search.toLowerCase()) ||
-        p.projectKey.toLowerCase().includes(search.toLowerCase())
-    )
-  );
 
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', {
@@ -39,19 +39,65 @@
     canWrite = hasPermission(getValidSession(), 'project:write');
   });
 
+  $effect(() => {
+    const q = search;
+    const by = sortBy;
+    const dir = sortDir;
+    if (!filterMounted) { filterMounted = true; return; }
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      listProjects(undefined, undefined, by, dir, q.trim() || undefined).then(page => {
+        projects = page.items;
+        nextCursor = page.nextCursor;
+      });
+    }, 300);
+  });
+
+  $effect(() => {
+    const el = sentinel;
+    const cursor = nextCursor;
+    if (!el || !cursor) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) loadMore();
+    }, { rootMargin: '200px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  });
+
+  async function loadMore() {
+    if (loading || !nextCursor) return;
+    loading = true;
+    try {
+      const page = await listProjects(nextCursor, undefined, sortBy, sortDir, search.trim() || undefined);
+      projects = [...projects, ...page.items];
+      nextCursor = page.nextCursor;
+    } finally {
+      loading = false;
+    }
+  }
+
+  function setSort(field: string) {
+    if (sortBy === field) {
+      sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      sortBy = field;
+      sortDir = field === 'name' ? 'asc' : 'desc';
+    }
+  }
+
   async function handleCreate(e: SubmitEvent) {
     e.preventDefault();
     creating = true;
     createError = '';
     try {
-      await createProject({
-        name: formName.trim(),
-        description: formDesc.trim() || undefined
-      });
+      await createProject({ name: formName.trim(), description: formDesc.trim() || undefined });
       formName = '';
       formDesc = '';
       showModal = false;
       await invalidateAll();
+      const page = await listProjects(undefined, undefined, sortBy, sortDir, search.trim() || undefined);
+      projects = page.items;
+      nextCursor = page.nextCursor;
     } catch (err) {
       createError = (err as Error).message;
     } finally {
@@ -68,55 +114,120 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Projects</h1>
-      <p class="page-subtitle">Your test projects — select one to view scenarios, builds, and coverage.</p>
+      <p class="page-subtitle">Select a project to view scenarios, builds, and coverage.</p>
     </div>
     {#if canWrite}
       <Button variant="primary" onclick={() => showModal = true}>+ New Project</Button>
     {/if}
   </div>
 
-  <div class="search-bar">
-    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-    </svg>
-    <input
-      type="text"
-      placeholder="Search projects…"
-      bind:value={search}
-      class="search-input"
-    />
+  <!-- Search + sort row -->
+  <div class="controls">
+    <div class="search-wrap">
+      <svg class="search-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+      </svg>
+      <input
+        type="text"
+        placeholder="Search by name or key…"
+        bind:value={search}
+        class="search-input"
+      />
+    </div>
+    <div class="sort-group">
+      <span class="sort-label">Sort</span>
+      <div class="sort-pills">
+        {#each [
+          { field: 'name', label: 'Name', defaultDir: 'asc' },
+          { field: 'createdAt', label: 'Date', defaultDir: 'desc' },
+          { field: 'scenarioCount', label: 'Scenarios', defaultDir: 'desc' },
+          { field: 'coveragePercent', label: 'Coverage', defaultDir: 'desc' },
+        ] as pill}
+          <button
+            class="sort-pill"
+            class:sort-pill--active={sortBy === pill.field}
+            onclick={() => setSort(pill.field)}
+          >
+            {pill.label}
+            {#if sortBy === pill.field}
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
+                {#if sortDir === 'asc'}
+                  <path d="M5 2l4 6H1z"/>
+                {:else}
+                  <path d="M5 8L1 2h8z"/>
+                {/if}
+              </svg>
+            {/if}
+          </button>
+        {/each}
+      </div>
+    </div>
   </div>
 
   {#if data.error}
     <AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>
   {/if}
 
-  {#if filtered.length === 0 && !data.error}
+  {#if projects.length === 0 && !data.error}
     <div class="empty-state">
-      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-        <path d="M3 7h18M3 12h18M3 17h18"/>
-      </svg>
-      <p>{search ? `No projects match "${search}".` : 'No projects yet. Create your first project to get started.'}</p>
+      {#if search}
+        <div class="empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+          </svg>
+        </div>
+        <p class="empty-title">No results for "{search}"</p>
+        <p class="empty-hint">Try a different search term.</p>
+        <button class="empty-link" onclick={() => search = ''}>Clear search</button>
+      {:else}
+        <div class="empty-icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
+          </svg>
+        </div>
+        <p class="empty-title">No projects yet</p>
+        <p class="empty-hint">Create your first project to start tracking test scenarios and coverage.</p>
+        {#if canWrite}
+          <button class="empty-link" onclick={() => showModal = true}>Create a project →</button>
+        {/if}
+      {/if}
     </div>
-  {:else if filtered.length > 0}
+  {:else if projects.length > 0}
     <div class="project-grid">
-      {#each filtered as project}
-        <Card href="/projects/{project.projectKey}" padding="lg" ariaLabel="Open {project.name}">
-          <div class="project-card-content">
-          <div class="card-top">
-            <Badge text={project.projectKey} variant="neutral" />
+      {#each projects as project}
+        <a class="project-card" href="/projects/{project.projectKey}" aria-label="Open {project.name}">
+          <!-- Card header -->
+          <div class="card-header">
+            <span class="card-key">{project.projectKey}</span>
           </div>
-          <h2 class="card-name">{project.name}</h2>
-          {#if project.description}
-            <p class="card-desc">{project.description}</p>
-          {/if}
-          <div class="card-meta">
-            <span>Created {formatDate(project.createdAt)}</span>
+
+          <!-- Name + description -->
+          <div class="card-body">
+            <h2 class="card-name">{project.name}</h2>
+            {#if project.description}
+              <p class="card-desc">{project.description}</p>
+            {/if}
           </div>
+
+          <!-- Bento stats grid -->
+          <div class="card-bento">
+            <div class="bento-cell">
+              <span class="bento-val">{project.scenarioCount != null ? formatNumber(project.scenarioCount) : '—'}</span>
+              <span class="bento-label">Scenarios</span>
+            </div>
+            <div class="bento-divider"></div>
+            <div class="bento-cell">
+              <span class="bento-val bento-val--coverage">{project.coveragePercent != null ? formatPercent(project.coveragePercent) : '—'}</span>
+              <span class="bento-label">Coverage</span>
+            </div>
           </div>
-        </Card>
+        </a>
       {/each}
     </div>
+    <div bind:this={sentinel} class="sentinel"></div>
+    {#if loading}
+      <div class="loading-more">Loading more…</div>
+    {/if}
   {/if}
 </div>
 
@@ -146,12 +257,13 @@
 <style>
   .page { max-width: min(1520px, 100%); }
 
+  /* ─── Header ─── */
   .page-header {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
     gap: 16px;
-    margin-bottom: 24px;
+    margin-bottom: 28px;
     flex-wrap: wrap;
   }
 
@@ -173,10 +285,20 @@
     font-size: 0.875rem;
   }
 
-  .search-bar {
-    position: relative;
+  /* ─── Controls ─── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
     margin-bottom: 24px;
-    max-width: 400px;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+    max-width: 380px;
   }
 
   .search-icon {
@@ -190,7 +312,7 @@
 
   .search-input {
     width: 100%;
-    padding: 8px 12px 8px 34px;
+    padding: 8px 12px 8px 32px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-surface);
@@ -198,53 +320,182 @@
     font-size: 0.875rem;
     outline: none;
     transition: border-color 0.15s;
+    box-sizing: border-box;
   }
 
-  .search-input:focus {
-    border-color: var(--color-accent);
+  .search-input:focus { border-color: var(--color-accent); }
+
+  .sort-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  .sort-label {
+    font-size: 0.78rem;
+    color: var(--color-text-muted);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .sort-pills {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    overflow: hidden;
+    background: var(--color-surface);
+  }
+
+  .sort-pill {
+    padding: 6px 14px;
+    border: none;
+    background: transparent;
+    color: var(--color-text-muted);
+    font-size: 0.8rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: background 0.12s, color 0.12s;
+    border-right: 1px solid var(--color-border);
+  }
+
+  .sort-pill:last-child { border-right: none; }
+
+  .sort-pill:hover {
+    background: color-mix(in srgb, var(--color-accent) 6%, transparent);
+    color: var(--color-text);
+  }
+
+  .sort-pill--active {
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    color: var(--color-accent);
+    font-weight: 600;
   }
 
   :global(.page > .app-alert) { margin-bottom: 20px; }
 
+  /* ─── Empty state ─── */
   .empty-state {
-    text-align: center;
-    padding: 60px 20px;
-    color: var(--color-text-muted);
-  }
-
-  .empty-state svg {
-    margin-bottom: 12px;
-    opacity: 0.4;
-  }
-
-  .project-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 16px;
-  }
-
-  .project-card-content {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 72px 20px 56px;
     gap: 8px;
-    min-height: 138px;
   }
 
-  .card-top {
+  .empty-icon {
+    width: 52px;
+    height: 52px;
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: center;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    color: var(--color-text-muted);
+    margin-bottom: 6px;
   }
 
-  .card-name {
-    font-size: 1rem;
+  .empty-title {
+    font-size: 0.95rem;
     font-weight: 600;
     color: var(--color-text);
     margin: 0;
   }
 
+  .empty-hint {
+    font-size: 0.82rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    max-width: 280px;
+  }
+
+  .empty-link {
+    background: none;
+    border: none;
+    color: var(--color-accent);
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 4px 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  /* ─── Grid ─── */
+  .project-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 16px;
+  }
+
+  /* ─── Project card ─── */
+  .project-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    overflow: hidden;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color 0.15s, box-shadow 0.15s;
+    cursor: pointer;
+  }
+
+  .project-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 2px 12px color-mix(in srgb, var(--color-accent) 12%, transparent);
+  }
+
+  .card-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px 0;
+    gap: 8px;
+  }
+
+  .card-key {
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
+    border-radius: 4px;
+    padding: 2px 7px;
+  }
+
+  .card-date {
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+  }
+
+  .card-body {
+    padding: 10px 16px 14px;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .card-name {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
+    line-height: 1.3;
+  }
+
   .card-desc {
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     color: var(--color-text-muted);
     margin: 0;
     line-height: 1.5;
@@ -255,23 +506,62 @@
     overflow: hidden;
   }
 
-  .card-meta {
-    margin-top: auto;
-    padding-top: 8px;
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
+  /* ─── Bento stats ─── */
+  .card-bento {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
     border-top: 1px solid var(--color-border);
+    background: color-mix(in srgb, var(--color-accent) 3%, var(--color-surface));
   }
 
-  /* Form */
+  .bento-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 8px;
+    gap: 2px;
+  }
+
+  .bento-divider {
+    width: 1px;
+    background: var(--color-border);
+    margin: 8px 0;
+  }
+
+  .bento-val {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--color-text);
+    line-height: 1;
+  }
+
+  .bento-val--coverage {
+    color: var(--color-success, #16a34a);
+  }
+
+  .bento-label {
+    font-size: 0.68rem;
+    color: var(--color-text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  .sentinel { height: 1px; }
+
+  .loading-more {
+    text-align: center;
+    padding: 20px;
+    color: var(--color-text-muted);
+    font-size: 0.82rem;
+  }
+
+  /* ─── Form ─── */
   .form { display: flex; flex-direction: column; gap: 16px; }
-
   .field { display: flex; flex-direction: column; gap: 4px; }
-
   .label { font-size: 0.8rem; font-weight: 600; color: var(--color-text); }
-
   .req { color: var(--color-danger); }
-
   .hint { font-size: 0.72rem; color: var(--color-text-muted); }
 
   .input {
@@ -286,7 +576,6 @@
   }
 
   .input:focus { border-color: var(--color-accent); }
-
   .textarea { resize: vertical; min-height: 72px; }
 
   .form-error {

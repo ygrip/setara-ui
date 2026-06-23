@@ -80,10 +80,19 @@ export interface ManualExecution {
   createdAt: string;
 }
 
-export async function listDirectories(projectKey: string, parentId?: string | null, status = 'ACTIVE'): Promise<TestDirectory[]> {
+export async function listDirectories(
+  projectKey: string,
+  parentId?: string | null,
+  status = 'ACTIVE',
+  all = false
+): Promise<TestDirectory[]> {
   if (isMockMode()) return mockListDirectories(projectKey, parentId, status);
   const params = new URLSearchParams();
-  if (parentId) params.set('parentId', parentId);
+  if (all) {
+    params.set('all', 'true');
+  } else if (parentId) {
+    params.set('parentId', parentId);
+  }
   if (status) params.set('status', status);
   const query = params.toString() ? `?${params.toString()}` : '';
   const res = await apiFetch(`/api/projects/${projectKey}/directories${query}`);

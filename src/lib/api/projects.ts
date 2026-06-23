@@ -12,11 +12,18 @@ export interface Project {
   description: string | null;
   active?: boolean;
   createdAt: string;
+  scenarioCount?: number | null;
+  coveragePercent?: number | null;
 }
 
-export async function listProjects(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Project>> {
+export async function listProjects(cursor?: string, limit?: number, sortBy?: string, sortDir?: string, search?: string): Promise<CursorPage<Project>> {
   if (isMockMode()) return mockListProjects(cursor, limit, sortBy, sortDir);
-  const res = await apiFetch(`/api/projects${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  let params = buildCursorParams(cursor, limit, sortBy, sortDir);
+  if (search && search.trim()) {
+    const sep = params.includes('?') ? '&' : '?';
+    params += sep + 'search=' + encodeURIComponent(search.trim());
+  }
+  const res = await apiFetch(`/api/projects${params}`);
   return readJsonOrThrow<CursorPage<Project>>(res);
 }
 

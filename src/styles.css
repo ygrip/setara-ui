@@ -56,7 +56,7 @@
   --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", "Fira Mono", monospace;
 
   --sidebar-width: 220px;
-  --topbar-height: 56px;
+  --topbar-height: 63px;
   --radius: 8px;
   --shadow: 0 1px 4px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.04);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 12px 32px rgb(0 0 0 / 0.06);

@@ -112,6 +112,18 @@
     };
   });
 
+  // Record recent pages for command palette
+  $effect(() => {
+    const path = page.url.pathname;
+    try {
+      const label = document.title.replace(/\s*[–—]\s*Setara.*$/i, '').trim() || path;
+      const key = 'setara:recent';
+      const existing: { href: string; label: string }[] = JSON.parse(localStorage.getItem(key) ?? '[]');
+      const fresh = [{ href: path, label }, ...existing.filter(p => p.href !== path)].slice(0, 10);
+      localStorage.setItem(key, JSON.stringify(fresh));
+    } catch {}
+  });
+
   $effect(() => {
     const isMobileView = window.matchMedia('(max-width: 768px)').matches;
     const shouldLock = sidebarOpen || (userMenuOpen && isMobileView);
@@ -482,17 +494,15 @@
       <div class="route-skeleton" role="status" aria-live="polite" aria-label="Loading page"></div>
     {/if}
 
-    <!-- Page content -->
+    <!-- Page content + footer in same scroll container so footer is not sticky -->
     <main class="content">
       {@render children()}
+      <footer class="app-footer">
+        <span>© 2026 Setara</span>
+        <span class="footer-sep" aria-hidden="true">·</span>
+        <span>v0.1.0</span>
+      </footer>
     </main>
-
-    <!-- Footer -->
-    <footer class="app-footer">
-      <span>© 2026 Setara</span>
-      <span class="footer-sep" aria-hidden="true">·</span>
-      <span>v0.1.0</span>
-    </footer>
   </div>
 </div>
 
@@ -541,7 +551,7 @@
   /* ── Sidebar ── */
   .sidebar {
     width: var(--sidebar-width);
-    background: rgba(248, 250, 252, 0.75);
+    background: rgba(248, 250, 252, 0.85);
     backdrop-filter: blur(20px) saturate(180%);
     -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-right: 1px solid rgba(203, 213, 225, 0.6);
@@ -563,9 +573,11 @@
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 20px 16px 16px;
+    padding: 16px 14px 14px;
+    background: #ffffff;
     border-bottom: 1px solid var(--color-border);
     justify-content: space-between;
+    box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
   }
 
   /* Animated brand icon — CSS mask over gradient (matches brand-shimmer timing) */
@@ -607,6 +619,10 @@
     -webkit-text-fill-color: transparent;
     color: transparent;
     animation: brand-shimmer 5s ease-in-out infinite;
+    filter: drop-shadow(1px 0px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(-1px 0px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(0px 1px 1px rgba(94,242,214,0.15)) 
+          drop-shadow(0px -1px 1px rgba(94,242,214,0.15));
   }
 
   @keyframes brand-shimmer {
@@ -800,10 +816,12 @@
   }
 
   .sidebar-footer {
-    padding: 8px 12px;
+    padding: 16px 12px;
     border-top: 1px solid var(--color-border);
-    flex-shrink: 0; /* never squished by the flex nav above */
-    background: inherit; /* inherit sidebar background so it's visually distinct */
+    flex-shrink: 0;
+    background: inherit;
+    /* Height matches app-footer (16px padding × 2 + ~18px text line-height + 1px border) */
+    min-height: 50px;
   }
 
   .sidebar-search-btn {
@@ -874,7 +892,7 @@
     height: var(--topbar-height);
     padding: 0 20px;
     background: #ffffff;
-    border-bottom: 2px solid rgba(0, 175, 165, 0.25);
+    border-bottom: 1px solid var(--color-border);
     box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
     position: sticky;
     top: 0;
@@ -882,6 +900,11 @@
   }
 
   :global([data-theme="dark"]) .topbar {
+    background: rgba(11, 18, 32, 0.84);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  :global([data-theme="dark"]) .sidebar-brand {
     background: rgba(11, 18, 32, 0.84);
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
@@ -1184,7 +1207,7 @@
     overflow-y: auto;
   }
 
-  /* Footer */
+  /* Footer — inside .content scroll container so it scrolls with page content */
   .app-footer {
     display: flex;
     align-items: center;
@@ -1195,6 +1218,9 @@
     font-size: 0.72rem;
     color: var(--color-text-muted);
     opacity: 0.7;
+    /* Break out of .content's 32px side padding so border spans full width */
+    margin: 32px -32px -32px;
+    max-height: 50px; /* prevent footer from growing too tall if it wraps on mobile */
   }
 
   .footer-sep {

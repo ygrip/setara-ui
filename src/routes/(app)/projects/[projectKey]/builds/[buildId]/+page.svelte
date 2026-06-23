@@ -107,10 +107,11 @@
     return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
-  // Infinite scroll — fires loadMoreScenarios when sentinel enters viewport
+  // Infinite scroll — tracks scenarioNextCursor so observer re-fires on each new page
   $effect(() => {
     const el = scenarioSentinel;
-    if (!el) return;
+    const cursor = scenarioNextCursor; // tracked — effect re-runs when cursor changes
+    if (!el || !cursor) return;
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) loadMoreScenarios();
     }, { rootMargin: '200px' });
@@ -635,6 +636,18 @@
                   <strong>{scenario.scenarioKey}</strong>
                   <div class="muted">{scenario.name}</div>
                   {#if scenario.directoryPath}<div class="path-hint">{scenario.directoryPath}</div>{/if}
+                  {#if scenario.latestStatus === 'FAILED'}
+                    <div class="failure-hint">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                      {#if scenario.exceptionType}
+                        <span class="failure-hint-text">{scenario.exceptionType}</span>
+                      {:else if scenario.notes}
+                        <span class="failure-hint-text">{scenario.notes}</span>
+                      {:else}
+                        <span class="failure-hint-text">Click to view failure details</span>
+                      {/if}
+                    </div>
+                  {/if}
                 </div>
               </td>
               <td data-label="Expected"><Badge text={scenario.expectedStatus} variant="neutral" /></td>
@@ -837,6 +850,22 @@
   p, .muted { color: var(--color-text-muted); margin: 0; }
   .scenario-name-link { cursor: pointer; }
   .scenario-name-link:hover strong { color: var(--color-accent); text-decoration: underline; }
+  .failure-hint {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 4px;
+    color: var(--color-danger);
+  }
+  .failure-hint svg { flex-shrink: 0; }
+  .failure-hint-text {
+    font-size: 0.72rem;
+    font-family: ui-monospace, monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+  }
   .header-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .build-meta-section { display: flex; flex-direction: column; gap: 12px; background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); padding: 16px 20px; margin-bottom: 20px; }
   .build-meta-item { display: flex; flex-direction: column; gap: 4px; }

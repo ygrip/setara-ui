@@ -5,5 +5,5 @@ export { default as ReleaseGateStatusCard } from './ReleaseGateStatusCard.svelte
 export { default as RunSessionTimeline } from './RunSessionTimeline.svelte';
 export { default as ScenarioStatusBadge } from './ScenarioStatusBadge.svelte';
 export { scenarioStatusTone, statusLabel } from './status';
-export type { RunSessionEvent } from './RunSessionTimeline.svelte';
+export type { RunSessionEvent } from './RunSessionTimeline.types';
 
