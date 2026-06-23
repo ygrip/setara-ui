@@ -1,0 +1,23 @@
+src/lib/api/squadPlans.ts
+  42e52f42defd22f7 83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "4364c30a939ccb7c424b38a5faeae9b2b98834f3",
+  "prompts": {
+    "42e52f42defd22f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d05a8ba1-f9e3-4f5a-b90d-eb8b5d359f5a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 1,
+      "total_deletions": 1,
+      "accepted_lines": 1,
+      "overriden_lines": 0
+    }
+  }
+}
