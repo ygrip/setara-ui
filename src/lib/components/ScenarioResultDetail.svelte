@@ -142,22 +142,16 @@
             <span class="meta-value">{result.featureName}</span>
           </div>
         {/if}
-        {#if result.featureUri}
-          <div class="meta-item">
-            <span class="meta-label">Feature file</span>
-            <span class="meta-value mono small">{result.featureUri}</span>
-          </div>
-        {/if}
         {#if result.cucumberId}
           <div class="meta-item">
-            <span class="meta-label">Cucumber ID</span>
+            <span class="meta-label">Identifier</span>
             <span class="meta-value mono small">{result.cucumberId}</span>
           </div>
         {/if}
-        {#if result.scenarioLine}
-          <div class="meta-item">
-            <span class="meta-label">Line</span>
-            <span class="meta-value mono">{result.scenarioLine}</span>
+        {#if result.featureUri || result.scenarioLine}
+          <div class="meta-item meta-item--full">
+            <span class="meta-label">Location</span>
+            <span class="meta-value mono small">{result.featureUri ?? ''}{result.featureUri && result.scenarioLine ? ':' : ''}{result.scenarioLine ?? ''}</span>
           </div>
         {/if}
         <div class="meta-item">
@@ -415,6 +409,10 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
+  }
+
+  .meta-item--full {
+    grid-column: 1 / -1;
   }
 
   .meta-label {
