@@ -104,6 +104,10 @@ export async function listDirectoryMetadata(
   parentId?: string | null,
   status = 'ACTIVE'
 ): Promise<DirectoryMetadata[]> {
+  if (isMockMode()) {
+    const dirs = await mockListDirectories(projectKey, parentId, status);
+    return dirs.map(d => ({ id: d.id, parentId: d.parentId, name: d.name, slug: d.slug, path: d.path, childCount: 0, scenarioCount: d.scenarioCount }));
+  }
   const params = new URLSearchParams();
   if (parentId) params.set('parentId', parentId);
   if (status) params.set('status', status);

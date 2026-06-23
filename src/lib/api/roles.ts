@@ -26,6 +26,7 @@ export async function listConfigRoles(): Promise<ConfigRole[]> {
 }
 
 export async function getConfigRole(id: string): Promise<ConfigRole> {
+  if (isMockMode()) return mockConfigRoles.find(r => r.id === id) ?? mockConfigRoles[0];
   const res = await apiFetch(`/api/admin/roles/${id}`);
   return readJsonOrThrow(res);
 }

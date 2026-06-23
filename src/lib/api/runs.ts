@@ -103,6 +103,10 @@ export async function listRunResults(
 }
 
 export async function getRunResult(projectKey: string, resultId: string): Promise<ScenarioRunResult> {
+  if (isMockMode()) {
+    const results = await mockListRunResults(projectKey, resultId);
+    return results[0] ?? { id: resultId, runId: resultId, scenarioId: null, scenarioKey: null, cucumberId: null, featureUri: null, featureName: null, scenarioName: 'Mock Scenario', sequenceNo: 1, scenarioLine: null, tags: null, status: 'PASSED', startedAt: null, finishedAt: null, durationMs: null, exceptionType: null, exceptionMessage: null, stepsJson: null, failedStepIndex: null };
+  }
   const res = await apiFetch(`/api/projects/${projectKey}/run-results/${resultId}`);
   return readJsonOrThrow<ScenarioRunResult>(res);
 }
