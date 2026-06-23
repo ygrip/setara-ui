@@ -2,7 +2,7 @@ import { getApiBaseUrl } from './config';
 import { apiFetch, authHeaders } from './client';
 import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
-import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags } from '$lib/mock/client';
+import { isMockMode, mockGetScenario, mockListDirectories, mockListScenarios, mockUpdateScenario, mockGetProjectTags, mockSuggestScenarioSteps, mockSearchSimilarScenarios } from '$lib/mock/client';
 
 export interface TestDirectory {
   id: string;
@@ -554,7 +554,7 @@ export async function searchSimilarScenarios(
   limit = 10,
   excludeId?: string
 ): Promise<SimilarScenarioResult[]> {
-  if (isMockMode()) return [];
+  if (isMockMode()) return mockSearchSimilarScenarios(projectKey, excludeId).then(r => r.slice(0, limit));
   const params = new URLSearchParams();
   params.set('q', query);
   params.set('limit', String(limit));
@@ -573,7 +573,10 @@ export interface EmbeddingStatus {
 }
 
 export async function getProjectEmbeddingStatus(projectKey: string): Promise<EmbeddingStatus | null> {
-  if (isMockMode()) return null;
+  if (isMockMode()) {
+    const items = await mockListScenarios(projectKey, null, 'ACTIVE');
+    return { ready: true, pendingJobs: 0, indexedScenarios: items.length };
+  }
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/search/embedding-status`);
   if (!res.ok) return null;
   return res.json();
@@ -613,7 +616,7 @@ export async function suggestScenarioSteps(
   projectKey: string,
   request: SuggestStepsRequest
 ): Promise<StepSuggestionResponse> {
-  if (isMockMode()) return { suggestions: [], message: 'AI step suggestion is not available in mock mode.' };
+  if (isMockMode()) return mockSuggestScenarioSteps(request.scenarioName);
   const res = await apiFetch(`/api/projects/${projectKey}/scenarios/steps/suggest`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -633,7 +636,15 @@ export async function suggestScenarioStepsStream(
   onToken: (token: string) => void
 ): Promise<StepSuggestionResponse> {
   const unavailableMsg = 'AI step suggestions are unavailable right now. Check the Intelligence configuration and try again.';
-  if (isMockMode()) return { suggestions: [], message: 'AI step suggestion is not available in mock mode.' };
+  if (isMockMode()) {
+    const result = await mockSuggestScenarioSteps(request.scenarioName);
+    for (const step of result.suggestions) {
+      for (const word of `${step.keyword} ${step.name}\n`.split(' ')) {
+        onToken(word + ' ');
+      }
+    }
+    return result;
+  }
 
   const base = getApiBaseUrl().replace(/\/$/, '');
   const res = await fetch(`${base}/api/projects/${projectKey}/scenarios/steps/suggest/stream`, {

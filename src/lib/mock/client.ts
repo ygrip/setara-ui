@@ -12,7 +12,7 @@ import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User, TribeDetail, SquadDetail, SquadMember, UserDetail } from '$lib/api/organization';
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild, RunScenarioView } from '$lib/api/builds';
-import type { Scenario, TagInput, TagView, TestDirectory } from '$lib/api/testcases';
+import type { Scenario, TagInput, TagView, TestDirectory, StepSuggestion, StepSuggestionResponse, SimilarScenarioResult } from '$lib/api/testcases';
 import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
 
@@ -720,6 +720,29 @@ export async function mockListRunScenarios(projectKey: string, runId: string): P
     featureName: s.featureName,
     featureUri: s.featureUri,
     tags: s.tags.map(t => t.sanitized)
+  }));
+}
+
+export async function mockSuggestScenarioSteps(scenarioName: string): Promise<StepSuggestionResponse> {
+  await delay(600);
+  const isLogin = scenarioName.toLowerCase().includes('login') || scenarioName.toLowerCase().includes('auth');
+  const suggestions: StepSuggestion[] = [
+    { sequenceNo: 1, keyword: 'Given', name: isLogin ? 'user is on the login page' : 'user is on the application page', confidence: 0.88, reason: 'Common setup step' },
+    { sequenceNo: 2, keyword: 'When', name: isLogin ? 'user enters valid credentials and submits' : `user performs the ${scenarioName.split(' ').slice(0, 3).join(' ').toLowerCase()}`, confidence: 0.81, reason: 'Derived from scenario name' },
+    { sequenceNo: 3, keyword: 'Then', name: isLogin ? 'user is redirected to the dashboard' : 'the expected result is displayed to the user', confidence: 0.75, reason: 'Standard assertion' }
+  ];
+  return { suggestions, message: null };
+}
+
+export async function mockSearchSimilarScenarios(projectKey: string, excludeId?: string): Promise<SimilarScenarioResult[]> {
+  await delay(350);
+  const scenarios = (mockScenariosByProject[projectKey] ?? []).filter(s => s.id !== excludeId).slice(0, 4);
+  return scenarios.map((s, i) => ({
+    scenarioId: s.id,
+    scenarioKey: s.scenarioKey,
+    name: s.name,
+    path: s.featureUri ?? s.featureName ?? null,
+    score: parseFloat((0.87 - i * 0.07).toFixed(2))
   }));
 }
 
