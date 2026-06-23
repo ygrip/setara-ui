@@ -2,7 +2,7 @@ import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads } from '$lib/mock/client';
+import { isMockMode, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads, mockGetTribe, mockGetSquadDetail, mockSearchUsers } from '$lib/mock/client';
 
 export interface Tribe {
   id: string;
@@ -42,6 +42,7 @@ export async function listTribes(cursor?: string, limit?: number, sortBy?: strin
 }
 
 export async function createTribe(body: { name: string }): Promise<Tribe> {
+  if (isMockMode()) return { id: `tribe-${Date.now()}`, name: body.name, createdAt: new Date().toISOString() };
   const res = await apiFetch('/api/tribes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -57,6 +58,7 @@ export async function listSquads(tribeId: string, cursor?: string, limit?: numbe
 }
 
 export async function createSquad(tribeId: string, body: { name: string }): Promise<Squad> {
+  if (isMockMode()) return { id: `squad-${Date.now()}`, tribeId, tribeName: null, name: body.name, createdAt: new Date().toISOString() };
   const res = await apiFetch(`/api/tribes/${tribeId}/squads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -96,6 +98,7 @@ export async function createUser(body: { email: string; displayName: string; pas
 }
 
 export async function suspendUser(userId: string, suspended: boolean): Promise<User> {
+  if (isMockMode()) return { id: userId, email: 'user@example.com', displayName: 'Mock User', createdAt: new Date().toISOString(), disabledAt: suspended ? new Date().toISOString() : null, pendingPasswordChange: false };
   const res = await apiFetch(`/api/users/${userId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -105,6 +108,7 @@ export async function suspendUser(userId: string, suspended: boolean): Promise<U
 }
 
 export async function deleteUser(userId: string): Promise<void> {
+  if (isMockMode()) return;
   const res = await apiFetch(`/api/users/${userId}`, { method: 'DELETE' });
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -133,11 +137,13 @@ export interface TribeDetail {
 }
 
 export async function getTribe(tribeId: string): Promise<TribeDetail> {
+  if (isMockMode()) return mockGetTribe(tribeId);
   const res = await apiFetch(`/api/tribes/${tribeId}`);
   return readJsonOrThrow<TribeDetail>(res);
 }
 
 export async function updateTribe(tribeId: string, body: { name?: string; description?: string | null; leadId?: string | null }): Promise<TribeDetail> {
+  if (isMockMode()) return mockGetTribe(tribeId).then(t => ({ ...t, ...body }));
   const res = await apiFetch(`/api/tribes/${tribeId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
@@ -145,6 +151,7 @@ export async function updateTribe(tribeId: string, body: { name?: string; descri
 }
 
 export async function deleteTribe(tribeId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/tribes/${tribeId}`, { method: 'DELETE' });
 }
 
@@ -163,11 +170,13 @@ export interface SquadMember {
 }
 
 export async function getSquadDetail(squadId: string): Promise<SquadDetail> {
+  if (isMockMode()) return mockGetSquadDetail(squadId);
   const res = await apiFetch(`/api/squads/${squadId}/detail`);
   return readJsonOrThrow<SquadDetail>(res);
 }
 
 export async function updateSquad(squadId: string, body: { name?: string; description?: string | null; tribeId?: string | null; leadId?: string | null }): Promise<SquadDetail> {
+  if (isMockMode()) return mockGetSquadDetail(squadId).then(d => ({ ...d, ...body }));
   const res = await apiFetch(`/api/squads/${squadId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
@@ -175,10 +184,12 @@ export async function updateSquad(squadId: string, body: { name?: string; descri
 }
 
 export async function deleteSquad(squadId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/squads/${squadId}`, { method: 'DELETE' });
 }
 
 export async function addSquadMember(squadId: string, body: { email: string; role: string }): Promise<SquadMember> {
+  if (isMockMode()) return { id: `member-${Date.now()}`, userId: `user-${Date.now()}`, email: body.email, displayName: body.email.split('@')[0], role: body.role, createdAt: new Date().toISOString() };
   const res = await apiFetch(`/api/squads/${squadId}/members`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });
@@ -186,6 +197,7 @@ export async function addSquadMember(squadId: string, body: { email: string; rol
 }
 
 export async function removeSquadMember(squadId: string, userId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/squads/${squadId}/members/${userId}`, { method: 'DELETE' });
 }
 
@@ -198,6 +210,7 @@ export interface UserDetail {
 }
 
 export async function searchUsers(q?: string, cursor?: string, limit?: number): Promise<CursorPage<UserDetail>> {
+  if (isMockMode()) return mockSearchUsers(q, cursor, limit);
   const params = new URLSearchParams();
   if (q) params.set('q', q);
   if (cursor) params.set('cursor', cursor);

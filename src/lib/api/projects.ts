@@ -38,6 +38,7 @@ export async function createProject(body: {
   name: string;
   description?: string;
 }): Promise<Project> {
+  if (isMockMode()) return { id: `proj-mock-${Date.now()}`, squadId: body.squadId ?? null, projectKey: body.name.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 10), name: body.name, description: body.description ?? null, createdAt: new Date().toISOString() };
   const res = await apiFetch('/api/projects', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -52,6 +53,10 @@ export async function updateProject(projectKey: string, body: {
   description?: string | null;
   active?: boolean;
 }): Promise<Project> {
+  if (isMockMode()) {
+    const existing = await mockGetProject(projectKey);
+    return { ...existing, ...body };
+  }
   const res = await apiFetch(`/api/projects/${projectKey}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },

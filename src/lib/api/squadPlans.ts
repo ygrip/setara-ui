@@ -3,7 +3,7 @@ import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
 import type { ReleasePlan, PlanBuild, PlanMetrics } from './plans';
-import { isMockMode, mockGetSquadPlanMetrics, mockListAllPlans, mockGetSquadPlan, mockListSquadPlanBuilds, mockCreateSquadPlan } from '$lib/mock/client';
+import { isMockMode, mockGetSquadPlanMetrics, mockListAllPlans, mockGetSquadPlan, mockListSquadPlanBuilds, mockCreateSquadPlan, mockUpdateSquadPlan, mockCloseSquadPlan } from '$lib/mock/client';
 
 // Re-export shared types for convenience
 export type { ReleasePlan, PlanBuild, PlanMetrics };
@@ -52,6 +52,7 @@ export async function updateSquadPlan(
   planId: string,
   body: { name?: string; releaseVersion?: string | null; releaseDate?: string | null; description?: string | null; updatedBy?: string | null }
 ): Promise<ReleasePlan> {
+  if (isMockMode()) return mockUpdateSquadPlan(squadId, planId, body);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -61,6 +62,7 @@ export async function updateSquadPlan(
 }
 
 export async function deleteSquadPlan(squadId: string, planId: string, deletedBy?: string | null): Promise<void> {
+  if (isMockMode()) return;
   const params = deletedBy ? `?deletedBy=${encodeURIComponent(deletedBy)}` : '';
   await apiFetch(`/api/squads/${squadId}/plans/${planId}${params}`, { method: 'DELETE' });
 }
@@ -78,6 +80,7 @@ export async function addSquadPlanBuild(
   planId: string,
   body: { buildId: string; addedBy?: string | null }
 ): Promise<PlanBuild> {
+  if (isMockMode()) return { id: `plan-build-${Date.now()}`, buildId: body.buildId, buildKey: body.buildId, buildName: 'Mock Build', buildVersion: null, projectId: 'proj-mock', projectKey: 'MOCK', projectName: 'Mock Project', squadId: null, squadName: null, status: 'INITIATED', initiatedAt: new Date().toISOString(), verifiedAt: null, addedAt: new Date().toISOString(), addedBy: body.addedBy ?? null, metrics: { totalScenarios: 0, passed: 0, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 0, executionCoverage: 0 } };
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/builds`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -87,6 +90,7 @@ export async function addSquadPlanBuild(
 }
 
 export async function removeSquadPlanBuild(squadId: string, planId: string, buildId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/squads/${squadId}/plans/${planId}/builds/${buildId}`, { method: 'DELETE' });
 }
 
@@ -97,6 +101,7 @@ export async function closeSquadPlan(
   planId: string,
   body: { closedBy?: string | null; notes?: string | null } = {}
 ): Promise<ReleasePlan> {
+  if (isMockMode()) return mockCloseSquadPlan(squadId, planId, body);
   const res = await apiFetch(`/api/squads/${squadId}/plans/${planId}/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

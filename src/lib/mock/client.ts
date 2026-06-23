@@ -9,9 +9,9 @@ import {
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
-import type { Tribe, Squad, User } from '$lib/api/organization';
+import type { Tribe, Squad, User, TribeDetail, SquadDetail, SquadMember, UserDetail } from '$lib/api/organization';
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
-import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
+import type { BuildAuditEvent, BuildScenario, ProjectBuild, RunScenarioView } from '$lib/api/builds';
 import type { Scenario, TagInput, TagView, TestDirectory } from '$lib/api/testcases';
 import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
@@ -617,6 +617,110 @@ export async function mockListAllSquads(_cursor?: string, limit?: number): Promi
 export async function mockGetProjectTags(projectKey: string): Promise<TagView[]> {
   await delay(80);
   return mockTagsByProject[projectKey] ?? [];
+}
+
+export async function mockGetTribe(tribeId: string): Promise<TribeDetail> {
+  await delay(80);
+  const tribe = mockTribes.find(t => t.id === tribeId);
+  return {
+    id: tribeId,
+    name: tribe?.name ?? tribeId,
+    description: null,
+    leadId: null,
+    leadName: null,
+    createdAt: tribe?.createdAt ?? new Date().toISOString(),
+    updatedAt: tribe?.createdAt ?? new Date().toISOString()
+  };
+}
+
+export async function mockGetSquadDetail(squadId: string): Promise<SquadDetail> {
+  await delay(80);
+  const allSquads = Object.values(mockSquads).flat();
+  const squad = allSquads.find(s => s.id === squadId);
+  const tribe = squad ? mockTribes.find(t => t.id === squad.tribeId) : null;
+  const members: SquadMember[] = mockUsers.slice(0, 2).map((u, i) => ({
+    id: `member-${squadId}-${u.id}`,
+    userId: u.id,
+    email: u.email,
+    displayName: u.displayName,
+    role: i === 0 ? 'QA_LEAD' : 'QA',
+    createdAt: u.createdAt
+  }));
+  return {
+    id: squadId,
+    tribeId: squad?.tribeId ?? null,
+    tribeName: tribe?.name ?? null,
+    name: squad?.name ?? squadId,
+    description: null,
+    leadId: null,
+    leadName: null,
+    createdAt: squad?.createdAt ?? new Date().toISOString(),
+    updatedAt: squad?.createdAt ?? new Date().toISOString(),
+    members
+  };
+}
+
+export async function mockSearchUsers(q?: string, _cursor?: string, limit?: number): Promise<CursorPage<UserDetail>> {
+  await delay(100);
+  const filtered = q
+    ? mockUsers.filter(u => u.email.includes(q) || u.displayName.toLowerCase().includes(q.toLowerCase()))
+    : mockUsers;
+  const items: UserDetail[] = filtered.slice(0, limit ?? 20).map(u => ({ ...u, squads: [] }));
+  return { items, nextCursor: null, prevCursor: null };
+}
+
+export async function mockUpdateBuild(projectKey: string, buildId: string, body: { name?: string; version?: string | null; description?: string | null; requirements?: string | null }): Promise<ProjectBuild> {
+  await delay(120);
+  const builds = mockBuildsByProject[projectKey] ?? [];
+  const idx = builds.findIndex(b => b.id === buildId);
+  if (idx < 0) throw new Error(`Build ${buildId} not found`);
+  builds[idx] = { ...builds[idx], ...body, updatedAt: new Date().toISOString() };
+  return structuredClone(builds[idx]);
+}
+
+export async function mockUpdateSquadPlan(
+  squadId: string,
+  planId: string,
+  body: { name?: string; releaseVersion?: string | null; releaseDate?: string | null; description?: string | null }
+): Promise<ReleasePlan> {
+  await delay(120);
+  const idx = mockSquadPlans.findIndex(p => p.id === planId && p.squadId === squadId);
+  if (idx >= 0) {
+    mockSquadPlans[idx] = { ...mockSquadPlans[idx], ...body, updatedAt: new Date().toISOString() };
+    return structuredClone(mockSquadPlans[idx]);
+  }
+  return { ...(mockSquadPlans[0] ?? {}), ...body, id: planId, squadId } as ReleasePlan;
+}
+
+export async function mockCloseSquadPlan(
+  squadId: string,
+  planId: string,
+  body: { closedBy?: string | null; notes?: string | null } = {}
+): Promise<ReleasePlan> {
+  await delay(150);
+  const idx = mockSquadPlans.findIndex(p => p.id === planId && p.squadId === squadId);
+  const now = new Date().toISOString();
+  if (idx >= 0) {
+    mockSquadPlans[idx] = { ...mockSquadPlans[idx], status: 'CLOSED', closedAt: now, closedBy: body.closedBy ?? 'mock.user@setara.local', updatedAt: now };
+    return structuredClone(mockSquadPlans[idx]);
+  }
+  return mockSquadPlans[0] ?? {} as ReleasePlan;
+}
+
+export async function mockListRunScenarios(projectKey: string, runId: string): Promise<RunScenarioView[]> {
+  await delay(100);
+  const scenarios = (mockScenariosByProject[projectKey] ?? []).slice(0, 5);
+  return scenarios.map((s, i) => ({
+    id: `run-scenario-${runId}-${s.id}`,
+    scenarioId: s.id,
+    scenarioKey: s.scenarioKey,
+    scenarioName: s.name,
+    status: i === 0 ? 'FAILED' : 'PASSED',
+    cucumberId: s.cucumberId,
+    featureName: s.featureName,
+    featureUri: s.featureUri,
+    tags: s.tags.map(t => t.sanitized)
+  }));
 }
 
 export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise<HeatmapDay[]> {

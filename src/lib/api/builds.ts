@@ -1,6 +1,6 @@
 import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
-import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion } from '$lib/mock/client';
+import { isMockMode, mockAddBuildScenario, mockCreateBuild, mockGetBuild, mockListBuildAudit, mockListBuildScenarios, mockListBuilds, mockVerifyBuild, mockUpdateBuildScenarioResult, mockRemoveBuildScenarios, mockAddAutomationToBuild, mockGetBuildByVersion, mockListRunScenarios, mockUpdateBuild } from '$lib/mock/client';
 
 export interface CursorPage<T> {
   items: T[];
@@ -216,7 +216,7 @@ export async function addAutomationToBuild(
 }
 
 export async function listRunScenarios(projectKey: string, runId: string): Promise<RunScenarioView[]> {
-  if (isMockMode()) return [];
+  if (isMockMode()) return mockListRunScenarios(projectKey, runId);
   const res = await apiFetch(`/api/projects/${projectKey}/runs/${runId}/scenarios`);
   return res.json();
 }
@@ -247,6 +247,14 @@ export interface SuggestResponse {
 }
 
 export async function suggestScenarios(projectKey: string, buildId: string): Promise<SuggestResponse> {
+  if (isMockMode()) return {
+    suggestions: [
+      { scenarioId: 'mock-s1', scenarioKey: 'SCN-001', name: 'Verify checkout flow with valid payment', path: 'checkout/happy-path', confidence: 0.92, reason: 'High failure rate in recent builds' },
+      { scenarioId: 'mock-s2', scenarioKey: 'SCN-002', name: 'Validate cart total calculation with discounts', path: 'cart/calculations', confidence: 0.78, reason: 'Frequently changed feature' },
+      { scenarioId: 'mock-s3', scenarioKey: 'SCN-003', name: 'Test order cancellation within 30 minutes', path: 'orders/cancellation', confidence: 0.65, reason: 'Similar scenarios covered in past builds' }
+    ],
+    message: null
+  };
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/suggest-scenarios`, {
     method: 'POST'
   });
@@ -261,6 +269,7 @@ export async function bulkAddScenarios(
   buildId: string,
   body: { scenarioIds: string[]; source?: string; addedBy?: string }
 ): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/builds/${buildId}/scenarios/bulk-add`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -273,6 +282,7 @@ export async function updateBuild(
   buildId: string,
   body: { name?: string; version?: string | null; description?: string | null; requirements?: string | null }
 ): Promise<ProjectBuild> {
+  if (isMockMode()) return mockUpdateBuild(projectKey, buildId, body);
   const res = await apiFetch(`/api/projects/${projectKey}/builds/${buildId}`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
@@ -282,6 +292,7 @@ export async function updateBuild(
 }
 
 export async function deleteBuild(projectKey: string, buildId: string): Promise<void> {
+  if (isMockMode()) return;
   await apiFetch(`/api/projects/${projectKey}/builds/${buildId}`, { method: 'DELETE' });
 }
 
