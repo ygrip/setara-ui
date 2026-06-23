@@ -47,6 +47,14 @@ export async function mockGetRun(projectKey: string, runId: string): Promise<Aut
   return run;
 }
 
+const MOCK_FAILED_STEPS = [
+  { keyword: 'Given', name: 'user is logged in with valid credentials', line: 3, status: 'PASSED', durationMs: 120, errorMessage: null, description: null, expectation: null },
+  { keyword: 'And',   name: 'user has an active account with sufficient balance', line: 4, status: 'PASSED', durationMs: 85, errorMessage: null, description: null, expectation: null },
+  { keyword: 'When',  name: 'user initiates a refund request for order #ORD-20260522', line: 6, status: 'PASSED', durationMs: 340, errorMessage: null, description: null, expectation: null },
+  { keyword: 'Then',  name: 'the refund state should be APPROVED within 5 seconds', line: 8, status: 'FAILED', durationMs: 5023, errorMessage: 'AssertionError: Expected refund state to be APPROVED but was PENDING_REVIEW\n  at step "refund state should be APPROVED" (src/steps/refund.ts:47)', description: null, expectation: 'Refund status = APPROVED' },
+  { keyword: 'And',   name: 'user receives a refund confirmation notification', line: 9, status: 'SKIPPED', durationMs: null, errorMessage: null, description: null, expectation: null },
+];
+
 export async function mockListRunResults(projectKey: string, runId: string): Promise<ScenarioRunResult[]> {
   await delay(100);
   return mockListScenarios(projectKey, null, 'ACTIVE').then(scenarios => scenarios.slice(0, 2).map((scenario, index) => ({
@@ -66,9 +74,9 @@ export async function mockListRunResults(projectKey: string, runId: string): Pro
     finishedAt: '2026-05-23T08:02:00Z',
     durationMs: 120000,
     exceptionType: index === 0 ? null : 'AssertionError',
-    exceptionMessage: index === 0 ? null : 'Expected refund state to be APPROVED',
-    stepsJson: null,
-    failedStepIndex: null
+    exceptionMessage: index === 0 ? null : 'Expected refund state to be APPROVED but was PENDING_REVIEW',
+    stepsJson: index === 0 ? null : MOCK_FAILED_STEPS,
+    failedStepIndex: index === 0 ? null : 3
   })));
 }
 
