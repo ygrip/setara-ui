@@ -4,17 +4,39 @@
   import type { AsaAction } from '$lib/api/asa';
 
   // ── Orb drag ──────────────────────────────────────────────────────────────
-  let orbX = $state(0);
-  let orbY = $state(0);
+  const ORB_SIZE = 56;
+  // orbX/orbY = left/top in viewport coords. Start at bottom-right (set in onMount).
+  let orbX = $state(-1); // -1 = uninitialized, hidden until onMount sets real value
+  let orbY = $state(-1);
   let dragging = $state(false);
   let dragStartX = 0;
   let dragStartY = 0;
   let dragMovedPx = 0;
 
+  // Panel appears above/left of orb when orb is in lower-right, adjusts when dragged
+  let panelStyle = $derived((() => {
+    if (orbX < 0) return 'display:none';
+    const gapY = 12;
+    const panelW = 360;
+    const panelMaxH = 520;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 1280;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+    // Horizontal: align panel right edge with orb right edge, clamp to viewport
+    const orbRight = orbX + ORB_SIZE;
+    let left = orbRight - panelW;
+    if (left < 8) left = 8;
+    if (left + panelW > vw - 8) left = vw - panelW - 8;
+    // Vertical: above orb if enough space, else below
+    const spaceAbove = orbY - gapY;
+    const top = spaceAbove >= panelMaxH ? orbY - panelMaxH - gapY : orbY + ORB_SIZE + gapY;
+    return `left:${left}px;top:${top}px`;
+  })());
+
   function onOrbPointerDown(e: PointerEvent) {
     if (e.button !== 0) return;
     dragging = true;
     dragMovedPx = 0;
+    // dragStart = cursor pos relative to orb top-left
     dragStartX = e.clientX - orbX;
     dragStartY = e.clientY - orbY;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
@@ -23,8 +45,10 @@
   function onOrbPointerMove(e: PointerEvent) {
     if (!dragging) return;
     dragMovedPx += Math.abs(e.movementX) + Math.abs(e.movementY);
-    orbX = e.clientX - dragStartX;
-    orbY = e.clientY - dragStartY;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    orbX = Math.max(0, Math.min(vw - ORB_SIZE, e.clientX - dragStartX));
+    orbY = Math.max(0, Math.min(vh - ORB_SIZE, e.clientY - dragStartY));
   }
 
   function onOrbPointerUp(e: PointerEvent) {
@@ -96,6 +120,9 @@
   })());
 
   onMount(() => {
+    // Initialize orb to bottom-right corner
+    orbX = window.innerWidth - ORB_SIZE - 24;
+    orbY = window.innerHeight - ORB_SIZE - 24;
     asa.init();
   });
 </script>
@@ -106,8 +133,7 @@
   <div
     class="asa-orb-wrap"
     class:asa-orb-wrap--open={asa.open}
-    style:--orb-x="{orbX}px"
-    style:--orb-y="{orbY}px"
+    style="left:{orbX}px;top:{orbY}px"
     role="img"
     aria-label="ASA — AI Assistant"
     onpointerdown={onOrbPointerDown}
@@ -139,7 +165,7 @@
 
   <!-- Chat overlay -->
   {#if asa.open}
-    <div class="asa-panel" role="dialog" aria-label="ASA Chat" aria-modal="false">
+    <div class="asa-panel" role="dialog" aria-label="ASA Chat" aria-modal="false" style={panelStyle}>
       <!-- Header -->
       <div class="asa-panel-header">
         <span class="asa-panel-title">
@@ -256,8 +282,6 @@
   /* ── Orb ─────────────────────────────────────────────────────────────── */
   .asa-orb-wrap {
     position: fixed;
-    bottom: calc(24px - var(--orb-y, 0px));
-    right: calc(24px - var(--orb-x, 0px));
     width: 56px;
     height: 56px;
     cursor: grab;
@@ -291,8 +315,6 @@
   /* ── Panel ───────────────────────────────────────────────────────────── */
   .asa-panel {
     position: fixed;
-    bottom: 92px;
-    right: 24px;
     width: 360px;
     max-height: 520px;
     background: var(--surface-overlay, #fff);
