@@ -1,6 +1,5 @@
-import { page } from '$app/state';
-import type { AsaMessage, AsaSession, AsaStreamChunk } from '$lib/api/asa';
-import { checkAsaAvailable, getAsaSession, streamAsaMessage } from '$lib/api/asa';
+import type { AsaAction, AsaEvent, AsaMessage, AsaSession } from '$lib/api/asa';
+import { cancelAsaRequest, checkAsaAvailable, getAsaSession, streamAsaMessage } from '$lib/api/asa';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -18,7 +17,6 @@ export function registerASAContext(key: string, fn: ContextContributor): () => v
   return () => contributors.delete(key);
 }
 
-/** Snapshot all current contributors (call at message-send time, not reactively). */
 function snapshotContext(): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [k, fn] of contributors) {
@@ -30,25 +28,18 @@ function snapshotContext(): Record<string, unknown> {
 // ── Store ─────────────────────────────────────────────────────────────────────
 
 class AsaStore {
-  // Availability
-  available = $state(false);
-  checked = $state(false);
-
-  // Orb visual state
-  orbState = $state<AsaOrbState>('hidden');
-
-  // Chat
-  open = $state(false);
-  messages = $state<AsaMessage[]>([]);
-  streaming = $state(false);
-  streamBuffer = $state('');
-  error = $state<string | null>(null);
-
-  // Session / budget
-  session = $state<AsaSession | null>(null);
+  available  = $state(false);
+  checked    = $state(false);
+  orbState   = $state<AsaOrbState>('hidden');
+  open       = $state(false);
+  messages   = $state<AsaMessage[]>([]);
+  streaming  = $state(false);
+  error      = $state<string | null>(null);
+  session    = $state<AsaSession | null>(null);
   conversationId = $state<string | undefined>(undefined);
 
   private abortController: AbortController | null = null;
+  private currentRequestId: string | null = null;
   private prevPath = '';
 
   async init() {
@@ -61,11 +52,9 @@ class AsaStore {
     }
   }
 
-  /** Called by layout on navigation — clears page-level context contributors. */
   onNavigate(path: string) {
     if (path === this.prevPath) return;
     this.prevPath = path;
-    // Remove all Layer 2 (page-scoped) contributors; session-level ones persist.
     for (const key of contributors.keys()) {
       if (key.startsWith('page:')) contributors.delete(key);
     }
@@ -73,21 +62,14 @@ class AsaStore {
 
   toggle() {
     if (!this.available) return;
-    if (this.open) {
-      this.close();
-    } else {
-      this.activate();
-    }
+    this.open ? this.close() : this.activate();
   }
 
   activate() {
     if (!this.available || this.open) return;
     this.orbState = 'opening';
     this.open = true;
-    // After born animation (~1.5s), settle to open
-    setTimeout(() => {
-      if (this.open) this.orbState = 'open';
-    }, 1500);
+    setTimeout(() => { if (this.open) this.orbState = 'open'; }, 1500);
   }
 
   close() {
@@ -100,26 +82,17 @@ class AsaStore {
     if (!text.trim() || this.streaming) return;
     this.error = null;
 
-    const userMsg: AsaMessage = {
-      role: 'user',
-      content: text,
-      timestamp: new Date().toISOString(),
-    };
-    this.messages = [...this.messages, userMsg];
-    this.streaming = true;
-    this.streamBuffer = '';
-    this.orbState = 'thinking';
+    const requestId = crypto.randomUUID();
+    this.currentRequestId = requestId;
 
-    this.abortController = new AbortController();
-
-    // Build assistant placeholder
-    const assistantMsg: AsaMessage = {
-      role: 'assistant',
-      content: '',
-      timestamp: new Date().toISOString(),
-    };
+    this.messages = [...this.messages, { role: 'user', content: text, timestamp: new Date().toISOString() }];
+    const assistantMsg: AsaMessage = { role: 'assistant', content: '', timestamp: new Date().toISOString() };
     this.messages = [...this.messages, assistantMsg];
     const assistantIdx = this.messages.length - 1;
+
+    this.streaming = true;
+    this.orbState = 'thinking';
+    this.abortController = new AbortController();
 
     try {
       const context = {
@@ -128,6 +101,7 @@ class AsaStore {
       };
 
       const reader = streamAsaMessage({
+        requestId,
         message: text,
         conversationId: this.conversationId,
         context,
@@ -135,31 +109,49 @@ class AsaStore {
       });
 
       let fullContent = '';
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
-        try {
-          const chunk: AsaStreamChunk = JSON.parse(value);
-          if (chunk.type === 'token' && chunk.content) {
-            fullContent += chunk.content;
-            this.streamBuffer = fullContent;
-            // Update the last assistant message in-place
+        if (!value) continue;
+
+        let event: AsaEvent;
+        try { event = JSON.parse(value); } catch { continue; }
+
+        switch (event.eventType) {
+          case 'token': {
+            const token = event.payload.content as string ?? '';
+            fullContent += token;
             const updated = [...this.messages];
             updated[assistantIdx] = { ...updated[assistantIdx], content: fullContent };
             this.messages = updated;
-          } else if (chunk.type === 'actions' && chunk.actions) {
-            const updated = [...this.messages];
-            updated[assistantIdx] = { ...updated[assistantIdx], actions: chunk.actions };
-            this.messages = updated;
-            this.executeActions(chunk.actions);
-          } else if (chunk.type === 'done') {
-            if (chunk.session) {
-              this.session = { ...this.session!, ...chunk.session };
-            }
-          } else if (chunk.type === 'error') {
-            this.error = chunk.error ?? 'ASA error';
+            break;
           }
-        } catch { /* malformed chunk */ }
+          case 'action': {
+            const actions = event.payload.actions as AsaAction[] ?? [];
+            const updated = [...this.messages];
+            updated[assistantIdx] = { ...updated[assistantIdx], actions };
+            this.messages = updated;
+            this.executeActions(actions);
+            break;
+          }
+          case 'done': {
+            const p = event.payload;
+            if (this.session) {
+              this.session = {
+                ...this.session,
+                tokensUsed: (p.tokensUsed as number) ?? this.session.tokensUsed,
+                tokenBudget: (p.tokenBudget as number) ?? this.session.tokenBudget,
+                resetAt: (p.resetAt as string) ?? this.session.resetAt,
+              };
+            }
+            break;
+          }
+          case 'error':
+            this.error = (event.payload.message as string) ?? 'ASA error';
+            break;
+          // 'thinking' events — ignored in UI for now (no visible indicator beyond orb state)
+        }
       }
     } catch (err) {
       if ((err as Error).name !== 'AbortError') {
@@ -167,17 +159,21 @@ class AsaStore {
       }
     } finally {
       this.streaming = false;
-      this.streamBuffer = '';
+      this.currentRequestId = null;
       if (this.open) this.orbState = 'open';
     }
   }
 
   cancel() {
+    // Signal server-side cancel
+    if (this.currentRequestId) {
+      cancelAsaRequest(this.currentRequestId).catch(() => {});
+      this.currentRequestId = null;
+    }
     this.abortController?.abort();
     this.abortController = null;
     if (this.streaming) {
       this.streaming = false;
-      this.streamBuffer = '';
       if (this.open) this.orbState = 'open';
     }
   }
@@ -188,13 +184,11 @@ class AsaStore {
     this.error = null;
   }
 
-  private executeActions(actions: AsaMessage['actions']) {
-    if (!actions?.length) return;
+  private executeActions(actions: AsaAction[]) {
     for (const action of actions) {
       if (action.type === 'navigate' && action.payload.path) {
         import('$app/navigation').then(({ goto }) => goto(action.payload.path as string));
       }
-      // Other action types handled by setara-f15v
     }
   }
 }

@@ -21,12 +21,12 @@ export interface AsaSession {
   resetAt: string;
 }
 
-export interface AsaStreamChunk {
-  type: 'token' | 'done' | 'actions' | 'error';
-  content?: string;
-  actions?: AsaAction[];
-  error?: string;
-  session?: Pick<AsaSession, 'tokensUsed' | 'tokenBudget' | 'resetAt'>;
+/** Versioned event envelope from the backend. */
+export interface AsaEvent {
+  protocolVersion: string;
+  eventId: string;
+  eventType: 'thinking' | 'token' | 'action' | 'error' | 'done';
+  payload: Record<string, unknown>;
 }
 
 export async function checkAsaAvailable(): Promise<boolean> {
@@ -42,20 +42,30 @@ export async function getAsaSession(): Promise<AsaSession | null> {
   try {
     const res = await apiFetch('/api/asa/session');
     if (!res.ok) return null;
-    return res.json();
+    const data = await res.json();
+    // Backend returns {tokenBudget, tokensUsed, resetAt}
+    return { sessionId: '', conversationId: '', tokensUsed: data.tokensUsed ?? 0, tokenBudget: data.tokenBudget, resetAt: data.resetAt };
   } catch {
     return null;
   }
 }
 
-/** Opens an SSE stream for an ASA message. Returns an EventSource-like reader. */
+export async function cancelAsaRequest(requestId: string): Promise<void> {
+  try {
+    await apiFetch(`/api/asa/cancel/${requestId}`, { method: 'POST' });
+  } catch { /* ignore */ }
+}
+
+/** Opens an SSE stream for an ASA message. Yields raw JSON strings (AsaEvent). */
 export function streamAsaMessage(opts: {
+  requestId: string;
   message: string;
   conversationId?: string;
   context: Record<string, unknown>;
   signal: AbortSignal;
 }): ReadableStreamDefaultReader<string> {
   const body = JSON.stringify({
+    requestId: opts.requestId,
     message: opts.message,
     conversationId: opts.conversationId,
     context: opts.context,
@@ -84,7 +94,7 @@ export function streamAsaMessage(opts: {
           const lines = buf.split('\n');
           buf = lines.pop() ?? '';
           for (const line of lines) {
-            if (line.startsWith('data: ')) controller.enqueue(line.slice(6));
+            if (line.startsWith('data: ')) controller.enqueue(line.slice(6).trim());
           }
         }
         controller.close();
