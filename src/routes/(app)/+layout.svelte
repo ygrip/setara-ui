@@ -4,6 +4,8 @@
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
+  import LazyAsaOrb from '$lib/components/LazyAsaOrb.svelte';
+  import { asa } from '$lib/stores/asa.svelte';
   import { clearSession, getValidSession, hasPermission, type SetaraSession } from '$lib/auth';
   import { isMockMode } from '$lib/mock/client';
   import { lockBodyScroll } from '$lib/scroll-lock';
@@ -77,6 +79,10 @@
         e.preventDefault();
         paletteOpen = true;
       }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
+        e.preventDefault();
+        asa.toggle();
+      }
       if (e.key === 'Escape') {
         userMenuOpen = false;
       }
@@ -110,6 +116,11 @@
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('click', handleOutsideClick);
     };
+  });
+
+  // Notify ASA on navigation (clears page-scoped context)
+  $effect(() => {
+    asa.onNavigate(page.url.pathname);
   });
 
   // Record recent pages for command palette
@@ -541,6 +552,9 @@
 
 <!-- Command Palette -->
 <LazyCommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
+
+<!-- ASA floating orb -->
+<LazyAsaOrb />
 
 <style>
   .app-shell {
