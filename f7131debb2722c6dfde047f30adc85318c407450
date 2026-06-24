@@ -1,0 +1,31 @@
+src/lib/api/asa.ts
+  42e52f42defd22f7 1-99
+src/lib/stores/asa.svelte.ts
+  42e52f42defd22f7 1-202
+src/lib/components/AsaOrb.svelte
+  42e52f42defd22f7 1-559
+src/lib/components/LazyAsaOrb.svelte
+  42e52f42defd22f7 1-12
+src/routes/(app)/+layout.svelte
+  42e52f42defd22f7 7-8,82-85,121-125,556-558
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "f7131debb2722c6dfde047f30adc85318c407450",
+  "prompts": {
+    "42e52f42defd22f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d05a8ba1-f9e3-4f5a-b90d-eb8b5d359f5a",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 887,
+      "total_deletions": 1,
+      "accepted_lines": 886,
+      "overriden_lines": 0
+    }
+  }
+}
