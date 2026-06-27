@@ -1,0 +1,55 @@
+tests/asa-interactions.test.mjs
+  a641bf9e06cad3f6 47-51,59,69-110
+src/lib/voice/runanywhere-adapters.ts
+  a641bf9e06cad3f6 2-15
+src/routes/(app)/projects/+page.svelte
+  a641bf9e06cad3f6 22-24
+tests/asa-voice.test.mjs
+  a641bf9e06cad3f6 1-75
+src/routes/(app)/admin/users/+page.svelte
+  a641bf9e06cad3f6 164-175,356-359,368,370,372
+src/routes/(app)/admin/squads/+page.svelte
+  a641bf9e06cad3f6 16-17,20-30,183-190,192,328-329
+src/lib/voice/moonshine-stt.ts
+  a641bf9e06cad3f6 1-141
+src/lib/voice/model-manifest.json
+  a641bf9e06cad3f6 13,48,52,54
+src/lib/voice/engines.ts
+  a641bf9e06cad3f6 1-80
+src/lib/components/AsaOrb.svelte
+  a641bf9e06cad3f6 157,226,228,441,447-470,475,485,499,521-528,948-961,969-970
+src/lib/voice/asa-voice.svelte.ts
+  a641bf9e06cad3f6 1-4,6-25,33,43,45,48-50,60,62-65,68,70-71,73-74,76-77,126,131,135,138,146-148,150-151,161-164,170-172,174-186,198-202,210-217,219,221,223-239,243,245-248,252-253,256-258,260-275,278-279,281-291,293-294,296-301,305-327,330-357,359-360,365-367,372-373
+src/lib/voice/entity-resolver.ts
+  a641bf9e06cad3f6 1-262
+src/lib/stores/asa.svelte.ts
+  a641bf9e06cad3f6 1,4,7,36,54-56,61-63,67-71,75-76,145,173,279-315,320-330
+src/routes/(app)/admin/tribes/+page.svelte
+  a641bf9e06cad3f6 18-29,171-180,194-198,201,333-335,338-339
+src/lib/api/asa.ts
+  a641bf9e06cad3f6 13-14,18-23,49-53,56-58,60,111-170,176,183
+vite.config.ts
+  a641bf9e06cad3f6 2,62-138,140-150
+src/lib/voice/moonshine-js.d.ts
+  a641bf9e06cad3f6 1-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "85cd8091a35b9445f3eaaeec378c069eec5958ab",
+  "prompts": {
+    "a641bf9e06cad3f6": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d85f048a-64e9-4d4b-ac80-1349c7c55cb5",
+        "model": "<synthetic>"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 1378,
+      "total_deletions": 273,
+      "accepted_lines": 1248,
+      "overriden_lines": 6
+    }
+  }
+}
