@@ -9,6 +9,7 @@
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan, updateSquadPlan, deleteSquadPlan,
     type PlanBuild, type PlanLifecycleEvent, type ReleasePlan, type SquadPlanMetrics
@@ -415,10 +416,17 @@
       </div>
 
       {#if builds.length === 0}
-        <div class="empty-state">
-          <p class="empty-title">No builds added yet</p>
-          <p class="empty-sub">Add project builds from any squad to coordinate this release.</p>
-        </div>
+        <EmptyState
+          title="No builds added yet"
+          hint="Add project builds from any squad to coordinate this release."
+          minHeight="240px"
+        >
+          <svelte:fragment slot="icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
+            </svg>
+          </svelte:fragment>
+        </EmptyState>
       {:else}
         <div class="table-wrap">
           <DataTable>
@@ -686,9 +694,6 @@
   .res-pending { color: var(--color-text-muted); }
   .res-sep { color: var(--color-text-muted); margin: 0 2px; }
   .res-total { font-size: 0.72rem; margin-left: 4px; }
-  .empty-state { text-align: center; padding: 48px 24px; color: var(--color-text-muted); background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius); }
-  .empty-title { font-size: 0.925rem; margin: 0 0 8px; color: var(--color-text); }
-  .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
   /* Lifecycle timeline */
   .lc-timeline { display: flex; flex-direction: column; border: 1px solid var(--color-border); border-radius: var(--radius); overflow: hidden; }
   .lc-row { display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; background: var(--color-surface); border-bottom: 1px solid var(--color-border); }

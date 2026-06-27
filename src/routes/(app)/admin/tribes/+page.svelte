@@ -4,16 +4,40 @@
   import Card from '$lib/components/Card.svelte';
   import DataTable from '$lib/components/DataTable.svelte';
   import Modal from '$lib/components/Modal.svelte';
-  import { createTribe, updateTribe, deleteTribe, getTribe, searchUsers, type Tribe, type TribeDetail, type UserDetail } from '$lib/api/organization';
+  import { createTribe, updateTribe, deleteTribe, getTribe, listTribes, searchUsers, type Tribe, type TribeDetail, type UserDetail } from '$lib/api/organization';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
 
+  let tribes = $state<Tribe[]>([]);
   let newTribeName = $state('');
   let creatingTribe = $state(false);
   let error = $state('');
+  let searchQ = $state('');
+  let searching = $state(false);
+  let sortBy = $state<'name' | 'createdAt'>('name');
+  let sortDir = $state<'asc' | 'desc'>('asc');
 
-  // Edit modal
+  let sortedTribes = $derived([...tribes].sort((a, b) => {
+    const v = sortBy === 'name' ? a.name.localeCompare(b.name) : a.createdAt.localeCompare(b.createdAt);
+    return sortDir === 'asc' ? v : -v;
+  }));
+
+  function toggleSort(field: 'name' | 'createdAt') {
+    if (sortBy === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortBy = field; sortDir = 'asc'; }
+  }
+
+  $effect(() => {
+    tribes = data.tribes ?? [];
+  });
+
+  let createOpen = $state(false);
+  let createDesc = $state('');
+  let creatingTribeDetail = $state<TribeDetail | null>(null);
+  let createUserSearch = $state('');
+  let createUserResults = $state<UserDetail[]>([]);
+
   let editOpen = $state(false);
   let editingTribe = $state<TribeDetail | null>(null);
   let editName = $state('');
@@ -27,12 +51,45 @@
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  async function handleCreateTribe(e: SubmitEvent) {
-    e.preventDefault();
+  async function refreshTribes() {
+    const result = await listTribes(undefined, undefined, data.sortBy, data.sortDir, searchQ.trim() || undefined);
+    tribes = result.items;
+  }
+
+  async function handleSearch() {
+    searching = true; error = '';
+    try { await refreshTribes(); }
+    catch (err) { error = (err as Error).message; }
+    finally { searching = false; }
+  }
+
+  async function handleCreateTribe() {
     creatingTribe = true; error = '';
-    try { await createTribe({ name: newTribeName.trim() }); newTribeName = ''; await invalidateAll(); }
+    try {
+      await createTribe({
+        name: newTribeName.trim(),
+        description: createDesc.trim() || undefined,
+        leadId: creatingTribeDetail?.leadId?.trim() || undefined
+      });
+      await refreshTribes();
+      createOpen = false;
+      newTribeName = '';
+      createDesc = '';
+      creatingTribeDetail = null;
+      createUserSearch = '';
+      createUserResults = [];
+      await invalidateAll();
+    }
     catch (err) { error = (err as Error).message; }
     finally { creatingTribe = false; }
+  }
+
+  async function openCreate() {
+    createOpen = true;
+    creatingTribeDetail = { id: '', name: '', description: null, leadId: null, leadName: null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() };
+    createDesc = '';
+    createUserSearch = '';
+    createUserResults = [];
   }
 
   async function openEdit(tribe: Tribe) {
@@ -57,11 +114,19 @@
     catch { userResults = []; }
   }
 
+  async function searchUsersForCreateLead(q: string) {
+    createUserSearch = q;
+    if (q.length < 2) { createUserResults = []; return; }
+    try { const page = await searchUsers(q); createUserResults = page.items; }
+    catch { createUserResults = []; }
+  }
+
   async function handleSaveEdit() {
     if (!editingTribe || saving) return;
     saving = true; error = '';
     try {
-      await updateTribe(editingTribe.id, { name: editName, description: editDesc || null, leadId: editingTribe.leadId });
+      await updateTribe(editingTribe.id, { name: editName, description: editDesc || null, leadId: editLeadId });
+      await refreshTribes();
       editOpen = false;
       await invalidateAll();
     } catch (err) { error = (err as Error).message; }
@@ -81,13 +146,13 @@
   async function handleConfirmDelete() {
     if (!deletingTribe || deleting) return;
     deleting = true; error = '';
-    try { await deleteTribe(deletingTribe.id); deleteOpen = false; await invalidateAll(); }
+    try { await deleteTribe(deletingTribe.id); await refreshTribes(); deleteOpen = false; await invalidateAll(); }
     catch (err) { error = (err as Error).message; }
     finally { deleting = false; }
   }
 </script>
 
-<svelte:head><title>Tribes — Admin — Setara</title></svelte:head>
+<svelte:head><title>Tribes - Admin - Setara</title></svelte:head>
 
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
@@ -95,17 +160,45 @@
   {#if data.error}<AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>{/if}
   {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
 
+  <div class="page-header">
+    <div>
+      <p class="page-sub">Manage tribes - assign tribe lead.</p>
+    </div>
+    <Button variant="primary" size="sm" onclick={() => openCreate()}>Create Tribe</Button>
+  </div>
+
+  <div class="search-bar">
+    <div class="search-wrap">
+      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input
+        class="search-input"
+        type="search"
+        bind:value={searchQ}
+        placeholder="Search by name…"
+        onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+      />
+    </div>
+    <Button variant="primary" size="sm" onclick={handleSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button>
+    {#if searchQ}
+      <Button variant="secondary" size="sm" onclick={() => { searchQ = ''; handleSearch(); }}>Clear</Button>
+    {/if}
+  </div>
+
   <Card padding="md">
     <h2 class="panel-title">Tribes</h2>
-    {#if data.tribes.length === 0}
+    {#if tribes.length === 0}
       <p class="empty-text">No tribes yet.</p>
     {:else}
       <DataTable mobileCards={true}>
         {#snippet head()}
-          <tr><th>Name</th><th>Created</th><th></th></tr>
+          <tr>
+            <th><button class="sort-btn" onclick={() => toggleSort('name')}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
+            <th><button class="sort-btn" onclick={() => toggleSort('createdAt')}>Created {sortBy === 'createdAt' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
+            <th></th>
+          </tr>
         {/snippet}
         {#snippet body()}
-          {#each data.tribes as tribe}
+          {#each sortedTribes as tribe}
             <tr>
               <td data-label="Name" class="bold">{tribe.name}</td>
               <td data-label="Created">{formatDate(tribe.createdAt)}</td>
@@ -123,15 +216,36 @@
       </DataTable>
     {/if}
   </Card>
-
-  <Card padding="md">
-    <h2 class="panel-title">New Tribe</h2>
-    <form onsubmit={handleCreateTribe} class="inline-form">
-      <input class="input" type="text" bind:value={newTribeName} required placeholder="Tribe name" />
-      <Button variant="primary" type="submit" disabled={creatingTribe}>{creatingTribe ? 'Creating…' : 'Create'}</Button>
-    </form>
-  </Card>
 </div>
+
+<Modal open={createOpen} title="Create Tribe" size="sm" onclose={() => createOpen = false}>
+  <div class="modal-body">
+    {#if error}<div class="toast toast--error">{error}</div>{/if}
+    <label class="field" for="ct-name"><span>Tribe Name</span>
+      <input id="ct-name" class="input" type="text" bind:value={newTribeName} placeholder="Tribe name" required />
+    </label>
+    <label class="field"><span>Description</span>
+      <textarea class="input" bind:value={createDesc} rows={2}></textarea>
+    </label>
+    <label class="field">
+      <span>Lead - {creatingTribeDetail?.leadName ?? 'None'}</span>
+      <input class="input" placeholder="Search user…" value={createUserSearch} oninput={(e) => searchUsersForCreateLead((e.target as HTMLInputElement).value)} />
+      {#if createUserResults.length > 0}
+        <div class="user-pick-list">
+          {#each createUserResults as u}
+            <button class="user-pick" class:selected={creatingTribeDetail?.leadId === u.id} onclick={() => { if (creatingTribeDetail) creatingTribeDetail.leadId = u.id; creatingTribeDetail!.leadName = u.displayName; createUserResults = []; createUserSearch = u.displayName; }}>
+              <strong>{u.displayName}</strong> <span class="muted">{u.email}</span>
+            </button>
+          {/each}
+        </div>
+      {/if}
+    </label>
+    <div class="modal-actions" style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+      <Button variant="secondary" size="sm" onclick={() => createOpen = false}>Cancel</Button>
+      <Button variant="primary" type="submit" size="sm" onclick={handleCreateTribe} disabled={creatingTribe || !newTribeName.trim()}>{creatingTribe ? 'Creating…' : 'Create'}</Button>
+    </div>
+  </div>
+</Modal>
 
 <Modal open={deleteOpen} title="Delete Tribe" size="sm" onclose={() => deleteOpen = false}>
   <div class="modal-body">
@@ -148,12 +262,12 @@
     <label class="field"><span>Name</span><input class="input" bind:value={editName} /></label>
     <label class="field"><span>Description</span><textarea class="input" bind:value={editDesc} rows={2}></textarea></label>
     <label class="field">
-      <span>Lead — {editingTribe?.leadName ?? 'None'}</span>
+      <span>Lead - {editingTribe?.leadName ?? 'None'}</span>
       <input class="input" placeholder="Search user…" value={userSearch} oninput={(e) => searchUsersForLead((e.target as HTMLInputElement).value)} />
       {#if userResults.length > 0}
         <div class="user-pick-list">
           {#each userResults as u}
-            <button class="user-pick" class:selected={editingTribe?.leadId === u.id} onclick={() => { if (editingTribe) editingTribe.leadId = u.id; editingTribe!.leadName = u.displayName; userResults = []; userSearch = u.displayName; }}>
+            <button class="user-pick" class:selected={editLeadId === u.id} onclick={() => { editLeadId = u.id; if (editingTribe) editingTribe.leadName = u.displayName; userResults = []; userSearch = u.displayName; }}>
               <strong>{u.displayName}</strong> <span class="muted">{u.email}</span>
             </button>
           {/each}
@@ -170,7 +284,16 @@
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
 
-  .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
+  .page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+
+  .page-title { font-size: 1.5rem; font-weight: 700; color: var(--color-text); margin-bottom: 4px; }
+  .page-sub { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }
 
   .panel-title {
     font-size: 1rem;
@@ -180,15 +303,6 @@
   }
 
   .empty-text { color: var(--color-text-muted); font-size: 0.875rem; }
-
-  .inline-form {
-    display: flex;
-    gap: 8px;
-    align-items: center;
-    flex-wrap: wrap;
-  }
-
-  .inline-form .input { flex: 1; min-width: 200px; }
 
   .input {
     padding: 8px 10px;
@@ -215,4 +329,12 @@
   .user-pick.selected { background: var(--color-accent-subtle); color: var(--color-accent); font-weight: 600; }
   .delete-warning { color: var(--color-text); font-size: 0.9rem; line-height: 1.5; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
+
+  .search-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
+  .search-wrap { position: relative; flex: 1; max-width: 360px; }
+  .search-input { width: 100%; box-sizing: border-box; padding: 8px 12px 8px 34px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
+  .search-input:focus { border-color: var(--color-accent); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
+  .sort-btn { background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--color-text-muted); padding: 0; white-space: nowrap; }
+  .sort-btn:hover { color: var(--color-text); }
 </style>

@@ -7,6 +7,7 @@
   import Button from '$lib/components/Button.svelte';
   import { normalizeErrorMessage } from '$lib/api/errors';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const projectKey = $derived(page.params.projectKey);
   const buildId = $derived(page.params.buildId);
@@ -150,13 +151,19 @@
       <a href="/projects/{projectKeyPath}/builds/{buildIdPath}" class="primary-btn">Return to Build</a>
     </div>
   {:else if response && response.message && response.suggestions.length === 0}
-    <div class="empty-state">
-      <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-      <h2>No Suggestions Found</h2>
-      <p>{response.message}</p>
-      <p class="empty-hint">Try adding more detailed build requirements, or manually select scenarios from the repository.</p>
-      <a href="/projects/{projectKeyPath}/builds/{buildIdPath}" class="primary-btn">Return to Build</a>
-    </div>
+    <EmptyState
+      title="No suggestions found"
+      hint={response.message}
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="M17.8 11.8 19 13"/><path d="M15 9h0"/><path d="M17.8 6.2 19 5"/><path d="m3 21 9-9"/><path d="M12.2 6.2 11 5"/>
+        </svg>
+      </svelte:fragment>
+      <div slot="actions">
+        <a href="/projects/{projectKeyPath}/builds/{buildIdPath}" class="primary-btn">Return to Build</a>
+      </div>
+    </EmptyState>
   {:else if response}
     <div class="suggestions-section" aria-busy={adding}>
       {#if adding}
@@ -235,12 +242,6 @@
   .alert-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .primary-btn { display: inline-flex; align-items: center; padding: 8px 16px; border: 0; border-radius: 6px; background: var(--color-accent); color: #fff; font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; text-decoration: none; white-space: nowrap; }
   .primary-btn:disabled { opacity: 0.5; cursor: default; }
-
-  .empty-state { text-align: center; padding: 60px 20px; }
-  .empty-state svg { color: var(--color-text-muted); margin-bottom: 12px; }
-  .empty-state h2 { margin: 0 0 8px; }
-  .empty-state p { color: var(--color-text-muted); margin: 0 0 4px; }
-  .empty-hint { font-size: 0.82rem; margin-top: 12px !important; }
 
   .suggestions-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
   .suggestions-header h2 { margin: 0 0 4px; }

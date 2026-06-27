@@ -8,6 +8,7 @@
   import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
   import { MockWebSocket, isStaticMockMode } from '$lib/mock/websocket';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -361,12 +362,20 @@
     <div class="section">
       <h2 class="section-title">Recent Projects</h2>
       {#if data.projects.length === 0 && !data.error}
-        <div class="empty-state">
-          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" opacity="0.3">
-            <path d="M3 7h18M3 12h18M3 17h18"/>
-          </svg>
-          <p>No projects yet — create your first project in the <a href="/projects">Projects section</a>.</p>
-        </div>
+        <EmptyState
+          title="No projects yet"
+          hint="Create your first project to start tracking test scenarios and coverage."
+          minHeight="200px"
+        >
+          <svelte:fragment slot="icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+            </svg>
+          </svelte:fragment>
+          <div slot="actions">
+            <a href="/projects" class="empty-projects-link">Go to Projects →</a>
+          </div>
+        </EmptyState>
       {:else}
         <DataTable>
           {#snippet head()}
@@ -429,6 +438,7 @@
 <style>
   .page {
     max-width: min(1520px, 100%);
+    min-height: calc(100vh - 80px);
   }
 
   .page-header {
@@ -794,16 +804,6 @@
   }
 
   /* ── Table ── */
-  .empty-state {
-    text-align: center;
-    padding: 48px 20px;
-    color: var(--color-text-muted);
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-  }
-  .empty-state p { margin: 12px 0 0; font-size: 0.875rem; }
-
   .bold { font-weight: 500; }
   .muted { color: var(--color-text-muted); font-size: 0.875rem; }
 

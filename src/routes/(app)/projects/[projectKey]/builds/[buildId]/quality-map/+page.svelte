@@ -4,6 +4,7 @@
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import type { MapNode } from '$lib/api/mindmaps';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -44,7 +45,16 @@
   {:else if data.qualityMap}
     <SetaraMindMap map={data.qualityMap} onnodeclick={handleNodeClick} />
   {:else}
-    <div class="empty-state">No map data available.</div>
+    <EmptyState
+      title="No quality map data"
+      hint="Run scenarios in this build to generate coverage map data."
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+        </svg>
+      </svelte:fragment>
+    </EmptyState>
   {/if}
 </div>
 
@@ -58,5 +68,4 @@
   .page-title { margin: 0; font-size: clamp(1.25rem, 4vw, 1.5rem); font-weight: 700; }
   .page-sub { color: var(--color-text-muted); font-size: 0.86rem; }
   :global(.page > .app-alert) { margin-bottom: 16px; }
-  .empty-state { color: var(--color-text-muted); padding: 48px 24px; text-align: center; font-size: 0.875rem; }
 </style>

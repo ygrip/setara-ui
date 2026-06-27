@@ -9,6 +9,7 @@
   import ApiKeyRotateModal from '$lib/ui/domain/ApiKeyRotateModal.svelte';
   import AppDropdown from '$lib/ui/overlay/AppDropdown.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import { createApiKey, revokeApiKey, rotateApiKey, type ApiKey } from '$lib/api/apikeys';
 
   let { data } = $props();
@@ -129,9 +130,17 @@
   {#if data.error}
     <AppAlert tone="error" title="Could not load API keys">{data.error}</AppAlert>
   {:else if data.apiKeys.length === 0}
-    <div class="empty-state">
-      <p>No API keys yet. Create one to allow automation runners to submit results.</p>
-    </div>
+    <EmptyState
+      title="No API keys yet"
+      hint="Create an API key to allow automation runners to submit execution results."
+      minHeight="240px"
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="7.5" cy="15.5" r="5.5"/><path d="M21 2l-9.6 9.6"/><path d="M15.5 7.5l3 3L22 7l-3-3"/>
+        </svg>
+      </svelte:fragment>
+    </EmptyState>
   {:else}
     <DataTable>
       {#snippet head()}
@@ -273,9 +282,7 @@
     margin-bottom: 24px;
   }
 
-  .empty-state {
-    color: var(--color-text-muted); font-size: 0.875rem; padding: 20px 0;
-  }
+
 
   .bold { font-weight: 500; }
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }

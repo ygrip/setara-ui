@@ -14,6 +14,7 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
+    "check:voice-models": "node scripts/check-asa-voice-models.mjs",
     "test:ui": "node --test tests/*.test.mjs",
     "generate:types": "openapi-typescript ${SETARA_API_URL:-http://localhost:8080}/q/openapi -o src/lib/api/openapi.d.ts && echo 'Types generated → src/lib/api/openapi.d.ts'",
     "check:contract": "node scripts/check-contract.mjs",
@@ -21,13 +22,20 @@
     "build:demo": "cross-env VITE_MOCK=true BUILD_TARGET=demo vite build"
   },
   "overrides": {
+    "@moonshine-ai/moonshine-js": {
+      "@ricky0123/vad-web": "0.0.30"
+    },
     "cookie": "^0.7.0",
     "js-yaml": "^4.2.0",
     "ts-deepmerge": "^8.0.0"
   },
   "dependencies": {
     "@melt-ui/svelte": "^0.86.6",
+    "@moonshine-ai/moonshine-js": "0.1.29",
     "@revolist/svelte-datagrid": "^4.22.1",
+    "@ricky0123/vad-web": "0.0.30",
+    "@runanywhere/web": "^0.1.0-beta.10",
+    "@runanywhere/web-onnx": "^0.1.0-beta.10",
     "@sveltejs/adapter-node": "^5.5.4",
     "@sveltejs/kit": "^2.61.1",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",

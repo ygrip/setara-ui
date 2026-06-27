@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { createProject, listProjects, type Project } from '$lib/api/projects';
   import { getValidSession, hasPermission } from '$lib/auth';
@@ -18,8 +19,9 @@
   let creating = $state(false);
   let createError = $state('');
 
-  let projects = $state<Project[]>(data.projects);
-  let nextCursor = $state<string | null>(data.nextCursor);
+  let projects = $state<Project[]>([]);
+  let nextCursor = $state<string | null>(null);
+  $effect(() => { projects = data.projects; nextCursor = data.nextCursor; });
   let loading = $state(false);
   let sentinel = $state<HTMLElement | null>(null);
 
@@ -28,12 +30,6 @@
 
   let formName = $state('');
   let formDesc = $state('');
-
-  function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    });
-  }
 
   onMount(() => {
     canWrite = hasPermission(getValidSession(), 'project:write');
@@ -169,29 +165,38 @@
   {/if}
 
   {#if projects.length === 0 && !data.error}
-    <div class="empty-state">
-      {#if search}
-        <div class="empty-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+    {#if search}
+      <EmptyState
+        title="No results for '{search}'"
+        hint="Try a different search term."
+      >
+        <svelte:fragment slot="icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
+        </svelte:fragment>
+        <div slot="actions">
+          <Button onclick={() => search = ''}>Clear search</Button>
         </div>
-        <p class="empty-title">No results for "{search}"</p>
-        <p class="empty-hint">Try a different search term.</p>
-        <button class="empty-link" onclick={() => search = ''}>Clear search</button>
-      {:else}
-        <div class="empty-icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+      </EmptyState>
+    {:else}
+      <EmptyState
+        title="No projects yet"
+        hint="Create your first project to start tracking test scenarios and coverage."
+      >
+        <svelte:fragment slot="icon">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
           </svg>
+        </svelte:fragment>
+        <div slot="actions">
+          {#if canWrite}
+            <Button onclick={() => showModal = true}>Create a project →</Button>
+          {/if}
         </div>
-        <p class="empty-title">No projects yet</p>
-        <p class="empty-hint">Create your first project to start tracking test scenarios and coverage.</p>
-        {#if canWrite}
-          <button class="empty-link" onclick={() => showModal = true}>Create a project →</button>
-        {/if}
-      {/if}
-    </div>
+      </EmptyState>
+    {/if}
+
   {:else if projects.length > 0}
     <div class="project-grid">
       {#each projects as project}
@@ -255,7 +260,10 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1520px, 100%); }
+  .page { 
+    max-width: min(1520px, 100%);
+    min-height: calc(100vh - 80px);
+  }
 
   /* ─── Header ─── */
   .page-header {
@@ -379,54 +387,6 @@
 
   :global(.page > .app-alert) { margin-bottom: 20px; }
 
-  /* ─── Empty state ─── */
-  .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    text-align: center;
-    padding: 72px 20px 56px;
-    gap: 8px;
-  }
-
-  .empty-icon {
-    width: 52px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
-    color: var(--color-text-muted);
-    margin-bottom: 6px;
-  }
-
-  .empty-title {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin: 0;
-  }
-
-  .empty-hint {
-    font-size: 0.82rem;
-    color: var(--color-text-muted);
-    margin: 0;
-    max-width: 280px;
-  }
-
-  .empty-link {
-    background: none;
-    border: none;
-    color: var(--color-accent);
-    font-size: 0.82rem;
-    cursor: pointer;
-    padding: 4px 0;
-    text-decoration: underline;
-    text-underline-offset: 2px;
-  }
-
   /* ─── Grid ─── */
   .project-grid {
     display: grid;
@@ -471,11 +431,6 @@
     border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
     border-radius: 4px;
     padding: 2px 7px;
-  }
-
-  .card-date {
-    font-size: 0.7rem;
-    color: var(--color-text-muted);
   }
 
   .card-body {

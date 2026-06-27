@@ -11,6 +11,7 @@
   import { listRuns } from '$lib/api/runs';
   import type { AutomationRun, HeatmapDay } from '$lib/api/runs';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data }: {
     data: {
@@ -341,18 +342,31 @@
   {#if data.error}
     <AppAlert tone="error" title="Could not load executions">{data.error}</AppAlert>
   {:else if runs.length === 0}
-    <div class="empty-state">
-      <svg class="empty-icon" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" aria-hidden="true">
-        <polygon points="5 3 19 12 5 21 5 3"/>
-      </svg>
-      <p class="empty-title">No runs yet for <strong>{data.projectKey}</strong></p>
-      <p class="empty-sub">Set up an API key and run your automation suite to see executions here.</p>
-    </div>
+    <EmptyState
+      title="No executions yet"
+      hint="Set up an API key and run your automation suite to see results here."
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+      </svelte:fragment>
+    </EmptyState>
   {:else if filteredRuns.length === 0}
-    <div class="empty-state">
-      <p class="empty-title">No executions match the current filters.</p>
-      <button class="link-btn" onclick={clearFilters}>Clear filters</button>
-    </div>
+    <EmptyState
+      title="No executions match the current filters"
+      hint="Try adjusting your date range, status filter, or search term."
+      minHeight="280px"
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+        </svg>
+      </svelte:fragment>
+      <div slot="actions">
+        <button class="link-btn" onclick={clearFilters}>Clear filters</button>
+      </div>
+    </EmptyState>
   {:else}
     <div class="table-wrap">
       <DataTable>
@@ -654,17 +668,6 @@
 
   /* ── Error / empty states ───────────────────────────── */
   :global(.page > .app-alert) { margin-bottom: 24px; }
-
-  .empty-state {
-    text-align: center;
-    padding: 64px 24px;
-    color: var(--color-text-muted);
-    margin-bottom: 24px;
-  }
-  .empty-icon { opacity: 0.25; margin-bottom: 16px; }
-  .empty-title { margin: 0 0 8px; font-size: 0.925rem; color: var(--color-text); }
-  .empty-title strong { color: var(--color-text); }
-  .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
 
   .link-btn {
     font: inherit;

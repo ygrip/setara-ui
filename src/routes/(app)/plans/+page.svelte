@@ -299,7 +299,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1400px, 100%); }
+  .page { max-width: min(1400px, 100%); min-height: calc(100vh - 80px); }
   .page-header { margin-bottom: 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin: 0 0 4px; }
   .subtitle { color: var(--color-text-muted); margin: 0; font-size: 0.875rem; }

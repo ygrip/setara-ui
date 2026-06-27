@@ -6,6 +6,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { createSquadPlan, type ReleasePlan } from '$lib/api/squadPlans';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -149,10 +150,17 @@
 
   <!-- Table -->
   {#if plans.length === 0}
-    <div class="empty-state">
-      <p class="empty-title">No release plans yet</p>
-      <p class="empty-sub">Create a release plan to coordinate builds across projects and squads.</p>
-    </div>
+    <EmptyState
+      title="No release plans yet"
+      hint="Create a release plan to coordinate builds across projects and squads."
+      minHeight="320px"
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+      </svelte:fragment>
+    </EmptyState>
   {:else}
     <DataTable>
       {#snippet head()}
@@ -266,9 +274,6 @@
   .builds-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; }
   .builds-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; }
   .builds-bar-fill.all-verified { background: #15803d; }
-  .empty-state { text-align: center; padding: 64px 24px; color: var(--color-text-muted); }
-  .empty-title { font-size: 0.925rem; margin: 0 0 8px; color: var(--color-text); }
-  .empty-sub { font-size: 0.8rem; opacity: 0.7; margin: 0; }
   .form-fields { display: flex; flex-direction: column; gap: 16px; }
   .field { display: flex; flex-direction: column; gap: 6px; }
   .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

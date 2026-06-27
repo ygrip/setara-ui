@@ -3,6 +3,7 @@
   import type { MapNode } from '$lib/api/mindmaps';
   import SetaraMindMap from '$lib/components/mindmap/SetaraMindMap.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -43,7 +44,16 @@
   {:else if data.qualityMap}
     <SetaraMindMap map={data.qualityMap} onnodeclick={handleNodeClick} />
   {:else}
-    <div class="empty-state">No map data available.</div>
+    <EmptyState
+      title="No quality map data"
+      hint="Add builds with executed scenarios to generate coverage map data."
+    >
+      <svelte:fragment slot="icon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>
+        </svg>
+      </svelte:fragment>
+    </EmptyState>
   {/if}
 </div>
 
@@ -59,5 +69,4 @@
   .btn { font: inherit; font-size: 0.875rem; padding: 8px 16px; border-radius: 8px; cursor: pointer; border: 1px solid transparent; white-space: nowrap; text-decoration: none; display: inline-flex; align-items: center; }
   .btn--secondary { background: transparent; color: var(--color-text); border-color: var(--color-border); }
   .btn--secondary:hover { border-color: var(--color-accent); color: var(--color-accent); }
-  .empty-state { color: var(--color-text-muted); padding: 48px 24px; text-align: center; font-size: 0.875rem; }
 </style>

@@ -51,6 +51,7 @@
 
 <style>
   .admin-shell {
+    min-height: calc(100vh - var(--topbar-height, 56px) - 80px);
     max-width: min(1520px, 100%);
     margin: 0 auto;
   }

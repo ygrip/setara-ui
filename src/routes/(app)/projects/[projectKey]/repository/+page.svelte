@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { onMount, untrack } from 'svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import TagFilterBar from '$lib/components/TagFilterBar.svelte';
   import TagInput from '$lib/components/TagInput.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
@@ -1060,11 +1061,17 @@
         {#if searchLoading}
           <div class="empty-state">Searching…</div>
         {:else if sortedScenarios.length === 0}
-          <div class="empty-state">
-            {filteredScenarios.length < baseScenarios.length
-              ? 'No scenarios match the current filters.'
-              : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios in this directory.`}
-          </div>
+          <EmptyState
+            title={filteredScenarios.length < baseScenarios.length ? 'No matching scenarios' : `No ${reviewMode === 'LIVE' ? 'live' : 'draft'} scenarios`}
+            hint={filteredScenarios.length < baseScenarios.length ? 'Try adjusting your filters or search term.' : 'This directory has no scenarios yet.'}
+            minHeight="200px"
+          >
+            <svelte:fragment slot="icon">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+            </svelte:fragment>
+          </EmptyState>
         {:else}
           <div class="table-wrap">
             <table class="scenarios-table">
@@ -1879,7 +1886,7 @@
   .priority-medium { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
   .priority-low { background: color-mix(in srgb, #14b8a6, transparent 88%); color: #0f766e; }
   .priority-unset { background: color-mix(in srgb, var(--color-text-muted), transparent 86%); color: var(--color-text-muted); }
-  .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; }
+  .empty-state { color: var(--color-text-muted); font-size: 0.875rem; padding: 42px 20px; text-align: center; min-height: calc(100vh - var(--topbar-height, 56px) - 80px);}
   .empty-state.compact { padding: 16px; }
 
   /* Modal common */

@@ -124,7 +124,7 @@
   .header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
   label { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--color-border); border-radius: 8px; padding: 8px 10px; color: var(--color-text-muted); font-size: 0.82rem; background: var(--color-surface); }
   :global(.page > .app-alert) { margin-bottom: 16px; }
-  .empty-state { color: var(--color-text-muted); padding: 18px; text-align: center; }
+  .empty-state { color: var(--color-text-muted); padding: 18px; text-align: center; min-height: calc(100vh - var(--topbar-height, 56px) - 80px);}
   .scenario-detail { display: grid; gap: 14px; }
   .scenario-detail > p { margin: 0; color: var(--color-text-muted); }
   .scenario-meta { display: flex; flex-wrap: wrap; gap: 8px; }

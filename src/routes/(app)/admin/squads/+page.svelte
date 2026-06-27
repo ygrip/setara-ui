@@ -10,10 +10,28 @@
 
   let squads = $state<Squad[]>([]);
   let error = $state('');
+  let searchQ = $state('');
+  let filterTribeId = $state('');
+  let searching = $state(false);
+  let sortBy = $state<'name' | 'tribe'>('name');
+  let sortDir = $state<'asc' | 'desc'>('asc');
   $effect(() => { squads = data.squads ?? []; });
+
+  let sortedSquads = $derived([...squads].sort((a, b) => {
+    const av = sortBy === 'tribe' ? (a.tribeName ?? '') : a.name;
+    const bv = sortBy === 'tribe' ? (b.tribeName ?? '') : b.name;
+    const v = av.localeCompare(bv);
+    return sortDir === 'asc' ? v : -v;
+  }));
+
+  function toggleSort(field: 'name' | 'tribe') {
+    if (sortBy === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+    else { sortBy = field; sortDir = 'asc'; }
+  }
 
   let createName = $state('');
   let createTribeId = $state('');
+  let createOpen = $state(false);
   let creating = $state(false);
 
   let editOpen = $state(false);
@@ -36,12 +54,38 @@
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
-  async function refreshSquads() { try { squads = (await listAllSquads()).items; } catch {} }
+  async function refreshSquads() {
+    try {
+      squads = (await listAllSquads(undefined, undefined, undefined, undefined, filterTribeId || undefined, searchQ.trim() || undefined)).items;
+    } catch (err) {
+      error = (err as Error).message;
+    }
+  }
 
-  async function handleCreate(e: SubmitEvent) {
-    e.preventDefault(); if (!createTribeId) { error = 'Select a tribe'; return; }
+  async function handleSearch() {
+    searching = true; error = '';
+    try { await refreshSquads(); }
+    catch (err) { error = (err as Error).message; }
+    finally { searching = false; }
+  }
+
+  function openCreate() {
+    createName = '';
+    createTribeId = data.tribes[0]?.id ?? '';
+    error = '';
+    createOpen = true;
+  }
+
+  async function handleCreate() {
+    if (!createTribeId) { error = 'Select a tribe'; return; }
     creating = true; error = '';
-    try { await createSquad(createTribeId, { name: createName.trim() }); createName = ''; await refreshSquads(); }
+    try {
+      await createSquad(createTribeId, { name: createName.trim() });
+      await refreshSquads();
+      createOpen = false;
+      createName = '';
+      createTribeId = '';
+    }
     catch (err) { error = (err as Error).message; } finally { creating = false; }
   }
 
@@ -94,25 +138,61 @@
   }
 </script>
 
-<svelte:head><title>Squads — Admin — Setara</title></svelte:head>
+<svelte:head><title>Squads - Admin - Setara</title></svelte:head>
 
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
   {#if data.error}<AppAlert tone="error" title="Could not connect">{data.error}</AppAlert>{/if}
   {#if error}<AppAlert tone="error">{error}</AppAlert>{/if}
 
+  <div class="page-header">
+    <div>
+      <p class="page-sub">Manage squads and their tribe ownership.</p>
+    </div>
+    <Button variant="primary" size="sm" onclick={openCreate}>Create Squad</Button>
+  </div>
+
   <Card padding="md">
     <h2 class="panel-title">Squads</h2>
+    <div class="filter-bar">
+      <select class="input filter-select" bind:value={filterTribeId} onchange={handleSearch}>
+        <option value="">All Tribes</option>
+        {#each data.tribes as t}
+          <option value={t.id}>{t.name}</option>
+        {/each}
+      </select>
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input
+          class="search-input"
+          type="search"
+          bind:value={searchQ}
+          placeholder="Search by name…"
+          onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+      </div>
+      <Button variant="primary" size="sm" onclick={handleSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button>
+      {#if searchQ || filterTribeId}
+        <Button variant="secondary" size="sm" onclick={() => { searchQ = ''; filterTribeId = ''; handleSearch(); }}>Clear</Button>
+      {/if}
+    </div>
     {#if squads.length === 0}
       <p class="empty-text">No squads yet.</p>
     {:else}
       <DataTable mobileCards={true}>
-        {#snippet head()}<tr><th>Name</th><th>Tribe</th><th>Created</th><th></th></tr>{/snippet}
+        {#snippet head()}
+          <tr>
+            <th><button class="sort-btn" onclick={() => toggleSort('name')}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
+            <th><button class="sort-btn" onclick={() => toggleSort('tribe')}>Tribe {sortBy === 'tribe' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
+            <th>Created</th>
+            <th></th>
+          </tr>
+        {/snippet}
         {#snippet body()}
-          {#each squads as squad}
+          {#each sortedSquads as squad}
             <tr>
               <td data-label="Name" class="bold">{squad.name}</td>
-              <td data-label="Tribe" class="muted">{squad.tribeName ?? '—'}</td>
+              <td data-label="Tribe" class="muted">{squad.tribeName ?? '-'}</td>
               <td data-label="Created">{formatDate(squad.createdAt)}</td>
               <td data-label="">
                 <Button variant="ghost" iconOnly onclick={() => openEdit(squad)} title="Edit" ariaLabel="Edit squad">
@@ -128,16 +208,36 @@
       </DataTable>
     {/if}
   </Card>
-
-  <Card padding="md">
-    <h2 class="panel-title">New Squad</h2>
-    <form onsubmit={handleCreate} class="inline-form">
-      <select class="input" bind:value={createTribeId}><option value="">— Tribe —</option>{#each data.tribes as t}<option value={t.id}>{t.name}</option>{/each}</select>
-      <input class="input" bind:value={createName} required placeholder="Squad name" />
-      <Button variant="primary" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create'}</Button>
-    </form>
-  </Card>
 </div>
+
+<Modal open={createOpen} title="Create Squad" size="sm" onclose={() => createOpen = false}>
+  <div class="modal-body">
+    <label class="field" for="cs-tribe">
+      <span>Tribe</span>
+      <select id="cs-tribe" class="input" bind:value={createTribeId}>
+        <option value="">Select tribe</option>
+        {#each data.tribes as t}
+          <option value={t.id}>{t.name}</option>
+        {/each}
+      </select>
+    </label>
+    <label class="field" for="cs-name">
+      <span>Squad Name</span>
+      <input id="cs-name" class="input" bind:value={createName} required placeholder="Squad name" />
+    </label>
+    <div class="modal-actions">
+      <Button variant="secondary" size="sm" onclick={() => createOpen = false}>Cancel</Button>
+      <Button
+        variant="primary"
+        size="sm"
+        onclick={handleCreate}
+        disabled={creating || !createName.trim() || !createTribeId}
+      >
+        {creating ? 'Creating…' : 'Create'}
+      </Button>
+    </div>
+  </div>
+</Modal>
 
 <Modal open={deleteOpen} title="Delete Squad" size="sm" onclose={() => deleteOpen = false}>
   <div class="modal-body">
@@ -155,7 +255,7 @@
   <div class="modal-body">
     <div class="edit-grid">
       <label class="field"><span>Name</span><input class="input" bind:value={editName} /></label>
-      <label class="field"><span>Tribe</span><select class="input" bind:value={editTribeId}><option value={null}>— None —</option>{#each data.tribes as t}<option value={t.id}>{t.name}</option>{/each}</select></label>
+      <label class="field"><span>Tribe</span><select class="input" bind:value={editTribeId}><option value={null}>None</option>{#each data.tribes as t}<option value={t.id}>{t.name}</option>{/each}</select></label>
       <label class="field full"><span>Description</span><textarea class="input" bind:value={editDesc} rows={2}></textarea></label>
       <label class="field full"><span>Lead</span>
         <input class="input" placeholder="Search user…" value={userSearch} oninput={(e) => searchUsersForLead((e.target as HTMLInputElement).value)} />
@@ -200,10 +300,11 @@
 
 <style>
   .section-wrap{display:flex;flex-direction:column;gap:20px}.page-title{font-size:1.5rem;font-weight:700;margin-bottom:4px}
+  .page-header{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-wrap:wrap}
+  .page-sub{color:var(--color-text-muted);margin:0;font-size:.875rem}
   .panel-title{font-size:1rem;font-weight:600;margin-bottom:14px;color:var(--color-text)}
   .section-title{font-size:.9rem;font-weight:600;margin:16px 0 8px;color:var(--color-text)}
   .empty-text{color:var(--color-text-muted);font-size:.875rem}.muted{color:var(--color-text-muted)}.bold{font-weight:500}.p-4{padding:16px}
-  .inline-form{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.inline-form .input{flex:1;min-width:140px}
   .input{padding:8px 10px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:var(--color-text);font-size:.875rem;outline:none;transition:border-color .15s;font-family:inherit}.input:focus{border-color:var(--color-accent)}
   textarea.input{resize:vertical}
   .modal-body{display:flex;flex-direction:column;gap:12px}
@@ -218,4 +319,12 @@
   .delete-warning{color:var(--color-text);font-size:0.9rem;line-height:1.5}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:8px}
   @media(max-width:600px){.edit-grid{grid-template-columns:1fr}.add-member-row{flex-wrap:wrap}}
+  .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+  .filter-select { flex: 0 0 auto; min-width: 160px; }
+  .search-wrap { position: relative; flex: 1; max-width: 320px; }
+  .search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
+  .search-input:focus { border-color: var(--color-accent); }
+  .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
+  .sort-btn { background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--color-text-muted); padding: 0; white-space: nowrap; }
+  .sort-btn:hover { color: var(--color-text); }
 </style>

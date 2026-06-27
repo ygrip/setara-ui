@@ -15,6 +15,7 @@
   let message = $state('');
   let searchQ = $state('');
   let searching = $state(false);
+  let statusFilter = $state('active');
 
   const currentSession = getValidSession();
   const currentEmail = currentSession?.email ?? '';
@@ -29,6 +30,7 @@
   let email = $state('');
   let role = $state<'QA' | 'VIEWER' | 'ADMIN' | 'QA_LEAD' | 'DEVELOPER'>('VIEWER');
   let busy = $state(false);
+  let assignRoleOpen = $state(false);
 
   // Squad assignment modal
   let squadOpen = $state(false);
@@ -49,7 +51,7 @@
         const page = await searchUsers(searchQ.trim());
         users = page.items as unknown as User[];
       } else {
-        const page = await listUsers();
+        const page = await listUsers(undefined, undefined, undefined, undefined, statusFilter);
         users = page.items;
       }
     } catch (err) { error = (err as Error).message; }
@@ -59,7 +61,12 @@
   async function submitRole(e: SubmitEvent) {
     e.preventDefault(); if (!projectKey.trim() || !email.trim()) return;
     busy = true; error = ''; message = '';
-    try { await assignProjectRole(projectKey.trim().toUpperCase(), { email: email.trim(), role }); message = `${role} assigned to ${email.trim()} for ${projectKey.trim().toUpperCase()}.`; email = ''; }
+    try {
+      await assignProjectRole(projectKey.trim().toUpperCase(), { email: email.trim(), role });
+      message = `${role} assigned to ${email.trim()} for ${projectKey.trim().toUpperCase()}.`;
+      email = '';
+      assignRoleOpen = false;
+    }
     catch (err) { error = (err as Error).message; } finally { busy = false; }
   }
 
@@ -131,12 +138,15 @@
 <svelte:head><title>Users — Admin — Setara</title></svelte:head>
 
 <div class="section-wrap">
+<h1 class="page-title">Settings</h1>
   <div class="page-header">
     <div>
-      <h1 class="page-title">Users</h1>
       <p class="page-sub">Manage user access — assign project roles and squad membership.</p>
     </div>
-    <Button variant="primary" size="sm" onclick={() => createOpen = true}>Create User</Button>
+    <div style="display:flex;gap:8px">
+      <Button variant="secondary" size="sm" onclick={() => assignRoleOpen = true}>Assign Project Role</Button>
+      <Button variant="primary" size="sm" onclick={() => createOpen = true}>Create User</Button>
+    </div>
   </div>
 
   {#if data.error}<AppAlert tone="error" title="Could not connect">{data.error}</AppAlert>{/if}
@@ -144,37 +154,25 @@
   {#if message}<div class="success-banner">{message}</div>{/if}
 
   <Card padding="md">
-    <h2 class="panel-title">Assign Project Role</h2>
-    <p class="panel-subtitle">New sign-ins start as guests. Admins grant project access here.</p>
-    <form class="inline-form" onsubmit={submitRole}>
-      <input class="input" bind:value={projectKey} placeholder="Project key (e.g. PAYMENT)" required />
-      <input class="input" type="email" bind:value={email} placeholder="User email" required />
-      <select class="input" bind:value={role}>
-        <option value="VIEWER">Viewer</option>
-        <option value="QA">QA Engineer</option>
-        <option value="QA_LEAD">QA Lead</option>
-        <option value="DEVELOPER">Developer</option>
-        <option value="ADMIN">Admin</option>
-      </select>
-      <Button variant="primary" type="submit" disabled={busy || !projectKey.trim() || !email.trim()}>
-        {busy ? 'Assigning…' : 'Assign Role'}
-      </Button>
-    </form>
-  </Card>
-
-  <Card padding="md">
     <h2 class="panel-title">All Users</h2>
     <div class="search-bar">
-      <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-      </svg>
-      <input
-        class="search-input"
-        type="search"
-        bind:value={searchQ}
-        placeholder="Search by name or email…"
-        onkeydown={(e) => e.key === 'Enter' && handleSearch()}
-      />
+      <select class="input" style="flex:0 0 auto;min-width:120px" bind:value={statusFilter} onchange={handleSearch}>
+        <option value="active">Active</option>
+        <option value="disabled">Suspended</option>
+        <option value="all">All</option>
+      </select>
+      <div class="search-wrap">
+        <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+        </svg>
+        <input
+          class="search-input"
+          type="search"
+          bind:value={searchQ}
+          placeholder="Search by name or email…"
+          onkeydown={(e) => e.key === 'Enter' && handleSearch()}
+        />
+      </div>
       <Button variant="primary" size="sm" onclick={handleSearch} disabled={searching}>{searching ? 'Searching…' : 'Search'}</Button>
       {#if searchQ}
         <Button variant="secondary" size="sm" onclick={() => { searchQ = ''; handleSearch(); }}>Clear</Button>
@@ -289,6 +287,39 @@
   </div>
 </Modal>
 
+<Modal open={assignRoleOpen} title="Assign Project Role" size="sm" onclose={() => assignRoleOpen = false}>
+  <div class="modal-body">
+    <p class="muted" style="font-size:0.82rem">New sign-ins start as guests. Grant project access here.</p>
+    {#if error}<div class="toast toast--error">{error}</div>{/if}
+    <form onsubmit={submitRole} style="display:flex;flex-direction:column;gap:12px">
+      <div class="form-field">
+        <label class="form-label" for="ar-key">Project Key</label>
+        <input id="ar-key" class="input" bind:value={projectKey} placeholder="e.g. PAYMENT" required />
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="ar-email">User Email</label>
+        <input id="ar-email" class="input" type="email" bind:value={email} placeholder="user@example.com" required />
+      </div>
+      <div class="form-field">
+        <label class="form-label" for="ar-role">Role</label>
+        <select id="ar-role" class="input" bind:value={role}>
+          <option value="VIEWER">Viewer</option>
+          <option value="QA">QA Engineer</option>
+          <option value="QA_LEAD">QA Lead</option>
+          <option value="DEVELOPER">Developer</option>
+          <option value="ADMIN">Admin</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:4px">
+        <Button variant="secondary" size="sm" onclick={() => assignRoleOpen = false} type="button">Cancel</Button>
+        <Button variant="primary" type="submit" size="sm" disabled={busy || !projectKey.trim() || !email.trim()}>
+          {busy ? 'Assigning…' : 'Assign Role'}
+        </Button>
+      </div>
+    </form>
+  </div>
+</Modal>
+
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
 
@@ -312,13 +343,7 @@
     font-size: 0.875rem;
   }
 
-  .panel-title { font-size: 1rem; font-weight: 600; margin: 0 0 4px; color: var(--color-text); }
-  .panel-subtitle { margin: 0 0 14px; color: var(--color-text-muted); font-size: 0.82rem; }
-
-  .inline-form { display: flex; gap: 8px; align-items: flex-end; flex-wrap: wrap; }
-  .inline-form .input { flex: 1; min-width: 160px; }
-  .inline-form select.input { flex: 0 0 auto; min-width: 140px; }
-  .inline-form :global(.btn) { flex-shrink: 0; }
+  .panel-title { font-size: 1rem; font-weight: 600; margin: 0 0 14px; color: var(--color-text); }
 
   .input {
     padding: 8px 10px; border: 1px solid var(--color-border);
@@ -328,12 +353,10 @@
   }
   .input:focus { border-color: var(--color-accent); }
 
-  .search-bar {
-    display: flex; gap: 8px; margin-bottom: 14px; align-items: center;
-    position: relative;
-  }
-  .search-bar .search-input {
-    flex: 1; max-width: 400px;
+  .search-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
+  .search-wrap { position: relative; flex: 1; max-width: 400px; }
+  .search-input {
+    width: 100%; box-sizing: border-box;
     padding: 8px 12px 8px 34px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
@@ -342,14 +365,11 @@
     font-size: 0.875rem; outline: none;
     transition: border-color 0.15s;
   }
-  .search-bar .search-input:focus { border-color: var(--color-accent); }
+  .search-input:focus { border-color: var(--color-accent); }
   .search-icon {
-    position: absolute;
-    left: 10px;
-    top: 50%;
+    position: absolute; left: 10px; top: 50%;
     transform: translateY(-50%);
-    color: var(--color-text-muted);
-    pointer-events: none;
+    color: var(--color-text-muted); pointer-events: none;
   }
 
   .empty-text { color: var(--color-text-muted); font-size: 0.875rem; }
@@ -398,9 +418,4 @@
   .add-member-row { display: flex; gap: 8px; align-items: center; }
   .add-member-row .input { flex: 1; }
 
-  @media (max-width: 640px) {
-    .inline-form { flex-direction: column; }
-    .inline-form .input, .inline-form select.input { min-width: 0; width: 100%; }
-    .inline-form :global(.btn) { width: 100%; justify-content: center; }
-  }
 </style>

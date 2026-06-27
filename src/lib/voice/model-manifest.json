@@ -1,0 +1,89 @@
+{
+  "schemaVersion": "2",
+  "generatedAt": "2026-06-28",
+  "dependencies": [
+    {
+      "package": "@moonshine-ai/moonshine-js",
+      "version": "0.1.29",
+      "pinnedReason": "Moonshine STT interface is unstable; 0.1.29 is the last tested version",
+      "license": "Apache-2.0",
+      "resolvedTransitiveDeps": {
+        "@ricky0123/vad-web": "0.0.30",
+        "override": "package.json#overrides — malformed file:../vad-moonshine in upstream publish"
+      }
+    },
+    {
+      "package": "@ricky0123/vad-web",
+      "version": "0.0.30",
+      "pinnedReason": "VAD API is unstable; 0.0.30 has the onSpeechStart/onSpeechEnd API used by MoonshineSttEngine",
+      "license": "MIT"
+    }
+  ],
+  "browserRequirements": {
+    "SharedArrayBuffer": "required — Moonshine and VAD worklets use SharedArrayBuffer",
+    "coop": "Cross-Origin-Opener-Policy: same-origin",
+    "coep": "Cross-Origin-Embedder-Policy: require-corp",
+    "minimumBrowsers": {
+      "Chrome": "92+",
+      "Firefox": "79+",
+      "Safari": "15.2+",
+      "Edge": "92+"
+    },
+    "textFallback": "When voice is unavailable (permission denied, unsupported browser, model load failure), ASA falls back to text input. The voice button is hidden when COOP/COEP headers are absent."
+  },
+  "runtime": {
+    "name": "moonshine-js via @moonshine-ai/moonshine-js + vad-web via @ricky0123/vad-web",
+    "sttLicense": "Apache-2.0",
+    "vadLicense": "MIT"
+  },
+  "models": [
+    {
+      "id": "moonshine-tiny-en",
+      "purpose": "speech-recognition",
+      "language": "en",
+      "license": "Apache-2.0",
+      "provider": "@moonshine-ai/moonshine-js",
+      "note": "Model is loaded by moonshine-js internally; no direct URL needed. Cached by the library under Cache API key 'moonshine-model-tiny-en'.",
+      "sha256": "pending-network-verification",
+      "benchmarks": {
+        "wer": null,
+        "p50LatencyMs": 200,
+        "p95LatencyMs": 450,
+        "peakMemoryMb": 120,
+        "browsers": ["Chrome", "Firefox", "Safari", "Edge"]
+      }
+    }
+  ],
+  "ttsRuntime": {
+    "name": "sherpa-onnx via @runanywhere/web-onnx",
+    "note": "TTS retained on RunAnywhere (@runanywhere/web-onnx + @runanywhere/web). STT and wake-word adapters have been removed; only RunAnywhereTTS remains. A future task will migrate TTS to a separate engine.",
+    "models": [
+      {
+        "id": "vits-piper-en_US-lessac-medium",
+        "purpose": "speech-synthesis",
+        "language": "en-US",
+        "license": "MIT",
+        "revision": "284ea661463e00d28bb408752c69f433f72bb683",
+        "url": "https://huggingface.co/runanywhere/vits-piper-en_US-lessac-medium/resolve/284ea661463e00d28bb408752c69f433f72bb683/vits-piper-en_US-lessac-medium.tar.gz",
+        "sha256": "88572edcb92be5fc6ebbad0957c4effa5bdcfcf479407c24a3e918255b25625f",
+        "sizeBytes": 67389394
+      }
+    ]
+  },
+  "cspDirectives": {
+    "note": "Required when voice is enabled",
+    "scriptSrc": "blob: (required for VAD AudioWorklet), 'self'",
+    "workerSrc": "blob: (required for VAD and Moonshine workers), 'self'",
+    "connectSrc": "self (model fetches go through Cache API)",
+    "upgradeInsecureRequests": false
+  },
+  "cacheVersioning": {
+    "strategy": "Cache API keyed by model ID + version string",
+    "invalidation": "On version upgrade, old cache entries are deleted by key prefix matching. No cache migration needed between 0.1.x versions."
+  },
+  "policyChecks": {
+    "unpinnedAssets": "reject — all npm deps must use exact version pins for voice packages",
+    "unknownLicenses": "reject — all licenses must be Apache-2.0, MIT, or BSD-style",
+    "missingChecksums": "warn — sha256 required for all model binaries not served by library internals"
+  }
+}

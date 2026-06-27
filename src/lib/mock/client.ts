@@ -112,9 +112,34 @@ export async function mockListTribes(_cursor?: string, _limit?: number, _sortBy?
   return { items: mockTribes, nextCursor: null, prevCursor: null };
 }
 
+export async function mockCreateTribe(body: { name: string }): Promise<Tribe> {
+  await delay(120);
+  const tribe = {
+    id: `tribe-${Date.now()}`,
+    name: body.name,
+    createdAt: new Date().toISOString()
+  };
+  mockTribes.unshift(tribe);
+  return tribe;
+}
+
 export async function mockListSquads(tribeId: string, _cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<Squad>> {
   await delay(100);
   return { items: mockSquads[tribeId] ?? [], nextCursor: null, prevCursor: null };
+}
+
+export async function mockCreateSquad(tribeId: string, body: { name: string }): Promise<Squad> {
+  await delay(120);
+  const tribe = mockTribes.find(t => t.id === tribeId);
+  const squad = {
+    id: `squad-${Date.now()}`,
+    tribeId,
+    tribeName: tribe?.name ?? null,
+    name: body.name,
+    createdAt: new Date().toISOString()
+  };
+  mockSquads[tribeId] = [squad, ...(mockSquads[tribeId] ?? [])];
+  return squad;
 }
 
 export async function mockListUsers(_cursor?: string, _limit?: number, _sortBy?: string, _sortDir?: string): Promise<CursorPage<User>> {

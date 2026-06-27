@@ -2,7 +2,7 @@ import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads, mockGetTribe, mockGetSquadDetail, mockSearchUsers } from '$lib/mock/client';
+import { isMockMode, mockCreateSquad, mockCreateTribe, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads, mockGetTribe, mockGetSquadDetail, mockSearchUsers } from '$lib/mock/client';
 
 export interface Tribe {
   id: string;
@@ -35,14 +35,16 @@ export interface Membership {
   createdAt: string;
 }
 
-export async function listTribes(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Tribe>> {
+export async function listTribes(cursor?: string, limit?: number, sortBy?: string, sortDir?: string, q?: string): Promise<CursorPage<Tribe>> {
   if (isMockMode()) return mockListTribes(cursor, limit, sortBy, sortDir);
-  const res = await apiFetch(`/api/tribes${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  let url = `/api/tribes${buildCursorParams(cursor, limit, sortBy, sortDir)}`;
+  if (q) url += `${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(q)}`;
+  const res = await apiFetch(url);
   return readJsonOrThrow<CursorPage<Tribe>>(res);
 }
 
-export async function createTribe(body: { name: string }): Promise<Tribe> {
-  if (isMockMode()) return { id: `tribe-${Date.now()}`, name: body.name, createdAt: new Date().toISOString() };
+export async function createTribe(body: { name: string; description?: string; leadId?: string }): Promise<Tribe> {
+  if (isMockMode()) return mockCreateTribe(body);
   const res = await apiFetch('/api/tribes', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -58,7 +60,7 @@ export async function listSquads(tribeId: string, cursor?: string, limit?: numbe
 }
 
 export async function createSquad(tribeId: string, body: { name: string }): Promise<Squad> {
-  if (isMockMode()) return { id: `squad-${Date.now()}`, tribeId, tribeName: null, name: body.name, createdAt: new Date().toISOString() };
+  if (isMockMode()) return mockCreateSquad(tribeId, body);
   const res = await apiFetch(`/api/tribes/${tribeId}/squads`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -67,15 +69,20 @@ export async function createSquad(tribeId: string, body: { name: string }): Prom
   return readJsonOrThrow<Squad>(res);
 }
 
-export async function listUsers(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<User>> {
+export async function listUsers(cursor?: string, limit?: number, sortBy?: string, sortDir?: string, status?: string): Promise<CursorPage<User>> {
   if (isMockMode()) return mockListUsers(cursor, limit, sortBy, sortDir);
-  const res = await apiFetch(`/api/users${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  let url = `/api/users${buildCursorParams(cursor, limit, sortBy, sortDir)}`;
+  if (status) url += `${url.includes('?') ? '&' : '?'}status=${encodeURIComponent(status)}`;
+  const res = await apiFetch(url);
   return readJsonOrThrow<CursorPage<User>>(res);
 }
 
-export async function listAllSquads(cursor?: string, limit?: number, sortBy?: string, sortDir?: string): Promise<CursorPage<Squad>> {
+export async function listAllSquads(cursor?: string, limit?: number, sortBy?: string, sortDir?: string, tribeId?: string, q?: string): Promise<CursorPage<Squad>> {
   if (isMockMode()) return mockListAllSquads(cursor, limit);
-  const res = await apiFetch(`/api/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`);
+  let url = `/api/squads${buildCursorParams(cursor, limit, sortBy, sortDir)}`;
+  if (tribeId) url += `${url.includes('?') ? '&' : '?'}tribe_id=${encodeURIComponent(tribeId)}`;
+  if (q) url += `${url.includes('?') ? '&' : '?'}q=${encodeURIComponent(q)}`;
+  const res = await apiFetch(url);
   return readJsonOrThrow<CursorPage<Squad>>(res);
 }
 
