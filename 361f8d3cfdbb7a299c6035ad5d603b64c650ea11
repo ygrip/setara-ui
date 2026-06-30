@@ -1,0 +1,23 @@
+src/lib/stores/asa.svelte.ts
+  e9f7ed1fa022f7d7 271-275
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "361f8d3cfdbb7a299c6035ad5d603b64c650ea11",
+  "prompts": {
+    "e9f7ed1fa022f7d7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "40004197-d060-49a6-8b57-3f71d289ae38",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 1,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
