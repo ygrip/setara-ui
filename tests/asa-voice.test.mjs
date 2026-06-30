@@ -11,27 +11,47 @@ function read(relativePath) {
 }
 
 describe('ASA voice adapter contracts', () => {
-  it('exports WakeWordEngine, SpeechToTextEngine, and TextToSpeechEngine interfaces', () => {
+  it('exports the VAD-gated microphone STT and TTS interfaces', () => {
     const source = read('src/lib/voice/engines.ts');
 
-    assert.match(source, /export interface WakeWordEngine/);
-    assert.match(source, /export interface SpeechToTextEngine/);
+    assert.match(source, /export interface MicSttEngine/);
+    assert.match(source, /export interface SttResult/);
     assert.match(source, /export interface TextToSpeechEngine/);
-    assert.match(source, /export class FakeWakeWordEngine/);
-    assert.match(source, /export class FakeSpeechToTextEngine/);
+    assert.match(source, /export class FakeMicSttEngine/);
     assert.match(source, /export class FakeTextToSpeechEngine/);
   });
 
   it('voice store uses adapter interfaces, not inline runtime calls for STT and wake', () => {
     const store = read('src/lib/voice/asa-voice.svelte.ts');
 
-    assert.match(store, /this\.wakeEngine/);
-    assert.match(store, /this\.sttEngine/);
+    assert.match(store, /this\.micStt/);
+    assert.match(store, /routeVoiceTranscript/);
     assert.match(store, /this\.ttsEngine/);
-    // Must import from adapters, not directly call runanywhere in transcribeSegment
-    assert.match(store, /import.*runanywhere-adapters/);
-    // No direct STT.transcribe call in transcribeSegment body (uses adapter instead)
-    assert.doesNotMatch(store, /STT\.transcribe.*language.*sampleRate/);
+    assert.match(store, /import\('\.\/moonshine-stt'\)/);
+    assert.doesNotMatch(store, /RunAnywhereSTT|RunAnywhereWakeWordEngine/);
+  });
+
+  it('keeps one VAD session across ignored speech and wake-to-command transitions', () => {
+    const store = read('src/lib/voice/asa-voice.svelte.ts');
+    const handler = store.slice(
+      store.indexOf('private async handleTranscript'),
+      store.indexOf('private async resolveAndReview')
+    );
+
+    assert.match(store, /this\.micStt\?\.state === 'listening' \|\| this\.micStt\?\.state === 'transcribing'/);
+    assert.doesNotMatch(handler, /startWakeListening|startCommandListening/);
+    assert.match(handler, /this\.stopMic\(\);[\s\S]*resolveAndReview/);
+  });
+
+  it('loads Moonshine through a verified persistent browser cache', () => {
+    const engine = read('src/lib/voice/moonshine-stt.ts');
+    const cache = read('src/lib/voice/model-cache.ts');
+
+    assert.match(engine, /withCachedMoonshineModel/);
+    assert.match(cache, /caches\.open\(CACHE_NAME\)/);
+    assert.match(cache, /crypto\.subtle\.digest\('SHA-256'/);
+    assert.match(cache, /cache\.put\(asset\.url/);
+    assert.match(cache, /removeStaleModelCaches/);
   });
 
   it('voice preferences include pitch and language fields', () => {
@@ -54,22 +74,20 @@ describe('ASA voice adapter contracts', () => {
     }
   });
 
-  it('runanywhere adapters implement the engine interfaces', () => {
+  it('retains RunAnywhere only for text-to-speech', () => {
     const adapters = read('src/lib/voice/runanywhere-adapters.ts');
 
-    assert.match(adapters, /implements WakeWordEngine/);
-    assert.match(adapters, /implements SpeechToTextEngine/);
     assert.match(adapters, /implements TextToSpeechEngine/);
+    assert.doesNotMatch(adapters, /implements (?:WakeWordEngine|SpeechToTextEngine)/);
   });
 
   it('barge-in clears in-flight operation and restores wake state on cancel', () => {
     const store = read('src/lib/voice/asa-voice.svelte.ts');
 
     // The operation counter ensures stale transcription callbacks are dropped
-    assert.match(store, /operation !== this\.operation/);
-    // Destroy must null all adapters
-    assert.match(store, /this\.wakeEngine = null/);
-    assert.match(store, /this\.sttEngine = null/);
+    assert.match(store, /op !== this\.operation/);
+    assert.match(store, /this\.micStt = null/);
     assert.match(store, /this\.ttsEngine = null/);
+    assert.match(store, /this\.stopMic\(\);[\s\S]*await this\.resolveAndReview/);
   });
 });

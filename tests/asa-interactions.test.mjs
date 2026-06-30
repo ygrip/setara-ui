@@ -35,6 +35,15 @@ describe('ASA interaction contracts', () => {
     assert.match(source, /class:panel--moving=\{panelMoving\}/);
     assert.match(source, /resizeRight - panelW/);
     assert.match(source, /top: 3px;[\s\S]*left: 3px;[\s\S]*cursor: nw-resize/);
+    assert.match(source, /max-width: calc\(100vw - 16px\)/);
+    assert.match(source, /window\.addEventListener\('resize', fitToViewport\)/);
+    assert.match(source, /window\.innerWidth - ORB_SIZE/);
+    assert.match(source, /backdrop-filter: blur\(18px\) saturate\(140%\)/);
+    assert.match(source, /var\(--color-surface\) 86%, transparent/);
+    assert.match(source, /aria-label=\{asaVoice\.enabled \? 'Toggle ASA voice listening' : 'Start ASA voice listening'\}/);
+    assert.match(source, /onclick=\{toggleOrbVoice\}/);
+    assert.match(source, /Say “Hi ASA”/);
+    assert.doesNotMatch(source, /glass-container|class=”|role=”/);
   });
 
   it('keeps voice local, opt-in, pinned, and transcript-reviewed', () => {
@@ -42,20 +51,19 @@ describe('ASA interaction contracts', () => {
     const manifest = JSON.parse(read('src/lib/voice/model-manifest.json'));
 
     assert.match(source, /getUserMedia\(\{ audio: true \}\)/);
-    assert.match(source, /WAKE_PHRASES = \['hi asa', 'hello asa'\]/);
+    const wakeRouter = read('src/lib/voice/wake-router.ts');
+    assert.match(wakeRouter, /\(\?:hi\|hello\)/);
     assert.match(source, /this\.state = 'reviewing'/);
-    // After refactor: adapter delegates to runanywhere, not the store directly
-    assert.match(source, /runanywhere-adapters/); // store imports the adapter module
-    // The runanywhere packages are used inside the adapter file
+    assert.match(source, /MoonshineSttEngine/);
+    assert.match(source, /runanywhere-adapters/);
     const adapters = read('src/lib/voice/runanywhere-adapters.ts');
     assert.match(adapters, /@runanywhere\/web-onnx/);
-    assert.equal(manifest.runtime.runtimeLicense, 'Apache-2.0');
-    for (const model of manifest.models) {
-      assert.match(model.revision, /^[a-f0-9]{40}$/);
-      assert.match(model.sha256, /^[a-f0-9]{64}$/);
-      assert.ok(model.url.includes(model.revision));
-      assert.equal(model.license, 'MIT');
-    }
+    assert.equal(manifest.dependencies[0].package, '@moonshine-ai/moonshine-js');
+    assert.equal(manifest.dependencies[0].version, '0.1.29');
+    assert.equal(manifest.dependencies[0].license, 'MIT');
+    assert.equal(manifest.dependencies[1].package, '@ricky0123/vad-web');
+    assert.equal(manifest.dependencies[1].version, '0.0.30');
+    assert.equal(manifest.dependencies[1].license, 'ISC');
   });
 
   it('allows the blob-backed Sherpa helper module required by RunAnywhere', () => {

@@ -76,8 +76,10 @@
 
   function openSocket(projectKey: string) {
     if (projectSockets.has(projectKey)) return;
+    const url = executionSocketUrl(projectKey);
+    if (!isStaticMockMode() && !url) return;
     const ws = new _wsCtor(
-      isStaticMockMode() ? projectKey : executionSocketUrl(projectKey)
+      isStaticMockMode() ? projectKey : url
     ) as WebSocket;
     projectSockets.set(projectKey, ws);
 

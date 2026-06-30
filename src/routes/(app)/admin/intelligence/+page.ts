@@ -10,6 +10,7 @@ export async function load({ fetch }: LoadEvent) {
     return {
       health: null,
       flags: null,
+      users: [],
       error: null,
       unavailableReason: 'Intelligence and feature flags require a live Setara backend.'
     };
@@ -19,15 +20,17 @@ export async function load({ fetch }: LoadEvent) {
   const headers = authHeaders();
 
   try {
-    const [healthRes, flagsRes] = await Promise.all([
+    const [healthRes, flagsRes, usersRes] = await Promise.all([
       fetch(`${base}/api/admin/intelligence/health`, { headers }),
-      fetch(`${base}/api/admin/intelligence/feature-flags`, { headers })
+      fetch(`${base}/api/admin/intelligence/feature-flags`, { headers }),
+      fetch(`${base}/api/users?limit=200`, { headers })
     ]);
     const health = healthRes.ok ? await healthRes.json() : null;
     const flags = flagsRes.ok ? await flagsRes.json() : null;
-    if (!health) return { health: null, flags, error: `HTTP ${healthRes.status}` };
-    return { health, flags, error: null };
+    const users = usersRes.ok ? ((await usersRes.json()).items ?? []) : [];
+    if (!health) return { health: null, flags, users, error: `HTTP ${healthRes.status}` };
+    return { health, flags, users, error: null };
   } catch (e: any) {
-    return { health: null, flags: null, error: e.message ?? 'Failed to load' };
+    return { health: null, flags: null, users: [], error: e.message ?? 'Failed to load' };
   }
 }

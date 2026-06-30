@@ -1,8 +1,45 @@
 import { sveltekit } from '@sveltejs/kit/vite';
-import { defineConfig, type Plugin, type ViteDevServer } from 'vite';
-import { createReadStream, existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { extname, join, resolve } from 'node:path';
+import { defineConfig } from 'vite';
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { join } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+
+// Self-host the @ricky0123/vad-web (Silero) model + onnxruntime-web wasm flat under /vad/ so
+// hands-free VAD works on air-gapped/on-prem deployments (no CDN). Loaded lazily only when
+// hands-free arms. We only ship the single-thread WASM (numThreads=1 in ml-vad.ts → no jsep,
+// no SharedArrayBuffer/COOP-COEP). vite-plugin-static-copy preserved the node_modules/ path
+// under dest, so we copy flat ourselves.
+const VAD_ASSETS: Array<[string, string]> = [
+  ['node_modules/@ricky0123/vad-web/dist/vad.worklet.bundle.min.js', 'vad.worklet.bundle.min.js'],
+  ['node_modules/@ricky0123/vad-web/dist/silero_vad_v5.onnx', 'silero_vad_v5.onnx'],
+  ['node_modules/@ricky0123/vad-web/dist/silero_vad_legacy.onnx', 'silero_vad_legacy.onnx'],
+  ['node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.wasm', 'ort-wasm-simd-threaded.wasm'],
+  ['node_modules/onnxruntime-web/dist/ort-wasm-simd-threaded.mjs', 'ort-wasm-simd-threaded.mjs'],
+];
+const VAD_MIME: Record<string, string> = { '.js': 'text/javascript', '.mjs': 'text/javascript', '.onnx': 'application/octet-stream', '.wasm': 'application/wasm' };
+function copyVadAssetsPlugin() {
+  return {
+    name: 'copy-vad-assets',
+    // Build: copy flat into the client output (served at /vad/<file>).
+    writeBundle() {
+      const out = '.svelte-kit/output/client/vad';
+      mkdirSync(out, { recursive: true });
+      for (const [src, name] of VAD_ASSETS) copyFileSync(src, join(out, name));
+    },
+    // Dev: serve straight from node_modules so we don't commit 16MB of binaries to git.
+    configureServer(server: { middlewares: { use: (fn: (req: { url?: string }, res: { setHeader: (k: string, v: string) => void; end: (b?: Buffer) => void; statusCode: number }, next: () => void) => void) => void } }) {
+      const byName = new Map(VAD_ASSETS.map(([src, name]) => [name, src]));
+      server.middlewares.use((req, res, next) => {
+        const m = req.url?.match(/^\/vad\/([^/?]+)/);
+        const src = m && byName.get(m[1]);
+        if (!src) return next();
+        const ext = m![1].slice(m![1].lastIndexOf('.'));
+        res.setHeader('Content-Type', VAD_MIME[ext] ?? 'application/octet-stream');
+        try { res.end(readFileSync(src)); } catch { res.statusCode = 404; res.end(); }
+      });
+    }
+  };
+}
 
 function pruneUnusedSvelteKitServerImport() {
   return {
@@ -27,127 +64,13 @@ function pruneUnusedSvelteKitServerImport() {
   };
 }
 
-function sherpaOnnxAssets(): Plugin {
-  const sourceDir = resolve('node_modules/@runanywhere/web-onnx/wasm/sherpa');
-  const contentTypes: Record<string, string> = {
-    '.js': 'text/javascript; charset=utf-8',
-    '.wasm': 'application/wasm'
-  };
-
-  return {
-    name: 'sherpa-onnx-assets',
-    configureServer(server) {
-      server.middlewares.use('/sherpa', (request, response, next) => {
-        const filename = request.url?.split('?')[0].replace(/^\//, '');
-        if (!filename || filename.includes('..')) return next();
-        const file = join(sourceDir, filename);
-        if (!existsSync(file)) return next();
-        response.setHeader('Content-Type', contentTypes[extname(file)] ?? 'application/octet-stream');
-        createReadStream(file).pipe(response);
-      });
-    },
-    generateBundle() {
-      for (const filename of readdirSync(sourceDir)) {
-        const file = join(sourceDir, filename);
-        this.emitFile({
-          type: 'asset',
-          fileName: `sherpa/${filename}`,
-          source: readFileSync(file)
-        });
-      }
-    }
-  };
-}
-
-const ORT_WASM_FILES = [
-  'ort-wasm-simd-threaded.wasm',
-  'ort-wasm-simd-threaded.mjs',
-  'ort-wasm-simd-threaded.jsep.wasm',
-  'ort-wasm-simd-threaded.jsep.mjs',
-];
-const VAD_STATIC_FILES = ['silero_vad_legacy.onnx', 'silero_vad_v5.onnx', 'vad.worklet.bundle.min.js'];
-
-function serveStaticDir(server: ViteDevServer, urlPrefix: string, dir: string, allowList?: string[]) {
-  const mime: Record<string, string> = {
-    '.js': 'text/javascript; charset=utf-8',
-    '.mjs': 'text/javascript; charset=utf-8',
-    '.wasm': 'application/wasm',
-    '.onnx': 'application/octet-stream',
-  };
-  server.middlewares.use(urlPrefix, (req, res, next) => {
-    const filename = req.url?.split('?')[0].replace(/^\//, '');
-    if (!filename || filename.includes('..')) return next();
-    if (allowList && !allowList.includes(filename)) return next();
-    const file = join(dir, filename);
-    if (!existsSync(file)) return next();
-    res.setHeader('Content-Type', mime[extname(file)] ?? 'application/octet-stream');
-    createReadStream(file).pipe(res);
-  });
-}
-
-function voiceWasmAssets(): Plugin {
-  const ortDir = resolve('node_modules/onnxruntime-web/dist');
-  const ortMsDir = resolve('node_modules/@huggingface/transformers/node_modules/onnxruntime-web/dist');
-  const vadDir = resolve('node_modules/@ricky0123/vad-web/dist');
-
-  return {
-    name: 'voice-wasm-assets',
-    configureServer(server) {
-      serveStaticDir(server, '/ort', ortDir, ORT_WASM_FILES);
-      serveStaticDir(server, '/ort-ms', ortMsDir, ORT_WASM_FILES);
-      serveStaticDir(server, '/vad', vadDir, VAD_STATIC_FILES);
-    },
-    generateBundle() {
-      for (const f of ORT_WASM_FILES) {
-        const full = join(ortDir, f);
-        if (existsSync(full)) this.emitFile({ type: 'asset', fileName: `ort/${f}`, source: readFileSync(full) });
-      }
-      for (const f of ORT_WASM_FILES) {
-        const full = join(ortMsDir, f);
-        if (existsSync(full)) this.emitFile({ type: 'asset', fileName: `ort-ms/${f}`, source: readFileSync(full) });
-      }
-      for (const f of VAD_STATIC_FILES) {
-        const full = join(vadDir, f);
-        if (existsSync(full)) this.emitFile({ type: 'asset', fileName: `vad/${f}`, source: readFileSync(full) });
-      }
-    }
-  };
-}
-
-/**
- * Patches @moonshine-ai/moonshine-js bundle: the bundled onnxruntime-web 1.22.0-dev
- * hardcodes CDN wasmPaths which COEP (Cross-Origin-Embedder-Policy) blocks at runtime.
- * Replace with local /ort-ms/ path served by voiceWasmAssets().
- */
-function patchMoonshineOrtCdn(): Plugin {
-  return {
-    name: 'patch-moonshine-ort-cdn',
-    enforce: 'pre',
-    load(id) {
-      if (!id.includes('@moonshine-ai/moonshine-js')) return null;
-      const filePath = id.split('?')[0];
-      const code = readFileSync(filePath, 'utf8');
-      if (!code.includes('cdn.jsdelivr.net')) return null;
-      return code.replace(
-        /https:\/\/cdn\.jsdelivr\.net\/npm\/onnxruntime-web@[^"']+\/dist\//g,
-        '/ort-ms/'
-      );
-    }
-  };
-}
-
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    sherpaOnnxAssets(),
-    voiceWasmAssets(),
-    patchMoonshineOrtCdn(),
+    copyVadAssetsPlugin(),
     pruneUnusedSvelteKitServerImport(),
     sveltekit(),
   ],
-  optimizeDeps: {
-    exclude: ['@moonshine-ai/moonshine-js'],
-  },
   ssr: {
     // layercake ships uncompiled .svelte files in dist/; tell Vite to bundle
     // them through the Svelte plugin instead of letting Node's ESM loader fail.
@@ -179,10 +102,26 @@ if (id.includes('@melt-ui') || id.includes('bits-ui') || id.includes('formsnap')
     }
   },
   server: {
-    port: 5173,
+    host: '127.0.0.1',
+    port: 3000,
+    strictPort: true,
     headers: {
+      // Required for SharedArrayBuffer (ort-wasm-simd-threaded.mjs initializes it unconditionally).
+      // 'credentialless' instead of 'require-corp' so cross-origin resources (fonts etc.) keep working.
       'Cross-Origin-Opener-Policy': 'same-origin',
-      'Cross-Origin-Embedder-Policy': 'require-corp'
+      'Cross-Origin-Embedder-Policy': 'credentialless',
+    },
+    allowedHosts: [
+      'localhost',
+      '127.0.0.1',
+      'humvee-dramatize-uncured.ngrok-free.dev',
+      '.ngrok-free.dev'
+    ],
+    proxy: {
+      '/api': {
+        target: 'http://127.0.0.1:8080',
+        changeOrigin: true
+      }
     }
   }
 });

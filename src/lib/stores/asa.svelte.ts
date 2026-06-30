@@ -1,4 +1,4 @@
-import type { AsaAction, AsaEvent, AsaMessage, AsaSession, AsaVoiceInput } from '$lib/api/asa';
+import type { AsaAction, AsaEvent, AsaMessage, AsaMessageOption, AsaSession, AsaVoiceInput } from '$lib/api/asa';
 import {
   cancelAsaRequest,
   fetchAsaConfig,
@@ -7,12 +7,17 @@ import {
   negotiateCapabilities,
   streamAsaMessage,
 } from '$lib/api/asa';
+import { asaLog, asaWarn } from '$lib/asa-debug';
+import { stripMarkdown } from '$lib/markdown';
+import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
+import { StreamBatcher } from './stream-batcher';
 
 export type AsaOrbState = 'hidden' | 'idle' | 'opening' | 'open' | 'thinking';
 
 type ContextContributor = () => Record<string, unknown>;
 
 const contributors = new Map<string, ContextContributor>();
+const TOKEN_FLUSH_INTERVAL_MS = 50;
 
 export function registerASAContext(key: string, fn: ContextContributor): () => void {
   contributors.set(key, fn);
@@ -34,6 +39,8 @@ function snapshotContext(): Record<string, unknown> {
 class AsaStore {
   available = $state(false);
   voiceEnabled = $state(false);
+  /** Sidecar voice (STT/TTS) reachable — gates mic + spoken replies. False → text-only. */
+  voiceSidecar = $state(false);
   checked = $state(false);
   orbState = $state<AsaOrbState>('hidden');
   open = $state(false);
@@ -54,6 +61,7 @@ class AsaStore {
   private actionRegistry = new Map<string, (payload: Record<string, unknown>) => void>();
   private serverCapabilities: string[] = [];
   private unknownActionEvents: Array<{ type: string; payload: Record<string, unknown> }> = [];
+  private flushActiveTokenBuffer: (() => void) | null = null;
 
   async init() {
     if (this.checked) return;
@@ -61,6 +69,7 @@ class AsaStore {
     const config = await fetchAsaConfig();
     this.available = config !== null;
     this.voiceEnabled = config?.voiceEnabled ?? false;
+    this.voiceSidecar = config?.voiceSidecar ?? false;
     if (this.available) {
       this.orbState = 'idle';
       this.session = await getAsaSession();
@@ -111,7 +120,7 @@ class AsaStore {
     this.error = null;
     try {
       const page = await getAsaMessages();
-      this.messages = this.mergeMessages([], page.items);
+      this.messages = this.mergeMessages(page.items, this.messages);
       this.historyCursor = page.nextCursor;
       this.historyHasMore = page.hasMore;
       this.historyLoaded = true;
@@ -144,6 +153,7 @@ class AsaStore {
 
   async send(text: string, voiceInput?: AsaVoiceInput) {
     if (!text.trim() || this.streaming) return;
+    asaLog('chat', 'send', { text, voice: Boolean(voiceInput) });
     this.error = null;
     this.thinkingText = 'Preparing your request';
 
@@ -160,7 +170,24 @@ class AsaStore {
     this.streaming = true;
     this.orbState = 'thinking';
     this.abortController = new AbortController();
+    // Speak the reply sentence-by-sentence as it streams (sidecar voice only; no-op if TTS off).
+    if (this.voiceSidecar) this.safeVoiceCall('beginSpeech', () => sidecarVoice.beginSpeech());
+    else asaLog('chat', 'voice sidecar unavailable — reply is text-only');
 
+    let ok = false;
+    let gotError = false;
+    let gotSpeech = false;
+    let gotDone = false;
+    let fullContent = '';
+    const tokenBatcher = new StreamBatcher({
+      delayMs: TOKEN_FLUSH_INTERVAL_MS,
+      onFlush: (content) => {
+        fullContent += content;
+        this.updateAssistant(requestId, { content: fullContent });
+        this.scrollRevision += 1;
+      },
+    });
+    this.flushActiveTokenBuffer = () => tokenBatcher.flush();
     try {
       const context = {
         navigation: { path: typeof window !== 'undefined' ? window.location.pathname : '' },
@@ -173,7 +200,6 @@ class AsaStore {
         voiceInput,
         signal: this.abortController.signal,
       });
-      let fullContent = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -184,8 +210,10 @@ class AsaStore {
         try {
           event = JSON.parse(value);
         } catch {
+          asaWarn('chat', 'unparseable SSE line', value);
           continue;
         }
+        if (event.eventType !== 'token') asaLog('chat', 'event', event.eventType, event.payload);
 
         switch (event.eventType) {
           case 'thinking':
@@ -193,39 +221,97 @@ class AsaStore {
             break;
           case 'token': {
             this.thinkingText = null;
-            fullContent += String(event.payload.content ?? '');
-            this.updateAssistant(requestId, { content: fullContent });
+            tokenBatcher.push(String(event.payload.content ?? ''));
+            break;
+          }
+          case 'speech': {
+            // Dedicated spoken text (separate from the displayed markdown) — speak only this.
+            this.thinkingText = null;
+            const speechText = String(event.payload.text ?? '');
+            if (this.voiceSidecar && speechText.trim()) {
+              gotSpeech = this.safeVoiceCall('speakText', () => sidecarVoice.speakText(speechText));
+            }
+            break;
+          }
+          case 'clarification': {
+            // ASA is unsure and is asking the user to pick. Render question + option buttons.
+            tokenBatcher.flush();
+            this.thinkingText = null;
+            const question = String(event.payload.question ?? event.payload.content ?? '');
+            const options = this.parseOptions(event.payload.options);
+            if (question) fullContent = question;
+            this.updateAssistant(requestId, { content: fullContent, options });
             this.scrollRevision += 1;
             break;
           }
           case 'action': {
+            tokenBatcher.flush();
             const actions = (event.payload.actions as AsaAction[] | undefined) ?? [];
             this.updateAssistant(requestId, { actions });
             this.executeActions(actions);
             break;
           }
+          case 'timing':
+            asaLog('chat:timing', event.payload);
+            break;
           case 'done':
+            tokenBatcher.flush();
+            gotDone = true;
             this.updateSessionBudget(event.payload);
             break;
           case 'error':
+            tokenBatcher.flush();
+            gotError = true;
             this.error = String(event.payload.message ?? 'ASA error');
+            if (this.voiceSidecar) {
+              this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
+              this.safeVoiceCall('playCue:sorry', () => sidecarVoice.playCue('sorry'));
+            }
+            asaWarn('chat', 'error event', this.error);
             break;
         }
       }
+      tokenBatcher.flush();
+      ok = true;
+      asaLog('chat', 'stream done', { chars: fullContent.length });
     } catch (error) {
       if ((error as Error).name !== 'AbortError') {
-        this.error = 'Connection error. Try again.';
+        asaWarn('chat', 'stream failed', error);
+        tokenBatcher.flush();
+        if (gotDone || stripMarkdown(fullContent).trim().length > 0) {
+          ok = true;
+        } else {
+          this.error = 'Connection error. Try again.';
+          if (this.voiceSidecar) {
+            this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
+            this.safeVoiceCall('playCue:sorry', () => sidecarVoice.playCue('sorry'));
+          }
+        }
       }
     } finally {
+      tokenBatcher.flush();
+      tokenBatcher.dispose();
+      if (this.flushActiveTokenBuffer) this.flushActiveTokenBuffer = null;
       this.streaming = false;
       this.thinkingText = null;
       this.currentRequestId = null;
       this.abortController = null;
+      if (this.voiceSidecar) {
+        const aborted = !ok && !gotError && this.error == null; // user cancelled (AbortError)
+        const errored = gotError || (!ok && this.error != null);
+        const spoke = gotSpeech && sidecarVoice.ttsEnabled;
+        this.safeVoiceCall('endTurn', () => sidecarVoice.endTurn({
+          // static "done" only for a successful, content-bearing, NON-spoken turn (action/nav, or TTS off)
+          playDone: ok && !errored && fullContent.trim().length > 0 && !spoke,
+          rearm: sidecarVoice.handsFree && !aborted,
+        }));
+      }
       if (this.open) this.orbState = 'open';
     }
   }
 
   cancel() {
+    this.flushActiveTokenBuffer?.();
     if (this.currentRequestId) {
       void cancelAsaRequest(this.currentRequestId);
       this.currentRequestId = null;
@@ -233,6 +319,7 @@ class AsaStore {
     this.abortController?.abort();
     this.abortController = null;
     this.thinkingText = null;
+    if (this.voiceSidecar) this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
     if (this.streaming) {
       this.streaming = false;
       if (this.open) this.orbState = 'open';
@@ -265,6 +352,34 @@ class AsaStore {
       tokensRemaining: Number(payload.tokensRemaining ?? this.session.tokensRemaining),
       resetAt: String(payload.resetAt ?? this.session.resetAt),
     };
+  }
+
+  private safeVoiceCall(label: string, fn: () => void): boolean {
+    try {
+      fn();
+      return true;
+    } catch (error) {
+      asaWarn('voice', `${label} failed`, error);
+      return false;
+    }
+  }
+
+  /** Normalize backend option payloads (strings or {label,value}) into AsaMessageOption[]. */
+  private parseOptions(raw: unknown): AsaMessageOption[] | undefined {
+    if (!Array.isArray(raw) || raw.length === 0) return undefined;
+    const options = raw
+      .map((item): AsaMessageOption | null => {
+        if (typeof item === 'string') return { label: item, value: item };
+        if (item && typeof item === 'object') {
+          const o = item as Record<string, unknown>;
+          const label = String(o.label ?? o.value ?? '');
+          if (!label) return null;
+          return { label, value: String(o.value ?? o.label ?? label) };
+        }
+        return null;
+      })
+      .filter((o): o is AsaMessageOption => o !== null);
+    return options.length > 0 ? options : undefined;
   }
 
   private mergeMessages(first: AsaMessage[], second: AsaMessage[]): AsaMessage[] {

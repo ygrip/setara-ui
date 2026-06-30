@@ -4,6 +4,7 @@
   import { apiFetch } from '$lib/api/client';
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
+  import Modal from '$lib/components/Modal.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
   let { data } = $props();
@@ -43,6 +44,124 @@
   let reindexResult = $state('');
   let createIndexBusy = $state(false);
   let createIndexResult = $state('');
+
+  // ── ASA token budget admin ────────────────────────────────────────────────
+  interface AsaSessionRow {
+    sessionId: string;
+    tokenBudget: number;
+    tokensUsed: number;
+    tokensReserved: number;
+    tokensRemaining: number;
+    resetAt: string;
+    active: boolean;
+  }
+  interface AsaUser { id: string; email: string; displayName: string; }
+  let asaUserId = $state('');
+  let asaUserSearch = $state('');
+  let asaSelectedLabel = $state('');
+  let asaSessions = $state<AsaSessionRow[]>([]);
+  let asaBusy = $state(false);
+  let asaMsg = $state('');
+  let asaError = $state('');
+  let confirmReset = $state<{ kind: 'session' | 'user' | 'drop'; id: string; label: string } | null>(null);
+
+  let filteredUsers = $derived.by<AsaUser[]>(() => {
+    const list = (data.users ?? []) as AsaUser[];
+    const q = asaUserSearch.trim().toLowerCase();
+    const matches = q
+      ? list.filter((u) => u.displayName.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))
+      : list;
+    return matches.slice(0, 8);
+  });
+
+  function selectAsaUser(u: AsaUser) {
+    asaUserId = u.id;
+    asaSelectedLabel = `${u.displayName} (${u.email})`;
+    asaUserSearch = '';
+    void loadAsaSessions();
+  }
+
+  function clearAsaUser() {
+    asaUserId = '';
+    asaSelectedLabel = '';
+    asaSessions = [];
+    asaMsg = '';
+    asaError = '';
+  }
+
+  async function doConfirmedReset() {
+    if (!confirmReset) return;
+    const c = confirmReset;
+    confirmReset = null;
+    if (c.kind === 'session') await resetAsaSession(c.id);
+    else if (c.kind === 'drop') await dropAsaSession(c.id);
+    else await resetAsaUser();
+  }
+
+  async function loadAsaSessions() {
+    asaError = '';
+    asaMsg = '';
+    if (!asaUserId) { asaSessions = []; return; }
+    asaBusy = true;
+    try {
+      const res = await apiFetch(`/api/admin/intelligence/asa/sessions?userId=${asaUserId}`);
+      if (!res.ok) { asaError = `Failed to load sessions (HTTP ${res.status})`; asaSessions = []; return; }
+      asaSessions = await res.json();
+    } catch (e) {
+      asaError = e instanceof Error ? e.message : 'Request failed';
+    } finally {
+      asaBusy = false;
+    }
+  }
+
+  async function resetAsaSession(sessionId: string) {
+    asaBusy = true; asaError = ''; asaMsg = '';
+    try {
+      const res = await apiFetch(`/api/admin/intelligence/asa/sessions/${sessionId}/reset`, { method: 'POST' });
+      if (!res.ok) { asaError = await errText(res, 'Reset failed'); return; }
+      asaMsg = 'Session budget reset.';
+      await loadAsaSessions();
+    } catch (e) {
+      asaError = e instanceof Error ? e.message : 'Request failed';
+    } finally {
+      asaBusy = false;
+    }
+  }
+
+  async function dropAsaSession(sessionId: string) {
+    asaBusy = true; asaError = ''; asaMsg = '';
+    try {
+      const res = await apiFetch(`/api/admin/intelligence/asa/sessions/${sessionId}`, { method: 'DELETE' });
+      if (!res.ok) { asaError = await errText(res, 'Drop failed'); return; }
+      asaMsg = 'Session dropped — all its messages and context were deleted.';
+      await loadAsaSessions();
+    } catch (e) {
+      asaError = e instanceof Error ? e.message : 'Request failed';
+    } finally {
+      asaBusy = false;
+    }
+  }
+
+  async function errText(res: Response, fallback: string): Promise<string> {
+    const json = await res.json().catch(() => ({}));
+    return (json as { error?: string }).error ?? `${fallback} (HTTP ${res.status})`;
+  }
+
+  async function resetAsaUser() {
+    if (!asaUserId) return;
+    asaBusy = true; asaError = ''; asaMsg = '';
+    try {
+      const res = await apiFetch(`/api/admin/intelligence/asa/users/${asaUserId}/reset`, { method: 'POST' });
+      if (!res.ok) { asaError = await errText(res, 'Reset failed'); return; }
+      const result = await res.json();
+      asaMsg = result.sessionsReset > 0 ? 'Active session budget reset.' : 'No active session to reset.';
+      await loadAsaSessions();
+    } catch (e) {
+      asaError = e instanceof Error ? e.message : 'Request failed';
+    } finally {
+      asaBusy = false;
+    }
+  }
 
   $effect(() => {
     if (data.flags) localFlags = { ...defaultFlags, ...data.flags };
@@ -272,6 +391,97 @@
           </div>
         </div>
       </Card>
+
+      <Card padding="md">
+        <h2 class="panel-title">ASA Token Budget</h2>
+        <p class="panel-desc">Reset the active ASA session's token budget, or drop a past session to permanently delete its messages and context. The active session can't be dropped.</p>
+
+        {#if asaUserId}
+          <div class="asa-selected">
+            <span><strong>{asaSelectedLabel}</strong></span>
+            <button type="button" class="link-btn" onclick={clearAsaUser}>Change user</button>
+          </div>
+        {:else}
+          <div class="asa-picker">
+            <input class="input" placeholder="Search users by name or email…" bind:value={asaUserSearch} aria-label="Search users" />
+            {#if asaUserSearch.trim()}
+              <ul class="asa-results">
+                {#each filteredUsers as u (u.id)}
+                  <li>
+                    <button type="button" class="asa-result" onclick={() => selectAsaUser(u)}>
+                      {u.displayName} <span class="muted">{u.email}</span>
+                    </button>
+                  </li>
+                {:else}
+                  <li class="empty-text" style="padding:8px 10px">No matching users.</li>
+                {/each}
+              </ul>
+            {/if}
+          </div>
+        {/if}
+
+        {#if asaError}<p class="flag-error">{asaError}</p>{/if}
+        {#if asaMsg}<p class="action-result">{asaMsg}</p>{/if}
+
+        {#if asaUserId}
+          <div class="action-row" style="margin-top:10px">
+            <Button variant="danger" size="sm" onclick={() => (confirmReset = { kind: 'user', id: asaUserId, label: asaSelectedLabel })} disabled={asaBusy}>
+              Reset active session budget
+            </Button>
+          </div>
+          {#if asaSessions.length === 0}
+            <p class="empty-text" style="margin-top:12px">{asaBusy ? 'Loading…' : 'No ASA sessions for this user.'}</p>
+          {:else}
+            <div class="table-wrap" style="margin-top:12px">
+              <table>
+                <thead>
+                  <tr><th>Session</th><th>Status</th><th>Used / Budget</th><th>Reserved</th><th>Expires</th><th></th></tr>
+                </thead>
+                <tbody>
+                  {#each asaSessions as s (s.sessionId)}
+                    <tr>
+                      <td><code>{s.sessionId.slice(0, 8)}</code></td>
+                      <td>{s.active ? 'Active' : 'Past'}</td>
+                      <td>{s.tokensUsed} / {s.tokenBudget}</td>
+                      <td>{s.tokensReserved}</td>
+                      <td>{fmtDate(s.resetAt)}</td>
+                      <td>
+                        {#if s.active}
+                          <Button variant="secondary" size="sm" onclick={() => (confirmReset = { kind: 'session', id: s.sessionId, label: s.sessionId.slice(0, 8) })} disabled={asaBusy}>
+                            Reset
+                          </Button>
+                        {:else}
+                          <Button variant="danger" size="sm" onclick={() => (confirmReset = { kind: 'drop', id: s.sessionId, label: s.sessionId.slice(0, 8) })} disabled={asaBusy}>
+                            Drop
+                          </Button>
+                        {/if}
+                      </td>
+                    </tr>
+                  {/each}
+                </tbody>
+              </table>
+            </div>
+          {/if}
+        {/if}
+      </Card>
+
+      <Modal open={confirmReset !== null} title={confirmReset?.kind === 'drop' ? 'Drop ASA session' : 'Reset ASA token budget'} size="sm" onclose={() => (confirmReset = null)}>
+        {#if confirmReset}
+          <p class="confirm-text">
+            {#if confirmReset.kind === 'user'}
+              Reset the <strong>active</strong> ASA session budget for <strong>{confirmReset.label}</strong>? Consumed and reserved tokens return to zero. Past sessions are not affected.
+            {:else if confirmReset.kind === 'drop'}
+              Drop ASA session <code>{confirmReset.label}</code>? This <strong>permanently deletes</strong> the session and all its messages, reservations, and workflow context. This cannot be undone.
+            {:else}
+              Reset ASA session <code>{confirmReset.label}</code>? Its consumed and reserved tokens return to zero.
+            {/if}
+          </p>
+          <div class="confirm-actions">
+            <Button variant="secondary" size="sm" onclick={() => (confirmReset = null)}>Cancel</Button>
+            <Button variant="danger" size="sm" onclick={doConfirmedReset} disabled={asaBusy}>{confirmReset.kind === 'drop' ? 'Drop' : 'Reset'}</Button>
+          </div>
+        {/if}
+      </Modal>
     {:else if !data.error}
       <Card padding="md"><p class="empty-text">No health data available.</p></Card>
     {/if}
@@ -330,6 +540,17 @@
   .action-desc, .action-result, .empty-text { color: var(--color-text-muted); font-size: 0.85rem; }
   .action-row { display: flex; gap: 8px; align-items: center; }
   .input { min-width: 0; flex: 1; height: 34px; border: 1px solid var(--color-border); border-radius: 6px; padding: 0 10px; background: var(--color-surface); color: var(--color-text); }
+
+  .asa-picker { position: relative; }
+  .asa-results { list-style: none; margin: 6px 0 0; padding: 4px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); max-height: 260px; overflow: auto; }
+  .asa-result { width: 100%; text-align: left; background: none; border: none; border-radius: 4px; padding: 7px 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text); }
+  .asa-result:hover { background: var(--color-accent-subtle); }
+  .asa-result .muted { color: var(--color-text-muted); font-size: 0.78rem; }
+  .asa-selected { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); font-size: 0.875rem; }
+  .link-btn { background: none; border: none; color: var(--color-accent); cursor: pointer; font-size: 0.8rem; padding: 0; }
+  .link-btn:hover { text-decoration: underline; }
+  .confirm-text { margin: 0 0 16px; font-size: 0.9rem; line-height: 1.5; }
+  .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
   @media (max-width: 760px) {
     .metrics-grid, .actions-grid { grid-template-columns: 1fr; }

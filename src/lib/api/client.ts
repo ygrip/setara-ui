@@ -13,7 +13,11 @@ export async function apiFetch(path: string, init: RequestInit = {}): Promise<Re
   if (session?.accessToken) {
     headers.set('Authorization', `Bearer ${session.accessToken}`);
   }
-  const response = await fetch(`${getApiBaseUrl()}${path}`, { ...init, headers });
+  const response = await fetch(`${getApiBaseUrl()}${path}`, {
+    ...init,
+    headers,
+    credentials: init.credentials ?? 'include',
+  });
   if (response.status === 401) {
     clearSession();
     if (typeof window !== 'undefined') window.location.href = '/login';
@@ -25,6 +29,7 @@ export async function login(email: string, password: string) {
   const response = await fetch(`${getApiBaseUrl()}/api/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
     body: JSON.stringify({ email, password }),
   });
   if (!response.ok) {
@@ -47,7 +52,7 @@ export async function changePassword(currentPassword: string, newPassword: strin
 }
 
 export async function getHealth(): Promise<{ status: string; service: string }> {
-  const response = await fetch(`${getApiBaseUrl()}/api/health`);
+  const response = await fetch(`${getApiBaseUrl()}/api/health`, { credentials: 'include' });
   if (!response.ok) throw new Error(`Health check failed: ${response.status}`);
   return response.json();
 }

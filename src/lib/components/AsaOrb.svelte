@@ -1,13 +1,14 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { asa } from '$lib/stores/asa.svelte';
-  import { asaVoice } from '$lib/voice/asa-voice.svelte';
   import type { AsaAction } from '$lib/api/asa';
+  import { renderMarkdown } from '$lib/markdown';
+  import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
 
   // ── Constants ─────────────────────────────────────────────────────────────
   const ORB_SIZE   = 80;
-  const PANEL_MIN_W = 300;
-  const PANEL_MIN_H = 340;
+  const PANEL_MIN_W = 280;
+  const PANEL_MIN_H = 320;
   const PANEL_GAP   = 14;   // gap between orb edge and panel
 
   // ── Orb position (left/top viewport coords) ───────────────────────────────
@@ -57,6 +58,7 @@
     if (orbDragPx < 6) asa.toggle();
   }
 
+
   // ── Panel position + size ─────────────────────────────────────────────────
   let panelW = $state(360);
   let panelH = $state(480);
@@ -70,6 +72,8 @@
     if (orbX < 0) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
+    panelW = Math.min(panelW, Math.max(PANEL_MIN_W, vw - 16));
+    panelH = Math.min(panelH, Math.max(PANEL_MIN_H, vh - 16));
     // Horizontal: align panel right edge with orb right edge, clamp
     let px = orbX + ORB_SIZE - panelW;
     px = Math.max(8, Math.min(vw - panelW - 8, px));
@@ -81,6 +85,12 @@
     py = Math.max(8, Math.min(vh - panelH - 8, py));
     panelX = px;
     panelY = py;
+  }
+
+  function fitToViewport() {
+    orbX = Math.max(0, Math.min(window.innerWidth - ORB_SIZE, orbX));
+    orbY = Math.max(0, Math.min(window.innerHeight - ORB_SIZE, orbY));
+    snapPanelToOrb();
   }
 
   function onPanelPointerDown(e: PointerEvent) {
@@ -154,12 +164,6 @@
   });
 
   $effect(() => {
-    if (asaVoice.state === 'command-listening' || asaVoice.state === 'reviewing' || asaVoice.state === 'clarifying') {
-      asa.activate();
-    }
-  });
-
-  $effect(() => {
     if (asa.open && orbX >= 0) snapPanelToOrb();
   });
 
@@ -173,12 +177,27 @@
     chatEl.scrollTop = previousTop + chatEl.scrollHeight - previousHeight;
   }
 
-  function handleSubmit(e: SubmitEvent) {
+  async function handleSubmit(e: SubmitEvent) {
     e.preventDefault();
     const text = inputText.trim();
     if (!text) return;
     inputText = '';
-    asa.send(text);
+    // Reply is spoken sentence-by-sentence as it streams (handled in the asa store).
+    await asa.send(text);
+  }
+
+  // Sidecar push-to-talk: click to record, click again to stop → transcribe → auto-send, so the
+  // user can hold a hands-free spoken conversation with ASA (reply is spoken back as it streams).
+  async function toggleSidecarMic() {
+    if (sidecarVoice.recording) {
+      const transcript = await sidecarVoice.stopRecording();
+      if (transcript) {
+        if (!asa.open) asa.activate();
+        await asa.send(transcript.text, transcript.voiceInput);
+      }
+    } else {
+      await sidecarVoice.startRecording();
+    }
   }
 
   function closePanel() {
@@ -187,9 +206,29 @@
   }
 
   function onWindowKeydown(event: KeyboardEvent) {
-    if (event.key !== 'Escape' || !asa.open) return;
-    event.preventDefault();
-    closePanel();
+    if (!asa.open) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closePanel();
+      return;
+    }
+    // Cmd/Ctrl+Enter sends from anywhere in the panel (plain Enter already submits from the input).
+    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+      if (!asa.streaming && inputText.trim()) {
+        event.preventDefault();
+        const text = inputText.trim();
+        inputText = '';
+        void asa.send(text);
+      }
+      return;
+    }
+    // Cmd/Ctrl+M toggles voice recording (record shortcut).
+    if ((event.metaKey || event.ctrlKey) && (event.key === 'm' || event.key === 'M')) {
+      if (asa.voiceSidecar && sidecarVoice.status !== 'transcribing') {
+        event.preventDefault();
+        void toggleSidecarMic();
+      }
+    }
   }
 
   // ── Orb image ─────────────────────────────────────────────────────────────
@@ -220,22 +259,31 @@
   onMount(() => {
     orbX = window.innerWidth  - ORB_SIZE - 24;
     orbY = window.innerHeight - ORB_SIZE - 24;
-    window.addEventListener('resize', snapPanelToOrb);
+    window.addEventListener('resize', fitToViewport);
     window.addEventListener('keydown', onWindowKeydown);
-    asaVoice.hydrate();
-    asaVoice.setCommandHandler(async (transcript, voiceInput) => {
-      asa.activate();
-      await asa.send(transcript, voiceInput);
-      return asa.messages.findLast((message) => message.role === 'assistant')?.content;
+    // Hands-free auto-sends each transcribed utterance.
+    sidecarVoice.onTranscript = (text, voiceInput) => { void asa.send(text, voiceInput); };
+    asa.init().then(() => {
+      if (asa.voiceSidecar) {
+        sidecarVoice.hydrate();
+        void sidecarVoice.loadVoices();
+        void sidecarVoice.loadCatalog();
+      }
     });
-    asa.init();
+  });
+
+  // Arm hands-free only while the panel is open (mic off otherwise — privacy).
+  $effect(() => {
+    sidecarVoice.syncHandsFree(asa.open && asa.voiceSidecar);
   });
 
   onDestroy(() => {
     if (rippleTimer) clearTimeout(rippleTimer);
-    window.removeEventListener('resize', snapPanelToOrb);
+    window.removeEventListener('resize', fitToViewport);
     window.removeEventListener('keydown', onWindowKeydown);
-    asaVoice.destroy();
+    sidecarVoice.cancelRecording();
+    sidecarVoice.disarmHandsFree();
+    sidecarVoice.stopAudio();
   });
 </script>
 
@@ -247,6 +295,7 @@
     bind:this={orbEl}
     class="orb"
     class:orb--dragging={orbDragging}
+    class:orb--voice-active={sidecarVoice.recording}
     style="left:{orbX}px;top:{orbY}px;width:{ORB_SIZE}px;height:{ORB_SIZE}px"
     role="button"
     tabindex="0"
@@ -263,10 +312,43 @@
     {/if}
   </div>
 
+  {#if asa.voiceSidecar}
+    <button
+      class="orb-voice-btn"
+      class:orb-voice-btn--active={sidecarVoice.recording}
+      class:orb-voice-btn--error={sidecarVoice.status === 'error'}
+      style="left:{orbX + ORB_SIZE - 30}px;top:{orbY + ORB_SIZE - 30}px"
+      onclick={toggleSidecarMic}
+      disabled={sidecarVoice.status === 'transcribing'}
+      aria-label={sidecarVoice.recording ? 'Stop recording' : 'Record a voice command'}
+      title={sidecarVoice.recording ? 'Stop and transcribe' : 'Talk to ASA'}
+    >
+      {#if sidecarVoice.status === 'transcribing'}
+        <span class="orb-voice-spinner" aria-hidden="true"></span>
+      {:else}
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
+      {/if}
+    </button>
+
+    {#if !asa.open && (sidecarVoice.recording || sidecarVoice.status === 'transcribing')}
+      <div
+        class="orb-voice-status"
+        style="left:{orbX + ORB_SIZE / 2}px;top:{Math.max(8, orbY - 30)}px"
+        role="status"
+      >
+        {#if sidecarVoice.recording && sidecarVoice.interimTranscript}
+          {sidecarVoice.interimTranscript}
+        {:else}
+          {sidecarVoice.recording ? 'Recording… tap to stop' : 'Transcribing…'}
+        {/if}
+      </div>
+    {/if}
+  {/if}
+
   <!-- ── Chat panel ─────────────────────────────────────────────────────── -->
   {#if asa.open}
     <div
-      class="panel glass-container"
+      class="panel"
       class:panel--moving={panelMoving}
       style="left:{panelX}px;top:{panelY}px;width:{panelW}px;height:{panelH}px"
       role="dialog"
@@ -324,6 +406,7 @@
               {Math.round(budgetPct * 100)}%
             </span>
           {/if}
+          {#if asa.voiceSidecar}
           <button
             class="icon-btn"
             class:icon-btn--active={voiceSettingsOpen}
@@ -334,6 +417,7 @@
           >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
           </button>
+          {/if}
           <button
             class="icon-btn"
             onpointerdown={(event) => event.stopPropagation()}
@@ -360,38 +444,47 @@
           <label class="voice-toggle">
             <input
               type="checkbox"
-              checked={asaVoice.preferences.autoSpeak}
-              onchange={(event) => asaVoice.updatePreferences({
-                autoSpeak: (event.currentTarget as HTMLInputElement).checked,
-              })}
+              checked={sidecarVoice.ttsEnabled}
+              onchange={(event) => sidecarVoice.setTtsEnabled((event.currentTarget as HTMLInputElement).checked)}
             />
             Speak responses
           </label>
-          <label>
-            <span>Speed {asaVoice.preferences.speed.toFixed(1)}x</span>
+          {#if sidecarVoice.voices.length > 0}
+            <label class="voice-pick">
+              <span>Voice</span>
+              <select
+                value={sidecarVoice.voiceId ?? ''}
+                onchange={(event) => sidecarVoice.setVoice((event.currentTarget as HTMLSelectElement).value)}
+              >
+                {#each sidecarVoice.voices as v (v.id)}
+                  <option value={v.id}>{v.label}</option>
+                {/each}
+              </select>
+            </label>
+          {/if}
+          <label class="voice-toggle">
             <input
-              type="range"
-              min="0.7"
-              max="1.4"
-              step="0.1"
-              value={asaVoice.preferences.speed}
-              oninput={(event) => asaVoice.updatePreferences({
-                speed: Number((event.currentTarget as HTMLInputElement).value),
-              })}
+              type="checkbox"
+              checked={sidecarVoice.speakOnlyShort}
+              onchange={(event) => sidecarVoice.setSpeakOnlyShort((event.currentTarget as HTMLInputElement).checked)}
             />
+            Speak only short replies
           </label>
-          <label>
-            <span>Volume {Math.round(asaVoice.preferences.volume * 100)}%</span>
+          <label class="voice-toggle">
             <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.05"
-              value={asaVoice.preferences.volume}
-              oninput={(event) => asaVoice.updatePreferences({
-                volume: Number((event.currentTarget as HTMLInputElement).value),
-              })}
+              type="checkbox"
+              checked={sidecarVoice.handsFree}
+              onchange={(event) => sidecarVoice.setHandsFree((event.currentTarget as HTMLInputElement).checked)}
             />
+            Hands-free (auto-listen &amp; send)
+          </label>
+          <label class="voice-toggle">
+            <input
+              type="checkbox"
+              checked={sidecarVoice.earcons}
+              onchange={(event) => sidecarVoice.setEarcons((event.currentTarget as HTMLInputElement).checked)}
+            />
+            Sound cues
           </label>
         </div>
       {/if}
@@ -417,10 +510,27 @@
               {/if}
               <div class="msg-bubble">
                 {#if msg.content}
-                  {msg.content}
+                  {#if msg.role === 'assistant'}
+                    <!-- Content originates from our own backend LLM; rendered as markdown. -->
+                    <div class="msg-md">{@html renderMarkdown(msg.content)}</div>
+                  {:else}
+                    {msg.content}
+                  {/if}
                 {:else if asa.streaming && msg === asa.messages.at(-1)}
                   <span class="thinking-bubble-text">{asa.thinkingText ?? 'Thinking'}</span>
                   <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
+                {/if}
+                {#if msg.options?.length}
+                  <div class="msg-options" role="group" aria-label="Choose an option">
+                    {#each msg.options as opt}
+                      <button
+                        type="button"
+                        class="msg-option-btn"
+                        disabled={asa.streaming}
+                        onclick={() => asa.send(opt.value)}
+                      >{opt.label}</button>
+                    {/each}
+                  </div>
                 {/if}
                 {#if msg.actions?.length}
                   <div class="msg-actions">
@@ -438,61 +548,22 @@
         {/if}
       </div>
 
-      <!-- svelte-ignore a11y_unknown_role -->
-      {#if asaVoice.state === 'downloading' || asaVoice.state === 'setup'}
-        <div class="voice-progress" role="status">
-          <span>{asaVoice.state === 'setup' ? 'Preparing voice' : 'Downloading local voice models'}</span>
-          <progress max="1" value={asaVoice.downloadProgress}></progress>
-        </div>
-      {:else if asaVoice.state === 'clarifying'}
-        <div class="voice-review" role="region" aria-label="Entity clarification">
-          {#each asaVoice.clarifications as clarification (clarification.originalSpan)}
-            <div class="voice-clarification">
-              <p class="voice-clarification-label">I heard "<em>{clarification.originalSpan}</em>" — which did you mean?</p>
-              <div class="voice-clarification-candidates" role="group" aria-label="Candidates for {clarification.originalSpan}">
-                {#each clarification.candidates as candidate}
-                  <button
-                    class="voice-candidate-btn"
-                    onclick={() => asaVoice.applyClarification(clarification, candidate)}
-                    aria-label="Select {candidate.display} ({candidate.type})"
-                  >
-                    <span class="voice-candidate-name">{candidate.display}</span>
-                    <span class="voice-candidate-type">{candidate.type}</span>
-                  </button>
-                {/each}
-              </div>
-            </div>
-          {/each}
-          <div class="voice-review-row" style="margin-top:8px">
-            <button class="icon-btn" onclick={() => asaVoice.retryCommand()} title="Record again" aria-label="Record again">↻</button>
-            <button class="icon-btn" onclick={() => asaVoice.cancelReview()} title="Cancel" aria-label="Cancel">✕</button>
-          </div>
-        </div>
-      {:else if asaVoice.state === 'reviewing'}
-        <div class="voice-review">
-          <label for="asa-voice-transcript">Review transcript</label>
-          <div class="voice-review-row">
-            <input id="asa-voice-transcript" bind:value={asaVoice.resolvedText} class="chat-input" aria-label="Resolved transcript" />
-            <button class="icon-btn" onclick={() => asaVoice.retryCommand()} title="Record again" aria-label="Record again">↻</button>
-            <button class="send-btn" onclick={() => asaVoice.confirmTranscript()} title="Send transcript" aria-label="Send transcript">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-            </button>
-          </div>
-        </div>
+      {#if sidecarVoice.recording && sidecarVoice.interimTranscript}
+        <div class="interim-transcript" role="status" aria-live="polite">{sidecarVoice.interimTranscript}</div>
       {/if}
 
       <form class="input-row" onsubmit={handleSubmit}>
-        {#if asa.voiceEnabled}
+        {#if asa.voiceSidecar}
+        <!-- Push-to-talk via sidecar: click to record, click again to stop + transcribe. -->
         <button
           type="button"
           class="voice-btn"
-          class:voice-btn--active={asaVoice.state === 'wake-listening' || asaVoice.state === 'command-listening'}
-          class:voice-btn--error={asaVoice.state === 'error'}
-          onclick={() => asaVoice.toggleListening()}
-          title={asaVoice.enabled
-            ? (asaVoice.state === 'paused' ? 'Resume wake listening' : 'Pause wake listening')
-            : 'Set up local voice'}
-          aria-label={asaVoice.enabled ? 'Toggle ASA wake listening' : 'Set up ASA voice'}
+          class:voice-btn--active={sidecarVoice.recording}
+          class:voice-btn--error={sidecarVoice.status === 'error'}
+          disabled={sidecarVoice.status === 'transcribing'}
+          onclick={toggleSidecarMic}
+          title={sidecarVoice.recording ? 'Stop and transcribe (⌘/Ctrl+M)' : (sidecarVoice.status === 'transcribing' ? 'Transcribing…' : 'Record a voice command (⌘/Ctrl+M)')}
+          aria-label={sidecarVoice.recording ? 'Stop recording' : 'Record a voice command'}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
         </button>
@@ -512,20 +583,29 @@
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
           </button>
         {:else}
-          <button type="submit" class="send-btn" disabled={!inputText.trim()} aria-label="Send">
+          <button type="submit" class="send-btn" disabled={!inputText.trim()} aria-label="Send" title="Send (Enter or ⌘/Ctrl+Enter)">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
           </button>
         {/if}
       </form>
 
-      {#if asaVoice.enabled && asaVoice.state !== 'reviewing' && asaVoice.state !== 'clarifying'}
+      {#if asa.voiceSidecar && sidecarVoice.status === 'recording'}
         <!-- svelte-ignore a11y_unknown_role -->
-        <div class=”voice-state” role=”status”>
-          <span class=”voice-level” style:--voice-level={asaVoice.audioLevel}></span>
-          {asaVoice.state === 'wake-listening' ? 'Listening for “Hi ASA” or “Hello ASA”' : asaVoice.state.replaceAll('-', ' ')}
+        <div class="voice-state" role="status">
+          <span class="voice-level voice-level--rec"></span>
+          Recording… {sidecarVoice.handsFree ? 'pause to send' : 'click the mic to stop'}
         </div>
-      {:else if asaVoice.error}
-        <div class=”voice-state” class:voice-state--error={true}>{asaVoice.error}</div>
+      {:else if asa.voiceSidecar && sidecarVoice.status === 'transcribing'}
+        <!-- svelte-ignore a11y_unknown_role -->
+        <div class="voice-state" role="status">Transcribing…</div>
+      {:else if asa.voiceSidecar && sidecarVoice.status === 'listening'}
+        <!-- svelte-ignore a11y_unknown_role -->
+        <div class="voice-state" role="status">
+          <span class="voice-level"></span>
+          {sidecarVoice.wakeMode === 'wake' ? 'Say Hi ASA to start' : 'Hands-free on, listening'}
+        </div>
+      {:else if asa.voiceSidecar && sidecarVoice.error}
+        <div class="voice-state voice-state--error" role="alert">{sidecarVoice.error}</div>
       {/if}
 
     </div>
@@ -549,9 +629,16 @@
     cursor: grab;
     user-select: none;
     touch-action: none;
-    /* No background, no border — pure image */
+    border-radius: 50%;
   }
   .orb--dragging { cursor: grabbing; }
+  .orb--voice-active .orb-img {
+    filter: drop-shadow(0 0 16px color-mix(in srgb, var(--color-accent), transparent 25%));
+  }
+  .orb:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 3px;
+  }
 
   .orb-img {
     display: block;
@@ -581,28 +668,82 @@
     to   { transform: scale(1.9);  opacity: 0; }
   }
 
+  .orb-voice-btn {
+    position: fixed;
+    z-index: 10000;
+    display: grid;
+    place-items: center;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--color-border) 72%, white);
+    border-radius: 50%;
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    color: var(--color-text-muted);
+    box-shadow: 0 4px 12px rgb(15 23 42 / 0.2);
+    backdrop-filter: blur(10px);
+    cursor: pointer;
+  }
+  .orb-voice-btn:hover:not(:disabled),
+  .orb-voice-btn--active {
+    border-color: var(--color-accent);
+    background: var(--color-accent);
+    color: white;
+  }
+  .orb-voice-btn--error { border-color: var(--color-danger); color: var(--color-danger); }
+  .orb-voice-btn:disabled { cursor: wait; }
+  .orb-voice-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+  .orb-voice-spinner {
+    width: 13px;
+    height: 13px;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: voice-spin 0.7s linear infinite;
+  }
+  @keyframes voice-spin { to { transform: rotate(360deg); } }
+
+  .orb-voice-status {
+    position: fixed;
+    z-index: 9999;
+    max-width: min(240px, calc(100vw - 16px));
+    padding: 5px 9px;
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 58%);
+    border-radius: 6px;
+    background: color-mix(in srgb, var(--color-surface) 90%, transparent);
+    color: var(--color-text);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(12px);
+    font-size: 11px;
+    white-space: nowrap;
+    transform: translateX(-50%);
+    pointer-events: none;
+  }
+
   /* ── Panel ─────────────────────────────────────────────────────────────── */
   .panel {
     position: fixed;
     z-index: 9998;
     display: flex;
     flex-direction: column;
-    border-radius: 14px;
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 16px);
+    border-radius: var(--radius);
     overflow: hidden;
-    background: var(--surface-overlay, #ffffff);
-    border: 1px solid rgba(203,213,225,0.7);
-    box-shadow:
-      0 2px 8px rgba(0,0,0,0.07),
-      0 12px 32px rgba(0,0,0,0.12),
-      0 0 0 1px rgba(0,0,0,0.02);
+    backdrop-filter: blur(18px) saturate(140%);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    background: color-mix(in srgb, var(--color-surface) 55%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-border) 72%, white);
+    box-shadow: 0 8px 32px rgb(15 23 42 / 0.16), inset 0 1px 0 rgb(255 255 255 / 0.5);
     animation: panel-in 0.22s cubic-bezier(0.34,1.56,0.64,1) both;
-    min-width: 300px;
-    min-height: 340px;
+    min-width: min(280px, calc(100vw - 16px));
+    min-height: min(320px, calc(100vh - 16px));
   }
   :global([data-theme='dark']) .panel {
-    background: #1a2235;
-    border-color: rgba(51,65,85,0.75);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.25), 0 16px 40px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04);
+    background: color-mix(in srgb, var(--color-surface) 58%, transparent);
+    border-color: color-mix(in srgb, var(--color-border) 78%, white 8%);
+    box-shadow: 0 12px 36px rgb(0 0 0 / 0.4), inset 0 1px 0 rgb(255 255 255 / 0.08);
   }
   @keyframes panel-in {
     from { opacity: 0; transform: scale(0.94) translateY(8px); }
@@ -615,31 +756,24 @@
     align-items: center;
     justify-content: space-between;
     padding: 10px 10px 10px 27px;
-    border-bottom: 1px solid rgba(203,213,225,0.45);
+    border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
     user-select: none;
-    background: rgba(240,249,255,0.6);
+    background: color-mix(in srgb, var(--color-surface) 72%, var(--color-accent) 4%);
     cursor: grab;
     touch-action: none;
   }
   .panel--moving .panel-header { cursor: grabbing; }
-  :global([data-theme='dark']) .panel-header {
-    background: rgba(14,165,233,0.06);
-    border-bottom-color: rgba(51,65,85,0.5);
-  }
-
   .panel-title {
     display: flex;
     align-items: center;
     gap: 7px;
     font-size: 13px;
     font-weight: 600;
-    color: var(--text-primary, #0f172a);
-    letter-spacing: 0.01em;
+    color: var(--color-text);
+    letter-spacing: 0;
     pointer-events: none;
   }
-  :global([data-theme='dark']) .panel-title { color: #e2e8f0; }
-
   .panel-avatar {
     width: 24px;
     height: 24px;
@@ -649,11 +783,11 @@
   .panel-thinking-badge {
     font-size: 10px;
     font-weight: 500;
-    color: var(--color-accent, #22d3ee);
-    background: rgba(14,165,233,0.1);
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
     border-radius: 999px;
     padding: 1px 7px;
-    letter-spacing: 0.03em;
+    letter-spacing: 0;
   }
 
   .panel-header-actions {
@@ -669,9 +803,10 @@
     gap: 4px;
     font-size: 10px;
     font-weight: 500;
-    color: var(--color-accent, #22d3ee);
-    background: rgba(34,211,238,0.08);
-    border: 1px solid rgba(34,211,238,0.2);
+    font-family: inherit;
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
     border-radius: 999px;
     padding: 2px 7px;
     margin-right: 2px;
@@ -687,20 +822,15 @@
     border-radius: 7px;
     border: none;
     background: transparent;
-    color: var(--text-muted, #94a3b8);
+    color: var(--color-text-muted);
     cursor: pointer;
     transition: background 0.1s, color 0.1s;
   }
   .icon-btn:hover {
     background: rgba(0,0,0,0.07);
-    color: var(--text-primary, #0f172a);
+    color: var(--color-text);
   }
   .icon-btn--active { background: var(--color-accent-subtle, #ecfcfb); color: var(--color-accent, #00afa5); }
-  :global([data-theme='dark']) .icon-btn:hover {
-    background: rgba(255,255,255,0.08);
-    color: #e2e8f0;
-  }
-
   .voice-settings {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -712,9 +842,19 @@
     font-size: 11px;
   }
   .voice-settings label { display: grid; gap: 3px; min-width: 0; }
-  .voice-settings input[type='range'] { width: 100%; accent-color: var(--color-accent, #00afa5); }
   .voice-settings .voice-toggle { grid-column: 1 / -1; display: flex; align-items: center; gap: 7px; }
   .voice-settings input[type='checkbox'] { accent-color: var(--color-accent, #00afa5); }
+  .voice-settings .voice-pick { grid-column: 1 / -1; }
+  .voice-settings select {
+    width: 100%;
+    padding: 4px 6px;
+    border-radius: 6px;
+    border: 1px solid var(--color-border, #cbd5e1);
+    background: var(--color-bg, #fff);
+    color: var(--color-text, #0f172a);
+    font-size: 11px;
+    font-family: inherit;
+  }
 
   /* Messages */
   .messages {
@@ -733,22 +873,6 @@
     padding: 3px 8px;
     color: var(--color-text-muted, #64748b);
     font-size: 10px;
-  }
-
-  .glass-container {
-    /* Semi-transparent background (15% opacity) */
-    background: rgba(255, 255, 255, 0.15); 
-  
-    /* The core frosting effect */
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px); /* Safari support */
-    
-    /* Subtle white border to simulate glass edges */
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    
-    /* Smooth curves and depth shadow */
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
   }
 
   .empty-state {
@@ -771,13 +895,12 @@
     margin: 0;
     font-size: 14px;
     font-weight: 600;
-    color: var(--text-primary, #0f172a);
+    color: var(--color-text);
   }
-  :global([data-theme='dark']) .empty-title { color: #e2e8f0; }
   .empty-hint {
     margin: 0;
     font-size: 12px;
-    color: var(--text-muted, #94a3b8);
+    color: var(--color-text-muted);
     line-height: 1.5;
   }
 
@@ -800,27 +923,25 @@
   .msg-bubble {
     max-width: 80%;
     padding: 8px 11px;
-    border-radius: 13px;
+    border-radius: 8px;
     font-size: 13px;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
+    /* Stay opaque + lifted so bubbles read clearly over the now-transparent panel. */
+    box-shadow: 0 2px 8px rgb(15 23 42 / 0.14);
   }
   .msg--user .msg-bubble {
-    background: var(--color-accent, #22d3ee);
+    background: var(--color-accent);
     color: #fff;
     border-bottom-right-radius: 3px;
   }
   .msg--assistant .msg-bubble {
-    background: var(--color-accent-subtle, #f1f5f9);
-    color: var(--color-text-primary, #0f172a);
+    background: var(--color-surface);
+    color: var(--color-text);
+    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
     border-bottom-left-radius: 3px;
   }
-  :global([data-theme='dark']) .msg--assistant .msg-bubble {
-    background: rgba(51,65,85,0.55);
-    color: var(--color-text-primary, #e2e8f0);
-  }
-
   /* Thinking dots */
   .dots { display: inline-flex; gap: 3px; align-items: center; height: 14px; }
   .thinking-bubble-text { margin-right: 6px; color: var(--color-text-muted, #64748b); }
@@ -846,13 +967,71 @@
     font-size: 11px;
     font-weight: 500;
     background: rgba(14,165,233,0.1);
-    color: var(--color-accent, #22d3ee);
+    color: var(--color-accent);
     text-decoration: none;
     border: 1px solid rgba(14,165,233,0.25);
     cursor: pointer;
     transition: background 0.1s;
   }
   .action-chip:hover { background: rgba(14,165,233,0.2); }
+
+  /* Markdown-rendered assistant content (injected via {@html}, so selectors are :global). */
+  .msg-md { white-space: normal; }
+  .msg-md :global(p) { margin: 0 0 6px; }
+  .msg-md :global(p:last-child) { margin-bottom: 0; }
+  .msg-md :global(ul), .msg-md :global(ol) { margin: 4px 0 6px; padding-left: 22px; list-style-position: outside; }
+  .msg-md :global(ul) { list-style-type: disc; }
+  .msg-md :global(ol) { list-style-type: decimal; }
+  .msg-md :global(li) { margin: 3px 0; padding-left: 2px; }
+  .msg-md :global(li::marker) { color: var(--color-accent); }
+  .msg-md :global(ul ul) { list-style-type: circle; }
+  .msg-md :global(ol ol) { list-style-type: lower-alpha; }
+  .msg-md :global(a) { color: var(--color-accent); text-decoration: underline; }
+  .msg-md :global(code) {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    background: rgba(100,116,139,0.15);
+    padding: 1px 4px;
+    border-radius: 4px;
+  }
+  .msg-md :global(pre) {
+    margin: 6px 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: var(--color-bg-subtle, #0f172a0d);
+    overflow-x: auto;
+  }
+  .msg-md :global(pre code) { background: none; padding: 0; font-size: 12px; line-height: 1.45; }
+  .msg-md :global(h1), .msg-md :global(h2), .msg-md :global(h3) { font-size: 13px; font-weight: 600; margin: 6px 0 4px; }
+  .msg-md :global(strong) { font-weight: 700; color: var(--color-text); }
+  .msg-md :global(em) { font-style: italic; }
+  .msg-md :global(hr) { border: none; border-top: 1px solid var(--color-border, #e2e8f0); margin: 8px 0; }
+  /* Tables can be wider than the bubble — let them scroll instead of overflowing. */
+  .msg-md :global(table) { border-collapse: collapse; margin: 6px 0; font-size: 12px; display: block; overflow-x: auto; max-width: 100%; }
+  .msg-md :global(th), .msg-md :global(td) { border: 1px solid var(--color-border, #e2e8f0); padding: 3px 6px; white-space: nowrap; }
+  .msg-md :global(th) { background: rgba(100,116,139,0.1); font-weight: 600; text-align: left; }
+  .msg-md :global(blockquote) {
+    margin: 4px 0;
+    padding-left: 8px;
+    border-left: 3px solid var(--color-border, #cbd5e1);
+    color: var(--color-text-muted, #64748b);
+  }
+
+  /* Clarification option buttons — ASA asking the user to choose. */
+  .msg-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .msg-option-btn {
+    padding: 5px 11px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--color-bg, #fff);
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s;
+  }
+  .msg-option-btn:hover:not(:disabled) { background: var(--color-accent); color: #fff; }
+  .msg-option-btn:disabled { opacity: 0.5; cursor: default; }
 
   .error-msg {
     font-size: 12px;
@@ -873,13 +1052,23 @@
   }
   :global([data-theme='dark']) .input-row { border-top-color: rgba(51,65,85,0.5); }
 
+  .interim-transcript {
+    padding: 4px 12px 6px;
+    font-size: 12.5px;
+    font-style: italic;
+    color: var(--color-text-muted, #64748b);
+    border-top: 1px solid rgba(203,213,225,0.4);
+    flex-shrink: 0;
+    word-break: break-word;
+  }
+
   .chat-input {
     flex: 1;
     padding: 7px 11px;
     border-radius: 9px;
     border: 1px solid rgba(203,213,225,0.8);
-    background: #f8fafc;
-    color: #0f172a;
+    background: var(--color-bg);
+    color: var(--color-text);
     font-size: 13px;
     outline: none;
     transition: border-color 0.12s, box-shadow 0.12s;
@@ -890,12 +1079,6 @@
     box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
   }
   .chat-input:disabled { opacity: 0.55; }
-  :global([data-theme='dark']) .chat-input {
-    background: rgba(15,23,42,0.7);
-    border-color: rgba(51,65,85,0.7);
-    color: #e2e8f0;
-  }
-
   .send-btn {
     display: flex;
     align-items: center;
@@ -934,31 +1117,7 @@
   }
   .voice-btn--error { color: var(--color-danger, #ef4444); border-color: var(--color-danger, #ef4444); }
 
-  .voice-progress, .voice-review {
-    display: grid;
-    gap: 6px;
-    padding: 8px 10px;
-    border-top: 1px solid var(--color-border, #cbd5e1);
-    color: var(--color-text-muted, #64748b);
-    font-size: 11px;
-  }
-  .voice-progress progress { width: 100%; height: 5px; accent-color: var(--color-accent, #00afa5); }
-  .voice-review-row { display: flex; gap: 6px; align-items: center; min-width: 0; }
-  .voice-review-row .chat-input { min-width: 0; }
-  .voice-clarification { display: grid; gap: 5px; }
-  .voice-clarification-label { margin: 0; font-size: 11px; color: var(--color-text, #1e293b); }
-  .voice-clarification-label em { font-style: normal; font-weight: 600; }
-  .voice-clarification-candidates { display: flex; flex-wrap: wrap; gap: 5px; }
-  .voice-candidate-btn {
-    display: flex; flex-direction: column; align-items: flex-start;
-    padding: 5px 9px; border-radius: 6px; border: 1px solid var(--color-border, #cbd5e1);
-    background: var(--color-surface, #fff); cursor: pointer; font-size: 11px; gap: 1px;
-  }
-  .voice-candidate-btn:hover { border-color: var(--color-accent, #00afa5); background: var(--color-accent-light, #e6faf9); }
-  .voice-candidate-btn:focus { outline: 2px solid var(--color-accent, #00afa5); outline-offset: 2px; }
-  .voice-candidate-name { font-weight: 600; color: var(--color-text, #1e293b); }
-  .voice-candidate-type { font-size: 10px; color: var(--color-text-muted, #64748b); text-transform: capitalize; }
-  .panel :global(.voice-state) {
+  .voice-state {
     display: flex;
     align-items: center;
     gap: 6px;
@@ -966,14 +1125,22 @@
     color: var(--color-text-muted, #64748b);
     font-size: 10px;
   }
-  .panel :global(.voice-state--error) { color: var(--color-danger, #ef4444); }
-  .panel :global(.voice-level) {
+  .voice-state--error { color: var(--color-danger); }
+  .voice-level {
     width: 7px;
     height: 7px;
     flex-shrink: 0;
     border-radius: 50%;
     background: var(--color-accent, #00afa5);
     transform: scale(calc(0.8 + var(--voice-level) * 1.7));
+  }
+  .voice-level--rec {
+    background: var(--color-danger, #ef4444);
+    animation: rec-pulse 1s ease-in-out infinite;
+  }
+  @keyframes rec-pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.8); }
+    50%      { opacity: 1;   transform: scale(1.3); }
   }
 
   /* Resize handle */
@@ -995,4 +1162,11 @@
     z-index: 2;
   }
   .resize-handle:hover { color: var(--color-accent, #0ea5e9); }
+
+  @media (max-width: 480px) {
+    .panel-header { padding-left: 25px; }
+    .budget-pill { display: none; }
+    .voice-settings { grid-template-columns: 1fr; }
+    .voice-settings .voice-toggle { grid-column: auto; }
+  }
 </style>

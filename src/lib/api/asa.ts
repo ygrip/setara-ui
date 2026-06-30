@@ -1,5 +1,8 @@
 import { apiFetch, authHeaders } from './client';
 import { getApiBaseUrl } from './config';
+import { getValidSession } from '$lib/auth';
+
+const previewMode = import.meta.env.VITE_MOCK === 'true';
 
 export interface AsaMessage {
   id: string;
@@ -7,6 +10,13 @@ export interface AsaMessage {
   content: string;
   timestamp: string;
   actions?: AsaAction[];
+  /** Selectable choices when ASA asks the user to disambiguate. Clicking one sends its value. */
+  options?: AsaMessageOption[];
+}
+
+export interface AsaMessageOption {
+  label: string;
+  value: string;
 }
 
 export interface AsaAction {
@@ -42,26 +52,141 @@ export interface AsaMessagePage {
 export interface AsaEvent {
   protocolVersion: string;
   eventId: string;
-  eventType: 'thinking' | 'token' | 'action' | 'error' | 'done';
+  eventType: 'thinking' | 'token' | 'speech' | 'action' | 'clarification' | 'timing' | 'error' | 'done';
   payload: Record<string, unknown>;
 }
 
 export interface AsaConfig {
   voiceEnabled: boolean;
+  /** True only when the voice sidecar is enabled AND its /health probe passes. Gates all voice UI. */
+  voiceSidecar: boolean;
 }
 
 export async function fetchAsaConfig(): Promise<AsaConfig | null> {
+  if (previewMode) return { voiceEnabled: true, voiceSidecar: false };
   try {
     const res = await apiFetch('/api/asa/config');
     if (res.status !== 200) return null;
     const data = await res.json();
-    return { voiceEnabled: data.voiceEnabled === true };
+    return { voiceEnabled: data.voiceEnabled === true, voiceSidecar: data.voiceSidecar === true };
   } catch {
     return null;
   }
 }
 
+export interface AsaVoiceOption {
+  id: string;
+  label: string;
+  model: string;
+  language: string;
+}
+
+/** Sidecar STT: upload a recorded audio blob, get a transcript back. */
+export async function transcribeAudio(blob: Blob): Promise<{ text: string } | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'audio/webm' },
+      body: blob,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return { text: String(data.text ?? '') };
+  } catch {
+    return null;
+  }
+}
+
+/** Fetch a pre-generated spoken cue clip ("ok"/"processing"/…) in a voice. Null if unavailable. */
+export async function fetchVoiceCue(voiceId: string, cue: string): Promise<ArrayBuffer | null> {
+  try {
+    const res = await apiFetch(`/api/asa/voice/cues/${encodeURIComponent(voiceId)}/${encodeURIComponent(cue)}`);
+    if (!res.ok) return null;
+    return await res.arrayBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/** Sidecar TTS: synthesize speech for a short text. Returns a playable audio Blob, or null. */
+export async function synthesizeSpeech(text: string, voiceId?: string): Promise<Blob | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/synthesize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, ...(voiceId ? { voiceId } : {}) }),
+    });
+    if (!res.ok) return null;
+    return await res.blob();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sidecar streaming TTS: returns the raw fetch Response so the caller can read the PCM16 body as it
+ * arrives (audio/L16, mono, rate on the X-Sample-Rate header) and start playback on the first chunk.
+ * Returns null when the sidecar is unavailable (caller falls back to batch synthesizeSpeech).
+ */
+export async function synthesizeSpeechStream(text: string, voiceId?: string): Promise<Response | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/synthesize/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, ...(voiceId ? { voiceId } : {}) }),
+    });
+    if (!res.ok || !res.body) return null;
+    return res;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Open the rolling-window streaming STT WebSocket (core relays to the sidecar). The access token
+ * rides on the query string because browsers can't set Authorization on a WS handshake. Returns
+ * null if there's no session or the environment has no WebSocket. Caller sends binary PCM16 mono
+ * @16kHz frames + a "flush" text message at end-of-utterance, and receives {type,text} JSON.
+ */
+export function openSttStream(): WebSocket | null {
+  if (typeof WebSocket === 'undefined') return null;
+  const session = getValidSession();
+  if (!session?.accessToken) return null;
+  const base = getApiBaseUrl().replace(/^http/, 'ws');
+  const url = `${base}/ws/asa/voice/stt?token=${encodeURIComponent(session.accessToken)}`;
+  try {
+    const ws = new WebSocket(url);
+    ws.binaryType = 'arraybuffer';
+    return ws;
+  } catch {
+    return null;
+  }
+}
+
+/** Voice catalog from the sidecar for the settings picker. */
+export async function fetchVoiceCatalog(): Promise<AsaVoiceOption[]> {
+  try {
+    const res = await apiFetch('/api/asa/voice/models');
+    if (!res.ok) return [];
+    const data = await res.json();
+    const voices = data?.tts?.voices;
+    return Array.isArray(voices) ? (voices as AsaVoiceOption[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export async function getAsaSession(): Promise<AsaSession | null> {
+  if (previewMode) {
+    return {
+      sessionId: 'preview-asa-session',
+      tokensUsed: 1240,
+      tokensReserved: 0,
+      tokenBudget: 10_000,
+      tokensRemaining: 8760,
+      resetAt: new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString(),
+    };
+  }
   try {
     const res = await apiFetch('/api/asa/session');
     if (!res.ok) return null;
@@ -80,6 +205,7 @@ export async function getAsaSession(): Promise<AsaSession | null> {
 }
 
 export async function getAsaMessages(before?: string, limit = 30): Promise<AsaMessagePage> {
+  if (previewMode) return { items: [], nextCursor: null, hasMore: false };
   const params = new URLSearchParams({ limit: String(limit) });
   if (before) params.set('before', before);
   const res = await apiFetch(`/api/asa/session/messages?${params}`);
@@ -120,6 +246,7 @@ export const CLIENT_SUPPORTED_ACTIONS: string[] = [
 ];
 
 export async function negotiateCapabilities(): Promise<AsaCapabilitiesResponse | null> {
+  if (previewMode) return { serverCapabilities: [...CLIENT_SUPPORTED_ACTIONS] };
   try {
     const res = await apiFetch('/api/asa/capabilities', {
       method: 'POST',
@@ -151,7 +278,7 @@ export interface AsaVoiceEntity {
 }
 
 export interface AsaVoiceInput {
-  source: 'moonshine';
+  source: 'moonshine' | 'sidecar';
   rawText: string;
   normalizedText: string;
   resolvedText: string;
@@ -159,6 +286,9 @@ export interface AsaVoiceInput {
 }
 
 export async function fetchEntityCatalog(): Promise<AsaEntityCatalog | null> {
+  if (previewMode) {
+    return { projects: [], plans: [], builds: [], squads: [], generatedAt: new Date().toISOString() };
+  }
   try {
     const res = await apiFetch('/api/asa/entity-catalog');
     if (!res.ok) return null;
@@ -191,6 +321,7 @@ export function streamAsaMessage(opts: {
           headers: { 'Content-Type': 'application/json', ...authHeaders() },
           body,
           signal: opts.signal,
+          credentials: 'include',
         });
         if (!res.ok || !res.body) {
           controller.error(new Error(`ASA error: ${res.status}`));
@@ -199,6 +330,13 @@ export function streamAsaMessage(opts: {
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
+        const enqueueLine = (line: string) => {
+          // SSE allows "data:value" and "data: value" (one optional leading space). RESTEasy
+          // emits no space. Slice past the colon and trim to handle both.
+          if (!line.startsWith('data:')) return;
+          const payload = line.slice(5).trim();
+          if (payload) controller.enqueue(payload);
+        };
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
@@ -206,8 +344,12 @@ export function streamAsaMessage(opts: {
           const lines = buf.split('\n');
           buf = lines.pop() ?? '';
           for (const line of lines) {
-            if (line.startsWith('data: ')) controller.enqueue(line.slice(6).trim());
+            enqueueLine(line);
           }
+        }
+        buf += decoder.decode();
+        if (buf.trim()) {
+          for (const line of buf.split('\n')) enqueueLine(line);
         }
         controller.close();
       } catch (err) {

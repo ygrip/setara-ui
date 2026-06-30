@@ -15,10 +15,11 @@ export interface ExecutionEvent {
 }
 
 export function executionSocketUrl(projectKey: string, runId?: string): string {
+  const token = getWebSocketToken();
+  if (!token) return '';
   const base = getWebSocketBaseUrl().replace(/\/$/, '');
   const path = runId
     ? `/ws/projects/${encodeURIComponent(projectKey)}/runs/${encodeURIComponent(runId)}`
     : `/ws/projects/${encodeURIComponent(projectKey)}/executions`;
-  const token = getWebSocketToken();
-  return token ? `${base}${path}?token=${encodeURIComponent(token)}` : `${base}${path}`;
+  return `${base}${path}?token=${encodeURIComponent(token)}`;
 }
