@@ -72,4 +72,12 @@ describe('ASA stream batching', () => {
     assert.match(store, /case 'error':[\s\S]*?tokenBatcher\.flush\(\)/);
     assert.match(store, /cancel\(\) \{[\s\S]*?this\.flushActiveTokenBuffer\?\.\(\)/);
   });
+
+  it('reconciles a missing or partial token stream with the authoritative completed content', async () => {
+    const { reconcileCompletedContent } = await loadStreamBatcher();
+
+    assert.equal(reconcileCompletedContent('', 'Complete answer'), 'Complete answer');
+    assert.equal(reconcileCompletedContent('**Partial', '**Complete answer**'), '**Complete answer**');
+    assert.equal(reconcileCompletedContent('Complete answer', ''), 'Complete answer');
+  });
 });

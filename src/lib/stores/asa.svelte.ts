@@ -10,7 +10,7 @@ import {
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
 import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
-import { StreamBatcher } from './stream-batcher';
+import { reconcileCompletedContent, StreamBatcher } from './stream-batcher';
 
 export type AsaOrbState = 'hidden' | 'idle' | 'opening' | 'open' | 'thinking';
 
@@ -163,7 +163,7 @@ class AsaStore {
     this.messages = [
       ...this.messages,
       { id: `${requestId}:user`, role: 'user', content: text, timestamp },
-      { id: `${requestId}:assistant`, role: 'assistant', content: '', timestamp },
+      { id: `${requestId}:assistant`, role: 'assistant', content: '', timestamp, streaming: true },
     ];
     this.scrollRevision += 1;
 
@@ -257,11 +257,22 @@ class AsaStore {
           case 'done':
             tokenBatcher.flush();
             gotDone = true;
+            fullContent = reconcileCompletedContent(
+              fullContent,
+              String(event.payload.content ?? ''),
+            );
+            this.updateAssistant(requestId, { content: fullContent });
+            this.scrollRevision += 1;
             this.updateSessionBudget(event.payload);
             break;
           case 'error':
             tokenBatcher.flush();
             gotError = true;
+            // Clear markup-only partial content (e.g. bare `**`) that would show alongside the error
+            if (stripMarkdown(fullContent).trim().length === 0 && fullContent) {
+              fullContent = '';
+              this.updateAssistant(requestId, { content: '' });
+            }
             this.error = String(event.payload.message ?? 'ASA error');
             if (this.voiceSidecar) {
               this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
@@ -281,16 +292,21 @@ class AsaStore {
         if (gotDone || stripMarkdown(fullContent).trim().length > 0) {
           ok = true;
         } else {
+          // Clear markdown-syntax-only partial content (e.g. bare `**`) so broken markup doesn't render
+          if (fullContent) {
+            fullContent = '';
+            this.updateAssistant(requestId, { content: '' });
+          }
           this.error = 'Connection error. Try again.';
           if (this.voiceSidecar) {
             this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
-            this.safeVoiceCall('playCue:sorry', () => sidecarVoice.playCue('sorry'));
           }
         }
       }
     } finally {
       tokenBatcher.flush();
       tokenBatcher.dispose();
+      this.updateAssistant(requestId, { streaming: false });
       if (this.flushActiveTokenBuffer) this.flushActiveTokenBuffer = null;
       this.streaming = false;
       this.thinkingText = null;
@@ -313,7 +329,9 @@ class AsaStore {
   cancel() {
     this.flushActiveTokenBuffer?.();
     if (this.currentRequestId) {
-      void cancelAsaRequest(this.currentRequestId);
+      const requestId = this.currentRequestId;
+      void cancelAsaRequest(requestId);
+      this.updateAssistant(requestId, { streaming: false });
       this.currentRequestId = null;
     }
     this.abortController?.abort();

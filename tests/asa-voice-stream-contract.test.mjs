@@ -16,7 +16,7 @@ describe('ASA voice stream contract', () => {
 
     assert.match(store, /let gotDone = false/);
     assert.match(store, /gotDone = true/);
-    assert.match(store, /if \(gotDone \|\| fullContent\.trim\(\)\.length > 0\) \{\s*ok = true;/);
+    assert.match(store, /if \(gotDone \|\| stripMarkdown\(fullContent\)\.trim\(\)\.length > 0\) \{\s*ok = true;/);
     assert.match(store, /private safeVoiceCall\(label: string, fn: \(\) => void\): boolean/);
     assert.match(store, /this\.safeVoiceCall\('beginSpeech', \(\) => sidecarVoice\.beginSpeech\(\)\)/);
     assert.match(store, /gotSpeech = this\.safeVoiceCall\('speakText', \(\) => sidecarVoice\.speakText\(speechText\)\)/);

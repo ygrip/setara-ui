@@ -9,6 +9,10 @@ export interface StreamBatcherOptions {
   clearTimeoutFn?: ClearTimeoutFn;
 }
 
+export function reconcileCompletedContent(streamed: string, completed: string): string {
+  return completed || streamed;
+}
+
 export class StreamBatcher {
   private pending = '';
   private timer: TimeoutHandle | null = null;

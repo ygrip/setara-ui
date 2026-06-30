@@ -17,6 +17,11 @@
 - Batch streamed ASA token chunks before updating Svelte state. Flush the buffer on a short interval and immediately on
   `done`, `error`, clarification/action boundaries, cancel, and stream completion so the final text stays exact while
   long answers do not trigger one render per provider token.
+- Treat token events as the live fast path and the `done.payload.content` completion snapshot as authoritative. Reconcile
+  the in-flight bubble to that snapshot so a proxy-dropped or truncated SSE chunk cannot leave a blank or partial reply.
+- Render in-flight assistant token content as plain pre-wrapped text and switch to markdown only after stream
+  completion. Partial markdown such as headings, emphasis, or table scaffolds can otherwise produce blank live bubbles
+  even though the persisted message renders correctly after refresh.
 - Keep voice playback side effects isolated from the chat stream loop. A TTS, cue, or Web Audio exception must log as a
   voice issue without converting a healthy ASA chat response into a connection error or cancelling the rendered reply.
 - If ASA has already streamed content or received `done`, a late transport read failure is diagnostic only. Keep the
@@ -63,6 +68,9 @@
 - Streamed TTS stays raw PCM but schedules browser playback through Web Audio with merged frames, a small preroll
   jitter buffer, underrun recovery, and logged playback stats. Barge-in must stop sources without clearing `onended`
   handlers so in-flight playback promises can settle.
+- Firefox may reject the final read of a successfully delivered streaming response with `NS_BASE_STREAM_CLOSED`.
+  Treat it as end-of-stream only after PCM arrived, flush the pending tail, and fall back to batch TTS only when the
+  stream failed before delivering audio.
 - Decode streamed PCM with byte-safe little-endian reads rather than constructing `Int16Array` views over fetch chunks.
   Browser chunk byte offsets are not guaranteed to be 16-bit aligned, and an alignment exception can silently kill TTS.
 - Stop and destroy microphone resources before transcript review, speech output, pause, or component teardown. This

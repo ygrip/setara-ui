@@ -156,7 +156,7 @@
 
   $effect(() => {
     asa.scrollRevision;
-    tick().then(() => chatEl?.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' }));
+    tick().then(() => { if (chatEl) chatEl.scrollTop = chatEl.scrollHeight; });
   });
 
   $effect(() => {
@@ -510,7 +510,9 @@
               {/if}
               <div class="msg-bubble">
                 {#if msg.content}
-                  {#if msg.role === 'assistant'}
+                  {#if msg.role === 'assistant' && msg.streaming}
+                    <div class="msg-streaming">{msg.content}</div>
+                  {:else if msg.role === 'assistant'}
                     <!-- Content originates from our own backend LLM; rendered as markdown. -->
                     <div class="msg-md">{@html renderMarkdown(msg.content)}</div>
                   {:else}
@@ -865,7 +867,6 @@
     flex-direction: column;
     gap: 10px;
     min-height: 0;
-    scroll-behavior: smooth;
   }
 
   .history-status {
@@ -976,6 +977,11 @@
   .action-chip:hover { background: rgba(14,165,233,0.2); }
 
   /* Markdown-rendered assistant content (injected via {@html}, so selectors are :global). */
+  .msg-streaming {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
   .msg-md { white-space: normal; }
   .msg-md :global(p) { margin: 0 0 6px; }
   .msg-md :global(p:last-child) { margin-bottom: 0; }

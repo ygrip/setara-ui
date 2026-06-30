@@ -9,6 +9,8 @@ export interface AsaMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  /** True only for the in-flight assistant message; completed/history messages render as markdown. */
+  streaming?: boolean;
   actions?: AsaAction[];
   /** Selectable choices when ASA asks the user to disambiguate. Clicking one sends its value. */
   options?: AsaMessageOption[];

@@ -2,6 +2,7 @@ import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStrea
 import type { AsaEntityCatalog, AsaVoiceInput } from '$lib/api/asa';
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
+import { classifyPcmStreamError } from './stream-errors';
 import { normalizeTranscript } from './transcript-normalizer';
 import { createMlVad, type MlVadHandle } from './ml-vad';
 import { routeVoiceTranscript, type WakeMode } from './wake-router';
@@ -339,10 +340,10 @@ class SidecarVoice {
     const res = await synthesizeSpeechStream(text, this.voiceId ?? undefined);
     if (gen !== this.speechGen) { try { await res?.body?.cancel(); } catch { /* ignore */ } return; }
     if (res && res.body) {
-      await this.playPcmStream(res, ctx, gen);
-      return;
+      if (await this.playPcmStream(res, ctx, gen)) return;
+      asaWarn('voice', 'TTS stream failed before audio; falling back to batch synth');
     }
-    asaWarn('voice', 'TTS stream unavailable — falling back to batch synth');
+    else asaWarn('voice', 'TTS stream unavailable; falling back to batch synth');
     await this.synthAndPlayBatch(text, gen, ctx);
   }
 
@@ -353,7 +354,7 @@ class SidecarVoice {
    * monotonic cursor so consecutive samples abut exactly (no clicks). Only a true underrun (decode
    * slower than real-time, cursor falls behind) inserts a gap instead of overlapping.
    */
-  private async playPcmStream(res: Response, ctx: AudioContext, gen: number): Promise<void> {
+  private async playPcmStream(res: Response, ctx: AudioContext, gen: number): Promise<boolean> {
     const sampleRate = Number(res.headers.get('X-Sample-Rate')) || 24000;
     const frameSamples = Math.max(1, Math.floor((TTS_FRAME_MS / 1000) * sampleRate));
     const reader = res.body!.getReader();
@@ -365,6 +366,7 @@ class SidecarVoice {
     let chunks = 0;
     let underruns = 0;
     let scheduledSamples = 0;
+    let receivedSamples = 0;
 
     const schedule = (frame: Float32Array) => {
       const buffer = ctx.createBuffer(1, frame.length, sampleRate);
@@ -400,11 +402,24 @@ class SidecarVoice {
       if (off > 0) pending = pending.slice(off);
     };
 
+    const finishPlayback = async () => {
+      if (pending.length > 0 && gen === this.speechGen) schedule(pending);
+      await Promise.all(ended);
+      this.ttsPlayback = {
+        chunks,
+        underruns,
+        scheduledMs: Math.round((scheduledSamples / sampleRate) * 1000),
+        sampleRate,
+      };
+      asaLog('voice', 'TTS stream playback stats', this.ttsPlayback);
+      return true;
+    };
+
     try {
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
-        if (gen !== this.speechGen) { try { await reader.cancel(); } catch { /* ignore */ } return; }
+        if (gen !== this.speechGen) { try { await reader.cancel(); } catch { /* ignore */ } return true; }
         if (!value || value.length === 0) continue;
 
         // Concatenate any leftover odd byte, then split into whole 16-bit samples.
@@ -421,19 +436,19 @@ class SidecarVoice {
         const view = new DataView(bytes.buffer, bytes.byteOffset, usable);
         const samples = new Float32Array(usable / 2);
         for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 32768;
+        receivedSamples += samples.length;
         appendSamples(samples);
       }
-      if (pending.length > 0 && gen === this.speechGen) schedule(pending); // flush the tail
-      await Promise.all(ended);
-      this.ttsPlayback = {
-        chunks,
-        underruns,
-        scheduledMs: Math.round((scheduledSamples / sampleRate) * 1000),
-        sampleRate,
-      };
-      asaLog('voice', 'TTS stream playback stats', this.ttsPlayback);
+      return finishPlayback();
     } catch (e) {
+      const disposition = classifyPcmStreamError(e, receivedSamples);
+      if (disposition === 'eof') {
+        asaLog('voice', 'Firefox closed TTS transport after audio; treating as end of stream');
+        return finishPlayback();
+      }
       asaWarn('voice', 'TTS stream playback failed', e);
+      if (disposition === 'failed') return finishPlayback();
+      return false;
     }
   }
 
