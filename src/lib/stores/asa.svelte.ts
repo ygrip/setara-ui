@@ -302,6 +302,7 @@ class AsaStore {
           this.error = 'Connection error. Try again.';
           if (this.voiceSidecar) {
             this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
+            this.safeVoiceCall('playCue:sorry', () => sidecarVoice.playCue('sorry'));
           }
         }
       }
