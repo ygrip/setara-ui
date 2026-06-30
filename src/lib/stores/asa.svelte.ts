@@ -226,10 +226,12 @@ class AsaStore {
           }
           case 'speech': {
             // Dedicated spoken text (separate from the displayed markdown) — speak only this.
+            // Fire-and-forget: TTS failures must never propagate into the chat stream loop.
             this.thinkingText = null;
             const speechText = String(event.payload.text ?? '');
             if (this.voiceSidecar && speechText.trim()) {
-              gotSpeech = this.safeVoiceCall('speakText', () => sidecarVoice.speakText(speechText));
+              gotSpeech = true;
+              this.safeVoiceCall('speakText', () => sidecarVoice.speakText(speechText));
             }
             break;
           }
@@ -372,12 +374,15 @@ class AsaStore {
     };
   }
 
-  private safeVoiceCall(label: string, fn: () => void): boolean {
+  private safeVoiceCall(label: string, fn: () => unknown): boolean {
     try {
-      fn();
+      const result = fn();
+      if (result instanceof Promise) {
+        void result.catch((err) => asaWarn('voice', `${label} async failed`, err));
+      }
       return true;
-    } catch (error) {
-      asaWarn('voice', `${label} failed`, error);
+    } catch (err) {
+      asaWarn('voice', `${label} failed`, err);
       return false;
     }
   }

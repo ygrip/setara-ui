@@ -315,48 +315,86 @@ export function streamAsaMessage(opts: {
     ...(opts.voiceInput ? { voiceInput: opts.voiceInput } : {}),
   });
 
+  const url = `${getApiBaseUrl()}/api/asa/chat`;
+
   const stream = new ReadableStream<string>({
     async start(controller) {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/asa/chat`, {
+        const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          headers: {
+            Accept: 'text/event-stream',
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+          },
           body,
           signal: opts.signal,
           credentials: 'include',
         });
-        if (!res.ok || !res.body) {
-          controller.error(new Error(`ASA error: ${res.status}`));
+
+        if (!res.ok) {
+          const errorBody = await res.text().catch(() => '');
+          controller.error(new Error(`ASA HTTP ${res.status}: ${errorBody.slice(0, 500)}`));
           return;
         }
+
+        if (!res.body) {
+          controller.error(new Error('ASA response has no body'));
+          return;
+        }
+
+        const contentType = res.headers.get('content-type') ?? '';
+        if (!contentType.includes('text/event-stream')) {
+          const preview = await res.text().catch(() => '');
+          controller.error(
+            new Error(
+              `Expected text/event-stream but got ${contentType}. URL=${url}. Preview=${preview.slice(0, 500)}`,
+            ),
+          );
+          return;
+        }
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
-        const enqueueLine = (line: string) => {
-          // SSE allows "data:value" and "data: value" (one optional leading space). RESTEasy
-          // emits no space. Slice past the colon and trim to handle both.
-          if (!line.startsWith('data:')) return;
-          const payload = line.slice(5).trim();
+
+        const emitFrame = (frame: string) => {
+          const dataLines: string[] = [];
+          for (const rawLine of frame.split('\n')) {
+            const line = rawLine.trimEnd();
+            if (!line || line.startsWith(':')) continue;
+            if (line.startsWith('data:')) {
+              // SSE allows "data:value" and "data: value" (one optional leading space)
+              dataLines.push(line.slice(5).replace(/^ /, ''));
+            }
+          }
+          const payload = dataLines.join('\n').trim();
           if (payload) controller.enqueue(payload);
         };
+
+        const processBuffer = () => {
+          buf = buf.replace(/\r\n/g, '\n');
+          let index: number;
+          while ((index = buf.indexOf('\n\n')) >= 0) {
+            const frame = buf.slice(0, index);
+            buf = buf.slice(index + 2);
+            emitFrame(frame);
+          }
+        };
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop() ?? '';
-          for (const line of lines) {
-            enqueueLine(line);
-          }
+          processBuffer();
         }
+
         buf += decoder.decode();
-        if (buf.trim()) {
-          for (const line of buf.split('\n')) enqueueLine(line);
-        }
+        if (buf.trim()) emitFrame(buf);
         controller.close();
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') controller.error(err);
-        else controller.close();
+        if ((err as Error).name === 'AbortError') controller.close();
+        else controller.error(err);
       }
     },
   });
