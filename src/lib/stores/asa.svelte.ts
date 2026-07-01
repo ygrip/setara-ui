@@ -11,6 +11,7 @@ import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
 import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
 import { reconcileCompletedContent, StreamBatcher } from './stream-batcher';
+import { AsaTurnAccumulator, normalizeAssistantContent } from './asa-turn-accumulator';
 
 export type AsaOrbState = 'hidden' | 'idle' | 'opening' | 'open' | 'thinking';
 
@@ -179,10 +180,12 @@ class AsaStore {
     let gotSpeech = false;
     let gotDone = false;
     let fullContent = '';
+    const turn = new AsaTurnAccumulator();
     const tokenBatcher = new StreamBatcher({
       delayMs: TOKEN_FLUSH_INTERVAL_MS,
       onFlush: (content) => {
-        fullContent += content;
+        turn.appendToken(content);
+        fullContent = turn.content;
         this.updateAssistant(requestId, { content: fullContent });
         this.scrollRevision += 1;
       },
@@ -217,9 +220,12 @@ class AsaStore {
 
         switch (event.eventType) {
           case 'thinking':
-            this.thinkingText = String(event.payload.content ?? 'Thinking');
+            turn.apply(event);
+            this.thinkingText = turn.thinkingText;
             break;
           case 'token': {
+            // The batch flush owns token accumulation and message projection. Applying here as
+            // well duplicates every chunk and lets delayed flushes overwrite terminal content.
             this.thinkingText = null;
             tokenBatcher.push(String(event.payload.content ?? ''));
             break;
@@ -238,10 +244,11 @@ class AsaStore {
           case 'clarification': {
             // ASA is unsure and is asking the user to pick. Render question + option buttons.
             tokenBatcher.flush();
-            this.thinkingText = null;
+            turn.apply(event);
+            this.thinkingText = turn.thinkingText;
             const question = String(event.payload.question ?? event.payload.content ?? '');
             const options = this.parseOptions(event.payload.options);
-            if (question) fullContent = question;
+            if (question) fullContent = turn.content;
             this.updateAssistant(requestId, { content: fullContent, options });
             this.scrollRevision += 1;
             break;
@@ -259,10 +266,8 @@ class AsaStore {
           case 'done':
             tokenBatcher.flush();
             gotDone = true;
-            fullContent = reconcileCompletedContent(
-              fullContent,
-              String(event.payload.content ?? ''),
-            );
+            turn.apply(event);
+            fullContent = reconcileCompletedContent(fullContent, turn.content);
             this.updateAssistant(requestId, { content: fullContent });
             this.scrollRevision += 1;
             this.updateSessionBudget(event.payload);
@@ -412,7 +417,10 @@ class AsaStore {
       if (seen.has(message.id)) return false;
       seen.add(message.id);
       return true;
-    });
+    }).map((message) => message.role === 'assistant'
+      ? { ...message, content: normalizeAssistantContent(message.content) }
+      : message
+    );
   }
 
   private initActionRegistry() {

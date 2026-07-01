@@ -17,8 +17,18 @@
 - Batch streamed ASA token chunks before updating Svelte state. Flush the buffer on a short interval and immediately on
   `done`, `error`, clarification/action boundaries, cancel, and stream completion so the final text stays exact while
   long answers do not trigger one render per provider token.
+- Wrap browser timer functions when storing them on the stream batcher. Calling an unbound `window.setTimeout` as a
+  class property throws Firefox `TypeError: Illegal invocation` on the first token, aborts the consumer loop, and leaves
+  a blank assistant bubble even though the network continues receiving the complete SSE response.
 - Treat token events as the live fast path and the `done.payload.content` completion snapshot as authoritative. Reconcile
   the in-flight bubble to that snapshot so a proxy-dropped or truncated SSE chunk cannot leave a blank or partial reply.
+- Route every ASA protocol event through one turn accumulator. Timing/action events do not alter text, thinking and
+  speech update transient state, token events append exact chunks, and `done.content` atomically replaces partial text.
+- Give the token batch flush sole ownership of appending token chunks to the turn accumulator and projecting them into
+  the assistant message. Never append once on receipt and again on flush; delayed duplicate writes can corrupt or hide
+  the live bubble before the authoritative `done.content` snapshot arrives.
+- Treat standalone `===` and `===BODY===` lines as transport protocol, not assistant text. The turn accumulator strips
+  them from both live chunks and the authoritative completion snapshot, while preserving the body that follows.
 - Render in-flight assistant token content as plain pre-wrapped text and switch to markdown only after stream
   completion. Partial markdown such as headings, emphasis, or table scaffolds can otherwise produce blank live bubbles
   even though the persisted message renders correctly after refresh.

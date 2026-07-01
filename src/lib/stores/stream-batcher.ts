@@ -24,8 +24,10 @@ export class StreamBatcher {
   constructor(options: StreamBatcherOptions) {
     this.delayMs = options.delayMs;
     this.onFlush = options.onFlush;
-    this.setTimeoutFn = options.setTimeoutFn ?? setTimeout;
-    this.clearTimeoutFn = options.clearTimeoutFn ?? clearTimeout;
+    this.setTimeoutFn = options.setTimeoutFn
+      ?? ((callback, delayMs) => globalThis.setTimeout(callback, delayMs));
+    this.clearTimeoutFn = options.clearTimeoutFn
+      ?? ((handle) => globalThis.clearTimeout(handle));
   }
 
   push(content: string): void {
