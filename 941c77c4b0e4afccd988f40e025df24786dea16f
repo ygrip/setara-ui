@@ -1,0 +1,23 @@
+src/routes/(app)/projects/[projectKey]/repository/+page.svelte
+  ca8213f68a1a4e87 928-929
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "941c77c4b0e4afccd988f40e025df24786dea16f",
+  "prompts": {
+    "ca8213f68a1a4e87": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "30281895-c3e2-4aa0-976e-696a7331bdda",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 2,
+      "total_deletions": 0,
+      "accepted_lines": 2,
+      "overriden_lines": 0
+    }
+  }
+}
