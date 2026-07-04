@@ -1,4 +1,4 @@
-import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStream, fetchVoiceCatalog, fetchEntityCatalog, fetchVoiceCue, type AsaVoiceOption } from '$lib/api/asa';
+import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStream, fetchVoiceCatalog, fetchEntityCatalog, fetchVoiceCue, prepareVoiceSession, type AsaPreparedVoiceSession, type AsaVoiceOption } from '$lib/api/asa';
 import type { AsaEntityCatalog, AsaVoiceInput } from '$lib/api/asa';
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
@@ -118,6 +118,8 @@ class SidecarVoice {
   private stream: MediaStream | null = null;
   private autoStop: ReturnType<typeof setTimeout> | null = null;
   private catalog: AsaEntityCatalog | null = null;
+  private voiceSession: AsaPreparedVoiceSession | null = null;
+  private preparedFinal: SidecarTranscript | null = null;
 
   // Hands-free VAD
   private vadSource: MediaStreamAudioSourceNode | null = null;
@@ -183,6 +185,7 @@ class SidecarVoice {
   /** Load the entity catalog so spoken project/plan/build/squad names can be corrected. */
   async loadCatalog(): Promise<void> {
     this.catalog = await fetchEntityCatalog();
+    this.voiceSession = await prepareVoiceSession();
   }
 
   async startRecording(): Promise<void> {
@@ -795,7 +798,8 @@ class SidecarVoice {
       this.playCue('processing');
       this.status = 'idle';
       this.turnState = 'understanding';
-      transcript = finalText ? await this.finalizeTranscript(finalText) : null;
+      transcript = this.preparedFinal ?? (finalText ? await this.finalizeTranscript(finalText) : null);
+      this.preparedFinal = null;
     } else {
       const recorder = this.recorder!;
       const blob = await new Promise<Blob>((resolve) => {
@@ -849,13 +853,21 @@ class SidecarVoice {
     const ctx = this.audioCtx;
     if (!ctx || !this.stream) return false;
     if (this.streaming || this.sttWs) return false;
-    const ws = openSttStream();
+    const ws = openSttStream(this.voiceSession?.voiceSessionId);
     if (!ws) return false;
     this.sttWs = ws;
     this.streaming = true;
     this.interimTranscript = '';
     this.pendingSttFrames = []; // frames captured before the socket finishes opening
     ws.onopen = () => {
+      if (this.voiceSession) {
+        ws.send(JSON.stringify({
+          type: 'config',
+          language: this.voiceSession.stt.language,
+          prompt: this.voiceSession.stt.prompt,
+          hotwords: this.voiceSession.stt.hotwords,
+        }));
+      }
       for (const b of this.pendingSttFrames) ws.send(b);
       this.pendingSttFrames = [];
       asaLog('voice', 'streaming STT started');
@@ -909,6 +921,10 @@ class SidecarVoice {
       }
       setTimeout(() => this.finishSttFinal(this.interimTranscript), STREAM_FINAL_TIMEOUT_MS);
     });
+    // Single-STT: the WS streaming decode is authoritative. The old second STT pass
+    // (finalizeVoicePcm -> /stt/raw) contended for the sidecar's single STT slot and
+    // returned 429 -> core 503. endVadCapture normalizes + resolves the WS final via
+    // finalizeTranscript. (setara-02o4)
     this.teardownStream();
     return finalText.trim() || null;
   }

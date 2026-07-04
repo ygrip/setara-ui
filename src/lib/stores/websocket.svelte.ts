@@ -38,6 +38,12 @@ class WebSocketManager {
    */
   connect(projectKey: string, runId?: string): void {
     const url = executionSocketUrl(projectKey, runId);
+    if (!isStaticMockMode() && !url) {
+      this.teardown();
+      this.currentUrl = '';
+      this.state = 'idle';
+      return;
+    }
     if (url === this.currentUrl && (this.state === 'live' || this.state === 'connecting')) return;
     this.teardown();
     this.currentUrl = url;

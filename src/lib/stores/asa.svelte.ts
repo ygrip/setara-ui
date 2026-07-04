@@ -1,4 +1,4 @@
-import type { AsaAction, AsaEvent, AsaMessage, AsaMessageOption, AsaSession, AsaVoiceInput } from '$lib/api/asa';
+import type { AsaAction, AsaConfirmationSubmission, AsaEvent, AsaMessage, AsaMessageOption, AsaSession, AsaVoiceInput } from '$lib/api/asa';
 import {
   cancelAsaRequest,
   fetchAsaConfig,
@@ -152,7 +152,7 @@ class AsaStore {
     }
   }
 
-  async send(text: string, voiceInput?: AsaVoiceInput) {
+  async send(text: string, voiceInput?: AsaVoiceInput, confirmation?: AsaConfirmationSubmission) {
     if (!text.trim() || this.streaming) return;
     asaLog('chat', 'send', { text, voice: Boolean(voiceInput) });
     this.error = null;
@@ -201,6 +201,7 @@ class AsaStore {
         message: text,
         context,
         voiceInput,
+        confirmation,
         signal: this.abortController.signal,
       });
 
@@ -352,6 +353,17 @@ class AsaStore {
     }
   }
 
+  async confirmAction(action: AsaAction, decision: 'APPROVE' | 'REJECT') {
+    const token = action.payload.confirmToken;
+    const summary = String(action.payload.summary ?? 'the requested action');
+    if (typeof token !== 'string' || !token) {
+      this.error = 'This confirmation is invalid. Please ask ASA to prepare the action again.';
+      return;
+    }
+    const text = decision === 'APPROVE' ? `Approve: ${summary}` : `Cancel: ${summary}`;
+    await this.send(text, undefined, { token, decision });
+  }
+
   clearConversation() {
     this.messages = [];
     this.historyCursor = null;
@@ -430,6 +442,20 @@ class AsaStore {
         void import('$app/navigation').then(({ goto }) => goto(path));
       }
     });
+    this.actionRegistry.set('reload_page:v1', () => {
+      void import('$app/navigation').then(({ invalidateAll }) => invalidateAll());
+    });
+    this.actionRegistry.set('download:v1', (payload) => {
+      const url = payload.url as string | undefined;
+      if (url && typeof document !== 'undefined') {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }
+    });
     this.actionRegistry.set('show_toast:v1', (payload) => {
       const message = payload.message as string | undefined;
       if (message) {
@@ -451,6 +477,8 @@ class AsaStore {
         if (el instanceof HTMLElement) el.focus();
       }
     });
+    // Confirmation actions are rendered as explicit Approve/Cancel controls in the chat bubble.
+    this.actionRegistry.set('confirm_required:v1', () => {});
     // open_modal, close_modal, show_form, select_option: emit custom DOM events
     // so page components can handle them without coupling to the ASA store.
     for (const type of ['open_modal:v1', 'close_modal:v1', 'show_form:v1', 'select_option:v1']) {

@@ -197,7 +197,7 @@
 </div>
 
 <style>
-  .page { max-width: 560px; }
+  .page { max-width: 560px; min-height: calc(100vh - 80px); }
 
   .page-header { margin-bottom: 28px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }

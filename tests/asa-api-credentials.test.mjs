@@ -18,7 +18,7 @@ describe('ASA API tunnel credentials', () => {
     assert.match(client, /credentials: init\.credentials \?\? 'include'/);
     assert.match(client, /credentials: 'include'/);
 
-    const chatFetch = asa.match(/fetch\(`\$\{getApiBaseUrl\(\)\}\/api\/asa\/chat`, \{[\s\S]*?\n\s*\}\);/)?.[0] ?? '';
-    assert.match(chatFetch, /credentials: 'include'/);
+    assert.match(asa, /const url = `\$\{getApiBaseUrl\(\)\}\/api\/asa\/chat`/);
+    assert.match(asa, /const res = await fetch\(url, \{[\s\S]*?credentials: 'include'/);
   });
 });

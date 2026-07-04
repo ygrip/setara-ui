@@ -5,89 +5,84 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const read = (path) => readFileSync(join(root, path), 'utf8');
 
-function read(relativePath) {
-  return readFileSync(join(root, relativePath), 'utf8');
-}
+describe('ASA sidecar voice contracts', () => {
+  it('captures constrained microphone audio and falls back to batch transcription', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-describe('ASA voice adapter contracts', () => {
-  it('exports the VAD-gated microphone STT and TTS interfaces', () => {
-    const source = read('src/lib/voice/engines.ts');
-
-    assert.match(source, /export interface MicSttEngine/);
-    assert.match(source, /export interface SttResult/);
-    assert.match(source, /export interface TextToSpeechEngine/);
-    assert.match(source, /export class FakeMicSttEngine/);
-    assert.match(source, /export class FakeTextToSpeechEngine/);
+    assert.match(voice, /const AUDIO_CONSTRAINTS: MediaStreamConstraints/);
+    assert.match(voice, /echoCancellation: true/);
+    assert.match(voice, /noiseSuppression: true/);
+    assert.match(voice, /autoGainControl: true/);
+    assert.match(voice, /navigator\.mediaDevices\.getUserMedia\(AUDIO_CONSTRAINTS\)/);
+    assert.match(voice, /const result = await transcribeAudio\(blob\)/);
   });
 
-  it('voice store uses adapter interfaces, not inline runtime calls for STT and wake', () => {
-    const store = read('src/lib/voice/asa-voice.svelte.ts');
+  it('normalizes and routes structured sidecar transcripts', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(store, /this\.micStt/);
-    assert.match(store, /routeVoiceTranscript/);
-    assert.match(store, /this\.ttsEngine/);
-    assert.match(store, /import\('\.\/moonshine-stt'\)/);
-    assert.doesNotMatch(store, /RunAnywhereSTT|RunAnywhereWakeWordEngine/);
+    assert.match(voice, /normalizeTranscript\(raw, 'en'\)/);
+    assert.match(voice, /new EntityResolver\(this\.catalog\)\.resolve/);
+    assert.match(voice, /source: 'sidecar'/);
+    assert.match(voice, /routeVoiceTranscript\(this\.wakeMode, transcript\.text\)/);
+    assert.match(voice, /this\.onTranscript\(route\.command/);
   });
 
-  it('keeps one VAD session across ignored speech and wake-to-command transitions', () => {
-    const store = read('src/lib/voice/asa-voice.svelte.ts');
-    const handler = store.slice(
-      store.indexOf('private async handleTranscript'),
-      store.indexOf('private async resolveAndReview')
-    );
+  it('keeps one hands-free session across noise and wake transitions', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(store, /this\.micStt\?\.state === 'listening' \|\| this\.micStt\?\.state === 'transcribing'/);
-    assert.doesNotMatch(handler, /startWakeListening|startCommandListening/);
-    assert.match(handler, /this\.stopMic\(\);[\s\S]*resolveAndReview/);
+    assert.match(voice, /private armingHandsFree: Promise<void> \| null = null/);
+    assert.match(voice, /if \(this\.armingHandsFree\) return this\.armingHandsFree/);
+    assert.match(voice, /this\.wakeMode = route\.nextMode/);
+    assert.match(voice, /void this\.armHandsFree\(\); \/\/ nothing usable/);
   });
 
-  it('loads Moonshine through a verified persistent browser cache', () => {
-    const engine = read('src/lib/voice/moonshine-stt.ts');
-    const cache = read('src/lib/voice/model-cache.ts');
+  it('bounds audio buffered while the streaming STT socket connects', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(engine, /withCachedMoonshineModel/);
-    assert.match(cache, /caches\.open\(CACHE_NAME\)/);
-    assert.match(cache, /crypto\.subtle\.digest\('SHA-256'/);
-    assert.match(cache, /cache\.put\(asset\.url/);
-    assert.match(cache, /removeStaleModelCaches/);
+    assert.match(voice, /private pendingSttFrames: ArrayBuffer\[\] = \[\]/);
+    assert.match(voice, /this\.pendingSttFrames\.length < MAX_PENDING_STT_FRAMES/);
+    assert.match(voice, /for \(const b of this\.pendingSttFrames\) ws\.send\(b\)/);
+    assert.match(voice, /ws\.send\('flush'\)/);
   });
 
-  it('voice preferences include pitch and language fields', () => {
-    const store = read('src/lib/voice/asa-voice.svelte.ts');
-    const engines = read('src/lib/voice/engines.ts');
+  it('persists only current sidecar voice preferences', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(store, /pitch:/);
-    assert.match(store, /language:/);
-    assert.match(engines, /pitch: number/);
-    assert.match(engines, /language: string/);
-  });
-
-  it('model manifest includes benchmark records for each model', () => {
-    const manifest = JSON.parse(read('src/lib/voice/model-manifest.json'));
-
-    for (const model of manifest.models) {
-      assert.ok(model.benchmarks, `Model ${model.id} is missing benchmarks`);
-      assert.ok(typeof model.benchmarks.p50LatencyMs === 'number', `Model ${model.id} missing p50LatencyMs`);
-      assert.ok(typeof model.benchmarks.peakMemoryMb === 'number', `Model ${model.id} missing peakMemoryMb`);
+    for (const field of ['ttsEnabled', 'voiceId', 'speakOnlyShort', 'handsFree', 'earcons']) {
+      assert.match(voice, new RegExp(`${field}:`));
     }
+    assert.doesNotMatch(voice, /pitch:|language:/);
   });
 
-  it('retains RunAnywhere only for text-to-speech', () => {
-    const adapters = read('src/lib/voice/runanywhere-adapters.ts');
+  it('loads the server-owned voice catalog and entity catalog', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const api = read('src/lib/api/asa.ts');
 
-    assert.match(adapters, /implements TextToSpeechEngine/);
-    assert.doesNotMatch(adapters, /implements (?:WakeWordEngine|SpeechToTextEngine)/);
+    assert.match(voice, /this\.voices = await fetchVoiceCatalog\(\)/);
+    assert.match(voice, /this\.catalog = await fetchEntityCatalog\(\)/);
+    assert.match(api, /apiFetch\('\/api\/asa\/voice\/models'\)/);
+    assert.match(api, /apiFetch\('\/api\/asa\/entity-catalog'\)/);
   });
 
-  it('barge-in clears in-flight operation and restores wake state on cancel', () => {
-    const store = read('src/lib/voice/asa-voice.svelte.ts');
+  it('uses streamed server TTS with a batch fallback', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    // The operation counter ensures stale transcription callbacks are dropped
-    assert.match(store, /op !== this\.operation/);
-    assert.match(store, /this\.micStt = null/);
-    assert.match(store, /this\.ttsEngine = null/);
-    assert.match(store, /this\.stopMic\(\);[\s\S]*await this\.resolveAndReview/);
+    assert.match(voice, /synthesizeSpeechStream\(text, this\.voiceId \?\? undefined\)/);
+    assert.match(voice, /await this\.synthAndPlayBatch\(text, gen, ctx\)/);
+    assert.match(voice, /const blob = await synthesizeSpeech\(text, this\.voiceId \?\? undefined\)/);
+    assert.doesNotMatch(voice, /RunAnywhere|MoonshineSttEngine/);
+  });
+
+  it('makes barge-in cancel queued and active playback generations', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const stopAudio = voice.slice(voice.indexOf('stopAudio(): void'), voice.indexOf('playCue(cue: Cue)'));
+
+    assert.match(stopAudio, /this\.speechGen \+= 1/);
+    assert.match(stopAudio, /this\.speakChain = Promise\.resolve\(\)/);
+    assert.match(stopAudio, /this\.currentSource\.stop\(\)/);
+    assert.match(stopAudio, /for \(const src of this\.streamSources\)/);
+    assert.match(stopAudio, /this\.streamSources\.clear\(\)/);
   });
 });

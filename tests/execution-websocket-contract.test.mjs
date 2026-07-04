@@ -14,9 +14,11 @@ describe('execution websocket contract', () => {
   it('does not open authenticated execution sockets without a configured token', () => {
     const realtime = read('src/lib/api/realtime.ts');
     const dashboard = read('src/routes/(app)/dashboard/+page.svelte');
+    const manager = read('src/lib/stores/websocket.svelte.ts');
 
     assert.match(realtime, /const token = getWebSocketToken\(\);\s*if \(!token\) return '';/);
     assert.match(dashboard, /const url = executionSocketUrl\(projectKey\);/);
     assert.match(dashboard, /if \(!isStaticMockMode\(\) && !url\) return;/);
+    assert.match(manager, /if \(!isStaticMockMode\(\) && !url\) \{[\s\S]*?this\.state = 'idle';\s*return;\s*\}/);
   });
 });

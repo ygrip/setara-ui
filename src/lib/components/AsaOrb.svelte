@@ -620,6 +620,16 @@
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       {action.payload.label ?? action.payload.path}
     </a>
+  {:else if action.type === 'confirm_required'}
+    <div class="confirmation-card" role="group" aria-label="Confirm ASA action">
+      <span class="confirmation-summary">{action.payload.summary ?? 'Confirm this action?'}</span>
+      <div class="confirmation-actions">
+        <button type="button" class="action-chip" disabled={asa.streaming}
+          onclick={() => asa.confirmAction(action, 'REJECT')}>Cancel</button>
+        <button type="button" class="action-chip action-chip--confirm" disabled={asa.streaming}
+          onclick={() => asa.confirmAction(action, 'APPROVE')}>Approve</button>
+      </div>
+    </div>
   {/if}
 {/snippet}
 
@@ -975,6 +985,10 @@
     transition: background 0.1s;
   }
   .action-chip:hover { background: rgba(14,165,233,0.2); }
+  .confirmation-card { display: grid; gap: 7px; width: 100%; }
+  .confirmation-summary { font-size: 0.78rem; color: var(--color-text); }
+  .confirmation-actions { display: flex; gap: 6px; }
+  .action-chip--confirm { color: var(--color-danger, #dc2626); border-color: color-mix(in srgb, var(--color-danger, #dc2626), transparent 65%); }
 
   /* Markdown-rendered assistant content (injected via {@html}, so selectors are :global). */
   .msg-streaming {

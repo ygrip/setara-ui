@@ -1,22 +1,21 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { verifyModelAsset } from '../src/lib/voice/model-cache.ts';
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-describe('ASA Moonshine model cache', () => {
-  it('accepts an asset only when both byte length and SHA-256 match', async () => {
-    const bytes = new TextEncoder().encode('setara moonshine cache').buffer;
-    const asset = {
-      file: 'fixture.onnx',
-      url: 'https://example.test/fixture.onnx',
-      sizeBytes: 22,
-      sha256: 'bd0c13f96f59cb979c7dea393f5e7eff34c223d1d6418f231a854813a6a3f707',
-    };
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
+const read = (path) => readFileSync(join(root, path), 'utf8');
 
-    await assert.doesNotReject(verifyModelAsset(bytes, asset));
-    await assert.rejects(verifyModelAsset(bytes.slice(0, -1), asset), /size mismatch/);
-    await assert.rejects(
-      verifyModelAsset(bytes, { ...asset, sha256: '0'.repeat(64) }),
-      /checksum mismatch/
-    );
+describe('ASA sidecar model ownership', () => {
+  it('keeps STT and TTS models server-side instead of shipping a stale browser cache', () => {
+    const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const api = read('src/lib/api/asa.ts');
+
+    assert.equal(existsSync(join(root, 'src/lib/voice/model-cache.ts')), false);
+    assert.equal(existsSync(join(root, 'src/lib/voice/model-manifest.json')), false);
+    assert.match(sidecar, /transcribeAudio\(blob\)/);
+    assert.match(api, /apiFetch\('\/api\/asa\/voice\/transcribe'/);
+    assert.match(api, /apiFetch\('\/api\/asa\/voice\/synthesize\/stream'/);
   });
 });

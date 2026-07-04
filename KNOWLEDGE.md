@@ -8,6 +8,9 @@
 
 ## ASA Interaction Pattern
 
+- Handle `reload_page:v1` with SvelteKit `invalidateAll()`, never `location.reload()`. This refreshes current route data
+  while preserving the long-lived ASA store, panel state, and conversation.
+
 - Keep the ASA panel anchored to the orb. Closing the panel cancels the active stream and returns the orb to idle.
 - Load session messages newest-first from the cursor API, reverse each page for display, and prepend older pages while
   preserving the scroll offset. Backend agent context remains independently bounded.
@@ -44,6 +47,16 @@
   preferences locally.
 - Keep Sherpa runtime assets behind the Vite asset plugin and validate model revisions, checksums, sizes, and licenses
   with `npm run check:voice-models`.
+- Render `confirm_required` actions as explicit Approve and Cancel controls. A follow-up request returns only the opaque
+  confirmation token and decision; the browser must never reconstruct or edit protected tool arguments.
+
+## Execution WebSocket Pattern
+
+- Execution WebSockets require an explicit `VITE_SETARA_WS_TOKEN` because the backend authorizes these feeds with a
+  project API key carrying `execution:read`. When no token is configured, every socket entry point must remain idle and
+  use persisted API data instead of opening an unauthenticated socket or starting a reconnect loop.
+- Keep the missing-token guard in the shared WebSocket manager even when individual pages also guard direct sockets.
+  Project execution pages connect through the manager, while the aggregate dashboard owns several sockets directly.
 
 ## ASA Transcript Normalization Pattern
 
@@ -58,6 +71,10 @@
 - Sidecar voice sends structured `AsaVoiceInput` with `source: 'sidecar'`, `rawText`, `normalizedText`,
   `resolvedText`, and bounded entity matches. Push-to-talk and hands-free must pass this payload to
   `asa.send(text, voiceInput)` so `setara-core` can re-authorize and improve domain correction.
+- Prepare a short-lived core voice session before streaming. Send its bounded STT prompt/hotwords as the first
+  WebSocket control frame, keep partials display-only, and send retained PCM to the session final endpoint so only
+  core-normalized, permission-scoped final transcripts enter chat. Promote the latest partial only when finalization
+  is unavailable.
 - Keep one browser VAD session alive while ASA waits for a wake phrase and while it transitions to command capture.
   Ignored or empty transcripts update the listening mode without reopening the microphone.
 - Hands-free arming must be idempotent. Guard async VAD setup with a single in-flight promise, let the component call
