@@ -15,7 +15,8 @@ import type { EntityMatch, ResolverContext } from './entity-resolver';
  */
 const PREF_KEY = 'setara.asa.voice.sidecar';
 const ML_VAD_PREF_KEY = 'setara.asa.voice.mlVad';
-const MAX_RECORD_MS = 12_000;
+const MANUAL_MAX_RECORD_MS = 5 * 60_000;
+const HANDS_FREE_MAX_UTTERANCE_MS = 12_000;
 const SPEAK_SHORT_LIMIT = 400; // chars; don't read long markdown aloud
 
 // Hands-free VAD tuning (energy-based, no ML model). RMS is 0..~0.3 for typical mic levels.
@@ -193,7 +194,7 @@ class SidecarVoice {
     this.stopAudio(); // barge-in: silence ASA the moment the user starts talking
     // This click is a user gesture — unlock audio now so the (voice-triggered) spoken reply,
     // which fires later outside any gesture, isn't blocked by the autoplay policy.
-    if (this.ttsEnabled) this.ensureAudioContext();
+    this.ensureAudioContext();
     this.error = null;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
@@ -208,11 +209,12 @@ class SidecarVoice {
     this.recorder = new MediaRecorder(this.stream, mime ? { mimeType: mime } : undefined);
     this.recorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.recorder.start();
+    this.beginStreamCapture();
     this.status = 'recording';
     this.turnState = 'hearing';
     this.beep(); // static mic-on beep (was the spoken "Yes?" cue)
     asaLog('voice', 'recording started');
-    this.autoStop = setTimeout(() => { void this.stopRecording(); }, MAX_RECORD_MS);
+    this.autoStop = setTimeout(() => { void this.stopRecording(); }, MANUAL_MAX_RECORD_MS);
   }
 
   /** Stop, upload, transcribe. Returns the transcript text for review, or null on failure. */
@@ -224,14 +226,25 @@ class SidecarVoice {
       recorder.onstop = () => resolve(new Blob(this.chunks, { type: recorder.mimeType || 'audio/webm' }));
       recorder.stop();
     });
-    this.releaseStream();
     this.recorder = null;
     this.turnState = 'finalizing';
+    if (this.streaming) {
+      const finalText = await this.endStreamCapture();
+      this.releaseStream();
+      if (finalText) {
+        this.status = 'idle';
+        this.turnState = 'understanding';
+        this.playCue('processing');
+        return this.finalizeTranscript(finalText);
+      }
+    } else {
+      this.releaseStream();
+    }
     return this.processBlob(blob);
   }
 
   /** Transcribe → normalize → resolve entities → LLM refine. Shared by push-to-talk + hands-free. */
-  private async processBlob(blob: Blob): Promise<SidecarTranscript | null> {
+  private async processBlob(blob: Blob, playProcessingCue = true): Promise<SidecarTranscript | null> {
     this.status = 'transcribing';
     this.turnState = 'understanding';
     asaLog('voice', 'transcribing', { bytes: blob.size, type: blob.type });
@@ -240,7 +253,7 @@ class SidecarVoice {
       this.fail('Could not transcribe that clearly. Try again or type your request.');
       return null;
     }
-    this.playCue('processing'); // spoken ack — got the transcript
+    if (playProcessingCue) this.playCue('processing');
     this.status = 'idle';
     this.turnState = this.handsFree ? 'armed' : 'idle';
     return this.finalizeTranscript(result.text);
@@ -298,6 +311,7 @@ class SidecarVoice {
     if (this.autoStop) { clearTimeout(this.autoStop); this.autoStop = null; }
     try { this.recorder?.stop(); } catch { /* ignore */ }
     this.recorder = null;
+    if (this.streaming) this.teardownStream();
     this.releaseStream();
     this.status = 'idle';
   }
@@ -776,7 +790,7 @@ class SidecarVoice {
     this.status = 'recording';
     this.turnState = 'hearing';
     this.beep();
-    this.autoStop = setTimeout(() => { void this.endVadCapture(); }, MAX_RECORD_MS);
+    this.autoStop = setTimeout(() => { void this.endVadCapture(); }, HANDS_FREE_MAX_UTTERANCE_MS);
   }
 
   private async endVadCapture(): Promise<void> {
@@ -795,7 +809,6 @@ class SidecarVoice {
     if (this.streaming) {
       const finalText = await this.endStreamCapture(); // flush + await final partial
       if (tooShort || tooQuiet) { this.rearmAfterNoise(tooShort, tooQuiet); return; }
-      this.playCue('processing');
       this.status = 'idle';
       this.turnState = 'understanding';
       transcript = this.preparedFinal ?? (finalText ? await this.finalizeTranscript(finalText) : null);
@@ -808,13 +821,14 @@ class SidecarVoice {
       });
       this.recorder = null;
       if (tooShort || tooQuiet) { this.rearmAfterNoise(tooShort, tooQuiet); return; }
-      transcript = await this.processBlob(blob);
+      transcript = await this.processBlob(blob, false);
     }
 
     if (transcript && !this.isLikelyHallucination(transcript.text) && this.onTranscript) {
       const route = routeVoiceTranscript(this.wakeMode, transcript.text);
       this.wakeMode = route.nextMode;
       if (route.action === 'review') {
+        this.playCue('processing');
         this.releaseStream(true); // free the mic during reply so it cannot hear ASA
         this.onTranscript(route.command, {
           ...transcript.voiceInput,
@@ -994,6 +1008,7 @@ class SidecarVoice {
   }
 
   private fail(message: string): void {
+    if (this.streaming) this.teardownStream();
     this.releaseStream(true);
     this.recorder = null;
     this.error = message;

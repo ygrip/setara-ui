@@ -29,6 +29,28 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /this\.onTranscript\(route\.command/);
   });
 
+  it('keeps long manual dictation separate from bounded hands-free utterances', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const startRecording = voice.slice(voice.indexOf('async startRecording()'), voice.indexOf('async stopRecording()'));
+    const beginVadCapture = voice.slice(voice.indexOf('private beginVadCapture'), voice.indexOf('private async endVadCapture'));
+
+    assert.match(voice, /const MANUAL_MAX_RECORD_MS = 5 \* 60_000/);
+    assert.match(voice, /const HANDS_FREE_MAX_UTTERANCE_MS = 12_000/);
+    assert.match(startRecording, /MANUAL_MAX_RECORD_MS/);
+    assert.match(startRecording, /this\.beginStreamCapture\(\)/);
+    assert.match(beginVadCapture, /HANDS_FREE_MAX_UTTERANCE_MS/);
+  });
+
+  it('plays the hands-free processing cue only for a confirmed command', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const endVadCapture = voice.slice(voice.indexOf('private async endVadCapture'), voice.indexOf('private rearmAfterNoise'));
+    const reviewBranch = endVadCapture.slice(endVadCapture.indexOf("if (route.action === 'review')"));
+
+    assert.doesNotMatch(endVadCapture.slice(0, endVadCapture.indexOf("if (route.action === 'review')")), /playCue\('processing'\)/);
+    assert.match(reviewBranch, /playCue\('processing'\)/);
+    assert.match(endVadCapture, /this\.processBlob\(blob, false\)/);
+  });
+
   it('keeps one hands-free session across noise and wake transitions', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
@@ -49,11 +71,12 @@ describe('ASA sidecar voice contracts', () => {
 
   it('persists only current sidecar voice preferences', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const persist = voice.slice(voice.indexOf('private persist()'), voice.indexOf('private releaseStream'));
 
     for (const field of ['ttsEnabled', 'voiceId', 'speakOnlyShort', 'handsFree', 'earcons']) {
-      assert.match(voice, new RegExp(`${field}:`));
+      assert.match(persist, new RegExp(`${field}:`));
     }
-    assert.doesNotMatch(voice, /pitch:|language:/);
+    assert.doesNotMatch(persist, /pitch:|language:/);
   });
 
   it('loads the server-owned voice catalog and entity catalog', () => {

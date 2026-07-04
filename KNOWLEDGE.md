@@ -32,6 +32,9 @@
   the live bubble before the authoritative `done.content` snapshot arrives.
 - Treat standalone `===` and `===BODY===` lines as transport protocol, not assistant text. The turn accumulator strips
   them from both live chunks and the authoritative completion snapshot, while preserving the body that follows.
+- Apply `user_input_revision` only to the optimistic user message whose request ID matches the active stream, and
+  reconcile the same value from `done.userInputRevision`. Ignore missing, blank, oversized, mismatched, and unknown
+  events so old clients and servers remain compatible.
 - Render in-flight assistant token content as plain pre-wrapped text and switch to markdown only after stream
   completion. Partial markdown such as headings, emphasis, or table scaffolds can otherwise produce blank live bubbles
   even though the persisted message renders correctly after refresh.
@@ -89,6 +92,10 @@
 - Streaming STT finalization must resolve through one helper from `final`, socket `close`, socket `error`, and timeout
   paths. When the sidecar or relay dies after partials, promote the latest partial transcript instead of leaving
   hands-free stuck in finalizing state.
+- Keep manual push-to-talk and hands-free duration policies separate. Manual capture has a five-minute safety cap and
+  streams partials while retaining a batch recording fallback; hands-free utterances remain capped at 12 seconds.
+- In hands-free mode, play the processing cue only after hallucination filtering and wake routing confirm a reviewable
+  command. Noise, wake-only speech, and non-wake speech must rearm silently.
 - Hands-free is wake-once per toggle/session: start in `wake` mode, unlock into `command` mode after "Hi ASA",
   then keep accepting commands until the user toggles hands-free off or closes ASA. Rearm only after queued speech
   playback finishes so ASA does not capture its own TTS.

@@ -264,12 +264,18 @@ class AsaStore {
           case 'timing':
             asaLog('chat:timing', event.payload);
             break;
+          case 'user_input_revision':
+            if (String(event.payload.requestId ?? '') === requestId) {
+              this.applyUserInputRevision(requestId, event.payload.text);
+            }
+            break;
           case 'done':
             tokenBatcher.flush();
             gotDone = true;
             turn.apply(event);
             fullContent = reconcileCompletedContent(fullContent, turn.content);
             this.updateAssistant(requestId, { content: fullContent });
+            this.applyUserInputRevision(requestId, event.payload.userInputRevision);
             this.scrollRevision += 1;
             this.updateSessionBudget(event.payload);
             break;
@@ -377,6 +383,18 @@ class AsaStore {
     const id = `${requestId}:assistant`;
     this.messages = this.messages.map((message) =>
       message.id === id ? { ...message, ...patch } : message,
+    );
+  }
+
+  private applyUserInputRevision(requestId: string, value: unknown) {
+    if (typeof value !== 'string') return;
+    const text = value.trim();
+    if (!text || text.length > 2_000) return;
+    const userMessageId = `${requestId}:user`;
+    this.messages = this.messages.map((message) =>
+      message.id === userMessageId && message.role === 'user'
+        ? { ...message, content: text }
+        : message,
     );
   }
 

@@ -59,7 +59,8 @@ export interface AsaMessagePage {
 export interface AsaEvent {
   protocolVersion: string;
   eventId: string;
-  eventType: 'thinking' | 'token' | 'speech' | 'action' | 'clarification' | 'timing' | 'error' | 'done';
+  eventType: 'thinking' | 'token' | 'speech' | 'action' | 'clarification' | 'timing'
+    | 'user_input_revision' | 'error' | 'done';
   payload: Record<string, unknown>;
 }
 
