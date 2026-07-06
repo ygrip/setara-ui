@@ -1,10 +1,13 @@
-import { listProjects, type Project } from '$lib/api/projects';
+import {
+  getProjectOverview,
+  type ProjectOverviewResponse
+} from '$lib/api/projects';
 
 export async function load() {
   try {
-    const result = await listProjects();
-    return { projects: result.items, nextCursor: result.nextCursor, error: null };
-  } catch (e) {
-    return { projects: [] as Project[], nextCursor: null, error: (e as Error).message };
+    const overview = await getProjectOverview();
+    return { overview, error: null };
+  } catch (error) {
+    return { overview: null as ProjectOverviewResponse | null, error: (error as Error).message };
   }
 }

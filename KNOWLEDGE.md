@@ -60,7 +60,7 @@
 ## Dashboard Copy Style
 
 - Use sentence fragments where scannable and conversational. Page subtitles describe the purpose without
-  restating the title ("Your test suite at a glance — coverage, pass rates, and what needs attention.").
+  restating the title ("Your test suite at a glance: coverage, pass rates, and what needs attention.").
 - Keep metric labels concise and title-case: Quality health, Pass rate, Automation coverage, Test scenarios.
   Do not use jargon such as "aggregate statistic", "execution result", or "pass-fail ratio".
 - Delta labels follow one pattern: `+N vs previous period` or `No previous data` (never `–`/`↓` in labels,
@@ -70,6 +70,37 @@
   ("Click to see how this score is calculated" over "More info").
 - Error states distinguish unavailable (data not yet collected) from failed (request error). Use "unavailable"
   for a healthy empty state and surface the actual error message for request failures.
+
+## Project Listing Command Center Pattern
+
+- Load the Projects page through one `/api/projects/overview` contract. Its summary, filter options, items, and page
+  metadata must describe the same backend snapshot and health vocabulary used by the dashboard.
+- Keep route code responsible for request coordination, debouncing, stale-response rejection, paging, retry, project
+  creation refresh, and persisted view mode. Put status, progress, card, summary, toolbar, grid, list, and skeleton
+  presentation under `src/lib/components/projects`.
+- Preserve the last successful overview during background failures and label it as the latest available data. Use the
+  shared animated `EmptyState` for genuine empty and filtered-empty results, and a region-matched skeleton before the
+  first successful response.
+- Cards use one keyboard-focusable project link with no nested interactive controls. Status combines text and an icon,
+  progress bars expose value semantics, missing results say `No runs`, and projects without scenarios show `N/A`
+  instead of a misleading zero percent.
+- The grid is explicitly four, three, two, and one columns at desktop, laptop, tablet, and mobile breakpoints. The list
+  view uses semantic table markup and horizontal overflow, and the grid/list toggle persists at
+  `setara.projects.viewMode`.
+- Reuse the shared `MetricCard` for project-listing summary KPIs. Load subsequent overview pages with one guarded
+  `IntersectionObserver` sentinel, disconnect it while a request is active, and rely on request sequencing to reject
+  stale pages after filters change. Do not add a parallel manual load-more control.
+
+## Squad Quality Command Center Pattern
+
+- Load Squad Detail through one `/api/squads/{squadId}/quality-overview` response. Summary, deltas, trend, attention,
+  projects, thresholds, and squad identity must share the same selected and previous periods.
+- Reuse `MetricCard`, `QualityStatusBadge`, `InlineProgress`, the chart theme, and animated `EmptyState`. Keep the route
+  responsible only for preset/custom range state, grouping, request sequencing, stale-data preservation, and retry.
+- Coverage is `N/A` when the scenario denominator is zero. Pass rate says `No runs` when execution evidence is absent.
+  Attention categories explain no scenarios and stale runs without inventing competing health statuses.
+- Use a 75 percent chart minimum only when every visible percentage is at least 80; otherwise retain the full 0 to 100
+  scale. Trend insights state flat, improving, dropping, unavailable, or insufficient evidence in plain language.
 
 ## ASA Interaction Pattern
 

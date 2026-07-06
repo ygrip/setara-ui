@@ -21,7 +21,8 @@
     height = undefined,
     label = '',
     showLegend = true,
-    axisMode = 'percent'
+    axisMode = 'percent',
+    percentMinimum = 0
   }: {
     chartData: ChartDataInput;
     /** Fixed height in px. Omit (or leave undefined) to fill the parent via CSS height:100%. */
@@ -29,6 +30,7 @@
     label?: string;
     showLegend?: boolean;
     axisMode?: CartesianAxisMode;
+    percentMinimum?: number;
   } = $props();
 
   let canvas: HTMLCanvasElement;
@@ -39,7 +41,7 @@
     if (!chart) return;
     const theme = readChartTheme(canvas);
     chart.data = decorateCartesianData(chartData, theme) as any;
-    chart.options.scales = createCartesianScales(theme, axisMode);
+    chart.options.scales = createCartesianScales(theme, axisMode, percentMinimum);
     refreshChartTheme(chart, theme);
     for (const scale of Object.values(chart.options.scales ?? {})) {
       if (!scale) continue;
@@ -78,7 +80,7 @@
             boxPadding: 5
           }
         },
-        scales: createCartesianScales(theme, axisMode)
+        scales: createCartesianScales(theme, axisMode, percentMinimum)
       }
     });
     themeObserver = new MutationObserver(syncChart);
@@ -95,6 +97,7 @@
   $effect(() => {
     chartData;
     axisMode;
+    percentMinimum;
     syncChart();
   });
 </script>

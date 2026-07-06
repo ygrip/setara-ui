@@ -20,7 +20,8 @@ describe('Quality trend data contract', () => {
 
   it('keeps mixed percent and volume scales centralized', () => {
     assert.match(theme, /export type CartesianAxisMode = 'percent' \| 'mixed'/);
-    assert.match(theme, /const percentAxis = \{[\s\S]*min: 0,[\s\S]*max: 100/);
+    assert.match(theme, /percentMinimum = 0/);
+    assert.match(theme, /const percentAxis = \{[\s\S]*min: percentMinimum,[\s\S]*max: 100/);
     assert.match(theme, /yPercent: \{[\s\S]*\.\.\.percentAxis/);
     assert.match(theme, /yVolume:[\s\S]*beginAtZero: true/);
     assert.match(theme, /export function compactChartNumber/);

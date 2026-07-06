@@ -18,7 +18,7 @@
   <div class="squads-header">
     <div>
       <h2 id="squads-attention-title">Squads needing attention</h2>
-      <p>Bottom 5 squads ranked by average quality health — worst first.</p>
+      <p>Bottom 5 squads ranked by average quality health, lowest first.</p>
     </div>
     <a href="/coverage-overview">View squads <span aria-hidden="true">→</span></a>
   </div>
@@ -52,12 +52,8 @@
         <tbody>
           {#each squads as squad (squad.squadId)}
             <tr>
-              <td>
-                <a class="squad-link" href="/coverage-overview?squad={encodeURIComponent(squad.squadName)}">
-                  <span class="squad-name">{squad.squadName}</span>
-                </a>
-              </td>
-              <td class="tribe-cell">{squad.tribeName ?? '—'}</td>
+              <td><a class="squad-link" href={`/squads/${squad.squadId}`}><span class="squad-name">{squad.squadName}</span></a></td>
+              <td class="tribe-cell">{squad.tribeName ?? 'Not assigned'}</td>
               <td class="number-cell">{squad.projectCount}</td>
               <td class="number-cell">{Math.round(squad.avgQualityHealthScore)}<span class="score-unit">/100</span></td>
               <td><QualityStatusBadge status={squad.status} /></td>

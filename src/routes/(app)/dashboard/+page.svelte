@@ -125,7 +125,7 @@
         attentionLimit: 5
       });
       dashboardError = '';
-      for (const item of dashboard.attentionItems) openSocket(item.projectKey);
+      for (const item of dashboard?.attentionItems ?? []) openSocket(item.projectKey);
     } catch (error) {
       if (showBusy) chartError = (error as Error).message;
       if (!dashboard) dashboardError = (error as Error).message;
@@ -594,8 +594,7 @@
 
   .section-title {
     font-size: 1rem;
-    font-weight: 600;
-    margin: 0 0 4px;
+    font-weight: 750;
     color: var(--color-text);
   }
 

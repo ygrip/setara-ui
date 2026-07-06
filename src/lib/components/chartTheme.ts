@@ -236,7 +236,8 @@ export function refreshChartTheme(chart: Chart, theme: ChartTheme): void {
 
 export function createCartesianScales(
   theme: ChartTheme,
-  axisMode: CartesianAxisMode
+  axisMode: CartesianAxisMode,
+  percentMinimum = 0
 ): NonNullable<ChartOptions<'line'>['scales']> {
   const x = {
     grid: { display: false },
@@ -260,7 +261,7 @@ export function createCartesianScales(
       padding: 10,
       callback: (value: string | number) => `${value}%`
     },
-    min: 0,
+    min: percentMinimum,
     max: 100
   };
 
