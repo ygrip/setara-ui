@@ -37,8 +37,8 @@
 <section class="projects-card surface-card" aria-labelledby="projects-overview-title">
   <div class="projects-header">
     <div>
-      <h2 id="projects-overview-title">Projects overview</h2>
-      <p>Current quality signals by project.</p>
+      <h2 id="projects-overview-title">Projects needing attention</h2>
+      <p>Up to 10 projects ranked by health score — worst first.</p>
     </div>
     <a href="/projects">View projects <span aria-hidden="true">→</span></a>
   </div>

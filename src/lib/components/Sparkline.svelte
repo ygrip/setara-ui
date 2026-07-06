@@ -1,10 +1,8 @@
 <script lang="ts">
   let {
-    values,
-    tone = 'var(--metric-accent)'
+    values
   }: {
     values: number[];
-    tone?: string;
   } = $props();
 
   const computed = $derived.by(() => {
@@ -31,12 +29,11 @@
     viewBox="0 0 100 30"
     preserveAspectRatio="none"
     aria-hidden="true"
-    style="--sparkline-tone: {tone}"
   >
     <defs>
       <linearGradient id="sparkline-fill" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" style="stop-color: var(--sparkline-tone); stop-opacity: 0.22;" />
-        <stop offset="100%" style="stop-color: var(--sparkline-tone); stop-opacity: 0;" />
+        <stop offset="0%" style="stop-color: currentColor; stop-opacity: 0.22;" />
+        <stop offset="100%" style="stop-color: currentColor; stop-opacity: 0;" />
       </linearGradient>
     </defs>
     <path class="sparkline-area" d={computed.areaPath} />
@@ -58,7 +55,7 @@
   }
 
   .sparkline-line {
-    stroke: var(--sparkline-tone);
+    stroke: currentColor;
     stroke-width: 1.5;
     stroke-linecap: round;
     stroke-linejoin: round;

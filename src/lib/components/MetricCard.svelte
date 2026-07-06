@@ -42,7 +42,8 @@
     progressValue = undefined,
     sparklineValues = [],
     actionLabel = '',
-    helpText = ''
+    helpText = '',
+    onclick = undefined
   }: {
     label: string;
     value: string | number;
@@ -71,6 +72,7 @@
     sparklineValues?: number[];
     actionLabel?: string;
     helpText?: string;
+    onclick?: () => void;
   } = $props();
 
   const normalizedProgress = $derived(
@@ -173,7 +175,9 @@
     {/if}
 
     {#if sparklineValues.length > 1}
-      <Sparkline values={sparklineValues} />
+      <span class="metric-sparkline-wrap">
+        <Sparkline values={sparklineValues} />
+      </span>
     {/if}
 
     {#if children}
@@ -192,6 +196,18 @@
   <a class="metric-card surface-card metric-card--{variant} metric-card--link" {href} aria-label={ariaLabel || `${label}: ${value}`}>
     {@render content()}
   </a>
+{:else if onclick}
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="metric-card surface-card metric-card--{variant} metric-card--link"
+    role="button"
+    tabindex="0"
+    {onclick}
+    onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onclick(); } }}
+    aria-label={ariaLabel || `${label}: ${value}`}
+  >
+    {@render content()}
+  </div>
 {:else}
   <div class="metric-card surface-card metric-card--{variant}">
     {@render content()}
@@ -416,6 +432,11 @@
     height: 100%;
     border-radius: inherit;
     background: linear-gradient(90deg, var(--metric-accent), color-mix(in srgb, var(--metric-accent), white 24%));
+  }
+
+  .metric-sparkline-wrap {
+    display: block;
+    color: var(--metric-accent);
   }
 
   .metric-action {

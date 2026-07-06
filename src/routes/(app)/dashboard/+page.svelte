@@ -19,6 +19,7 @@
   import ProjectsOverviewTable from '$lib/components/dashboard/ProjectsOverviewTable.svelte';
 
   let { data } = $props();
+  let showHealthModal = $state(false);
 
   let chartStart = $state('');
   let chartEnd = $state('');
@@ -228,7 +229,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">A snapshot of quality, automation, and release readiness.</p>
+      <p class="page-subtitle">Your test suite at a glance — coverage, pass rates, and what needs attention.</p>
     </div>
     {#if liveRunCount > 0}
       <div class="header-right">
@@ -256,19 +257,25 @@
         deltaDirection={trendDirection(summary.qualityHealth.trendDirection)}
         progressValue={summary.qualityHealth.value}
         sparklineValues={(dashboard?.trends ?? []).map((point) => point.qualityHealthScore)}
-        helpText="Quality health combines pass rate, automation coverage, open failures, recent test activity, and test stability."
+        helpText="Click to see how this score is calculated"
         variant={statusVariant(summary.qualityHealth.status)}
-        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.3-7 10-4.1-1.7-7-5.4-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>'
-        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
+        onclick={() => (showHealthModal = true)}
+        iconSvg='<svg viewBox="0 0 24 24" fill="none">
+<path d="M16 11.55L12.6 9C12.2444 8.73333 11.7556 8.73333 11.4 9L8 11.55M14 14.05L12 12.55L10 14.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M3 10.4167C3 7.21907 3 5.62028 3.37752 5.08241C3.75503 4.54454 5.25832 4.02996 8.26491 3.00079L8.83772 2.80472C10.405 2.26824 11.1886 2 12 2C12.8114 2 13.595 2.26824 15.1623 2.80472L15.7351 3.00079C18.7417 4.02996 20.245 4.54454 20.6225 5.08241C21 5.62028 21 7.21907 21 10.4167C21 10.8996 21 11.4234 21 11.9914C21 14.4963 20.1632 16.4284 19 17.9041M3.19284 14C4.05026 18.2984 7.57641 20.5129 9.89856 21.5273C10.62 21.8424 10.9807 22 12 22C13.0193 22 13.38 21.8424 14.1014 21.5273C14.6796 21.2747 15.3324 20.9478 16 20.5328" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+</svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-accent), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
       />
       <MetricCard
         label="Projects"
         value={summary.projects.value.toLocaleString()}
         deltaLabel={summary.projects.deltaLabel}
         deltaDirection={trendDirection(summary.projects.trendDirection)}
-        variant="default"
-        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
-        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+        variant="warning"
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M4 21H20C21.1046 21 22 20.1046 22 19V8C22 6.89543 21.1046 6 20 6H11L9.29687 3.4453C9.1114 3.1671 8.79917 3 8.46482 3H4C2.89543 3 2 3.89543 2 5V19C2 20.1046 2.89543 21 4 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-warning), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-warning), transparent 86%)", color: "var(--color-warning)" }}
         href="/projects"
         actionLabel="View projects"
         ariaLabel="Open projects"
@@ -278,11 +285,11 @@
         value={summary.testScenarios.value.toLocaleString()}
         deltaLabel={summary.testScenarios.deltaLabel}
         deltaDirection={trendDirection(summary.testScenarios.trendDirection)}
-        variant="default"
+        variant="info"
         iconSvg='<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-<path d="M9 3V5M12 3V5M15 3V5M13 9H9M15 13H9M8.2 21H15.8C16.9201 21 17.4802 21 17.908 20.782C18.2843 20.5903 18.5903 20.2843 18.782 19.908C19 19.4802 19 18.9201 19 17.8V7.2C19 6.0799 19 5.51984 18.782 5.09202C18.5903 4.71569 18.2843 4.40973 17.908 4.21799C17.4802 4 16.9201 4 15.8 4H8.2C7.0799 4 6.51984 4 6.09202 4.21799C5.71569 4.40973 5.40973 4.71569 5.21799 5.09202C5 5.51984 5 6.07989 5 7.2V17.8C5 18.9201 5 19.4802 5.21799 19.908C5.40973 20.2843 5.71569 20.5903 6.09202 20.782C6.51984 21 7.07989 21 8.2 21Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M9 3V5M12 3V5M15 3V5M13 9H9M15 13H9M8.2 21H15.8C16.9201 21 17.4802 21 17.908 20.782C18.2843 20.5903 18.5903 20.2843 18.782 19.908C19 19.4802 19 18.9201 19 17.8V7.2C19 6.0799 19 5.51984 18.782 5.09202C18.5903 4.71569 18.2843 4.40973 17.908 4.21799C17.4802 4 16.9201 4 15.8 4H8.2C7.0799 4 6.51984 4 6.09202 4.21799C5.71569 4.40973 5.40973 4.71569 5.21799 5.09202C5 5.51984 5 6.07989 5 7.2V17.8C5 18.9201 5 19.4802 5.21799 19.908C5.40973 20.2843 5.71569 20.5903 6.09202 20.782C6.51984 21 7.07989 21 8.2 21Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>'
-        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
         href="/coverage-overview"
         ariaLabel="Open scenario coverage overview"
       />
@@ -308,7 +315,7 @@
         deltaLabel={summary.passRate.deltaLabel}
         deltaDirection={trendDirection(summary.passRate.trendDirection)}
         sparklineValues={(dashboard?.trends ?? []).map((point) => point.passRate)}
-        variant="default"
+        variant="success"
         iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M8 12l3 3 5-6"/></svg>'
         iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-success), transparent 86%)", color: "var(--color-success)" }}
         href="/coverage-overview"
@@ -370,6 +377,56 @@
       unavailable={!dashboard && Boolean(dashboardError)}
     />
   </div>
+
+  <Modal open={showHealthModal} title="How quality health is scored" onclose={() => (showHealthModal = false)}>
+    <div class="health-modal">
+      <p class="health-modal-intro">Quality health is a composite score out of 100, weighted across five signals:</p>
+      <div class="health-factors">
+        <div class="health-factor">
+          <div class="health-factor-header">
+            <span class="health-factor-name">Pass rate</span>
+            <span class="health-factor-weight">35 pts</span>
+          </div>
+          <p>How many test runs passed. Higher is better. No data = 0 contribution.</p>
+        </div>
+        <div class="health-factor">
+          <div class="health-factor-header">
+            <span class="health-factor-name">Automation coverage</span>
+            <span class="health-factor-weight">25 pts</span>
+          </div>
+          <p>Percentage of scenarios that are automated. More coverage = higher score.</p>
+        </div>
+        <div class="health-factor">
+          <div class="health-factor-header">
+            <span class="health-factor-name">Open failures</span>
+            <span class="health-factor-weight">20 pts</span>
+          </div>
+          <p>Active scenarios whose latest result is a failure. Penalised by the ratio of failures to total scenarios.</p>
+        </div>
+        <div class="health-factor">
+          <div class="health-factor-header">
+            <span class="health-factor-name">Test freshness</span>
+            <span class="health-factor-weight">10 pts</span>
+          </div>
+          <p>How recently a run was recorded. Full points within 3 days; zero after 14 days of inactivity.</p>
+        </div>
+        <div class="health-factor">
+          <div class="health-factor-header">
+            <span class="health-factor-name">Test stability</span>
+            <span class="health-factor-weight">10 pts</span>
+          </div>
+          <p>Flaky scenarios — ones that flip between passing and failing — reduce this component.</p>
+        </div>
+      </div>
+      <div class="health-thresholds">
+        <p class="health-thresholds-title">Score thresholds</p>
+        <div class="health-threshold health-threshold--healthy">≥ 85 — Healthy</div>
+        <div class="health-threshold health-threshold--review">≥ 70 — Needs review</div>
+        <div class="health-threshold health-threshold--risk">≥ 60 — High risk</div>
+        <div class="health-threshold health-threshold--critical">&lt; 60 — Critical</div>
+      </div>
+    </div>
+  </Modal>
 
   <Modal open={showChartExpand} title="Quality trends" size="full" onclose={() => showChartExpand = false}>
     <div class="expand-modal-content">
@@ -797,4 +854,46 @@
     .page-title { font-size: 1.25rem; }
     .col-hide-xs { display: none; }
   }
+
+  /* Quality health modal */
+  .health-modal { display: flex; flex-direction: column; gap: 20px; }
+  .health-modal-intro { color: var(--color-text-muted); font-size: 0.84rem; margin: 0; }
+
+  .health-factors { display: flex; flex-direction: column; gap: 12px; }
+  .health-factor {
+    padding: 12px 14px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius);
+    background: color-mix(in srgb, var(--color-surface), transparent 40%);
+  }
+  .health-factor-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 5px;
+  }
+  .health-factor-name { font-size: 0.82rem; font-weight: 700; color: var(--color-text); }
+  .health-factor-weight {
+    font-size: 0.72rem;
+    font-weight: 800;
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .health-factor p { margin: 0; font-size: 0.78rem; color: var(--color-text-muted); line-height: 1.45; }
+
+  .health-thresholds { display: flex; flex-direction: column; gap: 6px; }
+  .health-thresholds-title { margin: 0 0 8px; font-size: 0.78rem; font-weight: 700; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+  .health-threshold {
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 0.8rem;
+    font-weight: 650;
+  }
+  .health-threshold--healthy { background: color-mix(in srgb, var(--color-success), transparent 88%); color: var(--color-success); }
+  .health-threshold--review { background: color-mix(in srgb, var(--color-warning), transparent 88%); color: var(--color-warning); }
+  .health-threshold--risk { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); }
+  .health-threshold--critical { background: color-mix(in srgb, var(--color-danger), transparent 88%); color: var(--color-danger); }
 </style>
