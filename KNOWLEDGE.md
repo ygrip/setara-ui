@@ -57,6 +57,20 @@
 - Mock mode implements the aggregate contract itself, including equal-length periods, deterministic trends, health,
   and attention. Loading skeletons match the KPI, chart, attention, and project-table regions to prevent layout jumps.
 
+## Dashboard Copy Style
+
+- Use sentence fragments where scannable and conversational. Page subtitles describe the purpose without
+  restating the title ("Your test suite at a glance — coverage, pass rates, and what needs attention.").
+- Keep metric labels concise and title-case: Quality health, Pass rate, Automation coverage, Test scenarios.
+  Do not use jargon such as "aggregate statistic", "execution result", or "pass-fail ratio".
+- Delta labels follow one pattern: `+N vs previous period` or `No previous data` (never `–`/`↓` in labels,
+  those belong to the direction symbol). `No runs` replaces a zero pass rate when no finished executions exist.
+- Section headings describe the decision context, not just the data: "Projects needing attention" over "Projects".
+- Help text on clickable cards tells the user what they will learn, not just that a click is possible
+  ("Click to see how this score is calculated" over "More info").
+- Error states distinguish unavailable (data not yet collected) from failed (request error). Use "unavailable"
+  for a healthy empty state and surface the actual error message for request failures.
+
 ## ASA Interaction Pattern
 
 - Handle `reload_page:v1` with SvelteKit `invalidateAll()`, never `location.reload()`. This refreshes current route data
