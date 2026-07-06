@@ -438,37 +438,6 @@
     color: var(--color-success);
   }
 
-  .project-card-footer {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 7px;
-    margin-top: 14px;
-    color: var(--color-text-muted);
-    font-size: 0.74rem;
-    font-weight: 650;
-    transition: color 0.16s ease;
-  }
-
-  .project-card-footer svg {
-    width: 16px;
-    height: 16px;
-    fill: none;
-    stroke: currentColor;
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    stroke-width: 1.6;
-    transition: transform 0.16s ease;
-  }
-
-  :global(.project-bento:hover) .project-card-footer {
-    color: var(--color-accent);
-  }
-
-  :global(.project-bento:hover) .project-card-footer svg {
-    transform: translateX(2px);
-  }
-
   .sentinel { height: 1px; }
 
   .loading-more {

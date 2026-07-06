@@ -14,9 +14,9 @@ describe('ASA TTS streamed playback contract', () => {
   it('keeps browser PCM playback buffered, measured, and cancellable', () => {
     const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(sidecar, /const TTS_FRAME_MS = 160/);
-    assert.match(sidecar, /const TTS_PREROLL_MS = 240/);
-    assert.match(sidecar, /const TTS_UNDERRUN_RECOVERY_MS = 80/);
+    assert.match(sidecar, /const TTS_FRAME_MS = 480/);
+    assert.match(sidecar, /const TTS_PREROLL_MS = 480/);
+    assert.match(sidecar, /const TTS_UNDERRUN_RECOVERY_MS = 160/);
     assert.match(sidecar, /ttsPlayback = \$state<TtsPlaybackStats>/);
     assert.match(sidecar, /underruns \+= 1/);
     assert.match(sidecar, /TTS stream playback stats/);

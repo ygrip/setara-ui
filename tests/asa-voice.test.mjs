@@ -38,7 +38,8 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /const MANUAL_MAX_RECORD_MS = 5 \* 60_000/);
     assert.match(voice, /const HANDS_FREE_MAX_UTTERANCE_MS = 12_000/);
     assert.match(startRecording, /MANUAL_MAX_RECORD_MS/);
-    assert.match(startRecording, /this\.beginStreamCapture\(\)/);
+    assert.doesNotMatch(startRecording, /this\.beginStreamCapture\(\)/);
+    assert.match(beginVadCapture, /this\.beginStreamCapture\(\)/);
     assert.match(stopRecording, /await this\.endStreamCapture\(\)/);
     assert.match(stopRecording, /return this\.processBlob\(blob\)/);
     assert.doesNotMatch(stopRecording, /return this\.finalizeTranscript\(finalText\)/);
