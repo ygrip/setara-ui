@@ -216,13 +216,28 @@
         Overview
       </a>
 
-      <!-- Divider with label -->
-      <div class="nav-divider">
-        <span class="nav-divider-label">Project</span>
+      <!-- Project context header -->
+      <div class="project-ctx-wrap">
         {#if projectKey}
-          <span class="nav-divider-key">{projectKey}</span>
+          <a href="/projects/{projectKey}" class="project-ctx-card" onclick={closeSidebar} title="Go to project overview">
+            <svg class="project-ctx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+            </svg>
+            <div class="project-ctx-body">
+              <span class="project-ctx-eyebrow">Project</span>
+              <span class="project-ctx-key">{projectKey}</span>
+            </div>
+            <svg class="project-ctx-arrow" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+            </svg>
+          </a>
         {:else}
-          <span class="nav-divider-hint">(none selected)</span>
+          <div class="project-ctx-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+            </svg>
+            <span>No project selected</span>
+          </div>
         {/if}
       </div>
 
@@ -598,43 +613,97 @@
     opacity: 0.58;
   }
 
-  .nav-divider {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px 4px;
-    margin-top: 4px;
-  }
-
   .nav-divider--simple {
     border-top: 1px solid var(--color-border);
     padding-top: 6px;
     margin-top: 4px;
   }
 
-  .nav-divider-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    opacity: 0.7;
+  /* Project context card */
+  .project-ctx-wrap {
+    padding: 6px 0 4px;
+    margin-top: 6px;
   }
 
-  .nav-divider-key {
-    font-size: 0.68rem;
+  .project-ctx-card {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .project-ctx-card:hover {
+    background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  }
+
+  .project-ctx-icon {
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    color: var(--color-accent);
+    opacity: 0.75;
+  }
+
+  .project-ctx-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .project-ctx-eyebrow {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--color-text-muted);
+    line-height: 1.3;
+  }
+
+  .project-ctx-key {
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--color-accent);
-    background: var(--color-accent-subtle);
-    padding: 1px 6px;
-    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
   }
 
-  .nav-divider-hint {
-    font-size: 0.68rem;
+  .project-ctx-arrow {
+    flex: 0 0 auto;
+    width: 13px;
+    height: 13px;
+    color: var(--color-accent);
+    opacity: 0.45;
+  }
+
+  .project-ctx-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px dashed var(--color-border);
     color: var(--color-text-muted);
-    opacity: 0.5;
+    font-size: 0.76rem;
+    opacity: 0.55;
     font-style: italic;
+  }
+
+  .project-ctx-empty svg {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
   }
 
   .nav-item {
@@ -657,9 +726,11 @@
   }
 
   .nav-item--active {
-    background: var(--color-accent-subtle);
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
     color: var(--color-accent);
     font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--color-accent);
+    padding-left: 7px;
   }
 
   .nav-item--dimmed {
