@@ -53,7 +53,7 @@
     overflow: hidden;
     border: 1px solid color-mix(in srgb, var(--surface-card-border, var(--color-border)), var(--status-color) 6%);
     border-radius: var(--radius);
-    background: var(--color-surface);
+    background: var(--surface-card-bg, var(--color-surface));
     box-shadow: var(--shadow);
     color: inherit;
     text-decoration: none;

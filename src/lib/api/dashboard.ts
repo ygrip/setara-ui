@@ -6,6 +6,7 @@ import {
   mockRunsByProject,
   mockScenariosByProject,
   mockSquads,
+  mockTribes,
   mockStatisticsOverride
 } from '$lib/mock/data';
 
@@ -78,6 +79,16 @@ export type DashboardAttentionItem = {
   detectedAt: string;
 };
 
+export type DashboardSquadSummary = {
+  squadId: string;
+  squadName: string;
+  tribeId: string | null;
+  tribeName: string | null;
+  projectCount: number;
+  avgQualityHealthScore: number;
+  status: QualityHealthStatus;
+};
+
 export type DashboardProjectOverview = {
   projectId: string;
   projectKey: string;
@@ -109,6 +120,7 @@ export type DashboardResponse = {
   trends: DashboardTrendPoint[];
   attentionItems: DashboardAttentionItem[];
   projects: DashboardProjectOverview[];
+  squads: DashboardSquadSummary[];
   lastUpdatedAt: string | null;
 };
 
@@ -173,11 +185,12 @@ function buildMockDashboard(period: DashboardPeriod, attentionLimit: number): Da
   const trends = mockTrends(period, projects);
   const summary = mockSummary(projects, previousProjects);
   const attentionItems = mockAttention(projects, previousProjects, evaluatedAt, attentionLimit);
+  const squads = mockSquadSummaries(projects, evaluatedAt);
   const lastUpdatedAt = projects.map((project) => project.lastActivityAt)
     .filter((value): value is string => value !== null)
     .sort()
     .at(-1) ?? null;
-  return { period, summary, trends, attentionItems, projects, lastUpdatedAt };
+  return { period, summary, trends, attentionItems, projects, squads, lastUpdatedAt };
 }
 
 function mockProjectOverview(
@@ -495,6 +508,45 @@ function qualityHealth(input: {
   }
   const score = round(clamp(pass + automation + (20 - failurePenalty) + freshness + stability, 0, 100));
   return { score, status: classifyHealth(score, input.finishedExecutions) };
+}
+
+function mockSquadSummaries(
+  projects: DashboardProjectOverview[],
+  _evaluatedAt: Date
+): DashboardSquadSummary[] {
+  const projectSquadMap = new Map(mockProjects.map((p) => [p.id, p.squadId]));
+  const squadMap = new Map<string, { id: string; name: string; tribeId: string }>();
+  for (const squads of Object.values(mockSquads)) {
+    for (const squad of squads) {
+      squadMap.set(squad.id, squad);
+    }
+  }
+  const tribeMap = new Map(mockTribes.map((t) => [t.id, t.name]));
+  const bySquad = new Map<string, DashboardProjectOverview[]>();
+  for (const project of projects) {
+    const squadId = projectSquadMap.get(project.projectId);
+    if (!squadId) continue;
+    const list = bySquad.get(squadId) ?? [];
+    list.push(project);
+    bySquad.set(squadId, list);
+  }
+  const result: DashboardSquadSummary[] = [];
+  for (const [squadId, sp] of bySquad.entries()) {
+    const squad = squadMap.get(squadId);
+    if (!squad) continue;
+    const avgScore = round(sp.reduce((sum, p) => sum + p.qualityHealthScore, 0) / sp.length);
+    const finishedExecutions = sp.reduce((sum, p) => sum + p.finishedExecutions, 0);
+    result.push({
+      squadId,
+      squadName: squad.name,
+      tribeId: squad.tribeId,
+      tribeName: tribeMap.get(squad.tribeId) ?? null,
+      projectCount: sp.length,
+      avgQualityHealthScore: avgScore,
+      status: classifyHealth(avgScore, finishedExecutions)
+    });
+  }
+  return result.sort((a, b) => a.avgQualityHealthScore - b.avgQualityHealthScore).slice(0, 5);
 }
 
 function classifyHealth(score: number, finishedExecutions: number): QualityHealthStatus {

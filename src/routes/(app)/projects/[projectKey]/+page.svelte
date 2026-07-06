@@ -143,7 +143,7 @@
     {#if data.latestBuild || data.latestPlan}
     <div class="latest-row">
       {#if data.latestBuild}
-      <a class="latest-card" href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" aria-label="Open latest build {data.latestBuild.name}">
+      <a class="latest-card surface-card" href="/projects/{data.projectKey}/builds/{data.latestBuild.id}" aria-label="Open latest build {data.latestBuild.name}">
         <div class="latest-card-top">
           <span class="latest-card-label">Latest Build</span>
           <Badge text={data.latestBuild.status} variant={buildStatusVariant(data.latestBuild.status)} />
@@ -155,7 +155,7 @@
       </a>
       {/if}
       {#if data.latestPlan}
-      <a class="latest-card" href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" aria-label="Open latest plan {data.latestPlan.name}">
+      <a class="latest-card surface-card" href="/squads/{data.latestPlan.squadId}/release-plans/{data.latestPlan.id}" aria-label="Open latest plan {data.latestPlan.name}">
         <div class="latest-card-top">
           <span class="latest-card-label">Latest Plan</span>
           <Badge text={data.latestPlan.status.replace('_', ' ')} variant={planStatusVariant(data.latestPlan.status)} />
@@ -284,8 +284,8 @@
     flex-direction: column;
     gap: 6px;
     padding: 18px 20px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    background: var(--surface-card-bg, var(--color-surface));
+    border: 1px solid var(--surface-card-border, var(--color-border));
     border-radius: var(--radius);
     text-decoration: none;
     color: inherit;

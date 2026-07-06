@@ -148,7 +148,7 @@
     </div>
     <div class="metric-value-row">
       <span class="metric-value">{body.value}</span>
-      {#if body.suffix}<span class="metric-suffix">{body.suffix}</span>{/if}
+      {#if body.suffix}<span class="metric-value metric-suffix">{body.suffix}</span>{/if}
     </div>
     {#if resolvedSecondary}
       <span class="metric-sub">{resolvedSecondary}</span>
@@ -388,7 +388,6 @@
   }
 
   .metric-suffix {
-    color: var(--color-text-muted);
     font-size: 0.78rem;
     font-weight: 650;
   }

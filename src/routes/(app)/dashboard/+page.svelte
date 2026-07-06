@@ -16,7 +16,7 @@
   import { AppSkeleton } from '$lib/ui/display';
   import { createQualityTrendData } from '$lib/components/qualityTrendChart';
   import NeedsAttentionPanel from '$lib/components/dashboard/NeedsAttentionPanel.svelte';
-  import ProjectsOverviewTable from '$lib/components/dashboard/ProjectsOverviewTable.svelte';
+  import SquadsNeedsAttentionTable from '$lib/components/dashboard/SquadsNeedsAttentionTable.svelte';
 
   let { data } = $props();
   let showHealthModal = $state(false);
@@ -182,6 +182,25 @@
     return tone;
   }
 
+  function borderVariant(status: QualityHealthStatus): string {
+    const color = colorVariant(status);
+    return `1px solid color-mix(in srgb, ${color}, transparent 75%)`;
+  }
+
+  function frameVariant(status: QualityHealthStatus): string {
+    const color = colorVariant(status);
+    return `color-mix(in srgb, ${color}, transparent 86%)`;
+  }
+
+  function colorVariant(status: QualityHealthStatus): string {
+    const variant = statusVariant(status);
+    if (variant === 'default') return 'var(--color-accent)';
+    else if (variant === 'success') return 'var(--color-success)';
+    else if (variant === 'warning') return 'var(--color-warning)';
+    else if (variant === 'danger') return 'var(--color-danger)';
+    return 'var(--color-info)';
+  }
+
   function trendDirection(direction: TrendDirection): 'up' | 'down' | 'flat' | 'unknown' {
     return direction.toLowerCase() as 'up' | 'down' | 'flat' | 'unknown';
   }
@@ -264,7 +283,7 @@
 <path d="M16 11.55L12.6 9C12.2444 8.73333 11.7556 8.73333 11.4 9L8 11.55M14 14.05L12 12.55L10 14.05" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
 <path d="M3 10.4167C3 7.21907 3 5.62028 3.37752 5.08241C3.75503 4.54454 5.25832 4.02996 8.26491 3.00079L8.83772 2.80472C10.405 2.26824 11.1886 2 12 2C12.8114 2 13.595 2.26824 15.1623 2.80472L15.7351 3.00079C18.7417 4.02996 20.245 4.54454 20.6225 5.08241C21 5.62028 21 7.21907 21 10.4167C21 10.8996 21 11.4234 21 11.9914C21 14.4963 20.1632 16.4284 19 17.9041M3.19284 14C4.05026 18.2984 7.57641 20.5129 9.89856 21.5273C10.62 21.8424 10.9807 22 12 22C13.0193 22 13.38 21.8424 14.1014 21.5273C14.6796 21.2747 15.3324 20.9478 16 20.5328" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
 </svg>'
-        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-accent), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+        iconFrame={{ size: "40px", padding: "6px", border: borderVariant(summary.qualityHealth.status), radius: "10px", background: frameVariant(summary.qualityHealth.status), color: colorVariant(summary.qualityHealth.status) }}
       />
       <MetricCard
         label="Projects"
@@ -453,9 +472,8 @@
   <!-- Always render both columns so the DOM structure is stable.
        The activity column is hidden via CSS when empty. -->
   <div class="lower-grid" class:lower-grid--active={recentActivity.length > 0}>
-    <ProjectsOverviewTable
-      projects={dashboard?.projects ?? []}
-      {liveByProject}
+    <SquadsNeedsAttentionTable
+      squads={dashboard?.squads ?? []}
       loading={!dashboard && !dashboardError}
       error={dashboard ? '' : dashboardError}
     />
@@ -892,8 +910,8 @@
     font-size: 0.8rem;
     font-weight: 650;
   }
-  .health-threshold--healthy { background: color-mix(in srgb, var(--color-success), transparent 88%); color: var(--color-success); }
-  .health-threshold--review { background: color-mix(in srgb, var(--color-warning), transparent 88%); color: var(--color-warning); }
+  .health-threshold--healthy { background: color-mix(in srgb, var(--color-success), transparent 90%); color: var(--color-success); }
+  .health-threshold--review { background: color-mix(in srgb, var(--color-warning), transparent 90%); color: var(--color-warning); }
   .health-threshold--risk { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); }
-  .health-threshold--critical { background: color-mix(in srgb, var(--color-danger), transparent 88%); color: var(--color-danger); }
+  .health-threshold--critical { background: color-mix(in srgb, var(--color-danger), transparent 90%); color: var(--color-danger); }
 </style>
