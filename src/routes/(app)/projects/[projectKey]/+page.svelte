@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { goto } from '$app/navigation';
   import Badge from '$lib/components/Badge.svelte';
   import BentoCard from '$lib/components/BentoCard.svelte';
   import Button from '$lib/components/Button.svelte';
@@ -145,6 +146,17 @@
 
     <!-- Health Hero (task: setara-cpwb) -->
     <div class="health-hero health-hero--{healthInfo.cssClass}">
+      <div class="hero-icon-wrap hero-icon--{healthInfo.cssClass}" aria-hidden="true">
+        {#if healthInfo.cssClass === 'success'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7 13l3.5 3.5L17 9"/></svg>
+        {:else if healthInfo.cssClass === 'danger'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
+        {:else if healthInfo.cssClass === 'warning'}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        {:else}
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        {/if}
+      </div>
       <div class="hero-left">
         <div class="hero-label">Project Health</div>
         <div class="hero-status-badge health-badge--{healthInfo.cssClass}">{healthInfo.label}</div>
@@ -252,7 +264,7 @@
         <BentoCard title="Automation Coverage" subtitle="{Number(coveragePct ?? 0).toFixed(0)}% of scenarios automated" variant="default">
           <div class="compact-coverage">
             <div class="donut-host-compact">
-              <DonutChart chartData={automationDonut} size={220} legendPosition="bottom" />
+              <DonutChart chartData={automationDonut} size={300} legendPosition="bottom" />
               {#if coveragePct !== null}
                 <div class="donut-center-compact">
                   <strong>{coveragePct.toFixed(0)}%</strong>
@@ -373,12 +385,11 @@
               <th>Branch</th>
               <th>Started</th>
               <th>Duration</th>
-              <th></th>
             </tr>
           {/snippet}
           {#snippet body()}
             {#each recentRuns as run}
-              <tr class="run-row run-row--{runStatusVariant(run.status)}">
+              <tr class="run-row" onclick={() => goto(`/projects/${data.projectKey}/executions/${run.id}`)}>
                 <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
                 <td class="mono">{run.runnerId}</td>
                 <td>
@@ -390,15 +401,6 @@
                 </td>
                 <td>{formatDate(run.startedAt)}</td>
                 <td class="mono">{duration(run.startedAt, run.finishedAt)}</td>
-                <td class="action-col">
-                  <a
-                    class="run-link"
-                    href="/projects/{data.projectKey}/executions/{run.id}"
-                    aria-label="Open run {run.id}"
-                  >
-                    Open →
-                  </a>
-                </td>
               </tr>
             {/each}
           {/snippet}
@@ -430,7 +432,7 @@
   /* Health Hero */
   .health-hero {
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
     padding: 1.1rem 1.4rem;
@@ -438,6 +440,40 @@
     border: 1px solid var(--hero-border, var(--color-border));
     background: var(--hero-bg, var(--color-surface));
     flex-wrap: wrap;
+  }
+
+  .hero-icon-wrap {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    box-sizing: border-box;
+  }
+  .hero-icon-wrap svg { width: 100%; height: 100%; }
+
+  .hero-icon--success {
+    background: color-mix(in srgb, var(--color-success) 16%, transparent);
+    color: var(--color-success);
+    border: 1.5px solid color-mix(in srgb, var(--color-success) 30%, transparent);
+  }
+  .hero-icon--warning {
+    background: color-mix(in srgb, var(--color-warning) 16%, transparent);
+    color: var(--color-warning);
+    border: 1.5px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
+  }
+  .hero-icon--danger {
+    background: color-mix(in srgb, var(--color-danger) 16%, transparent);
+    color: var(--color-danger);
+    border: 1.5px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
+  }
+  .hero-icon--neutral {
+    background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
+    color: var(--color-text-muted);
+    border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
   }
   .health-hero--success {
     --hero-bg: color-mix(in srgb, var(--color-success) 6%, var(--color-surface));
@@ -456,7 +492,7 @@
     --hero-border: var(--color-border);
   }
 
-  .hero-left { display: flex; flex-direction: column; gap: 0.4rem; }
+  .hero-left { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 200px; }
   .hero-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-muted); }
   .hero-status-badge {
     display: inline-block;
@@ -571,7 +607,6 @@
   .mono { font-family: ui-monospace, monospace; font-size: 0.8rem; }
   .muted { color: var(--color-text-muted); }
 
-  .run-row--danger td { background: color-mix(in srgb, var(--color-danger) 4%, transparent); }
   .run-row:hover td { background: color-mix(in srgb, var(--color-accent) 5%, transparent) !important; }
 
   .branch-chip {
@@ -614,6 +649,7 @@
     .project-header { flex-direction: column; }
     .project-header :global(.btn) { width: 100%; justify-content: center; }
     .health-hero { flex-direction: column; align-items: flex-start; }
+    .hero-actions { align-self: stretch; }
     .metrics-row { grid-template-columns: 1fr; }
   }
 </style>

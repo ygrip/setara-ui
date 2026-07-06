@@ -1,45 +1,57 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import InlineProgress from '$lib/components/dashboard/InlineProgress.svelte';
   import QualityStatusBadge from '$lib/components/dashboard/QualityStatusBadge.svelte';
   import type { SquadQualityProject } from '$lib/api/statistics';
-  import { formatPercent } from '$lib/utils/format';
 
-  let { projects }: { projects: SquadQualityProject[] } = $props();
+  type SortKey = 'project' | 'coverage' | 'scenarios' | 'passrate';
 
-  type SortKey = 'project' | 'coverage' | 'scenarios';
-  type SortDir = 'asc' | 'desc';
+  let {
+    items,
+    total,
+    hasNext,
+    loading,
+    sort,
+    dir,
+    search,
+    status,
+    onSort,
+    onSearch,
+    onStatus,
+    onLoadMore
+  }: {
+    items: SquadQualityProject[];
+    total: number;
+    hasNext: boolean;
+    loading: boolean;
+    sort: SortKey;
+    dir: 'asc' | 'desc';
+    search: string;
+    status: string;
+    onSort: (sort: SortKey, dir: 'asc' | 'desc') => void;
+    onSearch: (q: string) => void;
+    onStatus: (status: string) => void;
+    onLoadMore: () => void;
+  } = $props();
 
-  let sort = $state<SortKey>('coverage');
-  let dir = $state<SortDir>('asc');
-  let visibleCount = $state(15);
   let sentinel = $state<HTMLElement | null>(null);
+  let searchInput = $state('');
+  let searchTimer: ReturnType<typeof setTimeout>;
 
-  const sorted = $derived.by(() => {
-    return [...projects].sort((a, b) => {
-      let diff = 0;
-      if (sort === 'project') {
-        diff = a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
-      } else if (sort === 'coverage') {
-        diff = (a.coveragePercent ?? -1) - (b.coveragePercent ?? -1);
-      } else {
-        diff = a.totalScenarios - b.totalScenarios;
-      }
-      return dir === 'asc' ? diff : -diff;
-    });
-  });
-
-  const rows = $derived(sorted.slice(0, visibleCount));
-  const hasMore = $derived(visibleCount < sorted.length);
+  $effect(() => { searchInput = search; });
 
   function toggleSort(key: SortKey) {
     if (sort === key) {
-      dir = dir === 'asc' ? 'desc' : 'asc';
+      onSort(key, dir === 'asc' ? 'desc' : 'asc');
     } else {
-      sort = key;
-      dir = key === 'project' ? 'asc' : 'desc';
+      onSort(key, key === 'project' ? 'asc' : 'desc');
     }
-    visibleCount = 15;
+  }
+
+  function handleSearchInput(value: string) {
+    searchInput = value;
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => onSearch(value), 350);
   }
 
   function activity(value: string | null) {
@@ -49,19 +61,12 @@
   }
 
   $effect(() => {
-    projects;
-    visibleCount = 15;
-  });
-
-  onMount(() => {
     if (!sentinel) return;
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          visibleCount += 10;
-        }
+        if (entries[0].isIntersecting && hasNext && !loading) onLoadMore();
       },
-      { rootMargin: '120px' }
+      { rootMargin: '160px' }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -71,7 +76,36 @@
 <section class="projects-section">
   <div class="heading">
     <h2>Project quality</h2>
-    <span class="count">{projects.length} project{projects.length !== 1 ? 's' : ''}</span>
+    <span class="count">{total} project{total !== 1 ? 's' : ''}</span>
+  </div>
+
+  <div class="filters">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+        <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clip-rule="evenodd" />
+      </svg>
+      <input
+        class="search-input"
+        type="search"
+        placeholder="Search by name or key…"
+        value={searchInput}
+        oninput={(e) => handleSearchInput(e.currentTarget.value)}
+        aria-label="Search projects"
+      />
+    </div>
+    <select
+      class="status-filter"
+      value={status}
+      onchange={(e) => onStatus(e.currentTarget.value)}
+      aria-label="Filter by status"
+    >
+      <option value="">All statuses</option>
+      <option value="HEALTHY">Healthy</option>
+      <option value="NEEDS_REVIEW">Needs review</option>
+      <option value="HIGH_RISK">High risk</option>
+      <option value="CRITICAL">Critical</option>
+      <option value="NO_RUNS">No runs</option>
+    </select>
   </div>
 
   <div class="table-shell">
@@ -81,36 +115,39 @@
           <th>
             <button class="sort-btn" class:active={sort === 'project'} onclick={() => toggleSort('project')}>
               Project
-              <span class="sort-arrow" aria-hidden="true">{sort === 'project' ? (dir === 'asc' ? '↑' : '↓') : ''}</span>
+              {#if sort === 'project'}<span class="sort-arrow" aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span>{/if}
             </button>
           </th>
           <th>
             <button class="sort-btn" class:active={sort === 'scenarios'} onclick={() => toggleSort('scenarios')}>
               Scenarios
-              <span class="sort-arrow" aria-hidden="true">{sort === 'scenarios' ? (dir === 'asc' ? '↑' : '↓') : ''}</span>
+              {#if sort === 'scenarios'}<span class="sort-arrow" aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span>{/if}
             </button>
           </th>
           <th>Automated</th>
           <th>
             <button class="sort-btn" class:active={sort === 'coverage'} onclick={() => toggleSort('coverage')}>
               Coverage
-              <span class="sort-arrow" aria-hidden="true">{sort === 'coverage' ? (dir === 'asc' ? '↑' : '↓') : ''}</span>
+              {#if sort === 'coverage'}<span class="sort-arrow" aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span>{/if}
             </button>
           </th>
-          <th>Pass rate</th>
+          <th>
+            <button class="sort-btn" class:active={sort === 'passrate'} onclick={() => toggleSort('passrate')}>
+              Pass rate
+              {#if sort === 'passrate'}<span class="sort-arrow" aria-hidden="true">{dir === 'asc' ? '↑' : '↓'}</span>{/if}
+            </button>
+          </th>
           <th>Failures</th>
           <th>Status</th>
           <th>Last activity</th>
         </tr>
       </thead>
       <tbody>
-        {#each rows as project (project.id)}
-          <tr>
-            <td>
-              <a href="/projects/{project.key}" class="project-link">
-                <strong>{project.name}</strong>
-                <span class="project-key">{project.key}</span>
-              </a>
+        {#each items as project (project.id)}
+          <tr onclick={() => goto(`/projects/${project.key}`)}>
+            <td class="project-cell">
+              <strong>{project.name}</strong>
+              <span class="project-key">{project.key}</span>
             </td>
             <td>{project.totalScenarios}</td>
             <td>{project.automatedScenarios}</td>
@@ -135,17 +172,23 @@
             </td>
           </tr>
         {:else}
-          <tr><td colspan="8" class="empty">No projects in this squad.</td></tr>
+          <tr><td colspan="8" class="empty">
+            {loading ? 'Loading projects…' : search || status ? 'No projects match these filters.' : 'No projects in this squad.'}
+          </td></tr>
         {/each}
       </tbody>
     </table>
   </div>
 
-  {#if hasMore}
-    <div class="sentinel" bind:this={sentinel} aria-hidden="true">
-      <span class="loading-hint">Showing {rows.length} of {sorted.length} · scroll for more</span>
-    </div>
-  {/if}
+  <div class="sentinel" bind:this={sentinel} aria-hidden="true">
+    {#if loading}
+      <span class="loading-hint">Loading…</span>
+    {:else if hasNext}
+      <span class="loading-hint">Showing {items.length} of {total} · scroll for more</span>
+    {:else if items.length > 0}
+      <span class="loading-hint">{items.length} of {total} projects</span>
+    {/if}
+  </div>
 </section>
 
 <style>
@@ -171,6 +214,61 @@
   .count {
     font-size: 0.76rem;
     color: var(--color-text-muted);
+  }
+
+  .filters {
+    display: flex;
+    gap: 0.6rem;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 180px;
+    max-width: 360px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 0.55rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 13px;
+    height: 13px;
+    color: var(--color-text-muted);
+    pointer-events: none;
+  }
+
+  .search-input {
+    width: 100%;
+    height: 2rem;
+    padding: 0 0.6rem 0 1.8rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.4rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.76rem;
+    box-sizing: border-box;
+  }
+
+  .search-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+  }
+
+  .status-filter {
+    height: 2rem;
+    padding: 0 0.6rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.4rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.76rem;
+    cursor: pointer;
   }
 
   .table-shell {
@@ -206,6 +304,7 @@
 
   tbody tr:hover td {
     background: color-mix(in srgb, var(--color-accent) 4%, transparent);
+    cursor: pointer;
   }
 
   .sort-btn {
@@ -230,15 +329,16 @@
   }
 
   .sort-arrow {
-    font-style: normal;
     font-size: 0.7rem;
   }
 
-  .project-link {
+  .project-cell {
     display: grid;
     gap: 0.1rem;
+  }
+
+  .project-cell strong {
     color: var(--color-accent);
-    text-decoration: none;
   }
 
   .project-key {
@@ -261,7 +361,8 @@
   .sentinel {
     display: flex;
     justify-content: center;
-    padding: 0.6rem;
+    padding: 0.5rem;
+    min-height: 1.5rem;
   }
 
   .loading-hint {

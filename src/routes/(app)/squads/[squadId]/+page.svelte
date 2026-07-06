@@ -3,7 +3,9 @@
   import { AppSkeleton } from '$lib/ui/display';
   import {
     getSquadQualityOverview,
-    type SquadQualityOverview
+    getSquadProjects,
+    type SquadQualityOverview,
+    type SquadQualityProject
   } from '$lib/api/statistics';
   import OverallCoveragePanel from '$lib/components/squad/OverallCoveragePanel.svelte';
   import SquadHeader from '$lib/components/squad/SquadHeader.svelte';
@@ -23,6 +25,17 @@
   let end = $state('');
   let requestSequence = 0;
 
+  // Project table state
+  let projectItems = $state<SquadQualityProject[]>([]);
+  let projectTotal = $state(0);
+  let projectHasNext = $state(false);
+  let projectLoading = $state(false);
+  let projectPage = $state(0);
+  let projectSort = $state<'project' | 'coverage' | 'scenarios' | 'passrate'>('coverage');
+  let projectDir = $state<'asc' | 'desc'>('desc');
+  let projectSearch = $state('');
+  let projectStatus = $state('');
+
   $effect(() => {
     if (!initialized) {
       overview = data.overview;
@@ -30,8 +43,37 @@
       start = data.overview?.period.start ?? '';
       end = data.overview?.period.end ?? '';
       initialized = true;
+      if (start && end) loadProjects(true);
     }
   });
+
+  async function loadProjects(reset: boolean) {
+    const page = reset ? 0 : projectPage;
+    projectLoading = true;
+    try {
+      const result = await getSquadProjects(data.squadId, {
+        start: start || undefined,
+        end: end || undefined,
+        sort: projectSort,
+        dir: projectDir,
+        search: projectSearch || undefined,
+        status: projectStatus || undefined,
+        page,
+        size: 20
+      });
+      if (reset) {
+        projectItems = result.items;
+        projectPage = 1;
+      } else {
+        projectItems = [...projectItems, ...result.items];
+        projectPage = page + 1;
+      }
+      projectTotal = result.total;
+      projectHasNext = result.hasNext;
+    } finally {
+      projectLoading = false;
+    }
+  }
 
   function isoDate(date: Date): string {
     return date.toISOString().slice(0, 10);
@@ -46,7 +88,7 @@
     nextStart.setUTCDate(nextStart.getUTCDate() - days + 1);
     start = isoDate(nextStart);
     end = isoDate(nextEnd);
-    await refresh();
+    await Promise.all([refresh(), loadProjects(true)]);
   }
 
   async function selectGroup(next: 'daily' | 'weekly' | 'monthly') {
@@ -57,7 +99,7 @@
   async function selectCustom(nextStart: string, nextEnd: string) {
     start = nextStart;
     end = nextEnd;
-    if (start && end) await refresh();
+    if (start && end) await Promise.all([refresh(), loadProjects(true)]);
   }
 
   async function refresh() {
@@ -72,6 +114,22 @@
     } finally {
       if (requestId === requestSequence) loading = false;
     }
+  }
+
+  function handleSort(sort: typeof projectSort, dir: typeof projectDir) {
+    projectSort = sort;
+    projectDir = dir;
+    loadProjects(true);
+  }
+
+  function handleSearch(q: string) {
+    projectSearch = q;
+    loadProjects(true);
+  }
+
+  function handleStatus(s: string) {
+    projectStatus = s;
+    loadProjects(true);
   }
 </script>
 
@@ -113,7 +171,20 @@
       />
     </div>
     <SquadNeedsAttention {overview} />
-    <SquadProjectsTable projects={overview.projects} />
+    <SquadProjectsTable
+      items={projectItems}
+      total={projectTotal}
+      hasNext={projectHasNext}
+      loading={projectLoading}
+      sort={projectSort}
+      dir={projectDir}
+      search={projectSearch}
+      status={projectStatus}
+      onSort={handleSort}
+      onSearch={handleSearch}
+      onStatus={handleStatus}
+      onLoadMore={() => loadProjects(false)}
+    />
   {/if}
 </div>
 
