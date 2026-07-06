@@ -3,6 +3,7 @@
   import { onMount } from 'svelte';
   import Button from '$lib/components/Button.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import BentoCard from '$lib/components/BentoCard.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import { createProject, listProjects, type Project } from '$lib/api/projects';
@@ -171,7 +172,7 @@
         hint="Try a different search term."
       >
         <svelte:fragment slot="icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
         </svelte:fragment>
@@ -185,7 +186,7 @@
         hint="Create your first project to start tracking test scenarios and coverage."
       >
         <svelte:fragment slot="icon">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
             <rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/>
           </svg>
         </svelte:fragment>
@@ -200,33 +201,31 @@
   {:else if projects.length > 0}
     <div class="project-grid">
       {#each projects as project}
-        <a class="project-card" href="/projects/{project.projectKey}" aria-label="Open {project.name}">
-          <!-- Card header -->
-          <div class="card-header">
-            <span class="card-key">{project.projectKey}</span>
-          </div>
-
-          <!-- Name + description -->
-          <div class="card-body">
-            <h2 class="card-name">{project.name}</h2>
-            {#if project.description}
-              <p class="card-desc">{project.description}</p>
-            {/if}
-          </div>
-
-          <!-- Bento stats grid -->
-          <div class="card-bento">
-            <div class="bento-cell">
-              <span class="bento-val">{project.scenarioCount != null ? formatNumber(project.scenarioCount) : '—'}</span>
-              <span class="bento-label">Scenarios</span>
+        <BentoCard
+          title={project.name}
+          eyebrow={project.projectKey}
+          subtitle={project.description || 'No project description provided.'}
+          variant="accent"
+          padding="md"
+          href={`/projects/${project.projectKey}`}
+          interactive
+          className="project-bento"
+        >
+          <div class="project-metrics">
+            <div class="project-metric">
+              <span class="project-metric-label">Scenarios</span>
+              <span class="project-metric-value">
+                {project.scenarioCount != null ? formatNumber(project.scenarioCount) : '—'}
+              </span>
             </div>
-            <div class="bento-divider"></div>
-            <div class="bento-cell">
-              <span class="bento-val bento-val--coverage">{project.coveragePercent != null ? formatPercent(project.coveragePercent) : '—'}</span>
-              <span class="bento-label">Coverage</span>
+            <div class="project-metric">
+              <span class="project-metric-label">Coverage</span>
+              <span class="project-metric-value project-metric-value--coverage">
+                {project.coveragePercent != null ? formatPercent(project.coveragePercent) : '—'}
+              </span>
             </div>
           </div>
-        </a>
+        </BentoCard>
       {/each}
     </div>
     <div bind:this={sentinel} class="sentinel"></div>
@@ -390,117 +389,84 @@
   /* ─── Grid ─── */
   .project-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
     gap: 16px;
   }
 
   /* ─── Project card ─── */
-  .project-card {
-    display: flex;
-    flex-direction: column;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 10px;
+  :global(.project-bento) {
+    min-height: 220px;
+  }
+
+  .project-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     overflow: hidden;
-    text-decoration: none;
-    color: inherit;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    cursor: pointer;
+    border: 1px solid color-mix(in srgb, var(--color-border), transparent 18%);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-accent-subtle), transparent 30%);
   }
 
-  .project-card:hover {
-    border-color: var(--color-accent);
-    box-shadow: 0 2px 12px color-mix(in srgb, var(--color-accent) 12%, transparent);
-  }
-
-  .card-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 12px 16px 0;
-    gap: 8px;
-  }
-
-  .card-key {
-    font-size: 0.72rem;
-    font-weight: 700;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
-    color: var(--color-accent);
-    background: color-mix(in srgb, var(--color-accent) 10%, transparent);
-    border: 1px solid color-mix(in srgb, var(--color-accent) 20%, transparent);
-    border-radius: 4px;
-    padding: 2px 7px;
-  }
-
-  .card-body {
-    padding: 10px 16px 14px;
-    flex: 1;
+  .project-metric {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    padding: 13px 14px;
   }
 
-  .card-name {
-    font-size: 0.95rem;
-    font-weight: 600;
-    color: var(--color-text);
-    margin: 0;
-    line-height: 1.3;
+  .project-metric + .project-metric {
+    border-left: 1px solid color-mix(in srgb, var(--color-border), transparent 18%);
   }
 
-  .card-desc {
-    font-size: 0.78rem;
+  .project-metric-label {
     color: var(--color-text-muted);
-    margin: 0;
-    line-height: 1.5;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-  }
-
-  /* ─── Bento stats ─── */
-  .card-bento {
-    display: grid;
-    grid-template-columns: 1fr auto 1fr;
-    border-top: 1px solid var(--color-border);
-    background: color-mix(in srgb, var(--color-accent) 3%, var(--color-surface));
-  }
-
-  .bento-cell {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 12px 8px;
-    gap: 2px;
-  }
-
-  .bento-divider {
-    width: 1px;
-    background: var(--color-border);
-    margin: 8px 0;
-  }
-
-  .bento-val {
-    font-size: 1.1rem;
+    font-size: 0.66rem;
     font-weight: 700;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+  }
+
+  .project-metric-value {
     color: var(--color-text);
+    font-family: var(--font-sans);
+    font-size: 1.2rem;
+    font-weight: 700;
     line-height: 1;
   }
 
-  .bento-val--coverage {
-    color: var(--color-success, #16a34a);
+  .project-metric-value--coverage {
+    color: var(--color-success);
   }
 
-  .bento-label {
-    font-size: 0.68rem;
+  .project-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 7px;
+    margin-top: 14px;
     color: var(--color-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    font-weight: 500;
+    font-size: 0.74rem;
+    font-weight: 650;
+    transition: color 0.16s ease;
+  }
+
+  .project-card-footer svg {
+    width: 16px;
+    height: 16px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.6;
+    transition: transform 0.16s ease;
+  }
+
+  :global(.project-bento:hover) .project-card-footer {
+    color: var(--color-accent);
+  }
+
+  :global(.project-bento:hover) .project-card-footer svg {
+    transform: translateX(2px);
   }
 
   .sentinel { height: 1px; }

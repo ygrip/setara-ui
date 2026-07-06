@@ -167,23 +167,25 @@
         </div>
       </BentoCard>
       <BentoCard title="Coverage Trend{loadingHistory ? ' …' : ''}" subtitle="Automation coverage over time" variant="default">
-        <div class="chart-controls">
-          <label>Start <input type="date" bind:value={chartStart} onchange={refetchSquadHistory} /></label>
-          <label>End <input type="date" bind:value={chartEnd} onchange={refetchSquadHistory} /></label>
-          <label>Group
-            <select bind:value={granularity} onchange={refetchSquadHistory}>
-              <option value="daily">Daily</option>
-              <option value="weekly">Weekly</option>
-              <option value="monthly">Monthly</option>
-            </select>
-          </label>
-          {#if avgPassPct != null}
-            <div class="pass-avg-badge">
-              <span class="pass-avg-label">Avg Pass</span>
-              <span class="pass-avg-value">{avgPassPct.toFixed(1)}%</span>
-            </div>
-          {/if}
-        </div>
+        {#snippet headerActions()}
+          <div class="chart-controls">
+            <label>Start <input type="date" bind:value={chartStart} onchange={refetchSquadHistory} /></label>
+            <label>End <input type="date" bind:value={chartEnd} onchange={refetchSquadHistory} /></label>
+            <label>Group
+              <select bind:value={granularity} onchange={refetchSquadHistory}>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+              </select>
+            </label>
+            {#if avgPassPct != null}
+              <div class="pass-avg-badge">
+                <span class="pass-avg-label">Avg Pass</span>
+                <span class="pass-avg-value">{avgPassPct.toFixed(1)}%</span>
+              </div>
+            {/if}
+          </div>
+        {/snippet}
         {#if historyData.length === 0}
           <p class="trend-empty">No coverage history available.</p>
         {:else}
@@ -262,7 +264,7 @@
   .header-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
   h1 { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .header-sub { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
-  .charts-row { display: grid; grid-template-columns: 280px 1fr; gap: 20px; margin-bottom: 28px; }
+  .charts-row { display: grid; grid-template-columns: 360px 1fr; gap: 20px; margin-bottom: 28px; }
   .donut-wrap { display: flex; justify-content: center; padding: 8px 0; }
   .section { margin-bottom: 32px; }
   .section-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -275,7 +277,7 @@
   .cov-fill { height: 100%; background: #0d9488; border-radius: 3px; }
   .empty-cell { text-align: center; color: var(--color-text-muted); padding: 20px; }
   .metrics-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-  .chart-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
+  .chart-controls { display: flex; align-items: flex-end; gap: 10px; flex-wrap: wrap; }
   .chart-controls label {
     display: flex; flex-direction: column; gap: 4px;
     font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;

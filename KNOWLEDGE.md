@@ -6,6 +6,57 @@
 - Mock create helpers should mutate the same in-memory collections used by mock list helpers so table refresh behavior
   matches the real backend.
 
+## Chart Visual Pattern
+
+- Keep chart styling centralized in `src/lib/components/chartTheme.ts` and the shared `LineChart` and `DonutChart`
+  wrappers. Page-level datasets own semantic base colors and data; the shared layer derives canvas gradients, hover
+  treatments, spacing, tooltips, legends, grids, and light/dark theme colors.
+- Derive gradients from each dataset's existing color so status meaning remains stable. Do not add page-specific
+  gradients or duplicate shared Chart.js presentation options in routes.
+- Rebuild canvas gradients after data, size, or theme changes because `CanvasGradient` coordinates belong to the
+  current chart area.
+- Use the shared percent axis for percentage-only charts. Mixed quality charts use `yPercent` for bounded 0-100 lines
+  and `yVolume` for count bars; never force scenario or execution volume onto a percentage scale.
+- Build dashboard quality trends through `createQualityTrendData`: one subtle scenario-volume bar, then pass-rate and
+  automation-coverage lines. Dataset labels include their unit so indexed tooltips stay clear without route options.
+- Reuse mixed axes for other count-plus-percentage charts, including execution pass rate with failed-scenario volume.
+  Percentage-only coverage and release charts stay on the default bounded percentage mode.
+- Use a top-lit fade for charts: crisp and bright at the top, progressively transparent toward the bottom. Keep glow
+  low-opacity and theme-aware so it improves hierarchy without reducing label or grid clarity.
+- Shared cards keep a solid surface with one softly glowing gradient edge that fades across the top. Semantic cards use
+  a narrow tinted side strip instead of a full-card color wash. Avoid ambient gradients across the whole card body.
+- Project list entries use one `BentoCard` link per project. Put the key, name, and description in its header, keep
+  metrics in a balanced grid, and end with a quiet directional action rather than nesting links or card containers.
+
+## Navigation Pattern
+
+- Keep the sidebar focused on route icon, label, active state, and contextual disabled state. Do not persist or render
+  pinned shortcuts unless a validated workflow requires them; the command palette already handles fast navigation.
+- Disabled project routes remain visible to explain the available structure, but use `aria-disabled`, muted styling,
+  and clear guidance to open a project first.
+
+## Metric Card Pattern
+
+- Extend the shared `MetricCard` through independent optional regions rather than dashboard-only card variants. Keep
+  existing `sub`, `variant`, icon, child snippet, and whole-card link behavior compatible across current call sites.
+- Trend indicators pair direction symbols with semantic color. Progress uses progressbar semantics, status is always
+  textual, and sparklines are decorative because the value and delta carry the accessible meaning.
+- Show `No previous data` when history is unavailable and `No runs` when no finished outcomes exist. Never render a
+  guessed zero or an invented trend merely to fill card space.
+- Map quality status once through `QualityStatusBadge` and reuse the existing `AppBadge` primitive. Attention rows and
+  project tables share the same Healthy, Needs review, High risk, Critical, and No runs language.
+- Attention panels distinguish loading, unavailable evidence, no urgent issues, and populated risks. Use the shared
+  animated `EmptyState` for unavailable and healthy-empty results. Each risk is a normal project link and communicates
+  severity through icon labeling, status text, and color together.
+- Projects overview uses semantic table markup inside horizontal overflow, with a stable 920px minimum table width.
+  Keep `No runs`, zero pass rate, unavailable metrics, and no activity distinct; do not coerce them into one fallback.
+- Reuse `InlineProgress` for compact coverage cells and `QualityStatusBadge` for health. Failure counts use explicit
+  none, warning, and danger classes plus screen-reader text, while the project name remains a normal link.
+- Load the dashboard through one aggregate `/api/dashboard` request. Date or grouping changes and completed live runs
+  refresh that same contract so KPIs, trends, attention, and project rows cannot drift across separate responses.
+- Mock mode implements the aggregate contract itself, including equal-length periods, deterministic trends, health,
+  and attention. Loading skeletons match the KPI, chart, attention, and project-table regions to prevent layout jumps.
+
 ## ASA Interaction Pattern
 
 - Handle `reload_page:v1` with SvelteKit `invalidateAll()`, never `location.reload()`. This refreshes current route data
@@ -93,7 +144,10 @@
   paths. When the sidecar or relay dies after partials, promote the latest partial transcript instead of leaving
   hands-free stuck in finalizing state.
 - Keep manual push-to-talk and hands-free duration policies separate. Manual capture has a five-minute safety cap and
-  streams partials while retaining a batch recording fallback; hands-free utterances remain capped at 12 seconds.
+  streams display-only partials while using the proven long-upload batch transcript as the authoritative final;
+  hands-free utterances remain capped at 12 seconds and use the WebSocket final to avoid concurrent double STT.
+- Reject fragmented letter noise and stock near-silence hallucinations before either manual or hands-free transcripts
+  can enter chat. A low-quality transcript must never inherit context and accidentally trigger a mutation.
 - In hands-free mode, play the processing cue only after hallucination filtering and wake routing confirm a reviewable
   command. Noise, wake-only speech, and non-wake speech must rearm silently.
 - Hands-free is wake-once per toggle/session: start in `wake` mode, unlock into `command` mode after "Hi ASA",

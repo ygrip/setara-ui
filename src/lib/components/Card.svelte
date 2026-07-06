@@ -17,19 +17,19 @@
 </script>
 
 {#if href}
-  <a class="card card--{padding} card--interactive card--link {className}" {href} aria-label={ariaLabel || undefined}>
+  <a class="card surface-card card--{padding} card--interactive card--link {className}" {href} aria-label={ariaLabel || undefined}>
     {@render children?.()}
   </a>
 {:else}
-  <div class="card card--{padding} {className}" class:card--interactive={interactive}>
+  <div class="card surface-card card--{padding} {className}" class:card--interactive={interactive}>
     {@render children?.()}
   </div>
 {/if}
 
 <style>
   .card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    background: var(--surface-card-bg, var(--color-surface));
+    border: 1px solid var(--surface-card-border, var(--color-border));
     border-radius: var(--radius);
     box-shadow: var(--shadow);
     height: 100%;

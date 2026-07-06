@@ -4,6 +4,7 @@ import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
 import { classifyPcmStreamError } from './stream-errors';
 import { normalizeTranscript } from './transcript-normalizer';
+import { isLikelyVoiceNoise } from './transcript-quality';
 import { createMlVad, type MlVadHandle } from './ml-vad';
 import { routeVoiceTranscript, type WakeMode } from './wake-router';
 import type { EntityMatch, ResolverContext } from './entity-resolver';
@@ -28,21 +29,15 @@ const VAD_MIN_UTTERANCE_MS = 500; // ignore blips shorter than this
 const VAD_ONSET_FRAMES = 3; // consecutive loud frames required to START (debounces clicks/noise)
 const VAD_SETTLE_MS = 450; // ignore onset right after arming (skip TTS tail / room echo)
 const VAD_MIN_PEAK_RMS = 0.06; // an utterance must peak above this, else it's just noise → discard
-// Common faster-whisper hallucinations on near-silence — drop these to avoid phantom "yes"/"you".
-const STT_HALLUCINATIONS = new Set([
-  'you', 'yes', 'no', 'thank you', 'thanks', 'thanks for watching', 'bye', 'okay', 'ok', 'uh', 'um',
-  'mm', 'hmm', 'so', '.', 'the', 'i', 'a',
-]);
-
 // Let the browser clean the mic input: cancel speaker echo (ASA's own TTS), suppress steady noise,
 // and normalize level. Big, free quality win — applied to every capture.
 const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
   audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 };
 
-const TTS_FRAME_MS = 160;   // merge streamed PCM into ~this-size buffers (fewer node boundaries)
-const TTS_PREROLL_MS = 240; // jitter buffer: hold playback back this long so decode jitter can't underrun
-const TTS_UNDERRUN_RECOVERY_MS = 80; // when CPU falls behind, rebuild a small lead instead of clicking
+const TTS_FRAME_MS = 480;   // merge streamed PCM into larger buffers — fewer AudioBufferSourceNode allocations/GC per reply
+const TTS_PREROLL_MS = 480; // jitter buffer: hold playback back this long so decode jitter can't underrun
+const TTS_UNDERRUN_RECOVERY_MS = 160; // when CPU falls behind, rebuild lead; larger = fewer cascade underruns
 const STREAM_RATE = 16_000; // sidecar's native STT rate; we downsample the mic to this before sending
 const STREAM_FINAL_TIMEOUT_MS = 4_000; // give up waiting for the WS "final" and use the last partial
 const MAX_PENDING_STT_FRAMES = 24; // cap ~2s of ScriptProcessor frames while WS connects
@@ -209,7 +204,9 @@ class SidecarVoice {
     this.recorder = new MediaRecorder(this.stream, mime ? { mimeType: mime } : undefined);
     this.recorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.recorder.start();
-    this.beginStreamCapture();
+    // PTT uses the batch /stt path only (see stopRecording). Deliberately NOT opening the streaming
+    // WS here: a concurrent WS decode holds the sidecar's single STT slot and makes the batch upload
+    // 429 → /transcribe 503. Hands-free still uses streaming (beginStreamCapture in the VAD path).
     this.status = 'recording';
     this.turnState = 'hearing';
     this.beep(); // static mic-on beep (was the spoken "Yes?" cue)
@@ -228,18 +225,12 @@ class SidecarVoice {
     });
     this.recorder = null;
     this.turnState = 'finalizing';
-    if (this.streaming) {
-      const finalText = await this.endStreamCapture();
-      this.releaseStream();
-      if (finalText) {
-        this.status = 'idle';
-        this.turnState = 'understanding';
-        this.playCue('processing');
-        return this.finalizeTranscript(finalText);
-      }
-    } else {
-      this.releaseStream();
-    }
+    // PTT uses the batch /stt upload as the authoritative transcript: it decodes the whole
+    // recording with full context (accurate, handles long dictation via faster-whisper chunking).
+    // Defensively close any streaming session first so its decode can't hold the sidecar's single
+    // STT slot while the batch upload runs (that contention returned 429 → 503 on /transcribe).
+    if (this.streaming) await this.endStreamCapture();
+    this.releaseStream();
     return this.processBlob(blob);
   }
 
@@ -250,6 +241,10 @@ class SidecarVoice {
     asaLog('voice', 'transcribing', { bytes: blob.size, type: blob.type });
     const result = await transcribeAudio(blob);
     if (!result || !result.text.trim()) {
+      this.fail('Could not transcribe that clearly. Try again or type your request.');
+      return null;
+    }
+    if (isLikelyVoiceNoise(result.text)) {
       this.fail('Could not transcribe that clearly. Try again or type your request.');
       return null;
     }
@@ -824,7 +819,7 @@ class SidecarVoice {
       transcript = await this.processBlob(blob, false);
     }
 
-    if (transcript && !this.isLikelyHallucination(transcript.text) && this.onTranscript) {
+    if (transcript && !isLikelyVoiceNoise(transcript.text) && this.onTranscript) {
       const route = routeVoiceTranscript(this.wakeMode, transcript.text);
       this.wakeMode = route.nextMode;
       if (route.action === 'review') {
@@ -852,12 +847,6 @@ class SidecarVoice {
 
   private shouldUseMlVad(): boolean {
     return typeof localStorage !== 'undefined' && localStorage.getItem(ML_VAD_PREF_KEY) === '1';
-  }
-
-  /** Whisper tends to emit a stock short word on near-silence; treat those as noise in hands-free. */
-  private isLikelyHallucination(text: string): boolean {
-    const t = text.trim().toLowerCase().replace(/[.!?,]+$/, '');
-    return t.length <= 2 || STT_HALLUCINATIONS.has(t);
   }
 
   // ── Streaming STT capture (taps the mic, sends PCM16@16k over a WS; partials arrive live) ──────

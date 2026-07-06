@@ -1,52 +1,50 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import MetricCard from '$lib/components/MetricCard.svelte';
-  import DataTable from '$lib/components/DataTable.svelte';
   import LazyLineChart from '$lib/components/LazyLineChart.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import {
+    getDashboard,
+    type DashboardMetricSummary,
+    type DashboardResponse,
+    type QualityHealthStatus,
+    type TrendDirection
+  } from '$lib/api/dashboard';
   import { executionSocketUrl, type ExecutionEvent } from '$lib/api/realtime';
-  import { getDashboardSummary, listAggregateStatisticHistory, type AggregateStatisticPoint, type DashboardSummary } from '$lib/api/statistics';
   import { MockWebSocket, isStaticMockMode } from '$lib/mock/websocket';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
-  import EmptyState from '$lib/components/EmptyState.svelte';
+  import { AppSkeleton } from '$lib/ui/display';
+  import { createQualityTrendData } from '$lib/components/qualityTrendChart';
+  import NeedsAttentionPanel from '$lib/components/dashboard/NeedsAttentionPanel.svelte';
+  import ProjectsOverviewTable from '$lib/components/dashboard/ProjectsOverviewTable.svelte';
 
   let { data } = $props();
 
-  // ── Aggregate chart state ─────────────────────────────────────
   let chartStart = $state('');
   let chartEnd = $state('');
   let groupedBy = $state<'daily' | 'weekly' | 'monthly'>('daily');
-  let aggregateHistory = $state<AggregateStatisticPoint[]>([]);
+  let dashboard = $state<DashboardResponse | null>(null);
+  let dashboardError = $state('');
   $effect(() => {
     chartStart = data.chartStart;
     chartEnd = data.chartEnd;
     groupedBy = data.groupedBy;
-    aggregateHistory = data.aggregateHistory ?? [];
+    dashboard = data.dashboard;
+    dashboardError = data.error ?? '';
   });
   let chartBusy = $state(false);
   let chartError = $state('');
   let showChartExpand = $state(false);
+  let refreshingDashboard = false;
 
-  // ── Live summary (updated by WS RUN_FINISHED events) ─────────
-  let summary = $state<DashboardSummary | null>(null);
-  $effect(() => { summary = data.summary; });
-  let refreshingSummary = false;
-
-  // ── Multi-project WebSocket state ─────────────────────────────
-  // One raw WebSocket per visible project so all projects report live events.
-  // activeRuns: runId → event for all in-flight runs across all projects.
   let activeRuns = $state(new Map<string, ExecutionEvent>());
   let recentActivity = $state<ExecutionEvent[]>([]);
-  let wsConnected = $state(0); // count of open connections
 
-  // projectSockets held outside $state — plain JS object, not reactive.
-  // In mock mode we use MockWebSocket which prints to console; otherwise real WebSocket.
   const _wsCtor: typeof WebSocket = isStaticMockMode()
     ? (MockWebSocket as unknown as typeof WebSocket)
     : WebSocket;
   const projectSockets = new Map<string, WebSocket>();
 
-  // Derived: how many active runs per projectKey (for live badges in table).
   const liveByProject = $derived.by(() => {
     const m = new Map<string, number>();
     for (const ev of activeRuns.values()) {
@@ -56,9 +54,10 @@
   });
 
   const liveRunCount = $derived(activeRuns.size);
+  const summary = $derived(dashboard?.summary ?? null);
 
   onMount(() => {
-    for (const project of data.projects) {
+    for (const project of dashboard?.projects ?? []) {
       openSocket(project.projectKey);
     }
   });
@@ -83,8 +82,6 @@
     ) as WebSocket;
     projectSockets.set(projectKey, ws);
 
-    ws.onopen = () => { wsConnected += 1; };
-    ws.onclose = () => { wsConnected = Math.max(0, wsConnected - 1); };
     ws.onerror = () => { /* onclose fires after onerror */ };
     ws.onmessage = (msg: MessageEvent) => {
       try {
@@ -118,96 +115,84 @@
       const next = new Map(activeRuns);
       next.delete(event.runId);
       activeRuns = next;
-      void refreshSummary();
+      void refreshDashboard(false);
     }
   }
 
-  async function refreshSummary() {
-    if (refreshingSummary) return;
-    refreshingSummary = true;
-    try {
-      summary = await getDashboardSummary();
-    } catch {
-      // keep stale summary on error
-    } finally {
-      refreshingSummary = false;
-    }
-  }
-
-  // ── Charts ────────────────────────────────────────────────────
-  const coverageTrend = $derived({
-    labels: aggregateHistory.map(row => compactDate(row.bucketDate)),
-    datasets: [
-      {
-        type: 'bar',
-        label: 'Total Scenarios',
-        data: aggregateHistory.map(row => row.totalScenarios),
-        backgroundColor: 'rgba(13, 148, 136, 0.55)',
-        borderColor: '#0d9488',
-        borderRadius: 3,
-        yAxisID: 'y'
-      },
-      {
-        type: 'bar',
-        label: 'Automated',
-        data: aggregateHistory.map(row => row.totalAutomated),
-        backgroundColor: 'rgba(99, 102, 241, 0.65)',
-        borderColor: '#6366f1',
-        borderRadius: 3,
-        yAxisID: 'y'
-      },
-      {
-        type: 'line',
-        label: 'Coverage %',
-        data: aggregateHistory.map(row => row.automationCoveragePercentage),
-        borderColor: '#f59e0b',
-        backgroundColor: 'rgba(245, 158, 11, 0.08)',
-        tension: 0.4,
-        pointRadius: 2,
-        pointBackgroundColor: '#f59e0b',
-        borderWidth: 2,
-        yAxisID: 'y1'
-      },
-      {
-        type: 'line',
-        label: 'Pass Rate %',
-        data: aggregateHistory.map(row => row.overallPassRatePercentage),
-        borderColor: '#10b981',
-        backgroundColor: 'rgba(16, 185, 129, 0.0)',
-        tension: 0.4,
-        pointRadius: 2,
-        pointBackgroundColor: '#10b981',
-        borderWidth: 2,
-        borderDash: [5, 3],
-        yAxisID: 'y1'
-      }
-    ]
-  });
-
-  async function refreshChart() {
-    if (!chartStart || !chartEnd) return;
-    chartBusy = true;
+  async function refreshDashboard(showBusy: boolean) {
+    if (refreshingDashboard || !chartStart || !chartEnd) return;
+    refreshingDashboard = true;
+    if (showBusy) chartBusy = true;
     chartError = '';
     try {
-      aggregateHistory = await listAggregateStatisticHistory(chartStart, chartEnd, groupedBy);
-    } catch (e) {
-      chartError = (e as Error).message;
+      dashboard = await getDashboard({
+        start: chartStart,
+        end: chartEnd,
+        group: groupedBy,
+        attentionLimit: 5
+      });
+      dashboardError = '';
+      for (const project of dashboard.projects) openSocket(project.projectKey);
+    } catch (error) {
+      if (showBusy) chartError = (error as Error).message;
+      if (!dashboard) dashboardError = (error as Error).message;
     } finally {
-      chartBusy = false;
+      refreshingDashboard = false;
+      if (showBusy) chartBusy = false;
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────
-  function formatDate(iso: string): string {
-    return new Date(iso).toLocaleDateString('en-GB', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    });
+  const coverageTrend = $derived(createQualityTrendData((dashboard?.trends ?? []).map((row) => ({
+    label: compactDate(row.date),
+    totalScenarios: row.totalScenarios,
+    passRate: row.passRate,
+    automationCoverage: row.automationCoverage
+  }))));
+
+  async function refreshChart() {
+    await refreshDashboard(true);
   }
 
   function compactDate(iso: string): string {
     return new Date(iso).toLocaleDateString('en-GB', {
       day: '2-digit', month: 'short'
     });
+  }
+
+  function statusLabel(status: QualityHealthStatus): string {
+    if (status === 'HEALTHY') return 'Healthy';
+    if (status === 'NEEDS_REVIEW') return 'Needs review';
+    if (status === 'HIGH_RISK') return 'High risk';
+    if (status === 'CRITICAL') return 'Critical';
+    if (status === 'NO_RUNS') return 'No runs';
+    return 'Neutral';
+  }
+
+  function statusTone(status: QualityHealthStatus): 'neutral' | 'success' | 'warning' | 'danger' {
+    if (status === 'HEALTHY') return 'success';
+    if (status === 'NEEDS_REVIEW') return 'warning';
+    if (status === 'HIGH_RISK' || status === 'CRITICAL') return 'danger';
+    return 'neutral';
+  }
+
+  function statusVariant(status: QualityHealthStatus): 'default' | 'success' | 'warning' | 'danger' {
+    const tone = statusTone(status);
+    if (tone === 'neutral') return 'default';
+    return tone;
+  }
+
+  function trendDirection(direction: TrendDirection): 'up' | 'down' | 'flat' | 'unknown' {
+    return direction.toLowerCase() as 'up' | 'down' | 'flat' | 'unknown';
+  }
+
+  function percentageValue(metric: DashboardMetricSummary): string | number {
+    if (metric.valueLabel === 'No runs') return 'No runs';
+    return Math.round(metric.value);
+  }
+
+  function percentageSuffix(metric: DashboardMetricSummary): string {
+    if (metric.valueLabel === 'No runs') return '';
+    return '%';
   }
 
   function eventLabel(type: string): string {
@@ -236,14 +221,14 @@
 </script>
 
 <svelte:head>
-  <title>Dashboard — Setara</title>
+  <title>Dashboard - Setara</title>
 </svelte:head>
 
 <div class="page">
   <div class="page-header">
     <div>
       <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">A snapshot of test quality and automation progress across all your projects.</p>
+      <p class="page-subtitle">A snapshot of quality, automation, and release readiness.</p>
     </div>
     {#if liveRunCount > 0}
       <div class="header-right">
@@ -255,54 +240,94 @@
     {/if}
   </div>
 
-  {#if data.error}
-    <AppAlert tone="error" title="Could not connect to backend">{data.error}</AppAlert>
+  {#if dashboardError}
+    <AppAlert tone="error" title="Dashboard unavailable">{dashboardError}</AppAlert>
   {/if}
 
-  <!-- Metric cards row -->
   <div class="metrics-row">
-    <MetricCard
-      label="Squads"
-      value={summary?.totalSquads ?? '—'}
-      variant="info"
-      icon="M3 7h18M3 12h18M3 17h18"
-      href="/coverage-overview"
-      ariaLabel="Open squad coverage overview"
-    />
-    <MetricCard
-      label="Projects"
-      value={summary?.totalProjects ?? '—'}
-      variant="default"
-      icon="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"
-      href="/projects"
-      ariaLabel="Open projects"
-    />
-    <MetricCard
-      label="Test Scenarios"
-      value={summary?.totalScenarios ?? '—'}
-      variant="default"
-      icon="M22 12h-4l-3 9L9 3l-3 9H2"
-      href="/coverage-overview"
-      ariaLabel="Open scenario coverage overview"
-    />
-    <MetricCard
-      label="Pass Rate"
-      value={`${Number(summary?.overallPassPercentage ?? 0).toFixed(0)}%`}
-      sub={`${Number(summary?.automationCoveragePercentage ?? 0).toFixed(0)}% automated`}
-      variant="default"
-      icon="M12 2a10 10 0 100 20 10 10 0 000-20z"
-      href="/coverage-overview"
-      ariaLabel="Open quality and pass-rate overview"
-    />
+    {#if summary}
+      <MetricCard
+        label="Quality health"
+        value={Math.round(summary.qualityHealth.value)}
+        suffix="/100"
+        statusLabel={statusLabel(summary.qualityHealth.status)}
+        statusTone={statusTone(summary.qualityHealth.status)}
+        deltaLabel={summary.qualityHealth.deltaLabel}
+        deltaDirection={trendDirection(summary.qualityHealth.trendDirection)}
+        progressValue={summary.qualityHealth.value}
+        sparklineValues={(dashboard?.trends ?? []).map((point) => point.qualityHealthScore)}
+        helpText="Quality health combines pass rate, automation coverage, open failures, recent test activity, and test stability."
+        variant={statusVariant(summary.qualityHealth.status)}
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-2.9 8.3-7 10-4.1-1.7-7-5.4-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
+      />
+      <MetricCard
+        label="Projects"
+        value={summary.projects.value.toLocaleString()}
+        deltaLabel={summary.projects.deltaLabel}
+        deltaDirection={trendDirection(summary.projects.trendDirection)}
+        variant="default"
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+        href="/projects"
+        actionLabel="View projects"
+        ariaLabel="Open projects"
+      />
+      <MetricCard
+        label="Test scenarios"
+        value={summary.testScenarios.value.toLocaleString()}
+        deltaLabel={summary.testScenarios.deltaLabel}
+        deltaDirection={trendDirection(summary.testScenarios.trendDirection)}
+        variant="default"
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+<path d="M9 3V5M12 3V5M15 3V5M13 9H9M15 13H9M8.2 21H15.8C16.9201 21 17.4802 21 17.908 20.782C18.2843 20.5903 18.5903 20.2843 18.782 19.908C19 19.4802 19 18.9201 19 17.8V7.2C19 6.0799 19 5.51984 18.782 5.09202C18.5903 4.71569 18.2843 4.40973 17.908 4.21799C17.4802 4 16.9201 4 15.8 4H8.2C7.0799 4 6.51984 4 6.09202 4.21799C5.71569 4.40973 5.40973 4.71569 5.21799 5.09202C5 5.51984 5 6.07989 5 7.2V17.8C5 18.9201 5 19.4802 5.21799 19.908C5.40973 20.2843 5.71569 20.5903 6.09202 20.782C6.51984 21 7.07989 21 8.2 21Z" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+        href="/coverage-overview"
+        ariaLabel="Open scenario coverage overview"
+      />
+      <MetricCard
+        label="Automation coverage"
+        value={percentageValue(summary.automationCoverage)}
+        suffix={percentageSuffix(summary.automationCoverage)}
+        deltaLabel={summary.automationCoverage.deltaLabel}
+        deltaDirection={trendDirection(summary.automationCoverage.trendDirection)}
+        progressValue={summary.automationCoverage.value}
+        sparklineValues={(dashboard?.trends ?? []).map((point) => point.automationCoverage)}
+        variant="other"
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="16" height="12" rx="3"/><path d="M9 11h.01M15 11h.01M9 15h6M12 3v3"/></svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-status-manual), transparent 86%)", color: "var(--color-status-manual)" }}
+        href="/coverage-overview"
+        actionLabel="View coverage"
+        ariaLabel="Open automation coverage overview"
+      />
+      <MetricCard
+        label="Pass rate"
+        value={percentageValue(summary.passRate)}
+        suffix={percentageSuffix(summary.passRate)}
+        deltaLabel={summary.passRate.deltaLabel}
+        deltaDirection={trendDirection(summary.passRate.trendDirection)}
+        sparklineValues={(dashboard?.trends ?? []).map((point) => point.passRate)}
+        variant="default"
+        iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 100 20 10 10 0 000-20z"/><path d="M8 12l3 3 5-6"/></svg>'
+        iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-success), transparent 86%)", color: "var(--color-success)" }}
+        href="/coverage-overview"
+        ariaLabel="Open quality overview"
+      />
+    {:else if !dashboardError}
+      {#each Array(5) as _}
+        <div class="metric-skeleton surface-card"><AppSkeleton height="116px" /></div>
+      {/each}
+    {/if}
   </div>
 
-  <!-- Coverage + Pass-Rate Trend -->
-  <div class="chart-section">
-    <div class="section-heading">
-      <div>
-        <h2 class="section-title">Trends</h2>
-        <p class="section-subtitle">Automation coverage and test pass rate over time.</p>
-      </div>
+  <div class="decision-grid">
+    <div class="chart-section">
+      <div class="section-heading">
+        <div>
+          <h2 class="section-title">Quality trends</h2>
+          <p class="section-subtitle">See how coverage, pass rate, and scenario volume change over time.</p>
+        </div>
       <div class="chart-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
         <label>End <input type="date" bind:value={chartEnd} onchange={refreshChart} /></label>
@@ -321,21 +346,32 @@
     </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div
-      class="chart-card"
+      class="chart-card surface-card"
       role="button"
       tabindex="0"
       title="Click to expand"
       onclick={() => showChartExpand = true}
       onkeydown={(e) => { if (e.key === 'Enter') showChartExpand = true; }}
     >
-      <LazyLineChart chartData={coverageTrend} height={290} />
-      {#if chartBusy}<p class="chart-note">Refreshing chart…</p>{/if}
+      {#if dashboard}
+        <LazyLineChart chartData={coverageTrend} height={290} axisMode="mixed" />
+      {:else}
+        <div class="chart-loading" role="status" aria-label="Loading quality trends">
+          <AppSkeleton height="290px" />
+        </div>
+      {/if}
+      {#if chartBusy}<p class="chart-note">Updating trends...</p>{/if}
       {#if chartError}<p class="chart-error">{chartError}</p>{/if}
     </div>
+    </div>
+    <NeedsAttentionPanel
+      items={dashboard?.attentionItems ?? []}
+      loading={!dashboard && !dashboardError}
+      unavailable={!dashboard && Boolean(dashboardError)}
+    />
   </div>
 
-  <!-- Chart expand modal -->
-  <Modal open={showChartExpand} title="Coverage &amp; Pass Rate Trend" size="full" onclose={() => showChartExpand = false}>
+  <Modal open={showChartExpand} title="Quality trends" size="full" onclose={() => showChartExpand = false}>
     <div class="expand-modal-content">
       <div class="expand-controls">
         <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
@@ -350,73 +386,27 @@
       </div>
       <div class="expanded-chart-scroll">
         <div class="expanded-chart-frame">
-          <LazyLineChart chartData={coverageTrend} />
+          <LazyLineChart chartData={coverageTrend} axisMode="mixed" />
         </div>
       </div>
-      {#if chartBusy}<p class="chart-note">Refreshing…</p>{/if}
+      {#if chartBusy}<p class="chart-note">Updating trends...</p>{/if}
     </div>
   </Modal>
 
   <!-- Always render both columns so the DOM structure is stable.
        The activity column is hidden via CSS when empty. -->
   <div class="lower-grid" class:lower-grid--active={recentActivity.length > 0}>
-    <!-- Recent projects -->
-    <div class="section">
-      <h2 class="section-title">Recent Projects</h2>
-      {#if data.projects.length === 0 && !data.error}
-        <EmptyState
-          title="No projects yet"
-          hint="Create your first project to start tracking test scenarios and coverage."
-          minHeight="200px"
-        >
-          <svelte:fragment slot="icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-              <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
-            </svg>
-          </svelte:fragment>
-          <div slot="actions">
-            <a href="/projects" class="empty-projects-link">Go to Projects →</a>
-          </div>
-        </EmptyState>
-      {:else}
-        <DataTable>
-          {#snippet head()}
-            <tr>
-              <th>Key</th>
-              <th>Project</th>
-              <th class="col-hide-xs">Created</th>
-              <th></th>
-            </tr>
-          {/snippet}
-          {#snippet body()}
-            {#each data.projects as project (project.id)}
-              {@const runCount = liveByProject.get(project.projectKey) ?? 0}
-              <tr class:row-live={runCount > 0}>
-                <td data-label="Key">
-                  <div class="key-cell">
-                    <span class="key-badge">{project.projectKey}</span>
-                    {#if runCount > 0}
-                      <span class="run-live-badge">
-                        <span class="run-live-dot"></span>
-                        {runCount} live
-                      </span>
-                    {/if}
-                  </div>
-                </td>
-                <td data-label="Project" class="bold">{project.name}</td>
-                <td data-label="Created" class="muted col-hide-xs">{formatDate(project.createdAt)}</td>
-                <td data-label=""><a href="/projects/{project.projectKey}" class="link">Open →</a></td>
-              </tr>
-            {/each}
-          {/snippet}
-        </DataTable>
-      {/if}
-    </div>
+    <ProjectsOverviewTable
+      projects={dashboard?.projects ?? []}
+      {liveByProject}
+      loading={!dashboard && !dashboardError}
+      error={dashboard ? '' : dashboardError}
+    />
 
-    <!-- Live Activity Feed — always in DOM, visible only when there are events -->
+    <!-- Live activity stays in the DOM and becomes visible when events arrive. -->
     <div class="activity-col">
       <div class="section">
-        <h2 class="section-title">Live Activity</h2>
+        <h2 class="section-title">Live activity</h2>
         <div class="activity-feed">
           {#each recentActivity as event (`${event.runId}:${event.type}:${event.occurredAt}`)}
             <div class="activity-item {eventVariantClass(event.type)}">
@@ -507,8 +497,22 @@
     margin-bottom: 32px;
   }
 
+  .metric-skeleton,
+  .chart-loading {
+    overflow: hidden;
+    border-radius: var(--radius);
+  }
+
   /* ── Chart section ── */
   .chart-section {
+    min-width: 0;
+  }
+
+  .decision-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
+    gap: 18px;
+    align-items: stretch;
     margin-bottom: 32px;
   }
 
@@ -599,8 +603,8 @@
   }
 
   .chart-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
+    background: var(--surface-card-bg, var(--color-surface));
+    border: 1px solid var(--surface-card-border, var(--color-border));
     border-radius: var(--radius);
     padding: clamp(16px, 2vw, 24px);
     box-shadow: var(--shadow);
@@ -608,6 +612,8 @@
     transition: box-shadow 0.15s;
     overflow: hidden;
   }
+
+  .chart-loading { min-height: 290px; }
   .chart-card:hover {
     box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 70%);
   }
@@ -770,64 +776,11 @@
     flex-shrink: 0;
   }
 
-  /* ── Projects table live state ── */
-  .key-cell {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .run-live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 1px 7px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--color-success), transparent 85%);
-    border: 1px solid color-mix(in srgb, var(--color-success), transparent 55%);
-    color: var(--color-success);
-    font-size: 0.68rem;
-    font-weight: 700;
-    white-space: nowrap;
-  }
-
-  .run-live-dot {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    background: var(--color-success);
-    animation: pulse 1.5s infinite;
-    flex-shrink: 0;
-  }
-
-  :global(tr.row-live td) {
-    background: color-mix(in srgb, var(--color-success), transparent 96%);
-  }
-
-  /* ── Table ── */
-  .bold { font-weight: 500; }
-  .muted { color: var(--color-text-muted); font-size: 0.875rem; }
-
-  .key-badge {
-    display: inline-flex;
-    align-items: center;
-    padding: 2px 8px;
-    border-radius: 12px;
-    font-size: 0.75rem;
-    font-weight: 600;
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-  }
-
-  .link {
-    color: var(--color-accent);
-    font-size: 0.8rem;
-    font-weight: 500;
-  }
-
   @media (min-width: 1280px) {
     .chart-card { padding: 24px 28px; }
+  }
+  @media (max-width: 1050px) {
+    .decision-grid { grid-template-columns: 1fr; }
   }
   @media (max-width: 720px) {
     .chart-card { padding: 14px; }

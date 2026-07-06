@@ -1,16 +1,19 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import type { CartesianAxisMode, ChartDataInput } from './chartTheme';
 
   let {
     chartData,
     height = undefined,
     label = '',
-    showLegend = true
+    showLegend = true,
+    axisMode = 'percent'
   }: {
-    chartData: { labels: string[]; datasets: object[] };
+    chartData: ChartDataInput;
     height?: number;
     label?: string;
     showLegend?: boolean;
+    axisMode?: CartesianAxisMode;
   } = $props();
 
   let LineChartComponent = $state<any>(null);
@@ -21,7 +24,7 @@
 </script>
 
 {#if LineChartComponent}
-  <LineChartComponent {chartData} {height} {label} {showLegend} />
+  <LineChartComponent {chartData} {height} {label} {showLegend} {axisMode} />
 {:else}
   <div class="chart-skeleton" style={height !== undefined ? `height:${height}px` : undefined} aria-hidden="true">
     <span></span>

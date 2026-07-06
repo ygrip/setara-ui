@@ -4,6 +4,15 @@
     Chart, LineController, LineElement, PointElement, BarController, BarElement,
     LinearScale, CategoryScale, Tooltip, Filler, Legend
   } from 'chart.js';
+  import {
+    decorateCartesianData,
+    chartGlowPlugin,
+    createCartesianScales,
+    readChartTheme,
+    refreshChartTheme,
+    type CartesianAxisMode,
+    type ChartDataInput
+  } from './chartTheme';
 
   Chart.register(LineController, LineElement, PointElement, BarController, BarElement, LinearScale, CategoryScale, Tooltip, Filler, Legend);
 
@@ -11,58 +20,82 @@
     chartData,
     height = undefined,
     label = '',
-    showLegend = true
+    showLegend = true,
+    axisMode = 'percent'
   }: {
-    chartData: { labels: string[]; datasets: object[] };
+    chartData: ChartDataInput;
     /** Fixed height in px. Omit (or leave undefined) to fill the parent via CSS height:100%. */
     height?: number;
     label?: string;
     showLegend?: boolean;
+    axisMode?: CartesianAxisMode;
   } = $props();
 
   let canvas: HTMLCanvasElement;
   let chart: Chart | null = null;
+  let themeObserver: MutationObserver | null = null;
+
+  function syncChart() {
+    if (!chart) return;
+    const theme = readChartTheme(canvas);
+    chart.data = decorateCartesianData(chartData, theme) as any;
+    chart.options.scales = createCartesianScales(theme, axisMode);
+    refreshChartTheme(chart, theme);
+    for (const scale of Object.values(chart.options.scales ?? {})) {
+      if (!scale) continue;
+      if (scale.ticks) scale.ticks.color = theme.text;
+      if (scale.grid) scale.grid.color = theme.grid;
+    }
+    chart.update();
+  }
 
   onMount(() => {
+    const theme = readChartTheme(canvas);
     chart = new Chart(canvas, {
       type: 'line',
-      data: chartData as any,
+      data: decorateCartesianData(chartData, theme) as any,
+      plugins: [chartGlowPlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
+        animation: { duration: 550, easing: 'easeOutQuart' },
+        interaction: { mode: 'index', intersect: false },
         plugins: {
-          legend: { display: showLegend, labels: { color: '#7d9589', boxWidth: 12 } },
-          tooltip: { mode: 'index', intersect: false }
-        },
-        scales: {
-          x: {
-            grid: { display: false },
-            ticks: { color: '#7d9589', font: { size: 11 } }
+          legend: {
+            display: showLegend,
+            labels: { color: theme.text, boxWidth: 10, boxHeight: 10, padding: 18, usePointStyle: true }
           },
-          y: {
-            grid: { color: 'rgba(125,149,137,0.12)' },
-            ticks: { color: '#7d9589', font: { size: 11 }, callback: (value: any) => `${value}%` },
-            min: 0,
-            max: 100
-          },
-          y1: {
-            display: 'auto',
-            position: 'right',
-            grid: { drawOnChartArea: false },
-            ticks: { color: '#7d9589', font: { size: 11 }, callback: (value: any) => `${value}%` },
-            min: 0,
-            max: 100
+          tooltip: {
+            mode: 'index',
+            intersect: false,
+            backgroundColor: theme.tooltip,
+            borderColor: theme.grid,
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+            titleMarginBottom: 8,
+            usePointStyle: true,
+            boxPadding: 5
           }
-        }
+        },
+        scales: createCartesianScales(theme, axisMode)
       }
     });
-    return () => chart?.destroy();
+    themeObserver = new MutationObserver(syncChart);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    return () => {
+      themeObserver?.disconnect();
+      chart?.destroy();
+    };
   });
 
   $effect(() => {
-    if (!chart) return;
-    chart.data = chartData as any;
-    chart.update();
+    chartData;
+    axisMode;
+    syncChart();
   });
 </script>
 

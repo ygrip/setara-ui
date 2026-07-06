@@ -6,27 +6,38 @@
     subtitle = '',
     eyebrow = '',
     variant = 'default',
+    padding = 'lg',
     href = '',
     interactive = false,
     className = '',
+    headerActions,
     children
   }: {
     title: string;
     subtitle?: string;
     eyebrow?: string;
     variant?: 'default' | 'accent' | 'success' | 'warning' | 'danger' | 'info';
+    padding?: 'sm' | 'md' | 'lg';
     href?: string;
     interactive?: boolean;
     className?: string;
+    headerActions?: import('svelte').Snippet;
     children?: import('svelte').Snippet;
   } = $props();
 </script>
 
-<Card padding="lg" {href} {interactive} className={`bento-card bento-card--${variant} ${className}`}>
+<Card {padding} {href} {interactive} className={`bento-card bento-card--${variant} ${className}`}>
   <div class="bento-card__header">
-    {#if eyebrow}<span class="bento-card__eyebrow">{eyebrow}</span>{/if}
-    <h3>{title}</h3>
-    {#if subtitle}<p>{subtitle}</p>{/if}
+    <div class="bento-card__header-left">
+      {#if eyebrow}<span class="bento-card__eyebrow">{eyebrow}</span>{/if}
+      <h3>{title}</h3>
+      {#if subtitle}<p>{subtitle}</p>{/if}
+    </div>
+    {#if headerActions}
+      <div class="bento-card__header-actions">
+        {@render headerActions()}
+      </div>
+    {/if}
   </div>
   <div class="bento-card__body">
     {@render children?.()}
@@ -37,20 +48,27 @@
   :global(.bento-card) {
     position: relative;
     overflow: hidden;
-  }
-
-  :global(.bento-card)::before {
-    content: "";
-    position: absolute;
-    inset: 0 0 auto;
-    height: 3px;
-    background: var(--bento-accent, var(--color-border));
+    --surface-accent: var(--bento-accent, var(--color-accent));
   }
 
   .bento-card__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+
+  .bento-card__header-left {
     display: grid;
     gap: 6px;
     min-width: 0;
+    flex: 1;
+  }
+
+  .bento-card__header-actions {
+    flex-shrink: 0;
   }
 
   .bento-card__eyebrow {
@@ -83,4 +101,3 @@
   :global(.bento-card--danger) { --bento-accent: var(--color-danger); }
   :global(.bento-card--info) { --bento-accent: var(--color-info); }
 </style>
-

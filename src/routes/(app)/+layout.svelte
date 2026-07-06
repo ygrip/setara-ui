@@ -18,30 +18,6 @@
   let sidebarOpen = $state(false);
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
-  let pinnedItems = $state<string[]>([]);
-
-  // ── Pin feature (localStorage) ──────────────────────────
-  function loadPins() {
-    try {
-      const stored = localStorage.getItem('setara_pinned');
-      if (stored) pinnedItems = JSON.parse(stored);
-    } catch { pinnedItems = []; }
-  }
-
-  function savePins() {
-    localStorage.setItem('setara_pinned', JSON.stringify(pinnedItems));
-  }
-
-  function togglePin(href: string) {
-    if (pinnedItems.includes(href)) {
-      pinnedItems = pinnedItems.filter(h => h !== href);
-    } else {
-      pinnedItems = [...pinnedItems, href];
-    }
-    savePins();
-  }
-
-  function isPinned(href: string) { return pinnedItems.includes(href); }
 
   // Topbar search hint cycling
   const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
@@ -50,20 +26,7 @@
 
   const projectKey = $derived(page.params.projectKey ?? null);
 
-  // Pin definitions: label, href, icon snippet
-  const pinOptions = $derived([
-    { label: 'Dashboard', href: '/dashboard', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
-    { label: 'Projects', href: '/projects', icon: '<path d="M3 7h18M3 12h18M3 17h18"/>' },
-    { label: 'Plans', href: '/plans', icon: '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>' },
-    { label: 'Overview', href: '/coverage-overview', icon: '<path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>' },
-    { label: 'Settings', href: '/admin', icon: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>' },
-    ...(projectKey ? [{ label: 'Builds', href: `/projects/${projectKey}/builds`, icon: '<path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>' },
-                       { label: 'Repository', href: `/projects/${projectKey}/repository`, icon: '<path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>' },
-                       { label: 'Executions', href: `/projects/${projectKey}/executions`, icon: '<polygon points="5 3 19 12 5 21 5 3"/>' }] : [])
-  ]);
-
   onMount(() => {
-    loadPins();
     session = getValidSession();
     if (!session) {
       goto('/login');
@@ -207,29 +170,6 @@
         </button>
       </div>
 
-      <!-- Pinned section -->
-      {#if pinnedItems.length > 0}
-        <div class="nav-section-label">Pinned</div>
-        {#each pinnedItems as href}
-          {@const opt = pinOptions.find(o => o.href === href)}
-          {#if opt}
-            <a
-              {href}
-              class="nav-item nav-item--pinned"
-              class:nav-item--active={isActive(href)}
-              onclick={closeSidebar}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                {@html opt.icon}
-              </svg>
-              {opt.label}
-              <button class="pin-toggle" title="Unpin" onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(href); }} aria-label="Unpin {opt.label}">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" opacity="0.7"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
-              </button>
-            </a>
-          {/if}
-        {/each}
-      {/if}
       <div class="nav-section-label">Browse</div>
       <a
         href="/dashboard"
@@ -241,9 +181,6 @@
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
         </svg>
         Dashboard
-        <button class="pin-btn" title={isPinned('/dashboard') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/dashboard'); }} aria-label={isPinned('/dashboard') ? 'Unpin Dashboard' : 'Pin Dashboard'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/dashboard') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/projects"
@@ -255,9 +192,6 @@
           <path d="M3 7h18M3 12h18M3 17h18"/>
         </svg>
         Projects
-        <button class="pin-btn" title={isPinned('/projects') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/projects'); }} aria-label={isPinned('/projects') ? 'Unpin Projects' : 'Pin Projects'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/projects') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/plans"
@@ -269,9 +203,6 @@
           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
         </svg>
         Plans
-        <button class="pin-btn" title={isPinned('/plans') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/plans'); }} aria-label={isPinned('/plans') ? 'Unpin Plans' : 'Pin Plans'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/plans') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/coverage-overview"
@@ -283,9 +214,6 @@
           <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
         </svg>
         Overview
-        <button class="pin-btn" title={isPinned('/coverage-overview') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/coverage-overview'); }} aria-label={isPinned('/coverage-overview') ? 'Unpin Overview' : 'Pin Overview'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
 
       <!-- Divider with label -->
@@ -722,11 +650,6 @@
     transition: background 0.12s, color 0.12s;
   }
 
-  .nav-item--pinned {
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-bg), var(--color-accent) 4%);
-  }
-
   .nav-item:hover {
     background: var(--color-accent-subtle);
     color: var(--color-accent);
@@ -742,91 +665,6 @@
   .nav-item--dimmed {
     opacity: 0.45;
     pointer-events: none;
-  }
-
-  .pin-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-left: auto;
-    opacity: 0.55;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  }
-
-  .nav-item:hover .pin-btn { opacity: 0.85; }
-
-  .pin-btn:hover {
-    opacity: 1;
-    background: var(--color-accent-subtle);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-    box-shadow: 0 2px 8px rgba(0,175,165,0.2);
-  }
-
-  :global([data-theme="dark"]) .pin-btn {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.55);
-  }
-  :global([data-theme="dark"]) .pin-btn:hover {
-    background: rgba(0,175,165,0.15);
-    border-color: var(--color-accent);
-    color: var(--color-accent-mint);
-    box-shadow: 0 2px 12px rgba(94,242,214,0.15);
-  }
-
-  .pin-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-left: auto;
-    opacity: 0.7;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  }
-
-  .pin-toggle:hover {
-    background: var(--color-accent-subtle);
-    border-color: var(--color-danger);
-    color: var(--color-danger);
-    box-shadow: 0 2px 8px rgba(239,68,68,0.15);
-  }
-
-  :global([data-theme="dark"]) .pin-toggle {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.65);
-  }
-  :global([data-theme="dark"]) .pin-toggle:hover {
-    background: rgba(239,68,68,0.12);
-    border-color: rgba(239,68,68,0.4);
-    color: #fca5a5;
-  }
-
-  @media (max-width: 768px) {
-    .pin-btn, .pin-toggle {
-      width: 28px;
-      height: 28px;
-      opacity: 0.6;
-    }
-    .nav-item:hover .pin-btn { opacity: 0.85; }
   }
 
   .sidebar-footer {

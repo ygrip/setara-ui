@@ -32,12 +32,16 @@ describe('ASA sidecar voice contracts', () => {
   it('keeps long manual dictation separate from bounded hands-free utterances', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
     const startRecording = voice.slice(voice.indexOf('async startRecording()'), voice.indexOf('async stopRecording()'));
+    const stopRecording = voice.slice(voice.indexOf('async stopRecording()'), voice.indexOf('private async processBlob'));
     const beginVadCapture = voice.slice(voice.indexOf('private beginVadCapture'), voice.indexOf('private async endVadCapture'));
 
     assert.match(voice, /const MANUAL_MAX_RECORD_MS = 5 \* 60_000/);
     assert.match(voice, /const HANDS_FREE_MAX_UTTERANCE_MS = 12_000/);
     assert.match(startRecording, /MANUAL_MAX_RECORD_MS/);
     assert.match(startRecording, /this\.beginStreamCapture\(\)/);
+    assert.match(stopRecording, /await this\.endStreamCapture\(\)/);
+    assert.match(stopRecording, /return this\.processBlob\(blob\)/);
+    assert.doesNotMatch(stopRecording, /return this\.finalizeTranscript\(finalText\)/);
     assert.match(beginVadCapture, /HANDS_FREE_MAX_UTTERANCE_MS/);
   });
 

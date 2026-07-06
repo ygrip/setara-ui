@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import DataTable from '$lib/components/DataTable.svelte';
+  import MetricCard from '$lib/components/MetricCard.svelte';
   import { listSquadCoverage, listSquadProjectCoverage, type SquadCoverage, type SquadProjectCoverage } from '$lib/api/statistics';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
 
@@ -117,45 +118,69 @@
 
   <!-- ── Summary cards ───────────────────────────────────── -->
   <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-card-icon tribes">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{totalTribes}</span>
-        <span class="stat-card-label">Tribes</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon squads">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{totalSquads}</span>
-        <span class="stat-card-label">Squads</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon projects">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{totalProjects}</span>
-        <span class="stat-card-label">Projects</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon coverage">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{overallCoverage}%</span>
-        <span class="stat-card-label">Coverage</span>
-        <div class="stat-card-bar">
+  <MetricCard label="Tribes" value={totalTribes} iconSvg='<svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.8"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <rect x="8" y="3" width="8" height="6" rx="1.5" />
+    <rect x="3" y="15" width="7" height="6" rx="1.5" />
+    <rect x="14" y="15" width="7" height="6" rx="1.5" />
+    <path d="M12 9v3" />
+    <path d="M6.5 15v-3H17.5v3" />
+  </svg>'
+  variant="info"
+    iconFrame={{
+      size: "40px",
+      padding: "6px",
+      border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)",
+      radius: "10px",
+      background: "color-mix(in srgb, var(--color-info), transparent 86%)",
+      color: "var(--color-info)"
+    }}
+  />
+  <MetricCard label="Squads" value={totalSquads} iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 0 1 4-4h4a4 4 0 0 1 4 4v2"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/><path d="M21 21v-2a4 4 0 0 0-3-3.85"/></svg>'
+    iconFrame={{
+      size: "40px",
+      padding: "6px",
+      border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)",
+      radius: "10px",
+      background: "color-mix(in srgb, var(--color-status-manual), transparent 86%)",
+      color: "var(--color-status-manual)"
+    }}
+    variant="other"
+  />
+  <MetricCard label="Projects" value={totalProjects} iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>'
+    iconFrame={{
+      size: "40px",
+      padding: "6px",
+      border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)",
+      radius: "10px",
+      background: "color-mix(in srgb, var(--color-warning), transparent 86%)",
+      color: "var(--color-warning)"
+    }}
+    variant="warning"
+  />
+  <MetricCard label="Coverage" value={overallCoverage + '%'} iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>'
+    iconFrame={{
+      size: "40px",
+      padding: "6px",
+      border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)",
+      radius: "10px",
+      background: "color-mix(in srgb, var(--color-success), transparent 86%)",
+      color: "var(--color-success)"
+    }}
+    variant="success"
+  >
+      <div class="stat-card-bar">
           <div class="stat-card-bar-fill" style="width:{overallCoverage}%"></div>
-        </div>
       </div>
-    </div>
+  </MetricCard>
+  
   </div>
 
   <section class="section">
@@ -259,29 +284,7 @@
 
   /* ── Summary stats cards ─────────────────────────────────── */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
-  .stat-card {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 18px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-  }
-  .stat-card-icon {
-    display: inline-grid;
-    place-items: center;
-    width: 44px; height: 44px;
-    border-radius: 10px;
-    flex-shrink: 0;
-  }
-  .stat-card-icon.tribes { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
-  .stat-card-icon.squads { background: color-mix(in srgb, #8b5cf6, transparent 86%); color: #6d28d9; }
-  .stat-card-icon.projects { background: color-mix(in srgb, #f59e0b, transparent 86%); color: #b45309; }
-  .stat-card-icon.coverage { background: color-mix(in srgb, #16a34a, transparent 86%); color: #15803d; }
-  .stat-card-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .stat-card-value { font-size: 1.4rem; font-weight: 800; line-height: 1.1; color: var(--color-text); }
-  .stat-card-label { font-size: 0.75rem; color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
+
   .stat-card-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
   .stat-card-bar-fill { height: 100%; background: #16a34a; border-radius: 2px; transition: width 0.4s ease; }
   .refresh-indicator { display: flex; align-items: center; gap: 8px; margin-top: 8px; }

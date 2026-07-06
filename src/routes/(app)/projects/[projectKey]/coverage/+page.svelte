@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import Card from '$lib/components/Card.svelte';
   import BentoCard from '$lib/components/BentoCard.svelte';
+  import MetricCard from '$lib/components/MetricCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { ProjectStatistic } from '$lib/api/statistics';
@@ -86,45 +87,35 @@
 
   <!-- ── Stat cards ───────────────────────────────────────── -->
   <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-card-icon total">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <MetricCard
+      label="Total Scenarios"
+      value={latest?.totalScenarios ?? '—'}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
+    />
+    <MetricCard
+      label="Automated"
+      value={latest?.totalAutomated ?? '—'}
+      variant="success"
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-success), transparent 86%)", color: "var(--color-success)" }}
+    />
+    <MetricCard
+      label="Automatable"
+      value={latest?.totalAutomatable ?? '—'}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-status-manual), transparent 86%)", color: "var(--color-status-manual)" }}
+    />
+    <MetricCard
+      label="Coverage"
+      value={`${latest?.coveragePercentage ?? '—'}%`}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+    >
+      <div class="stat-card-bar">
+        <div class="stat-card-bar-fill" style="width:{latest?.coveragePercentage ?? 0}%"></div>
       </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalScenarios ?? '—'}</span>
-        <span class="stat-card-label">Total Scenarios</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon automated">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalAutomated ?? '—'}</span>
-        <span class="stat-card-label">Automated</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon automatable">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalAutomatable ?? '—'}</span>
-        <span class="stat-card-label">Automatable</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon coverage-stat">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.coveragePercentage ?? '—'}%</span>
-        <span class="stat-card-label">Coverage</span>
-        <div class="stat-card-bar">
-          <div class="stat-card-bar-fill" style="width:{latest?.coveragePercentage ?? 0}%"></div>
-        </div>
-      </div>
-    </div>
+    </MetricCard>
   </div>
 
   <!-- ── Coverage Trend (full width) ───────────────────────── -->
@@ -209,26 +200,8 @@
 
   /* ── Stat cards ──────────────────────────────────────────── */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
-  .stat-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-  }
-  .stat-card-icon {
-    display: inline-grid; place-items: center;
-    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
-  }
-  .stat-card-icon.total { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
-  .stat-card-icon.automated { background: color-mix(in srgb, #16a34a, transparent 86%); color: #15803d; }
-  .stat-card-icon.automatable { background: color-mix(in srgb, #6366f1, transparent 86%); color: #4f46e5; }
-  .stat-card-icon.coverage-stat { background: color-mix(in srgb, #0d9488, transparent 86%); color: #0f766e; }
-  .stat-card-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .stat-card-value { font-size: 1.4rem; font-weight: 800; line-height: 1.1; color: var(--color-text); }
-  .stat-card-label { font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
   .stat-card-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
-  .stat-card-bar-fill { height: 100%; background: #0d9488; border-radius: 2px; transition: width 0.4s ease; }
+  .stat-card-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width 0.4s ease; }
 
   /* ── Trend card ──────────────────────────────────────────── */
   .trend-section { margin-bottom: 28px; }

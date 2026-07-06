@@ -1,6 +1,13 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { Chart, DoughnutController, ArcElement, Tooltip, Legend } from 'chart.js';
+  import { Chart, DoughnutController, ArcElement, Tooltip, Legend, type Plugin } from 'chart.js';
+  import {
+    decorateDoughnutData,
+    chartGlowPlugin,
+    readChartTheme,
+    refreshChartTheme,
+    type ChartDataInput
+  } from './chartTheme';
 
   Chart.register(DoughnutController, ArcElement, Tooltip, Legend);
 
@@ -10,7 +17,7 @@
     label = '',
     legendPosition = 'bottom' as 'bottom' | 'right' | 'left' | 'top'
   }: {
-    chartData: { labels: string[]; datasets: object[] };
+    chartData: ChartDataInput;
     size?: number;
     label?: string;
     legendPosition?: 'bottom' | 'right' | 'left' | 'top';
@@ -18,31 +25,67 @@
 
   let canvas: HTMLCanvasElement;
   let chart: Chart | null = null;
+  let themeObserver: MutationObserver | null = null;
+
+  function syncChart() {
+    if (!chart) return;
+    const theme = readChartTheme(canvas);
+    chart.data = decorateDoughnutData(chartData, theme) as any;
+    refreshChartTheme(chart, theme);
+    chart.update();
+  }
 
   onMount(() => {
+    const theme = readChartTheme(canvas);
     chart = new Chart(canvas, {
       type: 'doughnut',
-      data: chartData as any,
+      data: decorateDoughnutData(chartData, theme) as any,
+      plugins: [chartGlowPlugin as Plugin<'doughnut'>],
       options: {
         responsive: true,
         maintainAspectRatio: true,
         cutout: '70%',
+        animation: { duration: 650, easing: 'easeOutQuart' },
         plugins: {
           legend: {
             position: legendPosition,
-            labels: { color: '#7d9589', font: { size: 12 }, padding: 14, boxWidth: 13 }
+            labels: {
+              color: theme.text,
+              font: { size: 12 },
+              padding: 18,
+              boxWidth: 10,
+              boxHeight: 10,
+              usePointStyle: true,
+              pointStyle: 'circle'
+            }
           },
-          tooltip: { enabled: true }
+          tooltip: {
+            enabled: true,
+            backgroundColor: theme.tooltip,
+            borderColor: theme.grid,
+            borderWidth: 1,
+            cornerRadius: 10,
+            padding: 12,
+            usePointStyle: true,
+            boxPadding: 5
+          }
         }
       }
     });
-    return () => chart?.destroy();
+    themeObserver = new MutationObserver(syncChart);
+    themeObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['data-theme']
+    });
+    return () => {
+      themeObserver?.disconnect();
+      chart?.destroy();
+    };
   });
 
   $effect(() => {
-    if (!chart) return;
-    chart.data = chartData as any;
-    chart.update();
+    chartData;
+    syncChart();
   });
 </script>
 
