@@ -19,6 +19,22 @@
   let historyData = $state<ProjectStatistic[]>(untrack(() => data.history));
   let loadingHistory = $state(false);
 
+  type RangeOption = '7d' | '30d' | '90d' | 'custom';
+  let range = $state<RangeOption>('30d');
+
+  function isoDate(d: Date): string { return d.toISOString().slice(0, 10); }
+
+  function selectRange(next: RangeOption) {
+    range = next;
+    if (next === 'custom') return;
+    const days = Number(next.slice(0, -1));
+    const end = new Date();
+    const start = new Date(end.getTime() - (days - 1) * 86_400_000);
+    chartEnd = isoDate(end);
+    chartStart = isoDate(start);
+    refetchHistory();
+  }
+
   async function refetchHistory() {
     const start = chartStart, end = chartEnd;
     if (!start || !end) return;
@@ -121,15 +137,34 @@
   <!-- ── Coverage Trend (full width) ───────────────────────── -->
   <div class="trend-section">
   <BentoCard title="Coverage Trend{loadingHistory ? ' …' : ''}" subtitle="Automation coverage over time" variant="default">
-    <div class="chart-controls">
-      <label>Start <input type="date" bind:value={chartStart} onchange={refetchHistory} /></label>
-      <label>End <input type="date" bind:value={chartEnd} onchange={refetchHistory} /></label>
-      <label>Group
-        <select bind:value={granularity}>
+    <div class="toolbar">
+      <div class="presets">
+        {#each (['7d', '30d', '90d', 'custom'] as const) as opt}
+          <button class:active={range === opt} onclick={() => selectRange(opt)}>
+            {opt === 'custom' ? 'Custom' : opt.toUpperCase()}
+          </button>
+        {/each}
+      </div>
+      <div class="toolbar-right">
+        {#if range === 'custom'}
+          <div class="date-fields">
+            <label class="date-field">
+              <span>From</span>
+              <input type="date" value={chartStart} max={chartEnd || undefined}
+                onchange={(e) => { chartStart = e.currentTarget.value; refetchHistory(); }} />
+            </label>
+            <label class="date-field">
+              <span>To</span>
+              <input type="date" value={chartEnd} min={chartStart || undefined}
+                onchange={(e) => { chartEnd = e.currentTarget.value; refetchHistory(); }} />
+            </label>
+          </div>
+        {/if}
+        <select aria-label="Group by period" bind:value={granularity}>
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
         </select>
-      </label>
+      </div>
     </div>
     {#if historyData.length === 0}
       <p class="empty-text">No coverage statistics captured yet.</p>
@@ -205,16 +240,79 @@
 
   /* ── Trend card ──────────────────────────────────────────── */
   .trend-section { margin-bottom: 28px; }
-  .chart-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .chart-controls label {
-    display: flex; flex-direction: column; gap: 4px;
-    font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.6rem;
   }
-  .chart-controls input,
-  .chart-controls select {
-    border: 1px solid var(--color-border); border-radius: 6px;
-    background: var(--color-bg); color: var(--color-text);
-    padding: 7px 9px; font: inherit;
+
+  .presets { display: flex; gap: 0.25rem; }
+
+  .presets button {
+    padding: 0.28rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+  }
+
+  .presets button.active {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  }
+
+  .presets button:hover:not(.active) {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .toolbar-right { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .date-fields { display: flex; gap: 0.4rem; }
+
+  .date-field {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .date-field input {
+    height: 1.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.7rem;
+    padding: 0 0.4rem;
+  }
+
+  select {
+    height: 1.9rem;
+    padding: 0 0.55rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
   }
   .empty-text { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
 
