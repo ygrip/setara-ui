@@ -1,0 +1,23 @@
+src/lib/components/qualityTrendChart.ts
+  67cf7b681a4ca411 33,38,47-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "1cd5b2b7cc5738f5e0fe9300eaa999ff2ac231f7",
+  "prompts": {
+    "67cf7b681a4ca411": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0cc43320-d081-4934-897c-4359558fb800",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 5,
+      "total_deletions": 4,
+      "accepted_lines": 5,
+      "overriden_lines": 0
+    }
+  }
+}
