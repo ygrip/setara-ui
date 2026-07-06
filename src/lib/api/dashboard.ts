@@ -119,7 +119,6 @@ export type DashboardResponse = {
   summary: DashboardSummary;
   trends: DashboardTrendPoint[];
   attentionItems: DashboardAttentionItem[];
-  projects: DashboardProjectOverview[];
   squads: DashboardSquadSummary[];
   lastUpdatedAt: string | null;
 };
@@ -190,7 +189,7 @@ function buildMockDashboard(period: DashboardPeriod, attentionLimit: number): Da
     .filter((value): value is string => value !== null)
     .sort()
     .at(-1) ?? null;
-  return { period, summary, trends, attentionItems, projects, squads, lastUpdatedAt };
+  return { period, summary, trends, attentionItems, squads, lastUpdatedAt };
 }
 
 function mockProjectOverview(

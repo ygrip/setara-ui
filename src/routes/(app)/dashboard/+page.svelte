@@ -46,20 +46,12 @@
     : WebSocket;
   const projectSockets = new Map<string, WebSocket>();
 
-  const liveByProject = $derived.by(() => {
-    const m = new Map<string, number>();
-    for (const ev of activeRuns.values()) {
-      m.set(ev.projectKey, (m.get(ev.projectKey) ?? 0) + 1);
-    }
-    return m;
-  });
-
   const liveRunCount = $derived(activeRuns.size);
   const summary = $derived(dashboard?.summary ?? null);
 
   onMount(() => {
-    for (const project of dashboard?.projects ?? []) {
-      openSocket(project.projectKey);
+    for (const item of dashboard?.attentionItems ?? []) {
+      openSocket(item.projectKey);
     }
   });
 
@@ -133,7 +125,7 @@
         attentionLimit: 5
       });
       dashboardError = '';
-      for (const project of dashboard.projects) openSocket(project.projectKey);
+      for (const item of dashboard.attentionItems) openSocket(item.projectKey);
     } catch (error) {
       if (showBusy) chartError = (error as Error).message;
       if (!dashboard) dashboardError = (error as Error).message;
@@ -354,22 +346,22 @@
           <h2 class="section-title">Quality trends</h2>
           <p class="section-subtitle">See how coverage, pass rate, and scenario volume change over time.</p>
         </div>
-      <div class="chart-controls">
-        <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
-        <label>End <input type="date" bind:value={chartEnd} onchange={refreshChart} /></label>
-        <label>Group
-          <select bind:value={groupedBy} onchange={refreshChart}>
-            <option value="daily">Daily</option>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </label>
-        <button class="expand-btn" type="button" title="Expand chart" aria-label="Expand trends chart" onclick={() => showChartExpand = true}>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-          Expand
-        </button>
+        <div class="chart-controls">
+          <label>Start <input type="date" bind:value={chartStart} onchange={refreshChart} /></label>
+          <label>End <input type="date" bind:value={chartEnd} onchange={refreshChart} /></label>
+          <label>Group
+            <select bind:value={groupedBy} onchange={refreshChart}>
+              <option value="daily">Daily</option>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </label>
+          <button class="expand-btn" type="button" title="Expand chart" aria-label="Expand trends chart" onclick={() => showChartExpand = true}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+            Expand
+          </button>
+        </div>
       </div>
-    </div>
     <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
     <div
       class="chart-card surface-card"
