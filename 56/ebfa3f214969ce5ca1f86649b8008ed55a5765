@@ -1,0 +1,27 @@
+src/lib/components/squad/OverallCoveragePanel.svelte
+  67cf7b681a4ca411 9-20,23,26-33,38-86
+src/lib/components/squad/SquadProjectsTable.svelte
+  67cf7b681a4ca411 2,7,9-68,71-75,77-142,144-149,152-270
+src/lib/components/squad/SquadTrendPanel.svelte
+  67cf7b681a4ca411 6-20,22-46,48,53-54,59-115,119-248
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "56ebfa3f214969ce5ca1f86649b8008ed55a5765",
+  "prompts": {
+    "67cf7b681a4ca411": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0cc43320-d081-4934-897c-4359558fb800",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 561,
+      "total_deletions": 32,
+      "accepted_lines": 560,
+      "overriden_lines": 0
+    }
+  }
+}
