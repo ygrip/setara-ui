@@ -1,0 +1,25 @@
+src/routes/login/+page.svelte
+  67cf7b681a4ca411 138-155,160-161,165,167-168,355-365,369-371,751-759,834,841-842,844
+src/lib/components/SetaraGsapLogo.svelte
+  67cf7b681a4ca411 6-10,130,134,169
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "2038f24f7c5489fe0b850014cd1ce9a55cbbecca",
+  "prompts": {
+    "67cf7b681a4ca411": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0cc43320-d081-4934-897c-4359558fb800",
+        "model": "claude-sonnet-4-6"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 58,
+      "total_deletions": 15,
+      "accepted_lines": 58,
+      "overriden_lines": 0
+    }
+  }
+}
