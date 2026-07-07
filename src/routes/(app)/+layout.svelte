@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
   import LazyAsaOrb from '$lib/components/LazyAsaOrb.svelte';
   import { asa } from '$lib/stores/asa.svelte';
@@ -90,7 +91,7 @@
   $effect(() => {
     const path = page.url.pathname;
     try {
-      const label = document.title.replace(/\s*[–—]\s*Setara.*$/i, '').trim() || path;
+      const label = document.title.replace(/\s*[-\u2013\u2014]\s*Setara.*$/i, '').trim() || path;
       const key = 'setara:recent';
       const existing: { href: string; label: string }[] = JSON.parse(localStorage.getItem(key) ?? '[]');
       const fresh = [{ href: path, label }, ...existing.filter(p => p.href !== path)].slice(0, 10);
@@ -150,18 +151,19 @@
   <!-- Sidebar -->
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
-      <span class="brand-icon-anim brand-icon-anim--lg" role="img" aria-label="Setara"></span>
-      <span class="brand-name">SETARA</span>
-      <span class="sidebar-brand-theme-desktop"><ThemeToggle /></span>
+      <a href="/dashboard" class="brand-link" aria-label="Setara home" onclick={closeSidebar}>
+        <span class="brand-icon-anim brand-icon-anim--lg" role="img" aria-label="Setara"></span>
+        <SetaraGsapLogo size={110} loop={true} animate={true} />
+      </a>
     </div>
 
     <nav class="sidebar-nav">
-      <!-- Search shortcut — mobile only, always at top of nav above all sections -->
+      <!-- Search shortcut - mobile only, always at top of nav above all sections -->
       <div class="sidebar-nav-search">
         <button
           class="sidebar-search-btn"
           onclick={() => { paletteOpen = true; closeSidebar(); }}
-          aria-label="Search — press ⌘K to open"
+          aria-label="Search - press ⌘K to open"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -336,9 +338,8 @@
     </nav>
 
     <div class="sidebar-footer">
-      <!-- Theme toggle — always visible on mobile, desktop-only in brand row -->
+      <!-- Theme selection lives in the lower sidebar across desktop and mobile. -->
       <div class="sidebar-footer-theme">
-        <span class="sidebar-footer-label">Theme</span>
         <ThemeToggle />
       </div>
     </div>
@@ -349,7 +350,7 @@
     <!-- Top bar (always visible) -->
     <header class="topbar">
       <div class="topbar-left">
-        <!-- Hamburger — mobile only: toggles sidebar -->
+        <!-- Hamburger - mobile only: toggles sidebar -->
         <button class="topbar-brand-mobile" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle navigation" aria-expanded={sidebarOpen}>
           {#if sidebarOpen}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -361,10 +362,10 @@
             </svg>
           {/if}
         </button>
-        <!-- Brand — mobile only: visible in topbar since sidebar is off-screen -->
+        <!-- Brand - mobile only: visible in topbar since sidebar is off-screen -->
         <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
           <span class="brand-icon-anim brand-icon-anim--sm" aria-hidden="true"></span>
-          <span class="topbar-brand-inline-text">SETARA</span>
+          <SetaraGsapLogo size={88} loop={true} animate={true} />
         </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
@@ -372,9 +373,9 @@
         {/if}
       </div>
 
-      <!-- Search — centred in topbar -->
+      <!-- Search - centred in topbar -->
       <div class="topbar-center">
-        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search — press ⌘K">
+        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search - press ⌘K">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
@@ -387,7 +388,7 @@
 
       <div class="topbar-right">
         <!-- Live indicator -->
-        <div class="live-indicator" title="Connected — receiving live test run updates">
+        <div class="live-indicator" title="Connected - receiving live test run updates">
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
@@ -440,7 +441,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <span><strong>Preview mode</strong> — Showing sample data. Connect a live backend to see your real results.</span>
+        <span><strong>Preview mode</strong> - Showing sample data. Connect a live backend to see your real results.</span>
       </div>
     {/if}
 
@@ -460,7 +461,7 @@
   </div>
 </div>
 
-<!-- Mobile user popup — rendered outside app-shell so position:fixed is relative to viewport,
+<!-- Mobile user popup - rendered outside app-shell so position:fixed is relative to viewport,
      not the topbar's backdrop-filter stacking context -->
 {#if userMenuOpen && session}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -529,15 +530,23 @@
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
     padding: 16px 14px 14px;
     background: #ffffff;
     border-bottom: 1px solid var(--color-border);
-    justify-content: space-between;
     box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
   }
 
-  /* Animated brand icon — CSS mask over gradient (matches brand-shimmer timing) */
+  .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Animated brand icon - CSS mask over gradient (matches brand-shimmer timing) */
   .brand-icon-anim {
     display: block;
     flex-shrink: 0;
@@ -558,29 +567,6 @@
     height: 20px;
   }
 
-  /* Hide brand-row ThemeToggle on mobile (it moves to sidebar footer) */
-  .sidebar-brand-theme-desktop {
-    display: contents;
-  }
-
-  .brand-name {
-    flex: 1;
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-weight: 700;
-    font-size: 1rem;
-    letter-spacing: 0.16em;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: brand-shimmer 5s ease-in-out infinite;
-    filter: drop-shadow(1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(-1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px 1px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px -1px 1px rgba(94,242,214,0.15));
-  }
 
   @keyframes brand-shimmer {
     0%, 100% { background-position: 0% 50%; }
@@ -597,7 +583,7 @@
     overflow-y: auto; /* nav scrolls, not the whole sidebar */
   }
 
-  /* Search shortcut at top of nav — hidden on desktop, shown on mobile */
+  /* Search shortcut at top of nav - hidden on desktop, shown on mobile */
   .sidebar-nav-search {
     display: none;
     padding: 0 0 8px;
@@ -777,24 +763,11 @@
     background: rgba(255,255,255,0.04);
   }
 
-  /* Theme row in sidebar footer — shown on mobile, hidden on desktop where brand row has it */
+  /* Theme row in sidebar footer. */
   .sidebar-footer-theme {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    gap: 6px;
     padding: 8px 4px;
-  }
-
-  @media (min-width: 769px) {
-    .sidebar-footer-theme {
-      display: none;
-    }
-  }
-
-  .sidebar-footer-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
   }
 
   /* ── Main area ── */
@@ -853,7 +826,7 @@
     flex-shrink: 0;
   }
 
-  /* Icon toggle button — mobile only */
+  /* Icon toggle button - mobile only */
   .topbar-brand-mobile {
     display: none;
     align-items: center;
@@ -874,27 +847,13 @@
     color: var(--color-accent);
   }
 
-  /* Brand inline (mobile topbar) — hidden on desktop where sidebar shows it */
+  /* Brand inline (mobile topbar) - hidden on desktop where sidebar shows it */
   .topbar-brand-inline {
     display: none;
     align-items: center;
     gap: 7px;
     text-decoration: none;
     flex-shrink: 0;
-  }
-
-  .topbar-brand-inline-text {
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.16em;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: brand-shimmer 5s ease-in-out infinite;
   }
 
   .project-key-pill {
@@ -1028,7 +987,7 @@
   }
 
   /* ── Mobile user popup ── */
-  /* Hidden on desktop — shown only via mobile media query */
+  /* Hidden on desktop - shown only via mobile media query */
   .user-popup-overlay {
     display: none;
   }
@@ -1130,7 +1089,7 @@
     overflow-y: auto;
   }
 
-  /* Footer — inside .content scroll container so it scrolls with page content */
+  /* Footer - inside .content scroll container so it scrolls with page content */
   .app-footer {
     display: flex;
     align-items: center;
@@ -1199,8 +1158,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .brand-icon-anim,
-    .brand-name,
-    .topbar-brand-inline-text,
     .search-placeholder,
     .live-dot,
     .route-skeleton {
@@ -1224,7 +1181,7 @@
       left: 0;
       top: 0;
       bottom: 0;
-      height: auto; /* override base 100vh — top+bottom anchoring is reliable on iOS Safari */
+      height: auto; /* override base 100vh - top+bottom anchoring is reliable on iOS Safari */
       z-index: 50;
       transform: translateX(-100%);
       transition: transform 0.25s ease;
@@ -1244,11 +1201,6 @@
       display: flex;
     }
 
-    /* Hide desktop ThemeToggle in brand row on mobile */
-    .sidebar-brand-theme-desktop {
-      display: none;
-    }
-
     /* Show search at top of nav on mobile */
     .sidebar-nav-search {
       display: block;
@@ -1259,7 +1211,7 @@
       display: none;
     }
 
-    /* Search bar hidden on mobile — lives in sidebar instead */
+    /* Search bar hidden on mobile - lives in sidebar instead */
     .topbar-center {
       display: none;
     }

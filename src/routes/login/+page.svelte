@@ -6,6 +6,7 @@
   import { fly } from 'svelte/transition';
   import { login } from '$lib/api/client';
   import { getValidSession, sessionFromLoginResult, storeSession, type SetaraRole } from '$lib/auth';
+  import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import { isMockMode } from '$lib/mock/client';
@@ -28,11 +29,22 @@
     { label: 'Guest', role: 'GUEST', email: 'guest@demo.setara.local', variant: 'guest' }
   ];
 
-  // ponytail: static placeholder — wire to a public /api/stats endpoint when available
-  const CAPABILITIES = [
-    { value: '93%', label: 'Automation coverage', sub: 'across all active projects' },
-    { value: '18', label: 'Release gates tracked', sub: 'blocking bad builds automatically' },
-    { value: '4.8k', label: 'Scenarios under control', sub: 'maintained by your QA squads' }
+  const CAROUSEL_ITEMS = [
+    {
+      label: 'End-to-end test coverage',
+      sub: 'From scenario design to automated execution — fully tracked',
+      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`
+    },
+    {
+      label: 'Automated release gates',
+      sub: 'Block bad builds automatically before they reach production',
+      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
+    },
+    {
+      label: 'Squad-level quality insights',
+      sub: 'Health, coverage, and pass rates — aligned across every team',
+      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`
+    }
   ];
 
   onMount(() => {
@@ -40,7 +52,7 @@
       goto('/dashboard', { replaceState: true });
     }
     const timer = setInterval(() => {
-      carouselIdx = (carouselIdx + 1) % CAPABILITIES.length;
+      carouselIdx = (carouselIdx + 1) % CAROUSEL_ITEMS.length;
     }, 3400);
     return () => clearInterval(timer);
   });
@@ -86,22 +98,59 @@
 
 <div class="login-page">
   <section class="login-hero" aria-labelledby="login-heading">
-    <div class="hero-flow" aria-hidden="true"></div>
+    <!-- Scribble animation replaces static background image -->
+    <div class="hero-scribble" aria-hidden="true">
+      <svg class="scribble-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid slice">
+        <defs>
+          <linearGradient id="sline" x1="0" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#00AFA5" stop-opacity="0" />
+            <stop offset="0.46" stop-color="#00C2B8" stop-opacity="0.9" />
+            <stop offset="1" stop-color="#5EF2D6" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <path
+          class="sp sp--1"
+          pathLength="1"
+          d="M-42 236C151 129 252 390 457 207C655 31 739 188 942 113"
+          stroke="url(#sline)"
+          stroke-width="2.4"
+          stroke-linecap="round"
+          fill="none"
+        />
+        <path
+          class="sp sp--2"
+          pathLength="1"
+          d="M-70 286C145 192 275 345 480 232C662 132 744 277 938 198"
+          stroke="url(#sline)"
+          stroke-width="2.1"
+          stroke-linecap="round"
+          fill="none"
+        />
+        <path
+          class="sp sp--3"
+          pathLength="1"
+          d="M-48 337C191 237 303 405 526 272C701 168 779 318 957 279"
+          stroke="url(#sline)"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          fill="none"
+        />
+      </svg>
+    </div>
 
     <div class="hero-brand" aria-label="Setara">
-      <SetaraLoader mode="orbit" size={80} />
-      <span class="brand-wordmark">setara</span>
+      <SetaraGsapLogo size={180} />
     </div>
 
     <div class="hero-copy">
-      <h1 id="login-heading">Precision testing.<br />Fearless releases.</h1>
+      <h1 id="login-heading">Ship quality,<br />every release.</h1>
       <p>
-        Connect test scenarios, automation coverage, and release gates across every squad — one
-        workspace for your entire delivery lifecycle.
+        Test cases, automation coverage, and release gates — in one focused workspace for your QA
+        squads.
       </p>
     </div>
 
-    <div class="capability-carousel" aria-label="Platform signals">
+    <div class="capability-carousel" aria-label="Platform features">
       <div class="carousel-track">
         {#key carouselIdx}
           <div
@@ -109,14 +158,14 @@
             in:fly={{ y: 22, opacity: 0, duration: 420 }}
             out:fly={{ y: -22, opacity: 0, duration: 260 }}
           >
-            <span class="capability-value">{CAPABILITIES[carouselIdx].value}</span>
-            <span class="capability-label">{CAPABILITIES[carouselIdx].label}</span>
-            <span class="capability-sub">{CAPABILITIES[carouselIdx].sub}</span>
+            <span class="capability-icon">{@html CAROUSEL_ITEMS[carouselIdx].icon}</span>
+            <span class="capability-label">{CAROUSEL_ITEMS[carouselIdx].label}</span>
+            <span class="capability-sub">{CAROUSEL_ITEMS[carouselIdx].sub}</span>
           </div>
         {/key}
       </div>
       <div class="carousel-dots" aria-hidden="true">
-        {#each CAPABILITIES as _, i}
+        {#each CAROUSEL_ITEMS as _, i}
           <button
             class="carousel-dot"
             class:carousel-dot--active={i === carouselIdx}
@@ -147,8 +196,7 @@
 
     <div class="login-card">
       <div class="login-brand">
-        <SetaraLoader mode="progress" size={34} />
-        <span class="card-brand-text">setara</span>
+        <SetaraGsapLogo size={130} loop={true} />
       </div>
 
       <div class="form-heading">
@@ -248,55 +296,61 @@
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: clamp(24px, 4vw, 42px);
+    gap: clamp(22px, 3.5vw, 38px);
     padding: clamp(32px, 6vw, 80px);
     isolation: isolate;
   }
 
-  .hero-flow {
+  /* ── Scribble animation ───────────────────────────────── */
+
+  .hero-scribble {
     position: absolute;
     inset: 8% 0 auto;
     height: min(54vw, 460px);
-    background: url('/setara-flow-lines.svg') center / min(82vw, 980px) auto no-repeat;
-    opacity: 0.92;
-    filter: saturate(1.4);
-    animation: flow-drift 13s ease-in-out infinite alternate;
     z-index: -1;
+    pointer-events: none;
   }
 
-  :global([data-theme='dark']) .hero-flow {
-    opacity: 0.55;
-    filter: saturate(1.1);
+  .scribble-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+  }
+
+  .sp {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: scribble-draw 9s ease-in-out infinite;
+  }
+
+  .sp--2 {
+    animation-delay: -3s;
+    animation-duration: 10s;
+  }
+
+  .sp--3 {
+    animation-delay: -6.2s;
+    animation-duration: 11s;
   }
 
   /* ── Brand mark ────────────────────────────────────────── */
 
   .hero-brand {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-  }
-
-  .brand-wordmark {
-    font-size: clamp(1.6rem, 2.4vw, 2.2rem);
-    font-weight: 900;
-    letter-spacing: -0.03em;
-    color: var(--color-accent);
-    line-height: 1;
+    display: block;
   }
 
   /* ── Hero copy ─────────────────────────────────────────── */
 
   .hero-copy {
-    max-width: 680px;
+    max-width: 620px;
   }
 
   .hero-copy h1 {
     margin: 0;
-    font-size: clamp(2.4rem, 6vw, 5.2rem);
-    line-height: 1.02;
+    font-size: clamp(2rem, 4.2vw, 3.8rem);
+    line-height: 1.08;
     letter-spacing: -0.01em;
-    max-width: 14ch;
+    max-width: 16ch;
     background: linear-gradient(
       145deg,
       var(--color-text) 25%,
@@ -308,10 +362,10 @@
   }
 
   .hero-copy p {
-    max-width: 560px;
-    margin: 20px 0 0;
+    max-width: 520px;
+    margin: 16px 0 0;
     color: var(--color-text-muted);
-    font-size: clamp(1rem, 1.4vw, 1.12rem);
+    font-size: clamp(0.9rem, 1.3vw, 1.06rem);
     line-height: 1.72;
   }
 
@@ -326,7 +380,7 @@
 
   .carousel-track {
     position: relative;
-    height: 114px;
+    height: 100px;
     overflow: hidden;
   }
 
@@ -334,10 +388,10 @@
     position: absolute;
     inset: 0;
     display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: 4px;
-    padding: 18px 22px;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
     border: 1px solid color-mix(in srgb, var(--color-accent), var(--color-border) 55%);
     border-radius: var(--radius);
     background: color-mix(in srgb, var(--color-accent), var(--color-surface) 92%);
@@ -350,16 +404,20 @@
     background: color-mix(in srgb, var(--color-accent), var(--color-surface) 94%);
   }
 
-  .capability-value {
-    font-size: 2.1rem;
-    font-weight: 900;
-    letter-spacing: -0.02em;
+  .capability-icon {
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-accent), transparent 82%);
     color: var(--color-accent);
-    line-height: 1;
   }
 
   .capability-label {
-    font-size: 0.88rem;
+    font-size: 0.9rem;
     font-weight: 700;
     color: var(--color-text);
     line-height: 1.3;
@@ -368,8 +426,7 @@
   .capability-sub {
     font-size: 0.76rem;
     color: var(--color-text-muted);
-    line-height: 1.4;
-    margin-top: 2px;
+    line-height: 1.45;
   }
 
   .carousel-dots {
@@ -469,15 +526,7 @@
   .login-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
     margin-bottom: 22px;
-  }
-
-  .card-brand-text {
-    font-size: 1.1rem;
-    font-weight: 900;
-    letter-spacing: -0.02em;
-    color: var(--color-accent);
   }
 
   .form-heading {
@@ -636,40 +685,12 @@
       color 0.12s;
   }
 
-  .demo-chip--admin {
-    border-color: #7c3aed40;
-    color: #7c3aed;
-    background: #7c3aed0a;
-  }
-
-  .demo-chip--qalead {
-    border-color: #0891b240;
-    color: #0891b2;
-    background: #0891b20a;
-  }
-
-  .demo-chip--qa {
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-    background: var(--color-accent-subtle);
-  }
-
-  .demo-chip--dev {
-    border-color: #15803d40;
-    color: #15803d;
-    background: #15803d0a;
-  }
-
-  .demo-chip--viewer {
-    border-color: #0284c740;
-    color: #0284c7;
-    background: #0284c70a;
-  }
-
-  .demo-chip--guest {
-    border-color: var(--color-border);
-    color: var(--color-text-muted);
-  }
+  .demo-chip--admin { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
+  .demo-chip--qalead { border-color: #0891b240; color: #0891b2; background: #0891b20a; }
+  .demo-chip--qa { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
+  .demo-chip--dev { border-color: #15803d40; color: #15803d; background: #15803d0a; }
+  .demo-chip--viewer { border-color: #0284c740; color: #0284c7; background: #0284c70a; }
+  .demo-chip--guest { border-color: var(--color-border); color: var(--color-text-muted); }
 
   .demo-chip:hover {
     background: var(--color-accent-subtle);
@@ -684,39 +705,28 @@
     line-height: 1.45;
   }
 
-  /* ── Animations ───────────────────────────────────────── */
+  /* ── Keyframes ────────────────────────────────────────── */
 
-  @keyframes flow-drift {
-    from {
-      transform: translateX(-3%) translateY(0) scale(1);
-    }
-    to {
-      transform: translateX(4%) translateY(18px) scale(1.04);
-    }
+  @keyframes scribble-draw {
+    0%   { stroke-dashoffset: 1;  opacity: 0; }
+    8%   { opacity: 1; }
+    40%  { stroke-dashoffset: 0;  opacity: 1; }
+    62%  { stroke-dashoffset: 0;  opacity: 0.85; }
+    76%  { stroke-dashoffset: -1; opacity: 0; }
+    100% { stroke-dashoffset: 1;  opacity: 0; }
   }
 
   @keyframes card-enter {
-    from {
-      opacity: 0;
-      transform: translateY(18px) scale(0.98);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0) scale(1);
-    }
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
   }
 
   @keyframes sep-wave-anim {
-    0%,
-    100% {
-      d: path(
-        'M10 0 C 18 8.33, 2 16.67, 10 25 C 18 33.33, 2 41.67, 10 50 C 18 58.33, 2 66.67, 10 75 C 18 83.33, 2 91.67, 10 100'
-      );
+    0%, 100% {
+      d: path('M10 0 C 18 8.33, 2 16.67, 10 25 C 18 33.33, 2 41.67, 10 50 C 18 58.33, 2 66.67, 10 75 C 18 83.33, 2 91.67, 10 100');
     }
     50% {
-      d: path(
-        'M10 0 C 2 8.33, 18 16.67, 10 25 C 2 33.33, 18 41.67, 10 50 C 2 58.33, 18 66.67, 10 75 C 2 83.33, 18 91.67, 10 100'
-      );
+      d: path('M10 0 C 2 8.33, 18 16.67, 10 25 C 2 33.33, 18 41.67, 10 50 C 2 58.33, 18 66.67, 10 75 C 2 83.33, 18 91.67, 10 100');
     }
   }
 
@@ -734,22 +744,19 @@
       gap: 18px;
     }
 
-    .hero-flow {
+    .hero-scribble {
       inset: 0 -28% auto;
       height: 280px;
-      background-size: 760px auto;
       opacity: 0.5;
     }
 
     .hero-copy h1 {
-      max-width: 16ch;
-      font-size: clamp(2rem, 11vw, 3.5rem);
+      font-size: clamp(1.8rem, 9vw, 3rem);
     }
 
     .hero-copy p {
-      max-width: 44rem;
-      margin-top: 14px;
-      font-size: 0.96rem;
+      margin-top: 12px;
+      font-size: 0.94rem;
     }
 
     .capability-carousel {
@@ -777,16 +784,21 @@
     }
 
     .hero-copy h1 {
-      font-size: clamp(1.8rem, 12vw, 2.65rem);
+      font-size: clamp(1.6rem, 11vw, 2.4rem);
     }
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .hero-flow,
+    .sp,
     .login-card,
     .submit-btn {
       animation: none;
       transition-duration: 0.001ms;
+    }
+
+    .sp {
+      stroke-dashoffset: 0;
+      opacity: 0.6;
     }
 
     .submit-btn:hover:not(:disabled) {
