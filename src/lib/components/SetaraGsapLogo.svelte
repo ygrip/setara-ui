@@ -3,6 +3,11 @@
   import gsap from 'gsap';
   import setaraSvg from '$lib/assets/setara.svg?raw';
 
+  const croppedViewBox = '32 128 252 75';
+  const svgReady = setaraSvg
+    .replace(/width="313"/, 'width="100%"')
+    .replace(/height="313"/, `height="100%" viewBox="${croppedViewBox}" preserveAspectRatio="xMidYMid meet"`);
+
   let {
     size = 172,
     ariaLabel = 'Setara',
@@ -15,17 +20,11 @@
     loop?: boolean;
   } = $props();
 
-  const croppedViewBox = '32 128 252 75';
-
   let root: HTMLDivElement | undefined = $state(undefined);
 
   const cssSize = $derived(typeof size === 'number' ? `${size}px` : size);
 
   function prepareSvg(svg: SVGSVGElement) {
-    svg.setAttribute('viewBox', croppedViewBox);
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-    svg.removeAttribute('width');
-    svg.removeAttribute('height');
     svg.setAttribute('aria-hidden', 'true');
     svg.setAttribute('focusable', 'false');
   }
@@ -128,11 +127,11 @@
   aria-label={ariaLabel}
 >
   <span class="setara-gsap-logo__base">
-    {@html setaraSvg}
+    {@html svgReady}
   </span>
 
   <span class="setara-gsap-logo__shine" aria-hidden="true">
-    {@html setaraSvg}
+    {@html svgReady}
   </span>
 
   <span class="setara-gsap-logo__underline" aria-hidden="true"></span>
@@ -167,6 +166,7 @@
 
   .setara-gsap-logo__base :global(path) {
     fill: #00afa5;
+    opacity: 0;
   }
 
   .setara-gsap-logo__shine {

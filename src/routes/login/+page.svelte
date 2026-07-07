@@ -135,18 +135,37 @@
           stroke-linecap="round"
           fill="none"
         />
+        <path
+          class="sp sp--4"
+          pathLength="1"
+          d="M957 170C770 60 590 310 400 160C240 40 130 230 -42 110"
+          stroke="url(#sline)"
+          stroke-width="1.5"
+          stroke-linecap="round"
+          fill="none"
+        />
+        <path
+          class="sp sp--5"
+          pathLength="1"
+          d="M-60 140C170 320 320 60 540 230C700 360 820 90 960 260"
+          stroke="url(#sline)"
+          stroke-width="2.0"
+          stroke-linecap="round"
+          fill="none"
+        />
       </svg>
     </div>
 
     <div class="hero-brand" aria-label="Setara">
-      <SetaraGsapLogo size={180} />
+      <SetaraLoader mode="orbit" size={50} />
+      <SetaraGsapLogo size={170} />
     </div>
 
     <div class="hero-copy">
-      <h1 id="login-heading">Ship quality,<br />every release.</h1>
+      <h1 id="login-heading">Built for teams<br />that care.</h1>
       <p>
-        Test cases, automation coverage, and release gates — in one focused workspace for your QA
-        squads.
+        Track test scenarios, measure coverage, and automate release gates — one workspace for your
+        whole squad.
       </p>
     </div>
 
@@ -333,10 +352,23 @@
     animation-duration: 11s;
   }
 
+  .sp--4 {
+    animation-name: scribble-draw-rev;
+    animation-delay: -1.9s;
+    animation-duration: 7.5s;
+  }
+
+  .sp--5 {
+    animation-delay: -10.4s;
+    animation-duration: 13s;
+  }
+
   /* ── Brand mark ────────────────────────────────────────── */
 
   .hero-brand {
-    display: block;
+    display: flex;
+    align-items: center;
+    gap: 16px;
   }
 
   /* ── Hero copy ─────────────────────────────────────────── */
@@ -716,6 +748,15 @@
     100% { stroke-dashoffset: 1;  opacity: 0; }
   }
 
+  @keyframes scribble-draw-rev {
+    0%   { stroke-dashoffset: -1; opacity: 0; }
+    8%   { opacity: 0.9; }
+    40%  { stroke-dashoffset: 0;  opacity: 0.9; }
+    62%  { stroke-dashoffset: 0;  opacity: 0.7; }
+    76%  { stroke-dashoffset: 1;  opacity: 0; }
+    100% { stroke-dashoffset: -1; opacity: 0; }
+  }
+
   @keyframes card-enter {
     from { opacity: 0; transform: translateY(18px) scale(0.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -790,15 +831,17 @@
 
   @media (prefers-reduced-motion: reduce) {
     .sp,
+    .sp--4,
     .login-card,
     .submit-btn {
       animation: none;
       transition-duration: 0.001ms;
     }
 
-    .sp {
+    .sp,
+    .sp--4 {
       stroke-dashoffset: 0;
-      opacity: 0.6;
+      opacity: 0.5;
     }
 
     .submit-btn:hover:not(:disabled) {
