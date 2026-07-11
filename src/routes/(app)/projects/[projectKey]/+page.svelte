@@ -40,7 +40,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
@@ -125,7 +125,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.project?.name ?? data.projectKey} — Setara</title>
+  <title>{data.project?.name ?? data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -354,16 +354,16 @@
               <strong class="signal-value {lastRun ? (lastRun.status === 'FAILED' ? 'signal-value--danger' : lastRun.status === 'PASSED' ? 'signal-value--success' : '') : ''}">
                 {lastRun ? lastRun.status : 'No runs'}
               </strong>
-              <span class="signal-context">{lastRun ? formatDate(lastRun.startedAt) : '—'}</span>
+              <span class="signal-context">{lastRun ? formatDate(lastRun.startedAt) : '-'}</span>
             </div>
             <div class="signal-item">
               <span class="signal-label">Last activity</span>
               <strong class="signal-value">{relativeTime(lastRun?.startedAt ?? null)}</strong>
-              <span class="signal-context">{lastRun?.branch ? `on ${lastRun.branch}` : '—'}</span>
+              <span class="signal-context">{lastRun?.branch ? `on ${lastRun.branch}` : '-'}</span>
             </div>
             <div class="signal-item">
               <span class="signal-label">Not automated</span>
-              <strong class="signal-value {(notAutomated ?? 0) > 0 ? 'signal-value--warning' : 'signal-value--success'}">{notAutomated ?? '—'}</strong>
+              <strong class="signal-value {(notAutomated ?? 0) > 0 ? 'signal-value--warning' : 'signal-value--success'}">{notAutomated ?? '-'}</strong>
               <span class="signal-context">scenarios remaining</span>
             </div>
           </div>
@@ -447,7 +447,7 @@
                   {#if run.branch}
                     <span class="branch-chip">{run.branch}</span>
                   {:else}
-                    <span class="muted">—</span>
+                    <span class="muted">-</span>
                   {/if}
                 </td>
                 <td>{formatDate(run.startedAt)}</td>

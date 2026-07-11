@@ -45,7 +45,7 @@ export async function createMlVad(cfg: MlVadConfig): Promise<MlVadHandle | null>
     await vad.start();
     return { pause: () => vad.pause(), resume: () => vad.start(), destroy: () => vad.destroy() };
   } catch (e) {
-    asaWarn('voice', 'ML VAD unavailable — falling back to energy VAD', e);
+    asaWarn('voice', 'ML VAD unavailable - falling back to energy VAD', e);
     return null;
   }
 }

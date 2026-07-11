@@ -7,7 +7,7 @@ import { mockRunsByProject } from './data';
  * Simulates connection lifecycle (open → live) and periodically emits
  * synthetic ExecutionEvents so the dashboard live-activity panel has data.
  *
- * Usage — drop-in replacement for `new WebSocket(url)` in mock mode:
+ * Usage - drop-in replacement for `new WebSocket(url)` in mock mode:
  *
  *   import { MockWebSocket } from '$lib/mock/websocket';
  *   const ws = isMockMode() ? new MockWebSocket(projectKey) : new WebSocket(url);

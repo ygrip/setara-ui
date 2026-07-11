@@ -29,7 +29,7 @@
   ];
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-  <title>API Keys — {data.projectKey} — Setara</title>
+  <title>API Keys - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -172,7 +172,7 @@
               {/if}
             </td>
             <td data-label="Created">{formatDate(key.createdAt)}</td>
-            <td data-label="Last Used">—</td>
+            <td data-label="Last Used">-</td>
             <td data-label="">
               {#if !key.revokedAt}
                 <AppDropdown label="Actions">
@@ -190,7 +190,7 @@
 
 <Modal
   open={showModal}
-  title={revealedKey ? 'Key Created — Save It Now' : 'New API Key'}
+  title={revealedKey ? 'Key Created - Save It Now' : 'New API Key'}
   onclose={() => { showModal = false; revealedKey = ''; }}
 >
   {#if revealedKey}

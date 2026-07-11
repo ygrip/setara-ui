@@ -165,7 +165,7 @@
                 <span class="na">No runs</span>
               {/if}
             </td>
-            <td>{project.openFailures ?? '—'}</td>
+            <td>{project.openFailures ?? '-'}</td>
             <td><QualityStatusBadge status={project.status} /></td>
             <td title={project.lastExecutionAt ? new Date(project.lastExecutionAt).toLocaleString() : 'No execution data'}>
               {activity(project.lastExecutionAt)}

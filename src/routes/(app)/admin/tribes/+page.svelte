@@ -6,6 +6,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { createTribe, updateTribe, deleteTribe, getTribe, listTribes, searchUsers, type Tribe, type TribeDetail, type UserDetail } from '$lib/api/organization';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -187,9 +188,15 @@
   <Card padding="md">
     <h2 class="panel-title">Tribes</h2>
     {#if tribes.length === 0}
-      <p class="empty-text">No tribes yet.</p>
+      <EmptyState title="No tribes yet" hint="Tribes you create will show up here." minHeight="240px">
+        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8" />
+          <path d="M3.5 8 6 3h12l2.5 5" />
+          <path d="M3 8h5.5l1 2h5l1-2H21" />
+        </svg>
+      </EmptyState>
     {:else}
-      <DataTable mobileCards={true}>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th><button class="sort-btn" onclick={() => toggleSort('name')}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
@@ -302,7 +309,6 @@
     color: var(--color-text);
   }
 
-  .empty-text { color: var(--color-text-muted); font-size: 0.875rem; }
 
   .input {
     padding: 8px 10px;
@@ -330,11 +336,17 @@
   .delete-warning { color: var(--color-text); font-size: 0.9rem; line-height: 1.5; }
   .modal-actions { display: flex; gap: 8px; justify-content: flex-end; padding-top: 8px; }
 
-  .search-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; }
-  .search-wrap { position: relative; flex: 1; max-width: 360px; }
+  .search-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 360px; }
   .search-input { width: 100%; box-sizing: border-box; padding: 8px 12px 8px 34px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; outline: none; transition: border-color 0.15s; }
   .search-input:focus { border-color: var(--color-accent); }
   .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
   .sort-btn { background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--color-text-muted); padding: 0; white-space: nowrap; }
   .sort-btn:hover { color: var(--color-text); }
+
+  @media (max-width: 560px) {
+    .search-bar { flex-direction: column; align-items: stretch; }
+    .search-wrap { max-width: none; }
+    .modal-actions { flex-wrap: wrap; }
+  }
 </style>

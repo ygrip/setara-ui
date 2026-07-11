@@ -141,7 +141,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
     });
@@ -231,7 +231,7 @@
 </script>
 
 <svelte:head>
-  <title>Executions — {data.projectKey} — Setara</title>
+  <title>Executions - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -386,9 +386,9 @@
             <tr class="clickable-row" onclick={() => goto(`/projects/${data.projectKey}/executions/${run.id}`)}>
               <td><Badge text={run.status} variant={runStatusVariant(run.status)} /></td>
               <td class="mono">{run.runnerId}</td>
-              <td class="col-hide-sm">{run.branch ?? '—'}</td>
-              <td class="col-hide-md">{run.environment ?? '—'}</td>
-              <td class="col-hide-md">{run.framework ?? '—'}</td>
+              <td class="col-hide-sm">{run.branch ?? '-'}</td>
+              <td class="col-hide-md">{run.environment ?? '-'}</td>
+              <td class="col-hide-md">{run.framework ?? '-'}</td>
               <td class="nowrap">{formatDate(run.startedAt)}</td>
               <td class="col-hide-sm nowrap">{duration(run.startedAt, run.finishedAt)}</td>
             </tr>

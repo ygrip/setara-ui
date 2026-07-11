@@ -57,7 +57,7 @@
   const stepLabels = ['Upload', 'Review', 'Import', 'Done'];
   const stepMap: Record<Step, number> = { upload: 0, validated: 1, importing: 2, done: 3 };
 
-  // Zag.js Steps machine — purely visual progress indicator
+  // Zag.js Steps machine - purely visual progress indicator
   const stepsService = useMachine(steps.machine, {
     id: 'import-stepper',
     count: stepLabels.length,
@@ -185,7 +185,7 @@
     try {
       result = await executeImport(data.projectKey, file, duplicateStrategy, defaultStatus);
       if (result.status === 'QUEUED') {
-        // Large file — switch to polling mode
+        // Large file - switch to polling mode
         startPolling(result.importId);
       } else {
         step = 'done';
@@ -219,7 +219,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString();
   }
 
@@ -233,7 +233,7 @@
     }
   }
 
-  // The effective job for the done step — either async polled or sync result
+  // The effective job for the done step - either async polled or sync result
   const doneJob = $derived(polledJob ?? (result && step === 'done' ? {
     importId: result.importId,
     status: result.status,
@@ -252,7 +252,7 @@
 </script>
 
 <svelte:head>
-  <title>Import Scenarios — {data.projectKey} — Setara</title>
+  <title>Import Scenarios - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -274,7 +274,7 @@
     <a class="btn-outline" href="/projects/{data.projectKey}/repository">← Repository</a>
   </div>
 
-  <!-- Zag.js Steps — visual progress indicator -->
+  <!-- Zag.js Steps - visual progress indicator -->
   <div {...stepsApi.getRootProps()} class="import-stepper">
     <div {...stepsApi.getListProps()}>
       {#each stepLabels as label, i}
@@ -341,8 +341,8 @@
           <div class="option-group">
             <label class="option-label" for="def-status">Default Scenario Status</label>
             <select id="def-status" bind:value={defaultStatus} class="select">
-              <option value="DRAFT">Draft — requires review</option>
-              <option value="ACTIVE">Active — publish immediately</option>
+              <option value="DRAFT">Draft - requires review</option>
+              <option value="ACTIVE">Active - publish immediately</option>
             </select>
             <p class="option-hint">Applied when the row has no <code>status</code> column.</p>
           </div>
@@ -404,14 +404,14 @@
           {#if validation.totalRows > 500}
             <div class="callout info">
               <strong>Large file detected ({validation.totalRows} rows).</strong>
-              Import will run asynchronously in the background — you'll see a live progress status below.
+              Import will run asynchronously in the background - you'll see a live progress status below.
             </div>
           {/if}
 
           {#if validation.errorCount > 0}
             <div class="callout danger"><strong>Cannot import:</strong> {validation.errorCount} rows have errors that must be fixed first.</div>
           {:else if validation.warningCount > 0}
-            <div class="callout warning"><strong>{validation.warningCount} warnings</strong> found — you can still import.</div>
+            <div class="callout warning"><strong>{validation.warningCount} warnings</strong> found - you can still import.</div>
           {:else}
             <div class="callout success"><strong>All rows look good!</strong> Ready to import {validation.newScenarioCount} new scenarios.</div>
           {/if}
@@ -607,7 +607,7 @@
           <tbody>
             {#each history as job}
               <tr>
-                <td class="file-cell" data-label="File" title={job.fileName ?? ''}>{job.fileName ?? '—'}</td>
+                <td class="file-cell" data-label="File" title={job.fileName ?? ''}>{job.fileName ?? '-'}</td>
                 <td data-label="Status"><span class="badge {statusBadgeClass(job.status)}">{job.status}</span></td>
                 <td data-label="Rows">{job.totalRows}</td>
                 <td class="success-cell" data-label="OK">{job.successCount}</td>
@@ -683,7 +683,7 @@
     transition: background 0.2s, border-color 0.2s, color 0.2s;
   }
 
-  /* borders between adjacent triggers — no border-right on last */
+  /* borders between adjacent triggers - no border-right on last */
   .import-stepper [data-part="item"]:not(:last-child) [data-part="trigger"] {
     border-right: none;
   }
@@ -749,7 +749,7 @@
     color: var(--color-text-muted);
   }
 
-  /* Separator — hidden; borders on triggers handle visual separation */
+  /* Separator - hidden; borders on triggers handle visual separation */
   .import-stepper [data-part="separator"] {
     display: none;
   }

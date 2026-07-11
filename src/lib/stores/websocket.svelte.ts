@@ -53,7 +53,7 @@ class WebSocketManager {
 
   /**
    * Close the active connection and cancel any pending reconnect.
-   * Does NOT remove registered handlers — call the returned unsubscribe fn for that.
+   * Does NOT remove registered handlers - call the returned unsubscribe fn for that.
    */
   disconnect(): void {
     this.teardown();
@@ -63,7 +63,7 @@ class WebSocketManager {
 
   /**
    * Register a handler for incoming ExecutionEvents.
-   * Returns an unsubscribe function — call it in onDestroy to avoid leaks.
+   * Returns an unsubscribe function - call it in onDestroy to avoid leaks.
    */
   addHandler(fn: (event: ExecutionEvent) => void): () => void {
     this.handlers.add(fn);
@@ -124,5 +124,5 @@ class WebSocketManager {
   }
 }
 
-/** Singleton — import and use directly in components. */
+/** Singleton - import and use directly in components. */
 export const wsManager = new WebSocketManager();

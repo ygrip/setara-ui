@@ -14,7 +14,7 @@
 </script>
 
 <svelte:head>
-  <title>Release Plan Map — {data.squadId} — Setara</title>
+  <title>Release Plan Map - {data.squadId} - Setara</title>
 </svelte:head>
 
 <div class="page">

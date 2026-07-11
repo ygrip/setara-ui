@@ -23,11 +23,11 @@
   let typeFilter = $state('');
   let priorityFilter = $state('');
 
-  // Scenario sort — client-side (all data loaded upfront)
+  // Scenario sort - client-side (all data loaded upfront)
   let scenarioSortBy = $state<'name' | 'priority'>('name');
   let scenarioSortDir = $state<'asc' | 'desc'>('asc');
 
-  // Selection — persists across dir switches
+  // Selection - persists across dir switches
   let selectedIds = $state<Set<string>>(new Set());
   let selectedScenarios = $state<Map<string, Scenario>>(new Map());
 
@@ -66,7 +66,7 @@
   // ── Derived ──────────────────────────────────────────────────
   const tree = $derived(buildTree(data.directories as TestDirectory[], data.scenarios as Scenario[]));
 
-  // Filter tree nodes by search (flattened match — highlight matching nodes)
+  // Filter tree nodes by search (flattened match - highlight matching nodes)
   const dirSearchLower = $derived(dirSearch.toLowerCase());
   function nodeMatchesSearch(node: TreeNode): boolean {
     if (!dirSearchLower) return true;
@@ -235,7 +235,7 @@
 </script>
 
 <svelte:head>
-  <title>Add Manually — {data.buildId} — Setara</title>
+  <title>Add Manually - {data.buildId} - Setara</title>
 </svelte:head>
 
 <!-- SVG icons (matching repository page) -->
@@ -446,7 +446,7 @@
             <tr>
               <td data-label="Key"><code class="mono">{s.scenarioKey}</code></td>
               <td data-label="Name">{s.name}</td>
-              <td data-label="Directory" class="muted">{sDir?.name ?? s.featureName ?? '—'}</td>
+              <td data-label="Directory" class="muted">{sDir?.name ?? s.featureName ?? '-'}</td>
               <td data-label="Priority"><span class="prio-badge {priorityVariant(s.priority)}">{s.priority ?? 'UNSET'}</span></td>
               <td data-label="Status"><Badge text={s.status} variant={statusVariant(s.status)} /></td>
               <td data-label="">

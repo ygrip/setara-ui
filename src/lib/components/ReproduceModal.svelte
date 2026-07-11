@@ -113,7 +113,7 @@
     {#if failedStep}
       <p class="failed-at">
         Failed at step <strong>{failedStep.num}</strong>
-        {#if visibleSteps.length > 1}— steps leading up to failure:
+        {#if visibleSteps.length > 1}- steps leading up to failure:
         {/if}
       </p>
     {/if}

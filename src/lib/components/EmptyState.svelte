@@ -243,13 +243,6 @@
       padding: 48px 20px;
     }
 
-    .empty-icon {
-      width: 56px;
-      height: 56px;
-      border-radius: 14px;
-      margin-bottom: 16px;
-    }
-
     .empty-title {
       font-size: 1rem;
     }

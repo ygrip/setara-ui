@@ -282,7 +282,7 @@
     onpointerdown={onViewportPointerDown}
     onwheel={onWheel}
     role="img"
-    aria-label="Interactive quality map — drag to pan, scroll to zoom"
+    aria-label="Interactive quality map - drag to pan, scroll to zoom"
   >
     <!-- Transform wrapper for pan+zoom -->
     <div
@@ -483,7 +483,7 @@
 
   .map-viewport.is-panning { cursor: grabbing; }
 
-  /* Canvas transform wrapper — pan+zoom target */
+  /* Canvas transform wrapper - pan+zoom target */
   .map-canvas-wrap {
     position: absolute;
     top: 0;

@@ -40,7 +40,7 @@ function snapshotContext(): Record<string, unknown> {
 class AsaStore {
   available = $state(false);
   voiceEnabled = $state(false);
-  /** Sidecar voice (STT/TTS) reachable — gates mic + spoken replies. False → text-only. */
+  /** Sidecar voice (STT/TTS) reachable - gates mic + spoken replies. False → text-only. */
   voiceSidecar = $state(false);
   checked = $state(false);
   orbState = $state<AsaOrbState>('hidden');
@@ -173,7 +173,7 @@ class AsaStore {
     this.abortController = new AbortController();
     // Speak the reply sentence-by-sentence as it streams (sidecar voice only; no-op if TTS off).
     if (this.voiceSidecar) this.safeVoiceCall('beginSpeech', () => sidecarVoice.beginSpeech());
-    else asaLog('chat', 'voice sidecar unavailable — reply is text-only');
+    else asaLog('chat', 'voice sidecar unavailable - reply is text-only');
 
     let ok = false;
     let gotError = false;
@@ -232,7 +232,7 @@ class AsaStore {
             break;
           }
           case 'speech': {
-            // Dedicated spoken text (separate from the displayed markdown) — speak only this.
+            // Dedicated spoken text (separate from the displayed markdown) - speak only this.
             // Fire-and-forget: TTS failures must never propagate into the chat stream loop.
             this.thinkingText = null;
             const speechText = String(event.payload.text ?? '');

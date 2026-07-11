@@ -30,12 +30,12 @@ const VAD_ONSET_FRAMES = 3; // consecutive loud frames required to START (deboun
 const VAD_SETTLE_MS = 450; // ignore onset right after arming (skip TTS tail / room echo)
 const VAD_MIN_PEAK_RMS = 0.06; // an utterance must peak above this, else it's just noise → discard
 // Let the browser clean the mic input: cancel speaker echo (ASA's own TTS), suppress steady noise,
-// and normalize level. Big, free quality win — applied to every capture.
+// and normalize level. Big, free quality win - applied to every capture.
 const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
   audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 };
 
-const TTS_FRAME_MS = 480;   // merge streamed PCM into larger buffers — fewer AudioBufferSourceNode allocations/GC per reply
+const TTS_FRAME_MS = 480;   // merge streamed PCM into larger buffers - fewer AudioBufferSourceNode allocations/GC per reply
 const TTS_PREROLL_MS = 480; // jitter buffer: hold playback back this long so decode jitter can't underrun
 const TTS_UNDERRUN_RECOVERY_MS = 160; // when CPU falls behind, rebuild lead; larger = fewer cascade underruns
 const STREAM_RATE = 16_000; // sidecar's native STT rate; we downsample the mic to this before sending
@@ -58,7 +58,7 @@ function downsamplePcm16(input: Float32Array, ratio: number): ArrayBuffer {
 }
 
 /** Maps an STT failure reason to the plain, actionable copy from the voice error UX plan
- *  (setara-s94o.11) — falls back to the sidecar's own detail message for reasons that don't have
+ *  (setara-s94o.11) - falls back to the sidecar's own detail message for reasons that don't have
  *  a fixed canned message (e.g. quota/format, which already carry a clear plain-text detail). */
 function sttErrorMessage(reason: SttErrorReason, detail: string): string {
   switch (reason) {
@@ -215,14 +215,14 @@ class SidecarVoice {
   async startRecording(): Promise<void> {
     if (this.busy) return;
     this.stopAudio(); // barge-in: silence ASA the moment the user starts talking
-    // This click is a user gesture — unlock audio now so the (voice-triggered) spoken reply,
+    // This click is a user gesture - unlock audio now so the (voice-triggered) spoken reply,
     // which fires later outside any gesture, isn't blocked by the autoplay policy.
     this.ensureAudioContext();
     this.error = null;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
     } catch {
-      this.fail('Microphone access denied — allow it in browser settings.');
+      this.fail('Microphone access denied - allow it in browser settings.');
       return;
     }
     this.chunks = [];
@@ -295,7 +295,7 @@ class SidecarVoice {
 
   /**
    * Normalize + entity-resolve a raw transcript (from batch /stt OR the streaming final). No LLM
-   * "refine" pass — it added a round-trip of latency and often rewrote a correct transcript into
+   * "refine" pass - it added a round-trip of latency and often rewrote a correct transcript into
    * the wrong intent; accuracy comes from the STT model + hotword biasing + entity resolution.
    */
   private async finalizeTranscript(raw: string): Promise<SidecarTranscript> {
@@ -353,7 +353,7 @@ class SidecarVoice {
   /** Prepare for a reply: cancel any prior playback and unlock audio. Call inside the user gesture. */
   beginSpeech(): void {
     this.stopAudio(); // cancels any prior playback + bumps the generation + resets the queue
-    if (!this.ttsEnabled) { asaLog('voice', 'TTS disabled — reply will be text-only'); return; }
+    if (!this.ttsEnabled) { asaLog('voice', 'TTS disabled - reply will be text-only'); return; }
     this.turnState = 'speaking';
     this.ensureAudioContext();
   }
@@ -384,7 +384,7 @@ class SidecarVoice {
   }
 
   private async synthAndPlay(text: string, gen: number): Promise<void> {
-    if (gen !== this.speechGen) return; // barge-in happened — drop this utterance
+    if (gen !== this.speechGen) return; // barge-in happened - drop this utterance
     const ctx = this.ensureAudioContext();
     if (!ctx) return;
     // Prefer the streaming endpoint (playback starts on first chunk); fall back to batch synth.
@@ -505,7 +505,7 @@ class SidecarVoice {
 
   private async synthAndPlayBatch(text: string, gen: number, ctx: AudioContext): Promise<void> {
     const blob = await synthesizeSpeech(text, this.voiceId ?? undefined);
-    if (!blob) { asaWarn('voice', 'TTS synth returned nothing — sidecar unavailable?'); return; }
+    if (!blob) { asaWarn('voice', 'TTS synth returned nothing - sidecar unavailable?'); return; }
     if (gen !== this.speechGen) return;
     let buffer: AudioBuffer;
     try {
@@ -549,7 +549,7 @@ class SidecarVoice {
     void this.playCueAsync(cue);
   }
 
-  /** Short static beep for mic-on — replaces the spoken "Yes?" cue some users found annoying. */
+  /** Short static beep for mic-on - replaces the spoken "Yes?" cue some users found annoying. */
   beep(freq = 880): void {
     if (!this.earcons) return;
     const ctx = this.ensureAudioContext();
@@ -657,7 +657,7 @@ class SidecarVoice {
 
   /**
    * Turn finished. Play the static "done" chime ONLY for a successful turn that produced content but
-   * was NOT spoken (e.g. an action/navigation, or TTS off) — a spoken answer is its own completion,
+   * was NOT spoken (e.g. an action/navigation, or TTS off) - a spoken answer is its own completion,
    * and an error already played the sorry cue, so neither should also get a "done". Re-arm hands-free
    * unless the turn was aborted.
    */
@@ -696,7 +696,7 @@ class SidecarVoice {
     try {
       if (!this.stream) this.stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
     } catch {
-      this.fail('Microphone access denied — allow it in browser settings.');
+      this.fail('Microphone access denied - allow it in browser settings.');
       return;
     }
     if (!this.handsFree || generation !== this.handsFreeGeneration) { this.releaseStream(true); return; }
@@ -873,7 +873,7 @@ class SidecarVoice {
       }
     } else {
       if (transcript) asaLog('voice', 'hands-free: dropped likely STT hallucination', transcript.text);
-      void this.armHandsFree(); // nothing usable — keep listening
+      void this.armHandsFree(); // nothing usable - keep listening
     }
   }
 

@@ -15,7 +15,7 @@
   const CELL_H = 13;           // cell height (px), fixed
   const GAP_H  = 3;            // vertical gap between rows, fixed
   const CTH    = CELL_H + GAP_H; // row pitch = 16 px, fixed
-  const CHART_H = TOP_PAD + 7 * CTH; // = 132 px — constant for all periods
+  const CHART_H = TOP_PAD + 7 * CTH; // = 132 px - constant for all periods
 
   // ── Variable horizontal metrics → columns fill the card width ────
   // Cell width expands/shrinks so that numWeeks columns fill the container.
@@ -67,7 +67,7 @@
     }))
   );
 
-  // Month labels — x position uses CTW, y is fixed in the top-pad area
+  // Month labels - x position uses CTW, y is fixed in the top-pad area
   const monthLabels = $derived(
     timeMonths(startDate, endDate).map((md: Date) => ({
       label: format(md, 'MMM'),
@@ -103,9 +103,9 @@
 
   function cellTitle(data: unknown, date: Date): string {
     const ds = date.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
-    if (!data || typeof data !== 'object') return `${ds} — No runs`;
+    if (!data || typeof data !== 'object') return `${ds} - No runs`;
     const d = data as Record<string, unknown>;
-    if (!('runCount' in d) || (d.runCount as number) === 0) return `${ds} — No runs`;
+    if (!('runCount' in d) || (d.runCount as number) === 0) return `${ds} - No runs`;
     return `${ds}\n${d.runCount} run(s) · ${Math.round(d.passRate as number)}% pass`;
   }
 
@@ -129,7 +129,7 @@
       padding={{ top: TOP_PAD, left: LEFT_PAD, right: 2, bottom: 2 }}
     >
       <Svg>
-        <!-- Month labels — x keyed to CTW so they track column width -->
+        <!-- Month labels - x keyed to CTW so they track column width -->
         {#each monthLabels as ml}
           <text
             x={ml.col * CTW + CTW / 2}
@@ -142,7 +142,7 @@
           >{ml.label}</text>
         {/each}
 
-        <!-- Day-of-week labels — y keyed to fixed CTH -->
+        <!-- Day-of-week labels - y keyed to fixed CTH -->
         {#each DOW_LABELS as { label, row }}
           <text
             x={-5}

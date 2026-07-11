@@ -103,7 +103,7 @@
   init();
 </script>
 
-<svelte:head><title>AI Scenario Suggestions — Setara</title></svelte:head>
+<svelte:head><title>AI Scenario Suggestions - Setara</title></svelte:head>
 
 <div class="page">
   <nav class="breadcrumb">

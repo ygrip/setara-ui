@@ -28,7 +28,7 @@
     nextCursor = data.buildsPage.nextCursor;
   });
 
-  // Combined filter effect — single effect, skip initial mount (SSR already loaded)
+  // Combined filter effect - single effect, skip initial mount (SSR already loaded)
   let filterMounted = false;
   $effect(() => {
     const status = statusFilter;
@@ -41,10 +41,10 @@
     }, 300);
   });
 
-  // Infinite scroll — $effect tracks nextCursor so observer is re-created on each new page
+  // Infinite scroll - $effect tracks nextCursor so observer is re-created on each new page
   $effect(() => {
     const el = sentinel;
-    const cursor = nextCursor; // tracked dependency — effect re-runs when cursor changes
+    const cursor = nextCursor; // tracked dependency - effect re-runs when cursor changes
     if (!el || !cursor) return;
     const obs = new IntersectionObserver((entries) => {
       if (entries[0].isIntersecting) loadMore();
@@ -65,7 +65,7 @@
     }
   }
 
-  // No client-side filtering — results come from backend
+  // No client-side filtering - results come from backend
   const filtered = $derived(builds);
 
   function statusVariant(status: string): 'success' | 'danger' | 'info' | 'warning' | 'neutral' {
@@ -78,7 +78,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
@@ -175,7 +175,7 @@
                 {#if build.version}
                   <span class="version-chip">{build.version}</span>
                 {:else}
-                  <span class="muted">—</span>
+                  <span class="muted">-</span>
                 {/if}
               </td>
               <td class="num">{build.metrics.totalScenarios}</td>
@@ -204,7 +204,7 @@
     <label>Build key <span class="opt">(optional)</span><input bind:value={form.buildKey} placeholder="payment-rc2" /></label>
     <label>Version <span class="opt">(optional)</span><input bind:value={form.version} placeholder="2026.05.2" /></label>
     <label>Description <span class="opt">(optional)</span><textarea bind:value={form.description} rows="2"></textarea></label>
-    <label>Build Requirements <span class="opt">(optional)</span><textarea bind:value={form.requirements} rows="4" placeholder="Describe what this build must verify — used by AI scenario suggestions"></textarea></label>
+    <label>Build Requirements <span class="opt">(optional)</span><textarea bind:value={form.requirements} rows="4" placeholder="Describe what this build must verify - used by AI scenario suggestions"></textarea></label>
     <div class="modal-actions">
       <Button variant="secondary" size="sm" onclick={() => showCreate = false}>Cancel</Button>
       <Button variant="primary" size="sm" type="submit" disabled={creating}>{creating ? 'Creating…' : 'Create'}</Button>

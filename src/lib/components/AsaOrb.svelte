@@ -6,11 +6,11 @@
   import { sidecarVoice, type SidecarTranscript } from '$lib/voice/sidecar-voice.svelte';
   import { getValidSession } from '$lib/auth';
 
-  // Push-to-talk transcript awaiting user review — never auto-sent (setara-s94o.10).
+  // Push-to-talk transcript awaiting user review - never auto-sent (setara-s94o.10).
   let pendingTranscript = $state<SidecarTranscript | null>(null);
   let pendingDraft = $state('');
 
-  // Dev/admin voice diagnostics panel (setara-s94o.12) — mode/provider/model come from GET
+  // Dev/admin voice diagnostics panel (setara-s94o.12) - mode/provider/model come from GET
   // /models; last-request latency/fallback come from sidecarVoice.lastSttStats.
   const DIAGNOSTICS_ROLES = new Set(['SYSTEM_ADMIN', 'ADMIN', 'DEVELOPER']);
   const canSeeDiagnostics = DIAGNOSTICS_ROLES.has(getValidSession()?.role ?? '');
@@ -207,7 +207,7 @@
   }
 
   // Sidecar push-to-talk: click to record, click again to stop → transcribe → show an editable
-  // review panel. Never auto-sent — the user edits/confirms or discards (setara-s94o.10).
+  // review panel. Never auto-sent - the user edits/confirms or discards (setara-s94o.10).
   async function toggleSidecarMic() {
     if (sidecarVoice.recording) {
       const transcript = await sidecarVoice.stopRecording();
@@ -310,7 +310,7 @@
     });
   });
 
-  // Arm hands-free only while the panel is open (mic off otherwise — privacy).
+  // Arm hands-free only while the panel is open (mic off otherwise - privacy).
   $effect(() => {
     sidecarVoice.syncHandsFree(asa.open && asa.voiceSidecar);
   });
@@ -337,7 +337,7 @@
     style="left:{orbX}px;top:{orbY}px;width:{ORB_SIZE}px;height:{ORB_SIZE}px"
     role="button"
     tabindex="0"
-    aria-label="ASA — AI Assistant (press to open)"
+    aria-label="ASA - AI Assistant (press to open)"
     onpointerdown={onOrbPointerDown}
     onpointermove={onOrbPointerMove}
     onpointerup={onOrbPointerUp}
@@ -547,8 +547,8 @@
               <dt>STT provider</dt><dd>{voiceModelsInfo.stt.activeProvider}</dd>
               <dt>STT model</dt><dd>{voiceModelsInfo.stt.activeModel}</dd>
               <dt>Fallback</dt><dd>{voiceModelsInfo.stt.fallbackProvider ? `enabled (${voiceModelsInfo.stt.fallbackProvider})` : 'disabled'}</dd>
-              <dt>Last latency</dt><dd>{sidecarVoice.lastSttStats?.latencyMs != null ? `${sidecarVoice.lastSttStats.latencyMs}ms` : '—'}</dd>
-              <dt>Fallback used</dt><dd>{sidecarVoice.lastSttStats ? (sidecarVoice.lastSttStats.fallbackUsed ? 'true' : 'false') : '—'}</dd>
+              <dt>Last latency</dt><dd>{sidecarVoice.lastSttStats?.latencyMs != null ? `${sidecarVoice.lastSttStats.latencyMs}ms` : '-'}</dd>
+              <dt>Fallback used</dt><dd>{sidecarVoice.lastSttStats ? (sidecarVoice.lastSttStats.fallbackUsed ? 'true' : 'false') : '-'}</dd>
             </dl>
           {:else}
             <span class="voice-diagnostics__empty">Voice service info unavailable.</span>
@@ -1145,7 +1145,7 @@
   .msg-md :global(strong) { font-weight: 700; color: var(--color-text); }
   .msg-md :global(em) { font-style: italic; }
   .msg-md :global(hr) { border: none; border-top: 1px solid var(--color-border, #e2e8f0); margin: 8px 0; }
-  /* Tables can be wider than the bubble — let them scroll instead of overflowing. */
+  /* Tables can be wider than the bubble - let them scroll instead of overflowing. */
   .msg-md :global(table) { border-collapse: collapse; margin: 6px 0; font-size: 12px; display: block; overflow-x: auto; max-width: 100%; }
   .msg-md :global(th), .msg-md :global(td) { border: 1px solid var(--color-border, #e2e8f0); padding: 3px 6px; white-space: nowrap; }
   .msg-md :global(th) { background: rgba(100,116,139,0.1); font-weight: 600; text-align: left; }
@@ -1156,7 +1156,7 @@
     color: var(--color-text-muted, #64748b);
   }
 
-  /* Clarification option buttons — ASA asking the user to choose. */
+  /* Clarification option buttons - ASA asking the user to choose. */
   .msg-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
   .msg-option-btn {
     padding: 5px 11px;

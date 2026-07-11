@@ -1,5 +1,5 @@
 /**
- * openapi.d.ts — Generated from the Setara backend OpenAPI spec.
+ * openapi.d.ts - Generated from the Setara backend OpenAPI spec.
  *
  * DO NOT EDIT manually. Regenerate with:
  *   npm run generate:types

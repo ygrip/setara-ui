@@ -47,7 +47,7 @@
 </script>
 
 <svelte:head>
-  <title>Settings — {data.projectKey} — Setara</title>
+  <title>Settings - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">

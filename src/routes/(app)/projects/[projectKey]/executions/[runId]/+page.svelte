@@ -67,7 +67,7 @@
   // ── Formatters ──────────────────────────────────────────────────────────────
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -83,7 +83,7 @@
   }
 
   function durationMs(ms: number | null): string {
-    if (ms == null) return '—';
+    if (ms == null) return '-';
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s}s`;
     return `${Math.floor(s / 60)}m ${s % 60}s`;
@@ -249,7 +249,7 @@
 </script>
 
 <svelte:head>
-  <title>Run {shortRunId} — {data.projectKey} — Setara</title>
+  <title>Run {shortRunId} - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <!-- Scenario result detail panel (slide-in from right) -->
@@ -333,23 +333,23 @@
         <div class="meta-grid">
           <div class="meta-item">
             <span class="meta-label">Environment</span>
-            <span class="meta-value">{run.environment ?? '—'}</span>
+            <span class="meta-value">{run.environment ?? '-'}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Branch</span>
-            <span class="meta-value">{run.branch ?? '—'}</span>
+            <span class="meta-value">{run.branch ?? '-'}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Commit SHA</span>
-            <span class="meta-value mono">{run.commitSha ? run.commitSha.slice(0, 8) : '—'}</span>
+            <span class="meta-value mono">{run.commitSha ? run.commitSha.slice(0, 8) : '-'}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Framework</span>
-            <span class="meta-value">{run.framework ?? '—'}</span>
+            <span class="meta-value">{run.framework ?? '-'}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Job</span>
-            <span class="meta-value">{run.jobName ?? '—'}</span>
+            <span class="meta-value">{run.jobName ?? '-'}</span>
           </div>
           <div class="meta-item">
             <span class="meta-label">Build</span>
@@ -542,7 +542,7 @@
                       {result.exceptionType ?? 'Error'}
                     </span>
                   {:else}
-                    <span class="muted">—</span>
+                    <span class="muted">-</span>
                   {/if}
                 </td>
               </tr>

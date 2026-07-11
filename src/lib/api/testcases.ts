@@ -628,7 +628,7 @@ export async function suggestScenarioSteps(
   );
 }
 
-// Streaming variant — SSE: tokens → "[DONE]" → final StepSuggestionResponse JSON.
+// Streaming variant - SSE: tokens → "[DONE]" → final StepSuggestionResponse JSON.
 // Calls the callback with each token as it arrives, resolves with the parsed response.
 export async function suggestScenarioStepsStream(
   projectKey: string,
@@ -675,12 +675,12 @@ export async function suggestScenarioStepsStream(
       const line = part.trim();
       if (!line.startsWith('data:')) continue;
       const data = line.slice(5).replace(/\r$/, '');
-      // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
+      // IMPORTANT: do NOT .trim() the data - LLM tokens include leading
       // spaces that separate words (e.g. " scenarios" vs "scenarios").
       // Exception: control sentinel and JSON payload are always trimmed.
 
       // Quarkus SSE sends "data: value" (space after colon), so
-      // line.slice(5) yields " [DONE]" — use trimStart() for the check only.
+      // line.slice(5) yields " [DONE]" - use trimStart() for the check only.
       if (data.trimStart() === '[DONE]') {
         doneReceived = true;
         continue;
@@ -691,7 +691,7 @@ export async function suggestScenarioStepsStream(
           finalResult = JSON.parse(data.trim()) as StepSuggestionResponse;
           doneReceived = false; // reset for any subsequent events
         } catch {
-          // JSON parse failed — keep finalResult null, will fallback
+          // JSON parse failed - keep finalResult null, will fallback
         }
         continue;
       }
@@ -704,7 +704,7 @@ export async function suggestScenarioStepsStream(
     }
   }
 
-  // Stream ended — return parsed result or fallback
+  // Stream ended - return parsed result or fallback
   if (finalResult) return finalResult;
   // If we got [DONE] but no JSON in the same stream, try parsing
   // whatever remains in the buffer as a last resort

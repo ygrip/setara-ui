@@ -91,14 +91,14 @@
   const closedPlans = $derived(plans.filter(p => p.status === 'CLOSED').length);
 
   function formatDate(d: string | null | undefined) {
-    if (!d) return '—';
+    if (!d) return '-';
     return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   function buildProgress(plan: ReleasePlan): string {
     const total = plan.totalBuilds ?? 0;
     const verified = plan.verifiedBuilds ?? 0;
-    if (total === 0) return '—';
+    if (total === 0) return '-';
     return `${verified} / ${total}`;
   }
 
@@ -132,7 +132,7 @@
   }
 </script>
 
-<svelte:head><title>Release Plans — Setara</title></svelte:head>
+<svelte:head><title>Release Plans - Setara</title></svelte:head>
 
 <div class="page">
   <div class="page-header">
@@ -250,7 +250,7 @@
                   <span class="plan-desc">{plan.description}</span>
                 {/if}
               </td>
-              <td class="muted">{plan.squadName ?? '—'}</td>
+              <td class="muted">{plan.squadName ?? '-'}</td>
               <td class="nowrap muted">{formatDate(plan.releaseDate)}</td>
               <td>
                 {#if (plan.totalBuilds ?? 0) > 0}
@@ -262,10 +262,10 @@
                     </div>
                   </div>
                 {:else}
-                  <span class="muted">—</span>
+                  <span class="muted">-</span>
                 {/if}
               </td>
-              <td class="muted">{plan.totalProjects != null && plan.totalProjects > 0 ? plan.totalProjects : '—'}</td>
+              <td class="muted">{plan.totalProjects != null && plan.totalProjects > 0 ? plan.totalProjects : '-'}</td>
               <td class="nowrap muted">{formatDate(plan.createdAt)}</td>
               <td class="nowrap muted">{formatDate(plan.closedAt)}</td>
             </tr>

@@ -107,7 +107,7 @@
       </div>
 
       {#if reason === 'password_changed'}
-        <div class="info-msg">Password changed — please sign in with your new password.</div>
+        <div class="info-msg">Password changed - please sign in with your new password.</div>
       {/if}
 
       <form onsubmit={handleSubmit} class="form" novalidate>
@@ -151,7 +151,7 @@
 
       {#if isDemo}
         <div class="demo-accounts">
-          <span class="demo-label">Quick login — demo accounts</span>
+          <span class="demo-label">Quick login - demo accounts</span>
           <div class="demo-chips">
             {#each DEMO_ACCOUNTS as account}
               <button

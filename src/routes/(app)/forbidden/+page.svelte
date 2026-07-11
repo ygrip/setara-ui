@@ -13,7 +13,7 @@
 </script>
 
 <svelte:head>
-  <title>Access Restricted — Setara</title>
+  <title>Access Restricted - Setara</title>
 </svelte:head>
 
 <div class="forbidden-wrap">

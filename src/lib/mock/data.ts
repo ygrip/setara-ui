@@ -622,7 +622,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       priority: 'MEDIUM',
       automationStatus: 'MANUAL_ONLY',
       automatable: false,
-      automationNotes: 'Requires live inventory event bus — not available in sandbox.',
+      automationNotes: 'Requires live inventory event bus - not available in sandbox.',
       manualNotes: 'Test with warehouse simulator.',
       status: 'DRAFT',
       steps: [
@@ -878,7 +878,7 @@ export const mockScenariosByProject: Record<string, Scenario[]> = {
       automationStatus: 'AUTOMATABLE',
       automatable: true,
       automationNotes: 'Needs unsubscribe fixture integration.',
-      manualNotes: 'GDPR compliance check — critical path.',
+      manualNotes: 'GDPR compliance check - critical path.',
       status: 'ACTIVE',
       steps: [
         { sequenceNo: 1, keyword: 'GIVEN', name: 'User has unsubscribed from marketing emails', description: null, expectation: 'Preference is saved as unsubscribed.' },
@@ -1212,7 +1212,7 @@ export const mockBuildsByProject: Record<string, ProjectBuild[]> = {
   ],
   ANALYTICS: [
     { id: 'build-analytics-rc1', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics 2026.05 RC1', buildKey: 'ANA-2026-05-RC1', version: '1.0.0-rc1', description: 'GA release verification for analytics event pipeline.', requirements: null, status: 'IN_PROGRESS', initiatedAt: '2026-05-19T09:00:00Z', inProgressAt: '2026-05-19T09:30:00Z', verifiedAt: null, createdBy: 'qa-infra@example.com', verifiedBy: null, createdAt: '2026-05-19T09:00:00Z', updatedAt: '2026-05-24T10:00:00Z', metrics: { buildId: 'build-analytics-rc1', totalScenarios: 5, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 80, executionCoverage: 80 } },
-    { id: 'build-analytics-mvp', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics MVP 0.9.0', buildKey: 'ANA-2026-04-MVP', version: '0.9.0', description: 'MVP verified build — event tracking and dashboards.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-22T09:00:00Z', inProgressAt: '2026-04-22T09:30:00Z', verifiedAt: '2026-04-29T15:00:00Z', createdBy: 'qa-infra@example.com', verifiedBy: 'lead-infra@example.com', createdAt: '2026-04-22T09:00:00Z', updatedAt: '2026-04-29T15:00:00Z', metrics: { buildId: 'build-analytics-mvp', totalScenarios: 4, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
+    { id: 'build-analytics-mvp', projectId: '14', projectKey: 'ANALYTICS', projectName: 'Analytics Platform', squadId: 'squad-2', squadName: 'Infrastructure', name: 'Analytics MVP 0.9.0', buildKey: 'ANA-2026-04-MVP', version: '0.9.0', description: 'MVP verified build - event tracking and dashboards.', requirements: null, status: 'VERIFIED', initiatedAt: '2026-04-22T09:00:00Z', inProgressAt: '2026-04-22T09:30:00Z', verifiedAt: '2026-04-29T15:00:00Z', createdBy: 'qa-infra@example.com', verifiedBy: 'lead-infra@example.com', createdAt: '2026-04-22T09:00:00Z', updatedAt: '2026-04-29T15:00:00Z', metrics: { buildId: 'build-analytics-mvp', totalScenarios: 4, passed: 4, failed: 0, blocked: 0, skipped: 0, notExecuted: 0, passPercentage: 100, executionCoverage: 100 } },
   ],
 };
 
@@ -1433,10 +1433,10 @@ export const mockSquadPlans: ReleasePlan[] = [
   { id: 'plan-squad8-pricing-apr', squadId: 'squad-8', squadName: 'Pricing', name: 'April Promo Hotfix',   releaseVersion: 'v1.4.2', releaseDate: null,          description: 'Promotional discount calculation hotfix validation.', status: 'CLOSED', createdAt: '2026-04-18T08:00:00Z', updatedAt: '2026-04-22T16:00:00Z', openedAt: '2026-04-18T08:00:00Z', openedBy: 'bob.martinez', inProgressAt: '2026-04-19T08:00:00Z', closedAt: '2026-04-22T16:00:00Z', closedBy: 'lead-pricing@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
   // squad-9: iOS
   { id: 'plan-squad9-ios-may', squadId: 'squad-9', squadName: 'iOS', name: 'iOS May Sprint',     releaseVersion: '5.2.0', releaseDate: '2026-05-31', description: 'Biometric auth, deep links and offline mode improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T09:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-05-12T08:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
-  { id: 'plan-squad9-ios-apr', squadId: 'squad-9', squadName: 'iOS', name: 'iOS April Release', releaseVersion: '5.1.0', releaseDate: null,          description: 'April feature release — OAuth and navigation fixes.', status: 'CLOSED', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-04-08T08:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
+  { id: 'plan-squad9-ios-apr', squadId: 'squad-9', squadName: 'iOS', name: 'iOS April Release', releaseVersion: '5.1.0', releaseDate: null,          description: 'April feature release - OAuth and navigation fixes.', status: 'CLOSED', createdAt: '2026-04-01T09:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T09:00:00Z', openedBy: 'carol.kim', inProgressAt: '2026-04-08T08:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
   // squad-10: Android
   { id: 'plan-squad10-and-may', squadId: 'squad-10', squadName: 'Android', name: 'Android May Sprint',     releaseVersion: '6.2.0', releaseDate: '2026-05-31', description: 'Biometric auth, background sync and widget improvements.', status: 'IN_PROGRESS', createdAt: '2026-05-05T10:00:00Z', updatedAt: '2026-05-24T11:00:00Z', openedAt: '2026-05-05T10:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-05-12T09:00:00Z', closedAt: null, closedBy: null, totalBuilds: 1, verifiedBuilds: 0, totalProjects: 1 },
-  { id: 'plan-squad10-and-apr', squadId: 'squad-10', squadName: 'Android', name: 'Android April Release', releaseVersion: '6.1.0', releaseDate: null,           description: 'April feature release — deep links and back-stack fixes.', status: 'CLOSED', createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T10:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-04-08T09:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
+  { id: 'plan-squad10-and-apr', squadId: 'squad-10', squadName: 'Android', name: 'Android April Release', releaseVersion: '6.1.0', releaseDate: null,           description: 'April feature release - deep links and back-stack fixes.', status: 'CLOSED', createdAt: '2026-04-01T10:00:00Z', updatedAt: '2026-04-30T17:00:00Z', openedAt: '2026-04-01T10:00:00Z', openedBy: 'david.chen', inProgressAt: '2026-04-08T09:00:00Z', closedAt: '2026-04-30T17:00:00Z', closedBy: 'lead-mobile@example.com', totalBuilds: 1, verifiedBuilds: 1, totalProjects: 1 },
   {
     id: 'plan-squad4-catalog',
     squadId: 'squad-4',

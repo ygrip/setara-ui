@@ -5,6 +5,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { listAllSquads, createSquad, updateSquad, deleteSquad, getSquadDetail, addSquadMember, removeSquadMember, searchUsers, type Squad, type SquadMember, type UserDetail } from '$lib/api/organization';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
 
@@ -200,9 +201,15 @@
       {/if}
     </div>
     {#if squads.length === 0}
-      <p class="empty-text">No squads yet.</p>
+      <EmptyState title="No squads yet" hint="Squads you create will show up here." minHeight="240px">
+        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 8V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8" />
+          <path d="M3.5 8 6 3h12l2.5 5" />
+          <path d="M3 8h5.5l1 2h5l1-2H21" />
+        </svg>
+      </EmptyState>
     {:else}
-      <DataTable mobileCards={true}>
+      <DataTable>
         {#snippet head()}
           <tr>
             <th><button class="sort-btn" onclick={() => toggleSort('name')}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
@@ -349,7 +356,7 @@
   .page-sub{color:var(--color-text-muted);margin:0;font-size:.875rem}
   .panel-title{font-size:1rem;font-weight:600;margin-bottom:14px;color:var(--color-text)}
   .section-title{font-size:.9rem;font-weight:600;margin:16px 0 8px;color:var(--color-text)}
-  .empty-text{color:var(--color-text-muted);font-size:.875rem}.muted{color:var(--color-text-muted)}.bold{font-weight:500}.p-4{padding:16px}
+  .muted{color:var(--color-text-muted)}.bold{font-weight:500}.p-4{padding:16px}
   .input{padding:8px 10px;border:1px solid var(--color-border);border-radius:6px;background:var(--color-bg);color:var(--color-text);font-size:.875rem;outline:none;transition:border-color .15s;font-family:inherit}.input:focus{border-color:var(--color-accent)}
   textarea.input{resize:vertical}
   .modal-body{display:flex;flex-direction:column;gap:12px}
@@ -363,13 +370,19 @@
   .add-member-row{display:flex;gap:8px;align-items:center}.add-member-row .input{flex:1}
   .delete-warning{color:var(--color-text);font-size:0.9rem;line-height:1.5}
   .modal-actions{display:flex;gap:8px;justify-content:flex-end;padding-top:8px}
-  @media(max-width:600px){.edit-grid{grid-template-columns:1fr}.add-member-row{flex-wrap:wrap}}
+  @media(max-width:600px){.edit-grid{grid-template-columns:1fr}.add-member-row{flex-direction:column;align-items:stretch}.add-member-row .input,.add-member-row select{width:100%}}
   .filter-bar { display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap; }
   .filter-select { flex: 0 0 auto; min-width: 160px; }
-  .search-wrap { position: relative; flex: 1; max-width: 320px; }
+  .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 320px; }
   .search-input { width: 100%; padding: 8px 12px 8px 34px; border: 1px solid var(--color-border); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font-size: 0.875rem; outline: none; transition: border-color 0.15s; box-sizing: border-box; }
   .search-input:focus { border-color: var(--color-accent); }
   .search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
   .sort-btn { background: none; border: none; cursor: pointer; font: inherit; font-size: 0.82rem; font-weight: 600; color: var(--color-text-muted); padding: 0; white-space: nowrap; }
   .sort-btn:hover { color: var(--color-text); }
+
+  @media (max-width: 560px) {
+    .filter-bar { flex-direction: column; align-items: stretch; }
+    .filter-select, .search-wrap { max-width: none; min-width: 0; width: 100%; }
+    .modal-actions { flex-wrap: wrap; }
+  }
 </style>

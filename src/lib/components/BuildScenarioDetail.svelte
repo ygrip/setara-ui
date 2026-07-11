@@ -123,7 +123,7 @@
   }
 
   function fmt(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit', second: '2-digit'
@@ -131,7 +131,7 @@
   }
 
   function durationMs(ms: number | null): string {
-    if (ms == null) return '—';
+    if (ms == null) return '-';
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s}s`;
     return `${Math.floor(s / 60)}m ${s % 60}s`;

@@ -4,6 +4,7 @@
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
   import { onMount } from 'svelte';
 
   const isMock = isMockMode();
@@ -52,23 +53,23 @@
   }
 </script>
 
-<svelte:head><title>Cache — Admin — Setara</title></svelte:head>
+<svelte:head><title>Cache - Admin - Setara</title></svelte:head>
 
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
 
   {#if isMock}
     <Card padding="md">
-      <div class="disabled-state">
-        <div class="disabled-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 8v4M12 16h.01"/>
-          </svg>
-        </div>
-        <h2 class="disabled-title">Not available in preview mode</h2>
-        <p class="disabled-desc">Cache management requires a live backend with Redis configured.</p>
-      </div>
+      <EmptyState
+        title="Not available in preview mode"
+        hint="Cache management requires a live backend with Redis configured."
+        minHeight="260px"
+      >
+        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </EmptyState>
     </Card>
   {:else}
     {#if statusError}
@@ -98,9 +99,12 @@
         <p class="panel-desc">
           Delete every key under the configured prefix. Use after a schema change or when stale data is suspected.
         </p>
-        <Button variant="danger" onclick={runPurgeAll} disabled={busy}>
-          {busy ? 'Purging…' : 'Purge All Keys'}
-        </Button>
+        <div class="action-row">
+          <Button variant="danger" onclick={runPurgeAll} disabled={busy}>
+            {busy ? 'Purging…' : 'Purge All Keys'}
+          </Button>
+        </div>
+        
       </Card>
 
       <Card padding="md">
@@ -116,9 +120,12 @@
             bind:value={pattern}
             disabled={busy}
           />
+
+          <div class="action-row">
           <Button variant="primary" onclick={runPurgeByPattern} disabled={busy || !pattern.trim()}>
             {busy ? 'Purging…' : 'Purge'}
           </Button>
+          </div>
         </div>
       </Card>
     </div>
@@ -126,7 +133,7 @@
     {#if result}
       <Card padding="md">
         {#if !result.enabled}
-          <p class="empty-text">Cache is disabled — no keys were purged.</p>
+          <p class="empty-text">Cache is disabled - no keys were purged.</p>
         {:else}
           <div class="result-grid">
             <div class="result-cell">
@@ -156,11 +163,6 @@
   .panel-desc code { font-family: var(--font-mono, monospace); background: var(--color-bg); padding: 1px 4px; border-radius: 3px; font-size: 0.82em; }
   .empty-text { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
 
-  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px 16px; }
-  .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
-  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
-  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
-
   .status-row { display: flex; align-items: center; gap: 12px; }
   .status-label { font-size: 0.82rem; font-weight: 600; color: var(--color-text-muted); text-transform: uppercase; letter-spacing: 0.04em; min-width: 100px; }
   .status-badge { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 0.78rem; font-weight: 700; }
@@ -169,7 +171,22 @@
   .status-code { font-family: var(--font-mono, monospace); font-size: 0.85rem; background: var(--color-bg); padding: 2px 6px; border-radius: 4px; }
 
   .cards-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-  @media (max-width: 640px) { .cards-grid { grid-template-columns: 1fr; } }
+  @media (max-width: 640px) {
+    .cards-grid { grid-template-columns: 1fr; }
+    .inline-form { flex-direction: column; align-items: stretch; }
+    .inline-form .input { min-width: 0; width: 100%; }
+    .action-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  }
+
+  @media (max-width: 760px) {
+    .action-row { flex-direction: column; align-items: stretch !important; gap: 10px; }
+  }
+
+  .action-row { 
+    width: 100%;
+    display: flex; gap: 8px;
+    flex-wrap: wrap;
+  }
 
   .inline-form { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .inline-form .input { flex: 1; min-width: 140px; }

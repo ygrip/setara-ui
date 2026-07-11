@@ -98,7 +98,7 @@
   let carouselIdx = $state(0);
   let activeTheme = $state<ThemeMode>('light');
   // The sky's static (crisp) layer only flips to the new theme once the WebGL
-  // curtain has actually revealed it — decoupled from activeTheme so the
+  // curtain has actually revealed it - decoupled from activeTheme so the
   // sharp SVG layer never pops ahead of (or behind) the wipe.
   let displayedTheme = $state<ThemeMode>('light');
   let skyTransitioning = $state(false);
@@ -173,7 +173,7 @@
     uniform sampler2D displacement;
 
     void main() {
-      // Quintic "smootherstep" — silkier accel/decel than cubic smoothstep, no first/second
+      // Quintic "smootherstep" - silkier accel/decel than cubic smoothstep, no first/second
       // derivative discontinuity at the edges, so the wipe never appears to snap in or out.
       float t = clamp(uTransitionProgress, 0.0, 1.0);
       float blend = t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
