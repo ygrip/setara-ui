@@ -108,7 +108,6 @@
       const next = new Map(activeRuns);
       next.delete(event.runId);
       activeRuns = next;
-      void refreshDashboard(false);
     }
   }
 
@@ -472,24 +471,32 @@
 
     <!-- Live activity stays in the DOM and becomes visible when events arrive. -->
     <div class="activity-col">
-      <div class="section">
-        <h2 class="section-title">Live activity</h2>
-        <div class="activity-feed">
-          {#each recentActivity as event (`${event.runId}:${event.type}:${event.occurredAt}`)}
-            <div class="activity-item {eventVariantClass(event.type)}">
-              <div class="activity-dot"></div>
-              <div class="activity-body">
-                <span class="activity-label">{eventLabel(event.type)}</span>
-                <span class="activity-project">{event.projectKey}</span>
-                {#if event.totalScenarios != null}
-                  <span class="activity-count">{event.totalScenarios} scenarios</span>
-                {/if}
-              </div>
-              <span class="activity-time">{timeAgo(event.occurredAt)}</span>
-            </div>
-          {/each}
+      <section class="activity-card surface-card" aria-labelledby="activity-title">
+        <div class="activity-header">
+          <div>
+            <h2 id="activity-title">Live activity</h2>
+            <p>Real-time run and scenario events.</p>
+          </div>
+          {#if recentActivity.length > 0}<span class="activity-total">{recentActivity.length}</span>{/if}
         </div>
-      </div>
+        <div class="activity-scroll">
+          <div class="activity-feed">
+            {#each recentActivity as event (`${event.runId}:${event.type}:${event.occurredAt}`)}
+              <div class="activity-item {eventVariantClass(event.type)}">
+                <div class="activity-dot"></div>
+                <div class="activity-body">
+                  <span class="activity-label">{eventLabel(event.type)}</span>
+                  <span class="activity-project">{event.projectKey}</span>
+                  {#if event.totalScenarios != null}
+                    <span class="activity-count">{event.totalScenarios} scenarios</span>
+                  {/if}
+                </div>
+                <span class="activity-time">{timeAgo(event.occurredAt)}</span>
+              </div>
+            {/each}
+          </div>
+        </div>
+      </section>
     </div>
   </div>
 </div>
@@ -752,9 +759,9 @@
   /* Activity column hidden when no events yet */
   .activity-col { display: none; }
 
-  @media (min-width: 1100px) {
+  @media (min-width: 1050px) {
     .lower-grid--active {
-      grid-template-columns: 1fr 340px;
+      grid-template-columns: minmax(0, 2fr) minmax(300px, 1fr);
       align-items: start;
     }
     .lower-grid--active .activity-col { display: block; }
@@ -765,18 +772,72 @@
     display: block;
   }
 
-  .section {
-    margin-bottom: 0;
+  .activity-card {
+    min-width: 0;
+    padding: 18px;
+    border-radius: var(--radius);
+    display: flex;
+    flex-direction: column;
+  }
+
+  .activity-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .activity-header h2 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: 1rem;
+    font-weight: 750;
+  }
+
+  .activity-header p {
+    margin: 4px 0 0;
+    color: var(--color-text-muted);
+    font-size: 0.76rem;
+  }
+
+  .activity-total {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    font-size: 0.72rem;
+    font-weight: 800;
+  }
+
+  .activity-scroll {
+    position: relative;
+    height: 260px;
+    margin-top: 14px;
+    overflow: hidden;
+    border-radius: var(--radius);
+  }
+
+  .activity-scroll::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, var(--color-surface));
+    pointer-events: none;
   }
 
   .activity-feed {
+    height: 100%;
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 0;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-    overflow: hidden;
   }
 
   .activity-item {
@@ -784,14 +845,17 @@
     grid-template-columns: 20px 1fr auto;
     align-items: center;
     gap: 10px;
-    padding: 10px 14px;
-    border-bottom: 1px solid var(--color-border);
+    padding: 12px 2px;
+    border-top: 1px solid color-mix(in srgb, var(--color-border), transparent 35%);
     font-size: 0.8rem;
     transition: background 0.1s;
   }
 
-  .activity-item:last-child { border-bottom: none; }
-  .activity-item:hover { background: var(--color-bg); }
+  .activity-feed > :global(div:first-child) {
+    border-top: 0;
+  }
+
+  .activity-item:hover { background: color-mix(in srgb, var(--color-accent), transparent 96%); }
 
   .activity-dot {
     width: 8px;
