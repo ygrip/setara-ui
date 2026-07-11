@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Low-poly cumulonimbus cloud variant">
+  <defs>
+    <clipPath id="cb-clip">
+      <path d="M86 318
+        L92 280 L112 256 L132 236 L164 230 L178 214 L206 210 L222 176 L244 146 L270 126
+        L298 108 L336 100 L374 106 L394 128 L406 154 L420 154 L446 166 L460 194 L480 198
+        L502 210 L516 230 L542 238 L564 258 L572 282 L568 304 L544 324 L520 330 L506 344
+        L472 350 L446 360 L396 360 L370 368 L314 368 L272 360 L238 362 L202 356 L164 354
+        L136 346 L118 340 Z"/>
+    </clipPath>
+    <linearGradient id="cb-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef1f6"/>
+    </linearGradient>
+    <filter id="cb-shadow" x="-20%" y="-30%" width="160%" height="200%">
+      <feDropShadow dx="0" dy="22" stdDeviation="16" flood-color="#707984" flood-opacity="0.32"/>
+    </filter>
+    <style>
+      .w{fill:#ffffff}.l1{fill:#f5f5f6}.l2{fill:#ececef}.w1{fill:#ede6df}.c1{fill:#dfe7f2}.c2{fill:#c8d3e0}.g1{fill:#d4d5d9}.g2{fill:#bfc4cb}.g3{fill:#a8afb9}
+    </style>
+  </defs>
+  <g filter="url(#cb-shadow)"><path fill="url(#cb-base)" d="M86 318 L92 280 L112 256 L132 236 L164 230 L178 214 L206 210 L222 176 L244 146 L270 126 L298 108 L336 100 L374 106 L394 128 L406 154 L420 154 L446 166 L460 194 L480 198 L502 210 L516 230 L542 238 L564 258 L572 282 L568 304 L544 324 L520 330 L506 344 L472 350 L446 360 L396 360 L370 368 L314 368 L272 360 L238 362 L202 356 L164 354 L136 346 L118 340 Z"/></g>
+  <g clip-path="url(#cb-clip)">
+    <!-- towering core -->
+    <polygon class="w" points="222,176 244,146 298,108 302,174 248,206"/>
+    <polygon class="w" points="298,108 336,100 374,106 380,164 302,174"/>
+    <polygon class="l1" points="374,106 394,128 406,154 396,208 380,164"/>
+    <polygon class="l2" points="248,206 302,174 312,240 262,252"/>
+    <polygon class="l1" points="302,174 380,164 384,226 312,240"/>
+    <polygon class="g1" points="262,252 312,240 324,310 270,316 232,288"/>
+    <polygon class="w1" points="312,240 384,226 396,312 324,310"/>
+
+    <!-- left side buttress -->
+    <polygon class="w" points="92,280 132,236 164,230 170,276 126,292"/>
+    <polygon class="l1" points="164,230 206,210 222,176 248,206 220,246 170,276"/>
+    <polygon class="c1" points="126,292 170,276 194,336 136,346 118,340"/>
+    <polygon class="g1" points="170,276 220,246 232,288 194,336"/>
+
+    <!-- anvil top / right tower -->
+    <polygon class="w" points="406,154 420,154 446,166 460,194 430,210 396,208"/>
+    <polygon class="c1" points="430,210 460,194 480,198 502,210 486,250 444,252"/>
+    <polygon class="w" points="396,208 430,210 444,252 384,226"/>
+    <polygon class="l1" points="486,250 502,210 516,230 542,238 542,284 504,286"/>
+    <polygon class="c2" points="444,252 486,250 504,286 472,350 446,360 420,320"/>
+    <polygon class="w" points="384,226 444,252 420,320 396,312"/>
+
+    <!-- bottom rain-bulge base -->
+    <polygon class="l2" points="220,246 262,252 270,316 202,356 164,354 194,336"/>
+    <polygon class="g1" points="270,316 324,310 314,368 272,360 202,356"/>
+    <polygon class="g1" points="324,310 396,312 396,360 314,368"/>
+    <polygon class="g2" points="396,312 420,320 446,360 396,360"/>
+    <polygon class="g2" points="420,320 472,350 396,360"/>
+    <polygon class="g1" points="504,286 542,284 544,324 520,330 506,344 472,350"/>
+
+    <!-- extra fill / no blank spaces -->
+    <polygon class="w" points="206,210 248,206 220,246" opacity=".86"/>
+    <polygon class="l1" points="380,164 406,154 396,208" opacity=".8"/>
+    <polygon class="c1" points="444,252 472,224 486,250" opacity=".82"/>
+    <polygon class="w1" points="248,206 302,174 280,208 260,228" opacity=".75"/>
+
+    <!-- underside -->
+    <polygon class="g3" points="118,340 136,346 164,354 202,356 272,360 238,374 158,372" opacity=".46"/>
+    <polygon class="g3" points="272,360 314,368 396,360 370,378 282,380" opacity=".42"/>
+    <polygon class="g3" points="396,360 446,360 472,350 506,344 520,330 504,368 416,374" opacity=".38"/>
+  </g>
+</svg>

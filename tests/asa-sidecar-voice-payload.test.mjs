@@ -24,7 +24,6 @@ describe('ASA sidecar voice payload contract', () => {
     assert.match(sidecar, /normalizedText: normalized\.normalizedText\.trim\(\) \|\| raw/);
     assert.match(sidecar, /resolvedText: text/);
     assert.match(sidecar, /matches\.slice\(0, 20\)\.map/);
-    assert.match(orb, /asa\.send\(transcript\.text, transcript\.voiceInput\)/);
     assert.match(orb, /sidecarVoice\.onTranscript = \(text, voiceInput\) => \{ void asa\.send\(text, voiceInput\); \}/);
   });
 });

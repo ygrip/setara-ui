@@ -227,7 +227,7 @@
 </div>
 
 <style>
-  .page { max-width: 960px; margin: 0 auto; padding: 24px 20px 60px; }
+  .page { max-width: 100%; margin: 0 auto; padding: 24px 20px 60px; }
   .breadcrumb { display: flex; gap: 6px; font-size: 0.82rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
   .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 24px; }

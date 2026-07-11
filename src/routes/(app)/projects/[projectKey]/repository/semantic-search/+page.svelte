@@ -319,7 +319,7 @@
 </div>
 
 <style>
-  .page { max-width: min(960px, 100%); }
+  .page { max-width: min(100%); }
 
   .breadcrumb {
     display: flex; gap: 8px; color: var(--color-text-muted);

@@ -264,7 +264,7 @@
 </div>
 
 <style>
-  .page { max-width: 1200px; margin: 0 auto; padding-bottom: 100px; }
+  .page { max-width: 100%; margin: 0 auto; padding-bottom: 100px; }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .breadcrumb a:hover { text-decoration: underline; }

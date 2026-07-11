@@ -8,6 +8,7 @@
   import AiReviewPanel from '$lib/components/AiReviewPanel.svelte';
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import BuildScenarioDetail from '$lib/components/BuildScenarioDetail.svelte';
+  import TrackedIssuesTable from '$lib/components/issues/TrackedIssuesTable.svelte';
   import { verifyBuild, updateBuildScenarioResult, removeBuildScenarios, listBuildScenarios, listBuildAudit, updateBuild, deleteBuild, listBuildPlans, type ProjectBuild, type BuildScenario, type BuildAuditEvent, type PlanSummary } from '$lib/api/builds';
 
   let { data } = $props();
@@ -582,6 +583,12 @@
       </section>
     {/if}
 
+    {#if data.issuesEnabled && build}
+      <section class="section">
+        <TrackedIssuesTable context="build" projectKey={data.projectKey} buildId={build.id} enabled={data.issuesEnabled} />
+      </section>
+    {/if}
+
     <section class="section">
       <h2>Scenario Status</h2>
 
@@ -841,7 +848,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1560px, 100%); }
+  .page { max-width: min(100%); }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .page-header { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; margin-bottom: 20px; }

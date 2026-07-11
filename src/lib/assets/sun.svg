@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" class="sun-svg" role="img" aria-label="Sun">
+  <defs>
+    <clipPath id="sun-disc-clip">
+      <circle cx="60" cy="60" r="31" />
+    </clipPath>
+  </defs>
+
+  <circle class="sun-glow" cx="60" cy="60" r="48" fill="#ffe9a8" opacity="0.28" />
+
+  <path
+    class="sun-rays"
+    fill="rgba(255, 209, 102, 0.6)"
+    d="M92.7,55.4 Q100.0,58.0 116.0,60.0 Q100.0,62.0 92.7,64.6 L91.9,68.3 Q97.7,73.5 102.5,77.6 Q96.2,77.1 88.4,76.7 L86.4,79.9 Q89.6,86.9 99.6,99.6 Q86.9,89.6 79.9,86.4 L76.7,88.4 Q77.1,96.2 77.6,102.5 Q73.5,97.7 68.3,91.9 L64.6,92.7 Q62.0,100.0 60.0,116.0 Q58.0,100.0 55.4,92.7 L51.7,91.9 Q46.5,97.7 42.4,102.5 Q42.9,96.2 43.3,88.4 L40.1,86.4 Q33.1,89.6 20.4,99.6 Q30.4,86.9 33.6,79.9 L31.6,76.7 Q23.8,77.1 17.5,77.6 Q22.3,73.5 28.1,68.3 L27.3,64.6 Q20.0,62.0 4.0,60.0 Q20.0,58.0 27.3,55.4 L28.1,51.7 Q22.3,46.5 17.5,42.4 Q23.8,42.9 31.6,43.3 L33.6,40.1 Q30.4,33.1 20.4,20.4 Q33.1,30.4 40.1,33.6 L43.3,31.6 Q42.9,23.8 42.4,17.5 Q46.5,22.3 51.7,28.1 L55.4,27.3 Q58.0,20.0 60.0,4.0 Q62.0,20.0 64.6,27.3 L68.3,28.1 Q73.5,22.3 77.6,17.5 Q77.1,23.8 76.7,31.6 L79.9,33.6 Q86.9,30.4 99.6,20.4 Q89.6,33.1 86.4,40.1 L88.4,43.3 Q96.2,42.9 102.5,42.4 Q97.7,46.5 91.9,51.7 Z"
+  />
+
+  <g clip-path="url(#sun-disc-clip)" stroke="#fff6d9" stroke-opacity="0.25" stroke-width="0.6" stroke-linejoin="round">
+    <polygon fill="#fff2a8" points="60,60 91.0,60.0 88.6,71.9" />
+    <polygon fill="#ffe381" points="60,60 88.6,71.9 81.9,81.9" />
+    <polygon fill="#ffd66f" points="60,60 81.9,81.9 71.9,88.6" />
+    <polygon fill="#ffc85b" points="60,60 71.9,88.6 60.0,91.0" />
+    <polygon fill="#f7aa43" points="60,60 60.0,91.0 48.1,88.6" />
+    <polygon fill="#fff2a8" points="60,60 48.1,88.6 38.1,81.9" />
+    <polygon fill="#ffe381" points="60,60 38.1,81.9 31.4,71.9" />
+    <polygon fill="#ffd66f" points="60,60 31.4,71.9 29.0,60.0" />
+    <polygon fill="#ffc85b" points="60,60 29.0,60.0 31.4,48.1" />
+    <polygon fill="#f7aa43" points="60,60 31.4,48.1 38.1,38.1" />
+    <polygon fill="#fff2a8" points="60,60 38.1,38.1 48.1,31.4" />
+    <polygon fill="#ffe381" points="60,60 48.1,31.4 60.0,29.0" />
+    <polygon fill="#ffd66f" points="60,60 60.0,29.0 71.9,31.4" />
+    <polygon fill="#ffc85b" points="60,60 71.9,31.4 81.9,38.1" />
+    <polygon fill="#f7aa43" points="60,60 81.9,38.1 88.6,48.1" />
+    <polygon fill="#fff2a8" points="60,60 88.6,48.1 91.0,60.0" />
+  </g>
+
+  <circle class="sun-core-glow" cx="60" cy="60" r="11" fill="#fff8d0" opacity="0.55" />
+</svg>

@@ -2,8 +2,10 @@
   import { navigating, page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { APP_BUILD_LABEL, APP_VERSION_LABEL } from '$lib/app-metadata';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
+  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
   import LazyAsaOrb from '$lib/components/LazyAsaOrb.svelte';
   import { asa } from '$lib/stores/asa.svelte';
@@ -14,6 +16,7 @@
   let { children } = $props();
 
   const isMock = isMockMode();
+  const CURRENT_YEAR = new Date().getFullYear();
 
   let session = $state<SetaraSession | null>(null);
   let sidebarOpen = $state(false);
@@ -152,7 +155,7 @@
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
       <a href="/dashboard" class="brand-link" aria-label="Setara home" onclick={closeSidebar}>
-        <span class="brand-icon-anim brand-icon-anim--lg" role="img" aria-label="Setara"></span>
+        <SetaraLoader size={32} mode="orbit"/>
         <SetaraGsapLogo size={110} loop={true} animate={true} />
       </a>
     </div>
@@ -364,7 +367,7 @@
         </button>
         <!-- Brand - mobile only: visible in topbar since sidebar is off-screen -->
         <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
-          <span class="brand-icon-anim brand-icon-anim--sm" aria-hidden="true"></span>
+          <SetaraLoader size={28} mode="orbit"/>
           <SetaraGsapLogo size={88} loop={true} animate={true} />
         </a>
         <!-- Project key pill (desktop) -->
@@ -453,9 +456,11 @@
     <main class="content">
       {@render children()}
       <footer class="app-footer">
-        <span>© 2026 Setara</span>
+        <span>© {CURRENT_YEAR} Setara</span>
         <span class="footer-sep" aria-hidden="true">·</span>
-        <span>v0.1.0</span>
+        <span>{APP_VERSION_LABEL}</span>
+        <span class="footer-sep" aria-hidden="true">·</span>
+        <span>build {APP_BUILD_LABEL}</span>
       </footer>
     </main>
   </div>
@@ -544,33 +549,6 @@
     width: 100%;
     color: inherit;
     text-decoration: none;
-  }
-
-  /* Animated brand icon - CSS mask over gradient (matches brand-shimmer timing) */
-  .brand-icon-anim {
-    display: block;
-    flex-shrink: 0;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-mask: url('/favicon.svg') no-repeat center / contain;
-    mask: url('/favicon.svg') no-repeat center / contain;
-    animation: brand-shimmer 5s ease-in-out infinite;
-  }
-
-  .brand-icon-anim--lg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .brand-icon-anim--sm {
-    width: 20px;
-    height: 20px;
-  }
-
-
-  @keyframes brand-shimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50%       { background-position: 100% 50%; }
   }
 
   .sidebar-nav {
@@ -1157,7 +1135,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .brand-icon-anim,
     .search-placeholder,
     .live-dot,
     .route-skeleton {

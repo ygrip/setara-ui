@@ -246,7 +246,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1400px, 100%); display: flex; flex-direction: column; gap: 0; min-height: calc(100vh - 80px); }
+  .page { max-width: min(100%); display: flex; flex-direction: column; gap: 0; min-height: calc(100vh - 80px); }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }

@@ -213,7 +213,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1560px, 100%); }
+  .page { max-width: min(100%); }
   .breadcrumb { display: flex; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; font-weight: 700; }
   .page-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; margin-bottom: 16px; }

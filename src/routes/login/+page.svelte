@@ -3,19 +3,21 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
-  import { fly } from 'svelte/transition';
+  import { APP_BUILD_LABEL, APP_VERSION_LABEL } from '$lib/app-metadata';
   import { login } from '$lib/api/client';
   import { getValidSession, sessionFromLoginResult, storeSession, type SetaraRole } from '$lib/auth';
+  import LoginHero from '$lib/components/LoginHero.svelte';
   import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import { isMockMode } from '$lib/mock/client';
 
+  const CURRENT_YEAR = new Date().getFullYear();
+
   let email = $state('');
   let password = $state('');
   let error = $state('');
   let loading = $state(false);
-  let carouselIdx = $state(0);
 
   const reason = $derived(browser ? page.url.searchParams.get('reason') : null);
   const isDemo = isMockMode();
@@ -29,32 +31,10 @@
     { label: 'Guest', role: 'GUEST', email: 'guest@demo.setara.local', variant: 'guest' }
   ];
 
-  const CAROUSEL_ITEMS = [
-    {
-      label: 'End-to-end test coverage',
-      sub: 'From scenario design to automated execution — fully tracked',
-      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>`
-    },
-    {
-      label: 'Automated release gates',
-      sub: 'Block bad builds automatically before they reach production',
-      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`
-    },
-    {
-      label: 'Squad-level quality insights',
-      sub: 'Health, coverage, and pass rates — aligned across every team',
-      icon: `<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>`
-    }
-  ];
-
   onMount(() => {
     if (getValidSession()) {
       goto('/dashboard', { replaceState: true });
     }
-    const timer = setInterval(() => {
-      carouselIdx = (carouselIdx + 1) % CAROUSEL_ITEMS.length;
-    }, 3400);
-    return () => clearInterval(timer);
   });
 
   async function handleSubmit(e: SubmitEvent) {
@@ -97,105 +77,7 @@
 </svelte:head>
 
 <div class="login-page">
-  <section class="login-hero" aria-labelledby="login-heading">
-    <!-- Scribble animation replaces static background image -->
-    <div class="hero-scribble" aria-hidden="true">
-      <svg class="scribble-svg" viewBox="0 0 900 420" preserveAspectRatio="xMidYMid slice">
-        <defs>
-          <linearGradient id="sline" x1="0" y1="0" x2="900" y2="0" gradientUnits="userSpaceOnUse">
-            <stop stop-color="#00AFA5" stop-opacity="0" />
-            <stop offset="0.46" stop-color="#00C2B8" stop-opacity="0.9" />
-            <stop offset="1" stop-color="#5EF2D6" stop-opacity="0" />
-          </linearGradient>
-        </defs>
-        <path
-          class="sp sp--1"
-          pathLength="1"
-          d="M-42 236C151 129 252 390 457 207C655 31 739 188 942 113"
-          stroke="url(#sline)"
-          stroke-width="2.4"
-          stroke-linecap="round"
-          fill="none"
-        />
-        <path
-          class="sp sp--2"
-          pathLength="1"
-          d="M-70 286C145 192 275 345 480 232C662 132 744 277 938 198"
-          stroke="url(#sline)"
-          stroke-width="2.1"
-          stroke-linecap="round"
-          fill="none"
-        />
-        <path
-          class="sp sp--3"
-          pathLength="1"
-          d="M-48 337C191 237 303 405 526 272C701 168 779 318 957 279"
-          stroke="url(#sline)"
-          stroke-width="1.8"
-          stroke-linecap="round"
-          fill="none"
-        />
-        <path
-          class="sp sp--4"
-          pathLength="1"
-          d="M957 170C770 60 590 310 400 160C240 40 130 230 -42 110"
-          stroke="url(#sline)"
-          stroke-width="1.5"
-          stroke-linecap="round"
-          fill="none"
-        />
-        <path
-          class="sp sp--5"
-          pathLength="1"
-          d="M-60 140C170 320 320 60 540 230C700 360 820 90 960 260"
-          stroke="url(#sline)"
-          stroke-width="2.0"
-          stroke-linecap="round"
-          fill="none"
-        />
-      </svg>
-    </div>
-
-    <div class="hero-brand" aria-label="Setara">
-      <SetaraLoader mode="orbit" size={50} />
-      <SetaraGsapLogo size={170} />
-    </div>
-
-    <div class="hero-copy">
-      <h1 id="login-heading">Built for teams<br />that care.</h1>
-      <p>
-        Track test scenarios, measure coverage, and automate release gates — one workspace for your
-        whole squad.
-      </p>
-    </div>
-
-    <div class="capability-carousel" aria-label="Platform features">
-      <div class="carousel-track">
-        {#key carouselIdx}
-          <div
-            class="capability-card"
-            in:fly={{ y: 22, opacity: 0, duration: 420 }}
-            out:fly={{ y: -22, opacity: 0, duration: 260 }}
-          >
-            <span class="capability-icon">{@html CAROUSEL_ITEMS[carouselIdx].icon}</span>
-            <span class="capability-label">{CAROUSEL_ITEMS[carouselIdx].label}</span>
-            <span class="capability-sub">{CAROUSEL_ITEMS[carouselIdx].sub}</span>
-          </div>
-        {/key}
-      </div>
-      <div class="carousel-dots" aria-hidden="true">
-        {#each CAROUSEL_ITEMS as _, i}
-          <button
-            class="carousel-dot"
-            class:carousel-dot--active={i === carouselIdx}
-            onclick={() => (carouselIdx = i)}
-            tabindex="-1"
-            aria-hidden="true"
-          ></button>
-        {/each}
-      </div>
-    </div>
-  </section>
+  <LoginHero />
 
   <section class="login-panel" aria-label="Sign in form">
     <div class="panel-sep" aria-hidden="true">
@@ -213,8 +95,9 @@
       <ThemeToggle />
     </div>
 
-    <div class="login-card">
+    <div class="login-card surface-card">
       <div class="login-brand">
+        <SetaraLoader mode="orbit" size={50} />
         <SetaraGsapLogo size={130} loop={true} />
       </div>
 
@@ -284,6 +167,13 @@
         </div>
       {/if}
     </div>
+
+    <footer class="login-panel-footer" aria-label="Application version">
+      <span>© {CURRENT_YEAR} Setara</span>
+      <span class="footer-separator" aria-hidden="true"></span>
+      <span>{APP_VERSION_LABEL}</span>
+      <span>build {APP_BUILD_LABEL}</span>
+    </footer>
   </section>
 </div>
 
@@ -298,6 +188,8 @@
       var(--color-bg);
     color: var(--color-text);
     overflow: hidden;
+
+    --footer-line: rgba(7, 56, 68, 0.2);
   }
 
   :global([data-theme='dark']) .login-page {
@@ -305,183 +197,8 @@
       radial-gradient(ellipse 80% 60% at 20% 50%, color-mix(in srgb, var(--color-accent), transparent 84%), transparent),
       linear-gradient(160deg, color-mix(in srgb, var(--color-accent), transparent 88%) 0%, transparent 55%),
       var(--color-bg);
-  }
 
-  /* ── Hero ─────────────────────────────────────────────── */
-
-  .login-hero {
-    position: relative;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    gap: clamp(22px, 3.5vw, 38px);
-    padding: clamp(32px, 6vw, 80px);
-    isolation: isolate;
-  }
-
-  /* ── Scribble animation ───────────────────────────────── */
-
-  .hero-scribble {
-    position: absolute;
-    inset: 8% 0 auto;
-    height: min(54vw, 460px);
-    z-index: -1;
-    pointer-events: none;
-  }
-
-  .scribble-svg {
-    width: 100%;
-    height: 100%;
-    overflow: visible;
-  }
-
-  .sp {
-    stroke-dasharray: 1;
-    stroke-dashoffset: 1;
-    animation: scribble-draw 9s ease-in-out infinite;
-  }
-
-  .sp--2 {
-    animation-delay: -3s;
-    animation-duration: 10s;
-  }
-
-  .sp--3 {
-    animation-delay: -6.2s;
-    animation-duration: 11s;
-  }
-
-  .sp--4 {
-    animation-name: scribble-draw-rev;
-    animation-delay: -1.9s;
-    animation-duration: 7.5s;
-  }
-
-  .sp--5 {
-    animation-delay: -10.4s;
-    animation-duration: 13s;
-  }
-
-  /* ── Brand mark ────────────────────────────────────────── */
-
-  .hero-brand {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-  }
-
-  /* ── Hero copy ─────────────────────────────────────────── */
-
-  .hero-copy {
-    max-width: 620px;
-  }
-
-  .hero-copy h1 {
-    margin: 0;
-    font-size: clamp(2rem, 4.2vw, 3.8rem);
-    line-height: 1.08;
-    letter-spacing: -0.01em;
-    max-width: 16ch;
-    background: linear-gradient(
-      145deg,
-      var(--color-text) 25%,
-      color-mix(in srgb, var(--color-accent), var(--color-text) 42%)
-    );
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-  }
-
-  .hero-copy p {
-    max-width: 520px;
-    margin: 16px 0 0;
-    color: var(--color-text-muted);
-    font-size: clamp(0.9rem, 1.3vw, 1.06rem);
-    line-height: 1.72;
-  }
-
-  /* ── Capability carousel ──────────────────────────────── */
-
-  .capability-carousel {
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    max-width: 480px;
-  }
-
-  .carousel-track {
-    position: relative;
-    height: 100px;
-    overflow: hidden;
-  }
-
-  .capability-card {
-    position: absolute;
-    inset: 0;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 14px;
-    padding: 16px 20px;
-    border: 1px solid color-mix(in srgb, var(--color-accent), var(--color-border) 55%);
-    border-radius: var(--radius);
-    background: color-mix(in srgb, var(--color-accent), var(--color-surface) 92%);
-    box-shadow:
-      0 0 0 1px color-mix(in srgb, var(--color-accent), transparent 80%),
-      var(--shadow);
-  }
-
-  :global([data-theme='dark']) .capability-card {
-    background: color-mix(in srgb, var(--color-accent), var(--color-surface) 94%);
-  }
-
-  .capability-icon {
-    flex-shrink: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: color-mix(in srgb, var(--color-accent), transparent 82%);
-    color: var(--color-accent);
-  }
-
-  .capability-label {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: var(--color-text);
-    line-height: 1.3;
-  }
-
-  .capability-sub {
-    font-size: 0.76rem;
-    color: var(--color-text-muted);
-    line-height: 1.45;
-  }
-
-  .carousel-dots {
-    display: flex;
-    gap: 7px;
-  }
-
-  .carousel-dot {
-    width: 20px;
-    height: 4px;
-    border-radius: 2px;
-    border: none;
-    background: color-mix(in srgb, var(--color-accent), transparent 68%);
-    cursor: pointer;
-    padding: 0;
-    transition:
-      background 0.2s,
-      width 0.25s;
-  }
-
-  .carousel-dot--active {
-    width: 36px;
-    background: var(--color-accent);
+    --footer-line: rgba(226, 255, 249, 0.2);
   }
 
   /* ── Login panel ──────────────────────────────────────── */
@@ -495,10 +212,11 @@
     justify-content: center;
     gap: 20px;
     padding: clamp(24px, 4vw, 56px);
+    overflow-y: auto;
     background: color-mix(in srgb, var(--color-surface), transparent 4%);
   }
 
-  :global([data-theme='dark']) .login-panel {
+  :global([data-theme='dark']) .theme-wrap{
     background: color-mix(in srgb, var(--color-surface), transparent 8%);
   }
 
@@ -539,7 +257,40 @@
     max-width: 430px;
     display: flex;
     justify-content: center;
-    padding-bottom: 4px;
+    border-radius: var(--radius);
+    background: var(--surface-card-bg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .login-panel-footer {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    padding: 7px 16px;
+    margin-bottom: max(4px, env(safe-area-inset-bottom));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-surface), transparent 8%);
+    border: 1px solid color-mix(in srgb, var(--color-border), transparent 45%);
+    box-shadow: var(--shadow-sm, 0 2px 10px rgba(0, 0, 0, 0.08));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition:
+      color 0.4s ease,
+      background 0.4s ease,
+      border-color 0.4s ease;
+  }
+
+  .footer-separator {
+    width: 14px;
+    height: 1px;
+    background: var(--footer-line);
   }
 
   /* ── Login card ───────────────────────────────────────── */
@@ -739,24 +490,6 @@
 
   /* ── Keyframes ────────────────────────────────────────── */
 
-  @keyframes scribble-draw {
-    0%   { stroke-dashoffset: 1;  opacity: 0; }
-    8%   { opacity: 1; }
-    40%  { stroke-dashoffset: 0;  opacity: 1; }
-    62%  { stroke-dashoffset: 0;  opacity: 0.85; }
-    76%  { stroke-dashoffset: -1; opacity: 0; }
-    100% { stroke-dashoffset: 1;  opacity: 0; }
-  }
-
-  @keyframes scribble-draw-rev {
-    0%   { stroke-dashoffset: -1; opacity: 0; }
-    8%   { opacity: 0.9; }
-    40%  { stroke-dashoffset: 0;  opacity: 0.9; }
-    62%  { stroke-dashoffset: 0;  opacity: 0.7; }
-    76%  { stroke-dashoffset: 1;  opacity: 0; }
-    100% { stroke-dashoffset: -1; opacity: 0; }
-  }
-
   @keyframes card-enter {
     from { opacity: 0; transform: translateY(18px) scale(0.98); }
     to   { opacity: 1; transform: translateY(0) scale(1); }
@@ -779,28 +512,7 @@
       overflow: visible;
     }
 
-    .login-hero {
-      min-height: auto;
-      padding: 28px 22px 8px;
-      gap: 18px;
-    }
-
-    .hero-scribble {
-      inset: 0 -28% auto;
-      height: 280px;
-      opacity: 0.5;
-    }
-
-    .hero-copy h1 {
-      font-size: clamp(1.8rem, 9vw, 3rem);
-    }
-
-    .hero-copy p {
-      margin-top: 12px;
-      font-size: 0.94rem;
-    }
-
-    .capability-carousel {
+    .login-brand {
       display: none;
     }
 
@@ -819,29 +531,11 @@
     }
   }
 
-  @media (max-width: 420px) {
-    .login-hero {
-      padding-inline: 16px;
-    }
-
-    .hero-copy h1 {
-      font-size: clamp(1.6rem, 11vw, 2.4rem);
-    }
-  }
-
   @media (prefers-reduced-motion: reduce) {
-    .sp,
-    .sp--4,
     .login-card,
     .submit-btn {
       animation: none;
       transition-duration: 0.001ms;
-    }
-
-    .sp,
-    .sp--4 {
-      stroke-dashoffset: 0;
-      opacity: 0.5;
     }
 
     .submit-btn:hover:not(:disabled) {

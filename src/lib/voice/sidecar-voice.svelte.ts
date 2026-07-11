@@ -1,5 +1,5 @@
 import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStream, fetchVoiceCatalog, fetchEntityCatalog, fetchVoiceCue, prepareVoiceSession, type AsaPreparedVoiceSession, type AsaVoiceOption } from '$lib/api/asa';
-import type { AsaEntityCatalog, AsaVoiceInput } from '$lib/api/asa';
+import type { AsaEntityCatalog, AsaVoiceInput, SttErrorReason } from '$lib/api/asa';
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
 import { classifyPcmStreamError } from './stream-errors';
@@ -57,6 +57,30 @@ function downsamplePcm16(input: Float32Array, ratio: number): ArrayBuffer {
   return out.buffer;
 }
 
+/** Maps an STT failure reason to the plain, actionable copy from the voice error UX plan
+ *  (setara-s94o.11) — falls back to the sidecar's own detail message for reasons that don't have
+ *  a fixed canned message (e.g. quota/format, which already carry a clear plain-text detail). */
+function sttErrorMessage(reason: SttErrorReason, detail: string): string {
+  switch (reason) {
+    case 'audio_too_long':
+      return 'Audio exceeds the configured voice limit. Record a shorter command or type your request.';
+    case 'billing_not_configured':
+      return 'Hosted STT credentials or billing are not configured.';
+    case 'empty_transcript':
+      return 'Could not understand audio. Try again with less background noise.';
+    case 'stt_unavailable':
+      return 'Voice service is unavailable right now. Try again or type your request.';
+    case 'network_error':
+      return 'Could not reach the voice service. Try again.';
+    case 'unsupported_format':
+    case 'quota_exceeded':
+      return detail || 'Could not process that audio. Try again.';
+    case 'voice_unavailable':
+    default:
+      return detail || 'Voice service is unavailable. You can still type your request.';
+  }
+}
+
 type SidecarStatus = 'idle' | 'listening' | 'recording' | 'transcribing' | 'error';
 type VoiceTurnState = 'idle' | 'armed' | 'hearing' | 'finalizing' | 'understanding' | 'speaking' | 'paused' | 'error';
 /** Cue ids map 1:1 to backend AsaVoiceCueService.CUES. */
@@ -98,6 +122,10 @@ class SidecarVoice {
   turnState = $state<VoiceTurnState>('idle');
   wakeMode = $state<WakeMode>('wake');
   ttsPlayback = $state<TtsPlaybackStats>({ chunks: 0, underruns: 0, scheduledMs: 0, sampleRate: 0 });
+  /** Non-blocking info message (e.g. "used local fallback") shown alongside a successful transcript. */
+  notice = $state<string | null>(null);
+  /** Diagnostics: mode/provider/model/latency/fallback from the most recent /stt call (setara-s94o.12). */
+  lastSttStats = $state<{ provider?: string; model?: string; latencyMs?: number; fallbackUsed?: boolean } | null>(null);
 
   // Rolling-window streaming STT (hands-free): a ScriptProcessor taps the mic, PCM16 @16kHz is
   // streamed over a WS to the sidecar (via core), partials arrive live, final on "flush".
@@ -238,15 +266,26 @@ class SidecarVoice {
   private async processBlob(blob: Blob, playProcessingCue = true): Promise<SidecarTranscript | null> {
     this.status = 'transcribing';
     this.turnState = 'understanding';
+    this.notice = null;
     asaLog('voice', 'transcribing', { bytes: blob.size, type: blob.type });
-    const result = await transcribeAudio(blob);
-    if (!result || !result.text.trim()) {
-      this.fail('Could not transcribe that clearly. Try again or type your request.');
+    const outcome = await transcribeAudio(blob);
+    if (!outcome.ok) {
+      this.fail(sttErrorMessage(outcome.error.reason, outcome.error.message));
       return null;
     }
+    const { result } = outcome;
+    this.lastSttStats = {
+      provider: result.provider,
+      model: result.model,
+      latencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
+    };
     if (isLikelyVoiceNoise(result.text)) {
-      this.fail('Could not transcribe that clearly. Try again or type your request.');
+      this.fail(sttErrorMessage('empty_transcript', ''));
       return null;
+    }
+    if (result.fallbackUsed) {
+      this.notice = `Primary STT unavailable. Used ${result.provider || 'the fallback'} provider.`;
     }
     if (playProcessingCue) this.playCue('processing');
     this.status = 'idle';

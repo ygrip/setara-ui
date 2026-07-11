@@ -5,6 +5,9 @@
   then reset form state.
 - Mock create helpers should mutate the same in-memory collections used by mock list helpers so table refresh behavior
   matches the real backend.
+- Optional squad issue-tracker project keys use the client name `issueTrackerProjectKey`. Trim values before create or
+  update, submit `null` to clear them, show `Global default` when unset, and explain that blank uses the global
+  issue-tracker project key. Mock create, update, list, and detail calls must share the same mutable squad value.
 
 ## Chart Visual Pattern
 
@@ -34,6 +37,18 @@
   pinned shortcuts unless a validated workflow requires them; the command palette already handles fast navigation.
 - Disabled project routes remain visible to explain the available structure, but use `aria-disabled`, muted styling,
   and clear guidance to open a project first.
+- Use `static/setara.gif` as the Setara wordmark in the app shell and auth screens. Render it inside a fixed-size,
+  overflow-hidden viewport so the square GIF is cropped to the layout instead of stretching or showing excess whitespace.
+- Keep Light and Dark as explicit options through the shared `ThemeToggle` selector. In the app shell, place theme
+  selection in the lower sidebar on desktop and mobile; do not duplicate it in the sidebar brand row.
+
+## Auth Entry Pattern
+
+- Login uses one responsive split screen: product-led hero and signals on desktop, simplified hero plus form on mobile.
+  Preserve the existing client-side auth and demo quick-login behavior when improving the presentation.
+- The login page owns its local hero motion and form layout, but reuses shared theme selection and global design tokens.
+  Respect `prefers-reduced-motion`, keep inputs and primary actions at touch-friendly heights, and avoid separate or
+  duplicate brand treatments.
 
 ## Metric Card Pattern
 
@@ -157,6 +172,25 @@
 - Keep the missing-token guard in the shared WebSocket manager even when individual pages also guard direct sockets.
   Project execution pages connect through the manager, while the aggregate dashboard owns several sockets directly.
 
+## Failed Execution Issue Creation Pattern
+
+- Quick-create one aggregate external issue only for a failed execution with failed scenario results and an enabled issue
+  tracker. Keep confirmation in the UI and call the existing bulk-create API with exactly one `Bug` issue and the
+  execution ID; do not add a dedicated backend endpoint.
+- Generate deterministic, bounded plain text ordered by scenario sequence, then key and name. Include project and
+  execution metadata plus scenario key, name, feature, exception, and failed-step detail only when present; state how
+  many failures were omitted beyond the bound.
+- Refresh `TrackedIssuesTable` through an explicit refresh token after a created response. Total or partial failures
+  stay visible as errors, and the confirmation closes automatically only after a complete success.
+
+## Tracked Issues Presentation Pattern
+
+- `TrackedIssuesTable` owns exactly one `BentoCard` across plan, build, and execution placements. Keep host routes to
+  spacing only, put link and optional execution quick-create actions in the card header, and keep `DataTable` as the
+  sole table primitive with its mobile-card behavior.
+- Sortable headings are real `.sort-button` controls with `.sort-indicator` state. Unlink uses an accessible `Modal`
+  confirmation that explicitly preserves the external ticket, then removes only the local row after success.
+
 ## ASA Transcript Normalization Pattern
 
 - Preserve the exact STT output as `rawText` and produce a separate `normalizedText` plus ordered applied-rule IDs.
@@ -212,7 +246,13 @@
   use fuzzy entity matching for the wake phrase.
 - The chat panel keeps a theme-aware glass surface with sufficient opacity for text contrast. Resize handling must keep
   both the panel and orb inside the viewport.
-- Persist Moonshine model binaries in a versioned Cache Storage namespace only after byte-size and SHA-256
-  verification. Route model initialization through cached responses and delete stale Setara model caches on upgrade.
+- Keep STT model ownership server-side behind Core and the sidecar provider contract. The browser owns capture,
+  review, normalization, entity resolution, and provider diagnostics, but does not ship a Moonshine or RunAnywhere
+  runtime. A future browser-local engine requires an explicit architecture decision, pinned assets, integrity checks,
+  provenance, and the same authorization-aware final transcript path; do not leave dormant model manifests or checks.
+- Treat `package.json` as the UI release-version source of truth. Vite injects that version and a build commit SHA into
+  `$lib/app-metadata`; login and authenticated application footers must consume those shared values instead of
+  hard-coding release strings. Docker publication must pass `github.sha` as `VITE_BUILD_SHA`; local builds may derive
+  the current Git commit and fall back to `dev` only when neither source is available.
 - Keep text chat on the main orb click and expose microphone activation as a distinct control attached to the orb.
   Voice capture can stay panel-free until a command needs review or entity clarification.

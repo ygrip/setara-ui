@@ -215,8 +215,8 @@
     gap: 0.4rem;
     margin-top: 0.6rem;
     padding: 0.5rem 0.7rem;
-    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
-    border: 1px solid color-mix(in srgb, var(--color-accent) 20%, var(--color-border));
+    background: color-mix(in srgb, var(--color-info) 7%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-info) 20%, var(--color-border));
     border-radius: 0.45rem;
   }
 
@@ -224,7 +224,7 @@
     width: 14px;
     height: 14px;
     flex: 0 0 auto;
-    color: var(--color-accent);
+    color: var(--color-info);
   }
 
   .insight-label {
@@ -232,7 +232,7 @@
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.06em;
-    color: var(--color-accent);
+    color: var(--color-info);
     white-space: nowrap;
   }
 

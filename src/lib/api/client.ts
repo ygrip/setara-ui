@@ -51,6 +51,37 @@ export async function changePassword(currentPassword: string, newPassword: strin
   }
 }
 
+export interface MeResult {
+  userId: string;
+  email: string;
+  displayName: string;
+  systemRole: string;
+  createdAt: string;
+  pendingPasswordChange: boolean;
+}
+
+export async function getMe(): Promise<MeResult> {
+  const response = await apiFetch('/api/auth/me');
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to load account');
+  }
+  return response.json();
+}
+
+export async function updateDisplayName(displayName: string): Promise<MeResult> {
+  const response = await apiFetch('/api/auth/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName }),
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({}));
+    throw new Error(body.error ?? 'Failed to update display name');
+  }
+  return response.json();
+}
+
 export async function getHealth(): Promise<{ status: string; service: string }> {
   const response = await fetch(`${getApiBaseUrl()}/api/health`, { credentials: 'include' });
   if (!response.ok) throw new Error(`Health check failed: ${response.status}`);

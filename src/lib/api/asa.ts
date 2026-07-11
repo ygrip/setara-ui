@@ -116,8 +116,35 @@ async function toWav16k(blob: Blob): Promise<Blob> {
   }
 }
 
-/** Sidecar STT: upload a recorded audio blob, get a transcript back. */
-export async function transcribeAudio(blob: Blob): Promise<{ text: string } | null> {
+export type SttErrorReason =
+  | 'audio_too_long'
+  | 'unsupported_format'
+  | 'quota_exceeded'
+  | 'billing_not_configured'
+  | 'stt_unavailable'
+  | 'voice_unavailable'
+  | 'empty_transcript'
+  | 'network_error';
+
+export interface SttTranscribeResult {
+  text: string;
+  provider?: string;
+  model?: string;
+  fallbackUsed?: boolean;
+  latencyMs?: number;
+}
+
+export interface SttTranscribeError {
+  reason: SttErrorReason;
+  message: string;
+}
+
+/** Sidecar STT: upload a recorded audio blob, get a transcript back (with provider/latency/fallback
+ *  metadata) on success, or a distinct error reason on failure so the UI can show a specific message
+ *  instead of one generic fallback string. */
+export async function transcribeAudio(
+  blob: Blob
+): Promise<{ ok: true; result: SttTranscribeResult } | { ok: false; error: SttTranscribeError }> {
   try {
     const wav = await toWav16k(blob);
     const res = await apiFetch('/api/asa/voice/transcribe', {
@@ -125,11 +152,31 @@ export async function transcribeAudio(blob: Blob): Promise<{ text: string } | nu
       headers: { 'Content-Type': 'audio/wav' },
       body: wav,
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { text: String(data.text ?? '') };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const reason = (data?.error as SttErrorReason) ?? 'stt_unavailable';
+      const message = String(data?.message ?? 'Voice service is unavailable. You can still type your request.');
+      return { ok: false, error: { reason, message } };
+    }
+    const text = String(data.text ?? '');
+    if (!text.trim()) {
+      return { ok: false, error: { reason: 'empty_transcript', message: 'Could not understand audio.' } };
+    }
+    return {
+      ok: true,
+      result: {
+        text,
+        provider: data.provider,
+        model: data.model,
+        fallbackUsed: Boolean(data.fallbackUsed),
+        latencyMs: typeof data.latencyMs === 'number' ? data.latencyMs : undefined,
+      },
+    };
   } catch {
-    return null;
+    return {
+      ok: false,
+      error: { reason: 'network_error', message: 'Could not reach the voice service. Try again.' },
+    };
   }
 }
 
@@ -196,6 +243,37 @@ export function openSttStream(voiceSessionId?: string): WebSocket | null {
     const ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     return ws;
+  } catch {
+    return null;
+  }
+}
+
+export interface AsaVoiceModelsInfo {
+  mode: string;
+  stt: {
+    activeProvider: string;
+    activeModel: string;
+    fallbackProvider?: string | null;
+    availableProviders: string[];
+  };
+}
+
+/** Voice mode/provider/model info for the dev/admin diagnostics panel (setara-s94o.12). */
+export async function fetchVoiceModelsInfo(): Promise<AsaVoiceModelsInfo | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/models');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.stt) return null;
+    return {
+      mode: String(data.mode ?? ''),
+      stt: {
+        activeProvider: String(data.stt.activeProvider ?? ''),
+        activeModel: String(data.stt.activeModel ?? ''),
+        fallbackProvider: data.stt.fallbackProvider ?? null,
+        availableProviders: Array.isArray(data.stt.availableProviders) ? data.stt.availableProviders : [],
+      },
+    };
   } catch {
     return null;
   }

@@ -109,11 +109,19 @@
     }]
   });
 
+  const completedRecentRuns = $derived(
+    recentSlice.filter((r: { status: string }) => ['PASSED', 'FAILED'].includes(r.status))
+  );
+
   const passRatePct = $derived.by(() => {
-    const total = recentSlice.length;
+    const total = completedRecentRuns.length;
     if (total === 0) return null;
     return Math.round((recentPassed / total) * 100);
   });
+
+  const healthClass = $derived(healthInfo.cssClass ?? 'neutral');
+
+  const passRateDeg = $derived(`${((passRatePct ?? 0) / 100) * 360}deg`);
 </script>
 
 <svelte:head>
@@ -141,49 +149,92 @@
           <p class="project-desc">{data.project.description}</p>
         {/if}
       </div>
-      <Button variant="secondary" href="/projects/{data.projectKey}/settings">Project Settings</Button>
     </div>
 
-    <!-- Health Hero (task: setara-cpwb) -->
-    <div class="health-hero health-hero--{healthInfo.cssClass}">
-      <div class="hero-icon-wrap hero-icon--{healthInfo.cssClass}" aria-hidden="true">
-        {#if healthInfo.cssClass === 'success'}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M7 13l3.5 3.5L17 9"/></svg>
-        {:else if healthInfo.cssClass === 'danger'}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M15 9l-6 6M9 9l6 6"/></svg>
-        {:else if healthInfo.cssClass === 'warning'}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        {:else}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+<!-- Project Health Hero -->
+<section class="health-hero health-hero--{healthClass}" aria-label="Project health summary">
+  <div class="health-hero__icon" aria-hidden="true">
+    <svg viewBox="0 0 64 64" fill="none">
+      <path
+        d="M32 5.5 54.1 18.25v25.5L32 56.5 9.9 43.75v-25.5L32 5.5Z"
+        stroke="currentColor"
+        stroke-width="2"
+      />
+
+      {#if healthClass === 'success'}
+        <circle cx="32" cy="32" r="11" fill="currentColor" opacity="0.12" />
+        <path d="M25.5 32.5 30 37l9-10" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" />
+      {:else if healthClass === 'danger'}
+        <circle cx="32" cy="32" r="11" fill="currentColor" />
+        <path d="M32 24.5v10" stroke="white" stroke-width="3.2" stroke-linecap="round" />
+        <path d="M32 40h.01" stroke="white" stroke-width="4" stroke-linecap="round" />
+      {:else if healthClass === 'warning'}
+        <circle cx="32" cy="32" r="11" fill="currentColor" opacity="0.12" />
+        <path d="M32 25v10" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" />
+        <path d="M32 40h.01" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+      {:else}
+        <circle cx="32" cy="32" r="11" fill="currentColor" opacity="0.12" />
+        <path d="M32 26v7" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+        <path d="M32 39h.01" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+      {/if}
+    </svg>
+  </div>
+
+  <div class="health-hero__content">
+    <div class="health-hero__label">Project Health</div>
+
+    <h2 class="health-hero__title">{healthInfo.label}</h2>
+
+    <p class="health-hero__message">{healthInfo.message}</p>
+
+    {#if data.runs.length > 0}
+      <div class="health-hero__signals">
+        <span class="health-signal">
+          <span class="health-signal__dot health-signal__dot--muted"></span>
+          {recentSlice.length} recent runs
+        </span>
+
+        <span class="health-signal">
+          <span class="health-signal__dot health-signal__dot--danger"></span>
+          {recentFailed} failed
+        </span>
+
+        <span class="health-signal">
+          <span class="health-signal__dot health-signal__dot--success"></span>
+          {recentPassed} passed
+        </span>
+
+        {#if notAutomated !== null}
+          <span class="health-signal">
+            <span class="health-signal__dot health-signal__dot--warning"></span>
+            {notAutomated} scenarios not automated
+          </span>
         {/if}
       </div>
-      <div class="hero-left">
-        <div class="hero-label">Project Health</div>
-        <div class="hero-status-badge health-badge--{healthInfo.cssClass}">{healthInfo.label}</div>
-        <p class="hero-message">{healthInfo.message}</p>
-        {#if data.runs.length > 0}
-          <div class="hero-signals">
-            <span class="signal signal--pass">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.2"/><path d="M3.5 6l1.8 1.8 3.2-3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              {recentPassed} passed
-            </span>
-            <span class="signal signal--fail">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true"><circle cx="6" cy="6" r="5" fill="currentColor" opacity="0.2"/><path d="M4 4l4 4M8 4l-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
-              {recentFailed} failed
-            </span>
-            {#if notAutomated !== null}
-              <span class="signal signal--neutral">{notAutomated} not automated</span>
-            {/if}
-          </div>
-        {/if}
-      </div>
-      <div class="hero-actions">
-        {#if lastRun?.status === 'FAILED'}
-          <Button href="/projects/{data.projectKey}/executions/{lastRun.id}" variant="secondary">View Failed Run</Button>
-        {/if}
-        <Button href="/projects/{data.projectKey}/coverage" variant="secondary">Open Coverage</Button>
-      </div>
-    </div>
+    {/if}
+  </div>
+
+  <div class="health-hero__actions">
+    {#if lastRun?.status === 'FAILED'}
+      <a class="health-action health-action--danger" href="/projects/{data.projectKey}/executions/{lastRun.id}">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 3.5 16.5 6v4.8c0 3.1-2 5.8-6.5 7.7-4.5-1.9-6.5-4.6-6.5-7.7V6L10 3.5Z" stroke="currentColor" stroke-width="1.7" />
+          <path d="M10 7.2v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+          <path d="M10 14h.01" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+        View Failed Run
+      </a>
+    {/if}
+
+    <a class="health-action" href="/projects/{data.projectKey}/coverage">
+      <svg viewBox="0 0 20 20" fill="none" aria-hidden="true">
+        <path d="M4 13.5 8 9.5l3 3L16 6.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+        <path d="M4 16.5h12" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+      </svg>
+      Open Coverage
+    </a>
+  </div>
+</section>
 
     <!-- Metric cards (task: setara-l3ja) -->
     <div class="metrics-row">
@@ -411,7 +462,7 @@
 </div>
 
 <style>
-  .page { max-width: min(1520px, 100%); display: flex; flex-direction: column; gap: 1.25rem; }
+  .page { max-width: min(100%); display: flex; flex-direction: column; gap: 1.25rem; }
 
   .breadcrumb {
     display: flex;
@@ -429,91 +480,349 @@
   .project-name { font-size: 1.5rem; font-weight: 700; margin: 0; }
   .project-desc { color: var(--color-text-muted); font-size: 0.875rem; margin: 0; }
 
-  /* Health Hero */
+  /* Project Health Hero */
+.health-hero {
+  --health-color: var(--color-text-muted);
+  --health-bg: color-mix(in srgb, var(--health-color) 5%, var(--color-surface));
+  --health-border: color-mix(in srgb, var(--health-color) 28%, var(--color-border));
+  --health-button-bg: var(--color-surface);
+  --health-button-border: var(--color-border);
+
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.5rem;
+
+  min-height: 138px;
+  padding: 1.45rem 1.85rem;
+
+  border: 1px solid var(--health-border);
+  border-radius: 1rem;
+
+  background:
+    radial-gradient(
+      circle at 8% 50%,
+      color-mix(in srgb, var(--health-color) 8%, transparent),
+      transparent 34%
+    ),
+    linear-gradient(
+      90deg,
+      var(--health-bg),
+      var(--color-surface)
+    );
+}
+
+/* Status variants */
+.health-hero--success {
+  --health-color: var(--color-success);
+}
+
+.health-hero--warning {
+  --health-color: var(--color-warning);
+}
+
+.health-hero--danger {
+  --health-color: var(--color-danger);
+}
+
+.health-hero--neutral {
+  --health-color: var(--color-text-muted);
+}
+
+/* Hexagon icon */
+.health-hero__icon {
+  width: 76px;
+  height: 76px;
+  flex: 0 0 auto;
+  color: var(--health-color);
+}
+
+.health-hero__icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Main content */
+.health-hero__content {
+  min-width: 0;
+}
+
+.health-hero__label {
+  margin-bottom: 0.35rem;
+
+  font-size: 0.72rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.045em;
+
+  color: var(--color-text-muted);
+}
+
+.health-hero__title {
+  margin: 0;
+
+  font-size: 1.35rem;
+  font-weight: 850;
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+
+  color: var(--health-color);
+}
+
+.health-hero__message {
+  margin: 0.35rem 0 0;
+
+  font-size: 0.88rem;
+  font-weight: 650;
+  line-height: 1.35;
+
+  color: var(--color-text);
+}
+
+/* Signals */
+.health-hero__signals {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+
+  margin-top: 0.85rem;
+}
+
+.health-signal {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.2;
+
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+
+.health-signal__dot {
+  width: 0.44rem;
+  height: 0.44rem;
+  flex: 0 0 auto;
+
+  border-radius: 999px;
+  background: var(--color-text-muted);
+}
+
+.health-signal__dot--success {
+  background: var(--color-success);
+}
+
+.health-signal__dot--danger {
+  background: var(--color-danger);
+}
+
+.health-signal__dot--warning {
+  background: var(--color-warning);
+}
+
+.health-signal__dot--muted {
+  background: color-mix(in srgb, var(--color-text-muted) 55%, transparent);
+}
+
+/* Actions */
+.health-hero__actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.health-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+
+  min-height: 42px;
+  padding: 0.65rem 1.15rem;
+
+  border: 1px solid var(--health-button-border);
+  border-radius: 0.55rem;
+
+  background: var(--health-button-bg);
+  color: var(--color-text);
+
+  font-size: 0.84rem;
+  font-weight: 750;
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--color-text) 5%, transparent);
+
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.health-action:hover {
+  transform: translateY(-1px);
+  color: var(--color-primary, #00a99d);
+  border-color: color-mix(in srgb, var(--color-primary, #00a99d) 36%, var(--color-border));
+  background: color-mix(in srgb, var(--color-primary, #00a99d) 4%, var(--color-surface));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-primary, #00a99d) 8%, transparent);
+}
+
+.health-action svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.health-action--danger {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 3%, var(--color-surface));
+}
+
+.health-action--danger:hover {
+  color: var(--color-danger);
+  border-color: color-mix(in srgb, var(--color-danger) 44%, var(--color-border));
+  background: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
+  box-shadow: 0 6px 14px color-mix(in srgb, var(--color-danger) 9%, transparent);
+}
+
+/* Tablet */
+@media (max-width: 860px) {
   .health-hero {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
     gap: 1rem;
-    padding: 1.1rem 1.4rem;
-    border-radius: 0.9rem;
-    border: 1px solid var(--hero-border, var(--color-border));
-    background: var(--hero-bg, var(--color-surface));
-    flex-wrap: wrap;
   }
 
-  .hero-icon-wrap {
-    flex: 0 0 auto;
-    width: 52px;
-    height: 52px;
-    border-radius: 50%;
-    display: flex;
+  .health-hero__actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-top: 0.25rem;
+  }
+}
+
+/* Mobile */
+@media (max-width: 560px) {
+  .health-hero {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+
+    min-height: unset;
+    padding: 1.15rem;
+
+    border-radius: 1rem;
+
+    background:
+      radial-gradient(
+        circle at 18% 8%,
+        color-mix(in srgb, var(--health-color) 9%, transparent),
+        transparent 36%
+      ),
+      linear-gradient(
+        180deg,
+        var(--health-bg),
+        var(--color-surface)
+      );
+  }
+
+  .health-hero__icon {
+    width: 58px;
+    height: 58px;
+  }
+
+  .health-hero__label {
+    margin-bottom: 0.32rem;
+    font-size: 0.68rem;
+  }
+
+  .health-hero__title {
+    font-size: 1.35rem;
+    line-height: 1.15;
+  }
+
+  .health-hero__message {
+    margin-top: 0.4rem;
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .health-hero__signals {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.55rem;
+
+    margin-top: 0.9rem;
+  }
+
+  .health-signal {
     align-items: center;
-    justify-content: center;
-    padding: 12px;
-    box-sizing: border-box;
-  }
-  .hero-icon-wrap svg { width: 100%; height: 100%; }
 
-  .hero-icon--success {
-    background: color-mix(in srgb, var(--color-success) 16%, transparent);
-    color: var(--color-success);
-    border: 1.5px solid color-mix(in srgb, var(--color-success) 30%, transparent);
-  }
-  .hero-icon--warning {
-    background: color-mix(in srgb, var(--color-warning) 16%, transparent);
-    color: var(--color-warning);
-    border: 1.5px solid color-mix(in srgb, var(--color-warning) 30%, transparent);
-  }
-  .hero-icon--danger {
-    background: color-mix(in srgb, var(--color-danger) 16%, transparent);
-    color: var(--color-danger);
-    border: 1.5px solid color-mix(in srgb, var(--color-danger) 30%, transparent);
-  }
-  .hero-icon--neutral {
-    background: color-mix(in srgb, var(--color-text-muted) 12%, transparent);
-    color: var(--color-text-muted);
-    border: 1.5px solid color-mix(in srgb, var(--color-text-muted) 20%, transparent);
-  }
-  .health-hero--success {
-    --hero-bg: color-mix(in srgb, var(--color-success) 6%, var(--color-surface));
-    --hero-border: color-mix(in srgb, var(--color-success) 28%, var(--color-border));
-  }
-  .health-hero--warning {
-    --hero-bg: color-mix(in srgb, var(--color-warning) 6%, var(--color-surface));
-    --hero-border: color-mix(in srgb, var(--color-warning) 28%, var(--color-border));
-  }
-  .health-hero--danger {
-    --hero-bg: color-mix(in srgb, var(--color-danger) 6%, var(--color-surface));
-    --hero-border: color-mix(in srgb, var(--color-danger) 28%, var(--color-border));
-  }
-  .health-hero--neutral {
-    --hero-bg: var(--color-surface);
-    --hero-border: var(--color-border);
+    font-size: 0.86rem;
+    line-height: 1.25;
+
+    white-space: normal;
   }
 
-  .hero-left { display: flex; flex-direction: column; gap: 0.4rem; flex: 1; min-width: 200px; }
-  .hero-label { font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--color-text-muted); }
-  .hero-status-badge {
-    display: inline-block;
-    padding: 0.22rem 0.7rem;
-    border-radius: 999px;
-    font-size: 0.8rem;
-    font-weight: 700;
-    width: fit-content;
-  }
-  .health-badge--success { background: color-mix(in srgb, var(--color-success) 18%, transparent); color: var(--color-success); }
-  .health-badge--warning { background: color-mix(in srgb, var(--color-warning) 18%, transparent); color: var(--color-warning); }
-  .health-badge--danger { background: color-mix(in srgb, var(--color-danger) 18%, transparent); color: var(--color-danger); }
-  .health-badge--neutral { background: color-mix(in srgb, var(--color-text-muted) 14%, transparent); color: var(--color-text-muted); }
+  .health-hero__actions {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0.65rem;
 
-  .hero-message { margin: 0; font-size: 0.85rem; color: var(--color-text-muted); }
-  .hero-signals { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.2rem; }
-  .signal { display: inline-flex; align-items: center; gap: 0.25rem; font-size: 0.75rem; font-weight: 600; }
-  .signal--pass { color: var(--color-success); }
-  .signal--fail { color: var(--color-danger); }
-  .signal--neutral { color: var(--color-text-muted); }
-  .hero-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: flex-end; }
+    width: 100%;
+    margin-top: 0.35rem;
+  }
+
+  .health-action {
+    width: 100%;
+    min-height: 46px;
+    padding: 0.75rem 1rem;
+
+    border-radius: 0.7rem;
+
+    font-size: 0.9rem;
+    line-height: 1;
+
+    white-space: nowrap;
+  }
+}
+
+/* Small mobile */
+@media (max-width: 380px) {
+  .health-hero {
+    padding: 1rem;
+  }
+
+  .health-hero__icon {
+    width: 54px;
+    height: 54px;
+  }
+
+  .health-hero__title {
+    font-size: 1.2rem;
+  }
+
+  .health-hero__message {
+    font-size: 0.9rem;
+  }
+
+  .health-signal {
+    font-size: 0.82rem;
+  }
+
+  .health-action {
+    min-height: 44px;
+    font-size: 0.86rem;
+  }
+}
 
   /* Metrics */
   .metrics-row {

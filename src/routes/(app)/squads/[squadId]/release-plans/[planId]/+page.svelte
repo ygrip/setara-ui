@@ -10,6 +10,7 @@
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import TrackedIssuesTable from '$lib/components/issues/TrackedIssuesTable.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan, updateSquadPlan, deleteSquadPlan,
     type PlanBuild, type PlanLifecycleEvent, type ReleasePlan, type SquadPlanMetrics
@@ -27,6 +28,7 @@
       builds: PlanBuild[];
       metrics: SquadPlanMetrics | null;
       lifecycle: PlanLifecycleEvent[];
+      issuesEnabled: boolean;
       error: string | null;
     }
   } = $props();
@@ -485,6 +487,12 @@
       {/if}
     </section>
 
+    {#if data.issuesEnabled}
+      <section class="section">
+        <TrackedIssuesTable context="plan" squadId={data.squadId} planId={data.planId} enabled={data.issuesEnabled} />
+      </section>
+    {/if}
+
     <!-- Lifecycle -->
     <section class="section section--audit">
       <h2 class="section-title">Lifecycle</h2>
@@ -653,7 +661,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1400px, 100%); display: flex; flex-direction: column; gap: 0; min-height: calc(100vh - 80px); }
+  .page { max-width: min(100%); display: flex; flex-direction: column; gap: 0; min-height: calc(100vh - 80px); }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }

@@ -16,7 +16,9 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /noiseSuppression: true/);
     assert.match(voice, /autoGainControl: true/);
     assert.match(voice, /navigator\.mediaDevices\.getUserMedia\(AUDIO_CONSTRAINTS\)/);
-    assert.match(voice, /const result = await transcribeAudio\(blob\)/);
+    assert.match(voice, /const outcome = await transcribeAudio\(blob\)/);
+    assert.match(voice, /if \(!outcome\.ok\)/);
+    assert.match(voice, /const \{ result \} = outcome/);
   });
 
   it('normalizes and routes structured sidecar transcripts', () => {
