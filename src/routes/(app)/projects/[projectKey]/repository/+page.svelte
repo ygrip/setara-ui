@@ -224,7 +224,7 @@
   $effect(() => {
     const el = sentinelEl;
     const container = scrollEl;
-    const cursor = scopedNextCursor; // tracked dependency — effect re-runs on cursor change
+    const cursor = scopedNextCursor; // tracked dependency - effect re-runs on cursor change
     if (!el || !container || !cursor) return;
     const observer = new IntersectionObserver(
       entries => { if (entries[0].isIntersecting) loadMoreScenarios(); },
@@ -234,7 +234,7 @@
     return () => observer.disconnect();
   });
 
-  // Reactive props bag — Zag's $derived prop getter reads this
+  // Reactive props bag - Zag's $derived prop getter reads this
   const treeProps = $state({
     id: 'repo-tree',
     get collection() { return treeCollection; },
@@ -249,7 +249,7 @@
 
   const treeService = useMachine(treeView.machine, treeProps);
 
-  // $derived.by tracks treeCollection — reconnects when collection rebuilds
+  // $derived.by tracks treeCollection - reconnects when collection rebuilds
   const treeApi = $derived.by(() => {
     treeCollection; // track dependency so connect re-evaluates
     return treeView.connect(treeService, normalizeProps);
@@ -401,7 +401,7 @@
   // ── Init ─────────────────────────────────────────────────────
   onMount(() => {
     canWrite = hasPermission(getValidSession(), 'scenario:write');
-    // Handle ?scenario=ID parameter — auto-open scenario detail
+    // Handle ?scenario=ID parameter - auto-open scenario detail
     const scenarioParam = page.url.searchParams.get('scenario');
     if (scenarioParam) {
       // Check all loaded scenarios (both live and draft)
@@ -823,7 +823,7 @@
 </script>
 
 <svelte:head>
-  <title>Test Repository — {data.projectKey} — Setara</title>
+  <title>Test Repository - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <!-- ── SVG icon snippets ────────────────────────────────── -->
@@ -1111,7 +1111,7 @@
         onchange={(tags: string[], mode: 'ANY' | 'ALL') => { filterTags = tags; filterTagMode = mode; }}
       />
 
-      <!-- Bulk action bar — only visible when rows are selected -->
+      <!-- Bulk action bar - only visible when rows are selected -->
       {#if selectedScenarioIds.length > 0}
         <div class="bulk-bar">
           <span class="bulk-count">{selectedScenarioIds.length} selected</span>
@@ -1818,7 +1818,7 @@
     padding-left: 13px;
     border-left: 1px solid color-mix(in srgb, var(--color-border), transparent 25%);
   }
-  /* Caret — expand/collapse toggle (separate from selection row) */
+  /* Caret - expand/collapse toggle (separate from selection row) */
   .tree-caret {
     display: inline-grid;
     place-items: center;
@@ -1834,7 +1834,7 @@
   }
   .tree-caret:hover { color: var(--color-accent); background: color-mix(in srgb, var(--color-accent), transparent 92%); }
   .leaf-indent { display: inline-block; width: 26px; flex-shrink: 0; }
-  /* Row — selects node when clicked */
+  /* Row - selects node when clicked */
   .tree-node {
     flex: 1; min-width: 0;
     display: flex; align-items: center; gap: 9px;
@@ -1913,7 +1913,7 @@
   .bulk-count { font-size: 0.8rem; color: var(--color-accent); font-weight: 700; min-width: 72px; }
 
   /* Scenario table (plans-style) */
-  /* overflow must stay off table-wrap — any overflow value creates a scroll container that blocks thead sticky */
+  /* overflow must stay off table-wrap - any overflow value creates a scroll container that blocks thead sticky */
   .table-wrap { border: 1px solid var(--color-border); border-radius: var(--radius); }
   .scenarios-table { width: 100%; border-collapse: collapse; font-size: 0.875rem; }
   .scenarios-table thead { background: var(--color-surface); position: sticky; top: 0; z-index: 10; }
@@ -2218,7 +2218,7 @@
       overflow: hidden;
     }
     .splitter-handle { display: none; }
-    /* Force panels to full width — override Zag splitter inline styles */
+    /* Force panels to full width - override Zag splitter inline styles */
     .tree-panel,
     .scenario-panel {
       width: 100% !important;
@@ -2265,7 +2265,7 @@
       pointer-events: none;
     }
 
-    /* On mobile, scroll via .content — revert panel flex constraints */
+    /* On mobile, scroll via .content - revert panel flex constraints */
     .scenario-panel { display: block; overflow: visible; padding-bottom: 14px; }
     .scenario-scroll { overflow: visible; padding-bottom: 0; }
     .filter-bar { padding: 8px 12px; }

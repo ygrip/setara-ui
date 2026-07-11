@@ -55,10 +55,10 @@
     return result.stepsJson.find(step => step.status?.toUpperCase() === 'FAILED') ?? null;
   }
 
-  // Markdown-lite: headings (#), **bold**, [text](url) links, and pipe tables — parsed into
+  // Markdown-lite: headings (#), **bold**, [text](url) links, and pipe tables - parsed into
   // real Jira ADF (headings/marks/table nodes) server-side by AdfTextBuilder.
   function tableCell(value: string | null | undefined): string {
-    return (value ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ') || '—';
+    return (value ?? '').replace(/\|/g, '\\|').replace(/\n/g, ' ') || '-';
   }
 
   function executionLink(currentExecutionId: string): string {

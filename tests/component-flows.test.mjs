@@ -42,7 +42,7 @@ describe('Critical component interaction guardrails', () => {
     assert.match(source, /directoryNodeId: nodeId \|\| undefined/);
     assert.match(source, /tags: tags\.length > 0/);
     assert.match(source, /existingSteps: detailSteps\.filter/);
-    assert.match(source, /AI-generated drafts — review and edit each step before saving/);
+    assert.match(source, /AI-generated drafts - review and edit each step before saving/);
     assert.match(source, /SetaraStepGridEditor/);
     assert.match(source, /TagInput/);
     assert.match(source, /disabled=\{!name\.trim\(\) \|\| busy \|\| suggesting\}/);
@@ -72,6 +72,6 @@ describe('Critical component interaction guardrails', () => {
     assert.match(source, /normalizeErrorMessage/);
     assert.match(source, /AppAlert tone="error"/);
     assert.match(source, /Request AI Review/);
-    assert.match(source, /AI-generated analysis — always verify/);
+    assert.match(source, /AI-generated analysis - always verify/);
   });
 });

@@ -28,7 +28,7 @@
     overflow-x: auto;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
-    /* Subtle scroll shadow — indicates more content to the right */
+    /* Subtle scroll shadow - indicates more content to the right */
     background:
       linear-gradient(to right, var(--color-surface) 20px, transparent 60px) left center / 60px 100% no-repeat,
       linear-gradient(to left,  var(--color-surface) 20px, transparent 60px) right center / 60px 100% no-repeat,
@@ -119,7 +119,7 @@
     }
 
     .table-wrap--cards .table :global(thead) {
-      /* visually hidden — keep for a11y */
+      /* visually hidden - keep for a11y */
       position: absolute;
       width: 1px;
       height: 1px;

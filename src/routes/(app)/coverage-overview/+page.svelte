@@ -93,7 +93,7 @@
     void refreshProjects();
   }
 
-  // Derived summary stats — distinct from dashboard
+  // Derived summary stats - distinct from dashboard
   const totalTribes = $derived(new Set(squads.map(s => s.tribeId).filter(Boolean)).size);
   const totalSquads = $derived(squads.length);
   const totalProjects = $derived(squads.reduce((sum, s) => sum + s.projectCount, 0));
@@ -115,14 +115,14 @@
 </script>
 
 <svelte:head>
-  <title>Overview — Setara</title>
+  <title>Overview - Setara</title>
 </svelte:head>
 
 <div class="page">
   <div class="page-header">
     <div>
       <h1 class="page-title">Coverage overview</h1>
-      <p class="page-subtitle">Automation coverage across squads and projects — see what's automated, what's not, and where the gaps are.</p>
+      <p class="page-subtitle">Automation coverage across squads and projects - see what's automated, what's not, and where the gaps are.</p>
     </div>
   </div>
 
@@ -249,13 +249,13 @@
               onclick={() => goto('/squads/' + row.squadId)}
             >
               <td data-label="Squad" class="bold">{row.squadName}</td>
-              <td data-label="Tribe">{row.tribeName ?? '—'}</td>
+              <td data-label="Tribe">{row.tribeName ?? '-'}</td>
               <td data-label="Projects">{row.projectCount}</td>
               <td data-label="Scenarios">{row.totalScenarios.toLocaleString()}</td>
               <td data-label="Automated">{row.totalAutomated.toLocaleString()}</td>
               <td data-label="Automatable">{row.totalAutomatable.toLocaleString()}</td>
               <td data-label="Gap" class:gap-zero={squadGap(row) === 0} class:gap-some={squadGap(row) > 0}>
-                {squadGap(row) > 0 ? squadGap(row).toLocaleString() : '—'}
+                {squadGap(row) > 0 ? squadGap(row).toLocaleString() : '-'}
               </td>
               <td data-label="Coverage">
                 <div class="coverage-cell">
@@ -276,7 +276,7 @@
     <section class="section">
       <div class="section-heading">
         <div>
-          <h2 class="section-title">{selectedSquad.squadName} — Projects</h2>
+          <h2 class="section-title">{selectedSquad.squadName} - Projects</h2>
           <p class="section-subtitle">{projects.length} project{projects.length === 1 ? '' : 's'} in this squad</p>
         </div>
         <div class="filters">
@@ -305,7 +305,7 @@
                 <td data-label="Scenarios">{row.totalScenarios.toLocaleString()}</td>
                 <td data-label="Automated">{row.totalAutomated.toLocaleString()}</td>
                 <td data-label="Automatable">{row.totalAutomatable.toLocaleString()}</td>
-                <td data-label="Gap" class:gap-zero={gap === 0} class:gap-some={gap > 0}>{gap > 0 ? gap.toLocaleString() : '—'}</td>
+                <td data-label="Gap" class:gap-zero={gap === 0} class:gap-some={gap > 0}>{gap > 0 ? gap.toLocaleString() : '-'}</td>
                 <td data-label="Coverage">
                   <div class="coverage-cell">
                     <strong>{pct(row.coveragePercentage)}</strong>

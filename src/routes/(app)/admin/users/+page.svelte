@@ -6,6 +6,7 @@
   import { listUsers, searchUsers, addSquadMember, removeSquadMember, getSquadDetail, assignProjectRole, suspendUser, deleteUser, createUser, type User, type UserDetail, type Squad, type SquadDetail, type SquadMember } from '$lib/api/organization';
   import { getValidSession } from '$lib/auth';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let { data } = $props();
   let users = $state<User[]>([]);
@@ -135,15 +136,15 @@
   }
 </script>
 
-<svelte:head><title>Users — Admin — Setara</title></svelte:head>
+<svelte:head><title>Users - Admin - Setara</title></svelte:head>
 
 <div class="section-wrap">
 <h1 class="page-title">Settings</h1>
   <div class="page-header">
     <div>
-      <p class="page-sub">Manage user access — assign project roles and squad membership.</p>
+      <p class="page-sub">Manage user access - assign project roles and squad membership.</p>
     </div>
-    <div style="display:flex;gap:8px">
+    <div class="header-actions">
       <Button variant="secondary" size="sm" onclick={() => assignRoleOpen = true}>Assign Project Role</Button>
       <Button variant="primary" size="sm" onclick={() => createOpen = true}>Create User</Button>
     </div>
@@ -156,7 +157,7 @@
   <Card padding="md">
     <h2 class="panel-title">All Users</h2>
     <div class="search-bar">
-      <select class="input" style="flex:0 0 auto;min-width:120px" bind:value={statusFilter} onchange={handleSearch}>
+      <select class="input status-filter" bind:value={statusFilter} onchange={handleSearch}>
         <option value="active">Active</option>
         <option value="disabled">Suspended</option>
         <option value="all">All</option>
@@ -179,9 +180,14 @@
       {/if}
     </div>
     {#if users.length === 0}
-      <p class="empty-text">No users found.</p>
+      <EmptyState title="No users found" hint="Try a different search, or clear filters to see all users." minHeight="240px">
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="8" r="4" />
+          <path d="M4 21v-1a7 7 0 0 1 14 0v1" />
+        </svg>
+      </EmptyState>
     {:else}
-      <DataTable mobileCards={true}>
+      <DataTable>
         {#snippet head()}<tr><th>Email</th><th>Display Name</th><th>Status</th><th>Created</th><th></th></tr>{/snippet}
         {#snippet body()}
           {#each users as user}
@@ -263,14 +269,14 @@
   </div>
 </Modal>
 
-<Modal open={squadOpen} title="Squad Membership — {squadUser?.displayName}" size="md" onclose={() => squadOpen = false}>
+<Modal open={squadOpen} title="Squad Membership - {squadUser?.displayName}" size="md" onclose={() => squadOpen = false}>
   <div class="modal-body">
     <p class="muted">{squadUser?.email}</p>
     {#if squadUserDetail && squadUserDetail.squads.length > 0}
       <h3 class="section-title">Current Squads</h3>
       <div class="member-list">
         {#each squadUserDetail.squads as m}
-          <div class="member-row"><span><strong>{m.displayName}</strong> — {m.email}</span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove" ariaLabel="Remove from squad">
+          <div class="member-row"><span><strong>{m.displayName}</strong> - {m.email}</span><span class="role-chip">{m.role}</span><Button variant="danger" size="sm" iconOnly onclick={() => handleRemoveFromSquad(m.id, squadUserDetail!.id)} title="Remove" ariaLabel="Remove from squad">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12"/>
             </svg>
@@ -280,7 +286,7 @@
     {/if}
     <h3 class="section-title">Add to Squad</h3>
     <div class="add-member-row">
-      <select class="input" bind:value={selectedSquadId}><option value="">— Select squad —</option>{#each squads as s}<option value={s.id}>{s.name}</option>{/each}</select>
+      <select class="input" bind:value={selectedSquadId}><option value="">- Select squad -</option>{#each squads as s}<option value={s.id}>{s.name}</option>{/each}</select>
       <select class="input" bind:value={squadRole} style="width:auto"><option value="VIEWER">Viewer</option><option value="QA">QA Engineer</option><option value="QA_LEAD">QA Lead</option><option value="DEVELOPER">Developer</option><option value="ADMIN">Admin</option></select>
       <Button variant="primary" size="sm" onclick={handleAssignSquad} disabled={squadBusy || !selectedSquadId}>{squadBusy ? 'Adding…' : 'Add'}</Button>
     </div>
@@ -353,8 +359,10 @@
   }
   .input:focus { border-color: var(--color-accent); }
 
-  .search-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; }
-  .search-wrap { position: relative; flex: 1; max-width: 400px; }
+  .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .status-filter { flex: 0 0 auto; min-width: 120px; }
+  .search-bar { display: flex; gap: 8px; margin-bottom: 14px; align-items: center; flex-wrap: wrap; }
+  .search-wrap { position: relative; flex: 1; min-width: 180px; max-width: 400px; }
   .search-input {
     width: 100%; box-sizing: border-box;
     padding: 8px 12px 8px 34px;
@@ -372,11 +380,10 @@
     color: var(--color-text-muted); pointer-events: none;
   }
 
-  .empty-text { color: var(--color-text-muted); font-size: 0.875rem; }
   .bold { font-weight: 500; }
   .muted { color: var(--color-text-muted); }
 
-  .actions-cell { display: flex; gap: 4px; align-items: center; }
+  .actions-cell { display: flex; gap: 4px; align-items: center; flex-wrap: wrap; }
 
   :global(tr.row-suspended td) { opacity: 0.6; }
 
@@ -415,7 +422,16 @@
     font-size: 0.68rem; font-weight: 700;
     background: var(--color-accent-subtle); color: var(--color-accent);
   }
-  .add-member-row { display: flex; gap: 8px; align-items: center; }
-  .add-member-row .input { flex: 1; }
+  .add-member-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .add-member-row .input { flex: 1; min-width: 140px; }
+
+  @media (max-width: 560px) {
+    .page-header { flex-direction: column; align-items: stretch; }
+    .header-actions { flex-direction: column; }
+    .search-bar { flex-direction: column; align-items: stretch; }
+    .status-filter, .search-wrap { max-width: none; min-width: 0; width: 100%; }
+    .add-member-row { flex-direction: column; align-items: stretch; }
+    .add-member-row .input, .add-member-row select { width: 100%; }
+  }
 
 </style>

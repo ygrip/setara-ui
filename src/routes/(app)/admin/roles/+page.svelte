@@ -7,6 +7,7 @@
   import { isMockMode } from '$lib/mock/client';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import AppSkeleton from '$lib/ui/display/AppSkeleton.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   let roles = $state<ConfigRole[]>([]);
   let permissions = $state<AvailablePermission[]>([]);
@@ -124,7 +125,7 @@
 </script>
 
 <svelte:head>
-  <title>Roles — Admin — Setara</title>
+  <title>Roles - Admin - Setara</title>
 </svelte:head>
 
 <div class="section-wrap">
@@ -150,69 +151,79 @@
       <h2 class="section-title">Roles</h2>
       <Button variant="primary" size="sm" onclick={() => { showCreate = true; createError = ''; createForm = { key: '', label: '', description: '', color: 'info' }; }}>New Role</Button>
     </div>
-    <div class="roles-grid">
-      {#each roles as role (role.id)}
-        <Card padding="md">
-          <div class="role-card-content">
-          <div class="role-card-head">
-            <span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span>
-            {#if role.system}<span class="system-tag">system</span>{/if}
-          </div>
-          <span class="role-display">{role.label}</span>
-          <p class="role-desc">{role.description ?? ''}</p>
-          <div class="role-card-actions">
-            <Button variant="ghost" size="sm" onclick={() => openPermEditor(role)} title="Edit permissions">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-              Permissions
-            </Button>
-            {#if !role.system}
-              <Button variant="danger" iconOnly onclick={() => handleDelete(role)} title="Delete role" ariaLabel="Delete role">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    {#if roles.length === 0}
+      <Card padding="md">
+        <EmptyState title="No roles yet" hint="Create a role to start assigning permissions." minHeight="240px">
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z" />
+          </svg>
+        </EmptyState>
+      </Card>
+    {:else}
+      <div class="roles-grid">
+        {#each roles as role (role.id)}
+          <Card padding="md">
+            <div class="role-card-content">
+            <div class="role-card-head">
+              <span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span>
+              {#if role.system}<span class="system-tag">system</span>{/if}
+            </div>
+            <span class="role-display">{role.label}</span>
+            <p class="role-desc">{role.description ?? ''}</p>
+            <div class="role-card-actions">
+              <Button variant="ghost" size="sm" onclick={() => openPermEditor(role)} title="Edit permissions">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 013 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+                Permissions
               </Button>
-            {/if}
-          </div>
-          </div>
-        </Card>
-      {/each}
-    </div>
-
-    <!-- Permission matrix -->
-    <Card padding="md">
-      <h2 class="panel-title">Permission Matrix</h2>
-      <div class="matrix-wrap">
-        <table class="matrix-table">
-          <thead>
-            <tr>
-              <th class="area-col">Permission</th>
-              {#each roles as role}
-                <th class="role-col"><span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span></th>
-              {/each}
-            </tr>
-          </thead>
-          <tbody>
-            {#each [...permAreas.entries()] as [area, perms]}
-              <tr class="area-header-row">
-                <td colspan={roles.length + 1} class="area-header">{area}</td>
-              </tr>
-              {#each perms as perm}
-                <tr>
-                  <td class="perm-label">{perm.label}</td>
-                  {#each roles as role}
-                    <td class="perm-cell">
-                      {#if hasPerm(role.id, perm.area, perm.key)}
-                        <span class="check" title="Has permission" aria-label="Allowed">✓</span>
-                      {:else}
-                        <span class="cross" aria-label="Denied">—</span>
-                      {/if}
-                    </td>
-                  {/each}
-                </tr>
-              {/each}
-            {/each}
-          </tbody>
-        </table>
+              {#if !role.system}
+                <Button variant="danger" iconOnly onclick={() => handleDelete(role)} title="Delete role" ariaLabel="Delete role">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M2 4h12M5.333 4V2.667a1.333 1.333 0 0 1 1.334-1.334h2.666a1.333 1.333 0 0 1 1.334 1.334V4m2 0v9.333A1.333 1.333 0 0 1 11.333 14.667H4.667A1.333 1.333 0 0 1 3.333 13.333V4h9.334z" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </Button>
+              {/if}
+            </div>
+            </div>
+          </Card>
+        {/each}
       </div>
-    </Card>
+
+      <!-- Permission matrix -->
+      <Card padding="md">
+        <h2 class="panel-title">Permission Matrix</h2>
+        <div class="matrix-wrap">
+          <table class="matrix-table">
+            <thead>
+              <tr>
+                <th class="area-col">Permission</th>
+                {#each roles as role}
+                  <th class="role-col"><span class="role-badge role-badge-{badgeColor(role.color)}">{role.key}</span></th>
+                {/each}
+              </tr>
+            </thead>
+            <tbody>
+              {#each [...permAreas.entries()] as [area, perms]}
+                <tr class="area-header-row">
+                  <td colspan={roles.length + 1} class="area-header">{area}</td>
+                </tr>
+                {#each perms as perm}
+                  <tr>
+                    <td class="perm-label">{perm.label}</td>
+                    {#each roles as role}
+                      <td class="perm-cell">
+                        {#if hasPerm(role.id, perm.area, perm.key)}
+                          <span class="check" title="Has permission" aria-label="Allowed">✓</span>
+                        {:else}
+                          <span class="cross" aria-label="Denied">-</span>
+                        {/if}
+                      </td>
+                    {/each}
+                  </tr>
+                {/each}
+              {/each}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+    {/if}
   {/if}
 
   <p class="note">System roles (ADMIN, VIEWER) cannot be modified or deleted. Role assignments are managed via <strong>Admin → Users</strong>.</p>
@@ -252,7 +263,7 @@
 </Modal>
 
 <!-- Permission editor modal -->
-<Modal open={showPermModal} title="Edit Permissions — {editingRole?.label}" size="lg" onclose={() => showPermModal = false}>
+<Modal open={showPermModal} title="Edit Permissions - {editingRole?.label}" size="lg" onclose={() => showPermModal = false}>
   <div class="modal-body perm-editor">
     {#each [...permAreas.entries()] as [area, perms]}
       <div class="perm-area-group">
@@ -362,6 +373,7 @@
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 14px;
+    flex-wrap: wrap;
   }
 
   .section-title {

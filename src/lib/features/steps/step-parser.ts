@@ -1,5 +1,5 @@
 /**
- * Frontend step parser — mirrors the backend StepCellParser logic.
+ * Frontend step parser - mirrors the backend StepCellParser logic.
  *
  * Priority order:
  *  1. Gherkin keyword prefix (Given/When/Then/And/But)
@@ -120,7 +120,7 @@ export function normalizeKeywords(rows: StepGridRow[]): StepGridRow[] {
       }
       return { ...r, keyword: normalized };
     }
-    // No keyword — assign AND if we have context
+    // No keyword - assign AND if we have context
     if (lastMajor) return { ...r, keyword: 'AND' };
     return r;
   });

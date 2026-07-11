@@ -4,6 +4,7 @@
   import Button from '$lib/components/Button.svelte';
   import Card from '$lib/components/Card.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
 
   const isMock = isMockMode();
 
@@ -34,23 +35,23 @@
   }
 </script>
 
-<svelte:head><title>Statistics — Admin — Setara</title></svelte:head>
+<svelte:head><title>Statistics - Admin - Setara</title></svelte:head>
 
 <div class="section-wrap">
   <h1 class="page-title">Settings</h1>
 
   {#if isMock}
     <Card padding="md">
-      <div class="disabled-state">
-        <div class="disabled-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="12" cy="12" r="10"/>
-            <path d="M12 8v4M12 16h.01"/>
-          </svg>
-        </div>
-        <h2 class="disabled-title">Not available in preview mode</h2>
-        <p class="disabled-desc">Statistics backfill requires a live backend with a connected database.</p>
-      </div>
+      <EmptyState
+        title="Not available in preview mode"
+        hint="Statistics backfill requires a live backend with a connected database."
+        minHeight="260px"
+      >
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </EmptyState>
     </Card>
   {:else}
     <Card padding="md">
@@ -105,11 +106,6 @@
   .page-title { font-size: 1.5rem; font-weight: 700; margin-bottom: 4px; }
   .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 8px; color: var(--color-text); }
   .panel-desc { margin: 0 0 16px; font-size: 0.875rem; color: var(--color-text-muted); line-height: 1.55; }
-
-  .disabled-state { display: flex; flex-direction: column; align-items: center; gap: 12px; text-align: center; padding: 24px 16px; }
-  .disabled-icon { width: 60px; height: 60px; border-radius: 50%; background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); display: flex; align-items: center; justify-content: center; }
-  .disabled-title { font-size: 1.1rem; font-weight: 700; margin: 0; }
-  .disabled-desc { margin: 0; font-size: 0.9rem; color: var(--color-text-muted); max-width: 480px; line-height: 1.6; }
 
   .inline-form { display: flex; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
   .field { display: flex; flex-direction: column; gap: 4px; }

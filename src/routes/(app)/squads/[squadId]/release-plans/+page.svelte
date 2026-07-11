@@ -63,7 +63,7 @@
   }
 
   function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
@@ -98,7 +98,7 @@
 </script>
 
 <svelte:head>
-  <title>Release Plans — {data.squad?.name ?? data.squadId} — Setara</title>
+  <title>Release Plans - {data.squad?.name ?? data.squadId} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -187,7 +187,7 @@
                   <span class="plan-version">{plan.releaseVersion}</span>
                 {/if}
               </td>
-              <td data-label="Release Date" class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '—'}</td>
+              <td data-label="Release Date" class="nowrap muted">{plan.releaseDate ? formatDate(plan.releaseDate as string) : '-'}</td>
               <td data-label="Builds">
                 {#if (plan.totalBuilds ?? 0) > 0}
                   <div class="builds-cell">
@@ -201,10 +201,10 @@
                     </div>
                   </div>
                 {:else}
-                  <span class="muted">—</span>
+                  <span class="muted">-</span>
                 {/if}
               </td>
-              <td data-label="Projects" class="muted">{(plan.totalProjects ?? 0) > 0 ? plan.totalProjects : '—'}</td>
+              <td data-label="Projects" class="muted">{(plan.totalProjects ?? 0) > 0 ? plan.totalProjects : '-'}</td>
               <td data-label="Created" class="nowrap muted">{formatDate(plan.createdAt)}</td>
               <td data-label="Closed" class="nowrap muted">{formatDate(plan.closedAt)}</td>
             </tr>

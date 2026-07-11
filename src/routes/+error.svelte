@@ -3,7 +3,7 @@
 </script>
 
 <svelte:head>
-  <title>Error {$page.status} — Setara</title>
+  <title>Error {$page.status} - Setara</title>
 </svelte:head>
 
 <div class="error-page">

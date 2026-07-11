@@ -6,6 +6,8 @@
   import Card from '$lib/components/Card.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
+  import EmptyState from '$lib/components/EmptyState.svelte';
+  import DataTable from '$lib/components/DataTable.svelte';
 
   let { data } = $props();
   const isMock = isMockMode();
@@ -133,7 +135,7 @@
     try {
       const res = await apiFetch(`/api/admin/intelligence/asa/sessions/${sessionId}`, { method: 'DELETE' });
       if (!res.ok) { asaError = await errText(res, 'Drop failed'); return; }
-      asaMsg = 'Session dropped — all its messages and context were deleted.';
+      asaMsg = 'Session dropped - all its messages and context were deleted.';
       await loadAsaSessions();
     } catch (e) {
       asaError = e instanceof Error ? e.message : 'Request failed';
@@ -248,14 +250,26 @@
 </svelte:head>
 
 <div class="section-wrap">
-  <h1 class="page-title">Settings</h1>
+<h1 class="page-title">Settings</h1>
+
+  <div class="page-header">
+    <div>
+      <p class="page-subtitle">Configure AI capabilities, providers, and runtime features.</p>
+    </div>
+  </div>
 
   {#if isMock}
     <Card padding="md">
-      <div class="empty-state">
-        <h2 class="panel-title">Not available in preview mode</h2>
-        <p class="panel-desc">Intelligence requires a live backend with an embedding provider configured.</p>
-      </div>
+      <EmptyState
+        title="Not available in preview mode"
+        hint="Intelligence requires a live backend with an embedding provider configured."
+        minHeight="260px"
+      >
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="11" width="18" height="10" rx="2" />
+          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+        </svg>
+      </EmptyState>
     </Card>
   {:else}
     {#if data.error}
@@ -266,16 +280,33 @@
       {@const h = data.health}
       {@const aiConfigured = h.intelligenceEnabled}
 
-      <div class="status-bar" class:status-bar--on={h.intelligenceEnabled} class:status-bar--off={!h.intelligenceEnabled}>
-        <span class="status-dot" class:on={h.intelligenceEnabled}></span>
-        Intelligence is <strong>{h.intelligenceEnabled ? 'enabled' : 'disabled'}</strong>
-        {#if !h.intelligenceEnabled}
-          <span class="muted">set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate</span>
-        {/if}
+      <div class="status-banner" class:status-banner--on={h.intelligenceEnabled} class:status-banner--off={!h.intelligenceEnabled}>
+        <div class="status-banner__icon" aria-hidden="true">
+          {#if h.intelligenceEnabled}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5" /></svg>
+          {:else}
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" /></svg>
+          {/if}
+        </div>
+        <div class="status-banner__text">
+          <strong>Intelligence is {h.intelligenceEnabled ? 'enabled' : 'disabled'}</strong>
+          <span class="muted">
+            {#if h.intelligenceEnabled}
+              All configured features are ready to use.
+            {:else}
+              Set <code>SETARA_INTELLIGENCE_ENABLED=true</code> to activate.
+            {/if}
+          </span>
+        </div>
       </div>
 
       <Card padding="md">
-        <h2 class="panel-title">AI Features</h2>
+        <div class="panel-head">
+          <span class="panel-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+          </span>
+          <h2 class="panel-title">AI Features</h2>
+        </div>
         <p class="panel-desc">Provider and model configuration are supplied by environment variables.</p>
         <div class="table-wrap">
           <table>
@@ -310,7 +341,13 @@
       </Card>
 
       <Card padding="md">
-        <h2 class="panel-title">Vector Store & Pipeline</h2>
+        <div class="panel-head">
+          <span class="panel-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="8" ry="3" /><path d="M4 5v14a8 3 0 0 0 16 0V5" /><path d="M4 12a8 3 0 0 0 16 0" /></svg>
+          </span>
+          <h2 class="panel-title">Vector Store & Pipeline</h2>
+        </div>
+        <p class="panel-desc">Current vector store and pipeline status.</p>
         <div class="metrics-grid">
           <div>
             <span class="field-label">Store</span>
@@ -333,7 +370,12 @@
       <Card padding="md">
         <div class="card-head">
           <div>
-            <h2 class="panel-title">Runtime Feature Flags</h2>
+            <div class="panel-head">
+              <span class="panel-icon" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+              </span>
+              <h2 class="panel-title">Runtime Feature Flags</h2>
+            </div>
             <p class="panel-desc">Toggle capabilities without restarting the server.</p>
           </div>
           {#if flagsSaved}<span class="saved-pill">Saved</span>{/if}
@@ -367,13 +409,18 @@
       </Card>
 
       <Card padding="md">
-        <h2 class="panel-title">Actions</h2>
+        <div class="panel-head">
+          <span class="panel-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" /></svg>
+          </span>
+          <h2 class="panel-title">Actions</h2>
+        </div>
         <div class="actions-grid">
           <div class="action-block">
             <h3 class="action-title">Reindex Project</h3>
             <p class="action-desc">Queue all active scenarios in a project for AI embedding.</p>
             <div class="action-row">
-              <input class="input" bind:value={reindexProjectKey} placeholder="Project key" />
+              <input class="input field-input" bind:value={reindexProjectKey} placeholder="Project key" />
               <Button variant="primary" size="sm" onclick={triggerReindex} disabled={reindexBusy || !reindexProjectKey.trim()}>
                 {reindexBusy ? 'Queuing...' : 'Reindex'}
               </Button>
@@ -384,16 +431,23 @@
           <div class="action-block">
             <h3 class="action-title">Create Search Index</h3>
             <p class="action-desc">Build the HNSW vector index after initial embedding is complete.</p>
+            <div class="action-row">
             <Button variant="primary" size="sm" onclick={createIndex} disabled={createIndexBusy}>
               {createIndexBusy ? 'Creating...' : 'Create Index'}
             </Button>
+            </div>
             {#if createIndexResult}<p class="action-result">{createIndexResult}</p>{/if}
           </div>
         </div>
       </Card>
 
       <Card padding="md">
-        <h2 class="panel-title">ASA Token Budget</h2>
+        <div class="panel-head">
+          <span class="panel-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z" /></svg>
+          </span>
+          <h2 class="panel-title">ASA Token Budget</h2>
+        </div>
         <p class="panel-desc">Reset the active ASA session's token budget, or drop a past session to permanently delete its messages and context. The active session can't be dropped.</p>
 
         {#if asaUserId}
@@ -403,7 +457,7 @@
           </div>
         {:else}
           <div class="asa-picker">
-            <input class="input" placeholder="Search users by name or email…" bind:value={asaUserSearch} aria-label="Search users" />
+            <input class="input field-input" placeholder="Search users by name or email…" bind:value={asaUserSearch} aria-label="Search users" />
             {#if asaUserSearch.trim()}
               <ul class="asa-results">
                 {#each filteredUsers as u (u.id)}
@@ -424,20 +478,24 @@
         {#if asaMsg}<p class="action-result">{asaMsg}</p>{/if}
 
         {#if asaUserId}
-          <div class="action-row" style="margin-top:10px">
+          <div class="action-row">
             <Button variant="danger" size="sm" onclick={() => (confirmReset = { kind: 'user', id: asaUserId, label: asaSelectedLabel })} disabled={asaBusy}>
               Reset active session budget
             </Button>
           </div>
           {#if asaSessions.length === 0}
-            <p class="empty-text" style="margin-top:12px">{asaBusy ? 'Loading…' : 'No ASA sessions for this user.'}</p>
+            {#if asaBusy}
+              <p class="empty-text" style="margin-top:12px">Loading…</p>
+            {:else}
+              <EmptyState title="No ASA sessions" hint="This user has no active or past ASA sessions." minHeight="160px" />
+            {/if}
           {:else}
-            <div class="table-wrap" style="margin-top:12px">
-              <table>
-                <thead>
+            <div style="margin-top:12px">
+              <DataTable>
+                {#snippet head()}
                   <tr><th>Session</th><th>Status</th><th>Used / Budget</th><th>Reserved</th><th>Expires</th><th></th></tr>
-                </thead>
-                <tbody>
+                {/snippet}
+                {#snippet body()}
                   {#each asaSessions as s (s.sessionId)}
                     <tr>
                       <td><code>{s.sessionId.slice(0, 8)}</code></td>
@@ -458,8 +516,8 @@
                       </td>
                     </tr>
                   {/each}
-                </tbody>
-              </table>
+                {/snippet}
+              </DataTable>
             </div>
           {/if}
         {/if}
@@ -483,7 +541,9 @@
         {/if}
       </Modal>
     {:else if !data.error}
-      <Card padding="md"><p class="empty-text">No health data available.</p></Card>
+      <Card padding="md">
+        <EmptyState title="No health data available" hint="Intelligence health metrics haven't loaded yet." minHeight="220px" />
+      </Card>
     {/if}
   {/if}
 </div>
@@ -491,15 +551,31 @@
 <style>
   .section-wrap { display: flex; flex-direction: column; gap: 20px; }
   .page-title { font-size: 1.5rem; font-weight: 700; margin: 0; }
+  .page-subtitle { margin: 2px 0 0; color: var(--color-text-muted); font-size: 0.875rem; }
   .panel-title { font-size: 1rem; font-weight: 700; margin: 0; }
   .panel-desc { margin: 4px 0 14px; color: var(--color-text-muted); font-size: 0.875rem; }
-  .empty-state { display: grid; gap: 4px; }
 
-  .status-bar { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-surface); font-size: 0.875rem; }
-  .status-bar--on { border-color: color-mix(in srgb, #16a34a, transparent 65%); }
-  .status-bar--off { border-color: color-mix(in srgb, #d97706, transparent 65%); }
-  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-text-muted); flex-shrink: 0; }
-  .status-dot.on { background: #16a34a; box-shadow: 0 0 0 2px color-mix(in srgb, #16a34a, transparent 75%); }
+  .page-header { display: flex; align-items: center; gap: 14px; }
+
+  .panel-head { display: flex; align-items: center; gap: 8px; }
+  .panel-icon {
+    flex-shrink: 0; width: 26px; height: 26px; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    color: var(--color-accent);
+  }
+
+  .status-banner { display: flex; align-items: center; gap: 12px; padding: 14px 16px; border: 1px solid var(--color-border); border-radius: 10px; background: var(--color-surface); }
+  .status-banner--on { border-color: color-mix(in srgb, #16a34a, transparent 65%); background: color-mix(in srgb, #16a34a, transparent 94%); }
+  .status-banner--off { border-color: color-mix(in srgb, #d97706, transparent 65%); background: color-mix(in srgb, #d97706, transparent 94%); }
+  .status-banner__icon {
+    flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .status-banner--on .status-banner__icon { background: color-mix(in srgb, #16a34a, transparent 82%); color: #16a34a; }
+  .status-banner--off .status-banner__icon { background: color-mix(in srgb, #d97706, transparent 82%); color: #d97706; }
+  .status-banner__text { display: flex; flex-direction: column; gap: 2px; font-size: 0.9rem; }
+  .status-banner__text strong { font-size: 0.95rem; }
   .muted { color: var(--color-text-muted); }
 
   .table-wrap { overflow-x: auto; }
@@ -534,7 +610,7 @@
   .toggle-thumb { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; transition: transform 0.2s; display: block; }
   .toggle-btn.toggle-on .toggle-thumb { transform: translateX(20px); }
 
-  .actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+  .actions-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; padding: 12px 4px; }
   .action-block { background: var(--color-bg); border: 1px solid var(--color-border); border-radius: 6px; padding: 14px; }
   .action-title { margin: 0 0 4px; font-size: 0.95rem; font-weight: 700; }
   .action-desc, .action-result, .empty-text { color: var(--color-text-muted); font-size: 0.85rem; }
@@ -546,14 +622,28 @@
   .asa-result { width: 100%; text-align: left; background: none; border: none; border-radius: 4px; padding: 7px 10px; cursor: pointer; font-size: 0.85rem; color: var(--color-text); }
   .asa-result:hover { background: var(--color-accent-subtle); }
   .asa-result .muted { color: var(--color-text-muted); font-size: 0.78rem; }
-  .asa-selected { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); font-size: 0.875rem; }
+  .asa-selected { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); font-size: 0.875rem; }
   .link-btn { background: none; border: none; color: var(--color-accent); cursor: pointer; font-size: 0.8rem; padding: 0; }
   .link-btn:hover { text-decoration: underline; }
   .confirm-text { margin: 0 0 16px; font-size: 0.9rem; line-height: 1.5; }
   .confirm-actions { display: flex; justify-content: flex-end; gap: 8px; }
 
+  .field-input { font: inherit; font-size: 0.875rem; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 6px; background: var(--color-bg); color: var(--color-text); width: 100%; box-sizing: border-box; }
+  .field-input:focus { outline: none; border-color: var(--color-accent); }
+  .action-row {
+    display: flex; gap: 8px; align-items: center;
+    flex-wrap: wrap;
+    padding-top: 10px;
+  }
+  
   @media (max-width: 760px) {
     .metrics-grid, .actions-grid { grid-template-columns: 1fr; }
-    .action-row { flex-direction: column; align-items: stretch; }
+    .action-row { flex-direction: column; align-items: stretch; gap: 10px; }
+  }
+
+  @media (max-width: 600px) {
+    .action-block { padding: 16px; }
+    .asa-picker, .asa-selected { margin-bottom: 6px; }
+    .asa-results { max-height: 200px; }
   }
 </style>

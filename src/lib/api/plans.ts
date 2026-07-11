@@ -20,7 +20,7 @@ export interface ReleasePlan {
   inProgressAt: string | null;
   closedAt: string | null;
   closedBy: string | null;
-  // Build summary — populated in list responses
+  // Build summary - populated in list responses
   totalBuilds?: number;
   verifiedBuilds?: number;
   totalProjects?: number;
@@ -72,7 +72,7 @@ export interface PlanMetrics {
   executionCoverage: number;
 }
 
-/** Global plans list — optionally filtered by squad and/or status */
+/** Global plans list - optionally filtered by squad and/or status */
 export async function listAllPlans(
   squadId?: string,
   cursor?: string,

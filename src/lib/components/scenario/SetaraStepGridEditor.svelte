@@ -6,7 +6,7 @@
    * - Edit mode: RevoGrid table (keyword / step text / description / expectation)
    * - Preview mode: Markdown-rendered step list with highlight.js syntax highlighting
    * - Toolbar: + Row, Paste & Parse, Normalize, Move Up, Move Down, Duplicate, Delete
-   * - Local draft state — changes do NOT auto-save; parent receives steps via `onchange`
+   * - Local draft state - changes do NOT auto-save; parent receives steps via `onchange`
    */
 
   import { untrack } from 'svelte';
@@ -43,7 +43,7 @@
   let focusedRowIndex = $state<number>(-1);
   let showPasteDialog = $state(false);
   let gridWrap = $state<HTMLDivElement | undefined>();
-  /** Row height in px — user-adjustable via toolbar */
+  /** Row height in px - user-adjustable via toolbar */
   let rowSize = $state(34);
   let errorCount = $derived(rows.filter((r) => r._error).length);
   let warningCount = $derived(
@@ -70,7 +70,7 @@
             (s.expectation ?? '') === (current[i]?.expectation ?? '') &&
             (s.sequenceNo ?? i + 1) === (current[i]?.sequenceNo ?? i + 1)
         );
-      if (same) return; // our own feedback — skip reinit
+      if (same) return; // our own feedback - skip reinit
       rows = incoming.length > 0 ? fromBackendSteps(incoming) : [emptyRow(1)];
       rows = validateRows(rows);
     });
@@ -173,7 +173,7 @@
     }
   ];
 
-  // ── RevoGrid source (plain objects — no Svelte proxies) ────────
+  // ── RevoGrid source (plain objects - no Svelte proxies) ────────
   const gridSource = $derived(rows.map((r) => ({ ...r })));
 
   // ── RevoGrid event wiring via DOM listener ────────────────────

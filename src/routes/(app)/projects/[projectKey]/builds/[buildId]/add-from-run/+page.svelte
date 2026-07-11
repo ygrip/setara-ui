@@ -115,7 +115,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', {
       day: '2-digit', month: 'short', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
@@ -123,7 +123,7 @@
   }
 
   function durationMs(ms: number | null): string {
-    if (ms == null) return '—';
+    if (ms == null) return '-';
     const s = Math.floor(ms / 1000);
     if (s < 60) return `${s}s`;
     return `${Math.floor(s / 60)}m ${s % 60}s`;
@@ -131,7 +131,7 @@
 </script>
 
 <svelte:head>
-  <title>Add from Run — {data.buildId} - Setara</title>
+  <title>Add from Run - {data.buildId} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -169,7 +169,7 @@
           </div>
           <div class="run-card-main">
             <strong class="run-job">{run.jobName ?? run.runnerId}</strong>
-            <span class="run-branch">{run.branch ?? '—'}</span>
+            <span class="run-branch">{run.branch ?? '-'}</span>
             <div class="run-stats">
               <span>{(run.passedScenarios ?? 0)}/{(run.totalScenarios ?? 0)} passed</span>
               <span class="run-date">{formatDate(run.startedAt)}</span>
@@ -200,7 +200,7 @@
       <Badge text={selectedRun.status} variant={statusVariant(selectedRun.status)} />
       <div>
         <strong>{selectedRun.jobName ?? selectedRun.runnerId}</strong>
-        <span class="muted">{selectedRun.branch ?? '—'}</span>
+        <span class="muted">{selectedRun.branch ?? '-'}</span>
       </div>
       <div class="muted">{(selectedRun.passedScenarios ?? 0)}/{(selectedRun.totalScenarios ?? 0)} passed</div>
       <div class="muted">{formatDate(selectedRun.startedAt)}</div>
@@ -237,10 +237,10 @@
                 <input type="checkbox" checked={selectedRunScenarioIds.has(rs.id)} onchange={() => toggleScenario(rs.id)} />
               </td>
               <td data-label="Status"><Badge text={rs.status} variant={statusVariant(rs.status)} /></td>
-              <td data-label="Key"><code class="mono">{rs.scenarioKey ?? '—'}</code></td>
+              <td data-label="Key"><code class="mono">{rs.scenarioKey ?? '-'}</code></td>
               <td data-label="Name">{rs.scenarioName}</td>
-              <td data-label="Feature" class="muted">{rs.featureName ?? '—'}</td>
-              <td data-label="Duration" class="muted">—</td>
+              <td data-label="Feature" class="muted">{rs.featureName ?? '-'}</td>
+              <td data-label="Duration" class="muted">-</td>
             </tr>
           {/each}
           {#if runScenarios.length === 0}

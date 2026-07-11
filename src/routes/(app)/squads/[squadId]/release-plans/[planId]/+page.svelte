@@ -132,12 +132,12 @@
   }
 
   function formatDate(iso: string | null | undefined): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   }
 
   function formatDateTime(iso: string | null | undefined): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
@@ -285,7 +285,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.plan?.name ?? 'Release Plan'} — {data.squad?.name ?? data.squadId} — Setara</title>
+  <title>{data.plan?.name ?? 'Release Plan'} - {data.squad?.name ?? data.squadId} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -371,7 +371,7 @@
         <MetricCard
           label="Verified"
           value={String(metrics.verifiedBuilds)}
-          sub={metrics.totalBuilds > 0 ? `${Math.round(metrics.verifiedBuilds / metrics.totalBuilds * 100)}% readiness` : '—'}
+          sub={metrics.totalBuilds > 0 ? `${Math.round(metrics.verifiedBuilds / metrics.totalBuilds * 100)}% readiness` : '-'}
           variant={metrics.totalBuilds > 0 && metrics.verifiedBuilds === metrics.totalBuilds ? 'success' : 'default'}
         />
         <MetricCard
@@ -453,7 +453,7 @@
                   <td>
                     <a href="/projects/{build.projectKey}" class="link-subtle">{build.projectName}</a>
                   </td>
-                  <td class="muted">{build.squadName ?? '—'}</td>
+                  <td class="muted">{build.squadName ?? '-'}</td>
                   <td class="nowrap muted">{formatDate(build.initiatedAt)}</td>
                   <td class="nowrap muted">{formatDate(build.verifiedAt)}</td>
                   <td class="results-cell">
@@ -465,7 +465,7 @@
                       <span class="res-pending" title="Not executed">{build.metrics.notExecuted}</span>
                       <span class="res-total muted">of {build.metrics.totalScenarios}</span>
                     {:else}
-                      <span class="muted">—</span>
+                      <span class="muted">-</span>
                     {/if}
                   </td>
                   <td class="nowrap muted">{formatDateTime(build.addedAt)}</td>

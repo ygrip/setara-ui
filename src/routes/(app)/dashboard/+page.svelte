@@ -240,7 +240,7 @@
   <div class="page-header">
     <div>
       <h1 class="page-title">Dashboard</h1>
-      <p class="page-subtitle">Your test suite at a glance — coverage, pass rates, and what needs attention.</p>
+      <p class="page-subtitle">Your test suite at a glance - coverage, pass rates, and what needs attention.</p>
     </div>
     {#if liveRunCount > 0}
       <div class="header-right">
@@ -426,15 +426,15 @@
             <span class="health-factor-name">Test stability</span>
             <span class="health-factor-weight">10 pts</span>
           </div>
-          <p>Flaky scenarios — ones that flip between passing and failing — reduce this component.</p>
+          <p>Flaky scenarios - ones that flip between passing and failing - reduce this component.</p>
         </div>
       </div>
       <div class="health-thresholds">
         <p class="health-thresholds-title">Score thresholds</p>
-        <div class="health-threshold health-threshold--healthy">≥ 85 — Healthy</div>
-        <div class="health-threshold health-threshold--review">≥ 70 — Needs review</div>
-        <div class="health-threshold health-threshold--risk">≥ 60 — High risk</div>
-        <div class="health-threshold health-threshold--critical">&lt; 60 — Critical</div>
+        <div class="health-threshold health-threshold--healthy">≥ 85 - Healthy</div>
+        <div class="health-threshold health-threshold--review">≥ 70 - Needs review</div>
+        <div class="health-threshold health-threshold--risk">≥ 60 - High risk</div>
+        <div class="health-threshold health-threshold--critical">&lt; 60 - Critical</div>
       </div>
     </div>
   </Modal>

@@ -85,7 +85,7 @@
 </script>
 
 <svelte:head>
-  <title>Coverage — {projectKey} — Setara</title>
+  <title>Coverage - {projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -105,26 +105,26 @@
   <div class="stats-grid">
     <MetricCard
       label="Total Scenarios"
-      value={latest?.totalScenarios ?? '—'}
+      value={latest?.totalScenarios ?? '-'}
       iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
       iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
     />
     <MetricCard
       label="Automated"
-      value={latest?.totalAutomated ?? '—'}
+      value={latest?.totalAutomated ?? '-'}
       variant="success"
       iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
       iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-success), transparent 86%)", color: "var(--color-success)" }}
     />
     <MetricCard
       label="Automatable"
-      value={latest?.totalAutomatable ?? '—'}
+      value={latest?.totalAutomatable ?? '-'}
       iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/></svg>'
       iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-status-manual), transparent 86%)", color: "var(--color-status-manual)" }}
     />
     <MetricCard
       label="Coverage"
-      value={`${latest?.coveragePercentage ?? '—'}%`}
+      value={`${latest?.coveragePercentage ?? '-'}%`}
       iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>'
       iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
     >

@@ -65,7 +65,7 @@
   // Scenario detail sidebar
   let selectedBuildScenario = $state<BuildScenario | null>(null);
 
-  // Scenario table search, filter & sort — all backend-backed
+  // Scenario table search, filter & sort - all backend-backed
   let scenarioFilter = $state('');
   let scenarioStatusFilter = $state('');
   let scenarioSortBy = $state<'name' | 'addedAt'>('name');
@@ -108,10 +108,10 @@
     return scenarioSortDir === 'asc' ? ' ↑' : ' ↓';
   }
 
-  // Infinite scroll — tracks scenarioNextCursor so observer re-fires on each new page
+  // Infinite scroll - tracks scenarioNextCursor so observer re-fires on each new page
   $effect(() => {
     const el = scenarioSentinel;
-    const cursor = scenarioNextCursor; // tracked — effect re-runs when cursor changes
+    const cursor = scenarioNextCursor; // tracked - effect re-runs when cursor changes
     if (!el || !cursor) return;
     const observer = new IntersectionObserver(entries => {
       if (entries[0].isIntersecting) loadMoreScenarios();
@@ -253,7 +253,7 @@
   }
 
   function formatDate(iso: string | null): string {
-    if (!iso) return '—';
+    if (!iso) return '-';
     return new Date(iso).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
   }
 
@@ -573,8 +573,8 @@
             {#each associatedPlans as plan (plan.id)}
               <tr class="clickable-row" onclick={() => goto(`/squads/${plan.squadId}/release-plans/${plan.id}`)}>
                 <td data-label="Plan Name"><strong>{plan.name}</strong></td>
-                <td data-label="Squad">{plan.squadName ?? '—'}</td>
-                <td data-label="Release Version">{plan.releaseVersion ? `v${plan.releaseVersion}` : '—'}</td>
+                <td data-label="Squad">{plan.squadName ?? '-'}</td>
+                <td data-label="Release Version">{plan.releaseVersion ? `v${plan.releaseVersion}` : '-'}</td>
                 <td data-label="Status"><Badge text={plan.status} variant={planStatusVariant(plan.status)} /></td>
               </tr>
             {/each}
@@ -660,7 +660,7 @@
               <td data-label="Expected"><Badge text={scenario.expectedStatus} variant="neutral" /></td>
               <td data-label="Actual"><Badge text={scenario.latestStatus} variant={statusVariant(scenario.latestStatus)} /></td>
               <td data-label="Source"><Badge text={scenario.source} variant={scenario.source === 'AUTOMATION' ? 'automated' : 'manual'} /></td>
-              <td data-label="Executed By">{scenario.executedBy ?? '—'}</td>
+              <td data-label="Executed By">{scenario.executedBy ?? '-'}</td>
               <td data-label="Added">{formatDate(scenario.executedAt)}</td>
               <td data-label="">
                 {#if scenario.source !== 'AUTOMATION'}
@@ -668,7 +668,7 @@
                   Update Result
                 </button>
                 {:else}
-                <span class="auto-lock" title="Automation-sourced — cannot manually update">
+                <span class="auto-lock" title="Automation-sourced - cannot manually update">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
                 </span>
                 {/if}
@@ -730,7 +730,7 @@
 <Modal open={updateResultOpen} title="Update Result" size="sm" onclose={() => updateResultOpen = false}>
   <div class="modal-body">
     {#if updatingScenario}
-      <p class="modal-scenario-name">{updatingScenario.scenarioKey} — {updatingScenario.name}</p>
+      <p class="modal-scenario-name">{updatingScenario.scenarioKey} - {updatingScenario.name}</p>
       <label class="form-label">Status
         <select bind:value={updateStatus} class="form-select">
           <option value="PASSED">PASSED</option>

@@ -15,7 +15,7 @@
 </script>
 
 <svelte:head>
-  <title>{data.build?.name ?? 'Build'} Quality Map — Setara</title>
+  <title>{data.build?.name ?? 'Build'} Quality Map - Setara</title>
 </svelte:head>
 
 <div class="page">

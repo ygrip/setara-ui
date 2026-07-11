@@ -146,7 +146,7 @@
 </script>
 
 <svelte:head>
-  <title>Create Scenario — {data.projectKey} — Setara</title>
+  <title>Create Scenario - {data.projectKey} - Setara</title>
 </svelte:head>
 
 <div class="page">
@@ -259,7 +259,7 @@
       {#if suggestDraftHint}
         <div class="suggest-draft-hint" role="status">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-          AI-generated drafts — review and edit each step before saving. These are never auto-saved.
+          AI-generated drafts - review and edit each step before saving. These are never auto-saved.
           <button type="button" class="hint-dismiss" onclick={() => suggestDraftHint = false} aria-label="Dismiss">✕</button>
         </div>
       {/if}
@@ -348,7 +348,7 @@
   /* ── Form ───────────────────────────────────────────────────────── */
   /*
    * Use flex (column) rather than grid so items don't inherit min-width: auto
-   * from the grid algorithm — that was what let the RevoGrid (992px wide)
+   * from the grid algorithm - that was what let the RevoGrid (992px wide)
    * force the whole form to be 992px wide on mobile.
    */
   .scenario-form { display: flex; flex-direction: column; gap: 18px; }

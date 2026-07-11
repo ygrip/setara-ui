@@ -38,7 +38,7 @@
   <div class="projects-header">
     <div>
       <h2 id="projects-overview-title">Projects needing attention</h2>
-      <p>Up to 10 projects ranked by health score — worst first.</p>
+      <p>Up to 10 projects ranked by health score - worst first.</p>
     </div>
     <a href="/projects">View projects <span aria-hidden="true">→</span></a>
   </div>

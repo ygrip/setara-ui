@@ -80,7 +80,7 @@
           const line = part.trim();
           if (!line.startsWith('data:')) continue;
           const data = line.slice(5).replace(/\r$/, '');
-          // IMPORTANT: do NOT .trim() the data — LLM tokens include leading
+          // IMPORTANT: do NOT .trim() the data - LLM tokens include leading
           // spaces that separate words (e.g. " scenarios" vs "scenarios").
 
           if (data === '[RESULTS]') { resultsSeen = true; continue; }
@@ -88,7 +88,7 @@
           if (data === '[DONE]') { phase = 'done'; continue; }
 
           if (resultsSeen) {
-            // JSON payload immediately after [RESULTS] — show results before LLM streams
+            // JSON payload immediately after [RESULTS] - show results before LLM streams
             try {
               const parsed = JSON.parse(data) as { scenarios: SmartSearchResult[]; query: string };
               results = parsed.scenarios ?? [];
@@ -96,7 +96,7 @@
             resultsSeen = false;
             phase = 'streaming';
           } else {
-            // LLM reasoning token — strip any accidental "data:" prefix
+            // LLM reasoning token - strip any accidental "data:" prefix
             let cleanData = data;
             cleanData = cleanData.replace(/^data:\s*/gm, '');
             if (cleanData.startsWith('data:')) cleanData = cleanData.slice(5);
@@ -125,7 +125,7 @@
   }
 </script>
 
-<svelte:head><title>Smart Search — {projectKey} — Setara</title></svelte:head>
+<svelte:head><title>Smart Search - {projectKey} - Setara</title></svelte:head>
 
 <div class="page">
   <nav class="breadcrumb">
@@ -142,7 +142,7 @@
         <svg class="title-icon" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2a10 10 0 100 20A10 10 0 0012 2z"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
         Smart Search
       </h1>
-      <p class="page-sub">Find test scenarios by describing what they do — powered by semantic similarity.</p>
+      <p class="page-sub">Find test scenarios by describing what they do - powered by semantic similarity.</p>
     </div>
     <Button variant="secondary" href="/projects/{projectKey}/repository">← Repository</Button>
   </div>
@@ -302,7 +302,7 @@
             <span class="how-num">2</span>
             <div>
               <strong>Vector similarity search</strong>
-              <p>pgvector finds scenarios whose meaning is closest to your query — not just keyword matches.</p>
+              <p>pgvector finds scenarios whose meaning is closest to your query - not just keyword matches.</p>
             </div>
           </div>
           <div class="how-step">
