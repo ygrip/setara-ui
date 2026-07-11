@@ -5,3 +5,10 @@ build/
 *.iml
 .DS_Store
 .env
+
+# Local agent tooling (not shared)
+.claude/
+.serena/
+.agents/
+skills-lock.json
+headroom_memory.db
