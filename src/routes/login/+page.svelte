@@ -1,12 +1,18 @@
 <script lang="ts">
+  import { browser } from '$app/environment';
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
-  import { browser } from '$app/environment';
   import { onMount } from 'svelte';
-  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
-  import { getValidSession, storeSession, sessionFromLoginResult, type SetaraRole } from '$lib/auth';
+  import { APP_BUILD_LABEL, APP_VERSION_LABEL } from '$lib/app-metadata';
   import { login } from '$lib/api/client';
+  import { getValidSession, sessionFromLoginResult, storeSession, type SetaraRole } from '$lib/auth';
+  import LoginHero from '$lib/components/LoginHero.svelte';
+  import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
+  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
+  import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import { isMockMode } from '$lib/mock/client';
+
+  const CURRENT_YEAR = new Date().getFullYear();
 
   let email = $state('');
   let password = $state('');
@@ -17,12 +23,12 @@
   const isDemo = isMockMode();
 
   const DEMO_ACCOUNTS: { label: string; role: SetaraRole; email: string; variant: string }[] = [
-    { label: 'Admin',     role: 'SYSTEM_ADMIN', email: 'admin@demo.setara.local',     variant: 'admin'  },
-    { label: 'QA Lead',   role: 'QA_LEAD',      email: 'qa.lead@demo.setara.local',   variant: 'qalead' },
-    { label: 'QA',        role: 'QA',           email: 'qa@demo.setara.local',        variant: 'qa'     },
-    { label: 'Developer', role: 'DEVELOPER',    email: 'dev@demo.setara.local',       variant: 'dev'    },
-    { label: 'Viewer',    role: 'VIEWER',       email: 'viewer@demo.setara.local',    variant: 'viewer' },
-    { label: 'Guest',     role: 'GUEST',        email: 'guest@demo.setara.local',     variant: 'guest'  },
+    { label: 'Admin', role: 'SYSTEM_ADMIN', email: 'admin@demo.setara.local', variant: 'admin' },
+    { label: 'QA Lead', role: 'QA_LEAD', email: 'qa.lead@demo.setara.local', variant: 'qalead' },
+    { label: 'QA', role: 'QA', email: 'qa@demo.setara.local', variant: 'qa' },
+    { label: 'Developer', role: 'DEVELOPER', email: 'dev@demo.setara.local', variant: 'dev' },
+    { label: 'Viewer', role: 'VIEWER', email: 'viewer@demo.setara.local', variant: 'viewer' },
+    { label: 'Guest', role: 'GUEST', email: 'guest@demo.setara.local', variant: 'guest' }
   ];
 
   onMount(() => {
@@ -42,7 +48,9 @@
     try {
       const result = await login(email.trim(), password);
       storeSession(sessionFromLoginResult(result));
-      goto(result.pendingPasswordChange ? '/profile?reason=set_password' : '/dashboard', { replaceState: true });
+      goto(result.pendingPasswordChange ? '/profile?reason=set_password' : '/dashboard', {
+        replaceState: true
+      });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Login failed. Please try again.';
     } finally {
@@ -50,157 +58,276 @@
     }
   }
 
-  function quickLogin(account: typeof DEMO_ACCOUNTS[0]) {
-    storeSession(sessionFromLoginResult({
-      token: 'demo-token',
-      email: account.email,
-      displayName: account.label,
-      systemRole: account.role,
-      expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
-    }));
+  function quickLogin(account: (typeof DEMO_ACCOUNTS)[0]) {
+    storeSession(
+      sessionFromLoginResult({
+        token: 'demo-token',
+        email: account.email,
+        displayName: account.label,
+        systemRole: account.role,
+        expiresAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString()
+      })
+    );
     goto('/dashboard', { replaceState: true });
   }
-
 </script>
 
 <svelte:head>
-  <title>Sign in — Setara</title>
+  <title>Sign in - Setara</title>
 </svelte:head>
 
 <div class="login-page">
-  <div class="login-card">
-    <div class="login-brand">
-      <SetaraLoader mode="orbit" size={54} label="Setara" />
-      <span class="brand-name">SETARA</span>
+  <LoginHero />
+
+  <section class="login-panel" aria-label="Sign in form">
+    <div class="panel-sep" aria-hidden="true">
+      <svg class="sep-svg" viewBox="0 0 20 100" preserveAspectRatio="none">
+        <path
+          class="sep-path"
+          d="M10 0 C 18 8.33, 2 16.67, 10 25 C 18 33.33, 2 41.67, 10 50 C 18 58.33, 2 66.67, 10 75 C 18 83.33, 2 91.67, 10 100"
+          fill="none"
+          stroke-width="1.5"
+        />
+      </svg>
     </div>
 
-    <h1 class="login-title">Sign in to Setara</h1>
-    <p class="login-sub">Test case management and automation reporting</p>
+    <div class="theme-wrap">
+      <ThemeToggle />
+    </div>
 
-    {#if reason === 'password_changed'}
-      <div class="info-msg">Password changed — please sign in with your new password.</div>
-    {/if}
+    <div class="login-card surface-card">
+      <div class="login-brand">
+        <SetaraLoader mode="orbit" size={50} />
+        <SetaraGsapLogo size={130} loop={true} />
+      </div>
 
-    <form onsubmit={handleSubmit} class="form" novalidate>
-      <label class="field">
-        <span class="label">Email</span>
-        <input
-          class="input"
-          type="email"
-          autocomplete="email"
-          bind:value={email}
-          placeholder="you@example.com"
-          required
-        />
-      </label>
+      <div class="form-heading">
+        <h2>Welcome back</h2>
+        <p>Sign in to continue managing release quality.</p>
+      </div>
 
-      <label class="field">
-        <span class="label">Password</span>
-        <input
-          class="input"
-          type="password"
-          autocomplete="current-password"
-          bind:value={password}
-          placeholder="••••••••"
-          required
-        />
-      </label>
-
-      {#if error}
-        <div class="error-msg">{error}</div>
+      {#if reason === 'password_changed'}
+        <div class="info-msg">Password changed — please sign in with your new password.</div>
       {/if}
 
-      <button class="submit-btn" type="submit" disabled={loading}>
-        {#if loading}
-          <SetaraLoader mode="progress" size={24} label="Signing in" />
-          <span>Signing in…</span>
-        {:else}
-          <span>Sign in</span>
+      <form onsubmit={handleSubmit} class="form" novalidate>
+        <label class="field">
+          <span class="label">Email</span>
+          <input
+            class="input"
+            type="email"
+            autocomplete="email"
+            bind:value={email}
+            placeholder="you@example.com"
+            required
+          />
+        </label>
+
+        <label class="field">
+          <span class="label">Password</span>
+          <input
+            class="input"
+            type="password"
+            autocomplete="current-password"
+            bind:value={password}
+            placeholder="Password"
+            required
+          />
+        </label>
+
+        {#if error}
+          <div class="error-msg">{error}</div>
         {/if}
-      </button>
-    </form>
 
-    {#if isDemo}
-      <div class="demo-accounts">
-        <span class="demo-label">Quick login — demo accounts</span>
-        <div class="demo-chips">
-          {#each DEMO_ACCOUNTS as account}
-            <button
-              class="demo-chip demo-chip--{account.variant}"
-              onclick={() => quickLogin(account)}
-            >
-              {account.label}
-            </button>
-          {/each}
+        <button class="submit-btn" type="submit" disabled={loading}>
+          {#if loading}
+            <SetaraLoader mode="progress" size={24} label="Signing in" />
+            <span>Signing in...</span>
+          {:else}
+            <span>Sign in</span>
+          {/if}
+        </button>
+      </form>
+
+      {#if isDemo}
+        <div class="demo-accounts">
+          <span class="demo-label">Quick login — demo accounts</span>
+          <div class="demo-chips">
+            {#each DEMO_ACCOUNTS as account}
+              <button
+                class="demo-chip demo-chip--{account.variant}"
+                type="button"
+                onclick={() => quickLogin(account)}
+              >
+                {account.label}
+              </button>
+            {/each}
+          </div>
+          <p class="demo-note">No changes are saved in demo mode.</p>
         </div>
-        <p class="demo-note">No changes are saved in demo mode.</p>
-      </div>
-    {/if}
+      {/if}
+    </div>
 
-  </div>
+    <footer class="login-panel-footer" aria-label="Application version">
+      <span>© {CURRENT_YEAR} Setara</span>
+      <span class="footer-separator" aria-hidden="true"></span>
+      <span>{APP_VERSION_LABEL}</span>
+      <span>build {APP_BUILD_LABEL}</span>
+    </footer>
+  </section>
 </div>
 
 <style>
   .login-page {
-    min-height: 100vh;
+    min-height: 100dvh;
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(390px, 0.85fr);
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 50%, color-mix(in srgb, var(--color-accent), transparent 74%), transparent),
+      linear-gradient(160deg, color-mix(in srgb, var(--color-accent), transparent 80%) 0%, transparent 55%),
+      var(--color-bg);
+    color: var(--color-text);
+    overflow: hidden;
+
+    --footer-line: rgba(7, 56, 68, 0.2);
+  }
+
+  :global([data-theme='dark']) .login-page {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 50%, color-mix(in srgb, var(--color-accent), transparent 84%), transparent),
+      linear-gradient(160deg, color-mix(in srgb, var(--color-accent), transparent 88%) 0%, transparent 55%),
+      var(--color-bg);
+
+    --footer-line: rgba(226, 255, 249, 0.2);
+  }
+
+  /* ── Login panel ──────────────────────────────────────── */
+
+  .login-panel {
+    position: relative;
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    padding: clamp(24px, 4vw, 56px);
+    overflow-y: auto;
+    background: color-mix(in srgb, var(--color-surface), transparent 4%);
+  }
+
+  :global([data-theme='dark']) .theme-wrap{
+    background: color-mix(in srgb, var(--color-surface), transparent 8%);
+  }
+
+  /* ── Wavy separator ───────────────────────────────────── */
+
+  .panel-sep {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 28px;
+    height: 100%;
+    transform: translateX(-50%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .sep-svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  .sep-path {
+    stroke: var(--color-accent);
+    opacity: 0.5;
+    animation: sep-wave-anim 7s ease-in-out infinite;
+    filter: drop-shadow(0 0 5px color-mix(in srgb, var(--color-accent), transparent 50%));
+  }
+
+  :global([data-theme='dark']) .sep-path {
+    opacity: 0.38;
+  }
+
+  /* ── Theme toggle ─────────────────────────────────────── */
+
+  .theme-wrap {
+    width: 100%;
+    max-width: 430px;
+    display: flex;
+    justify-content: center;
+    border-radius: var(--radius);
+    background: var(--surface-card-bg);
+    box-shadow: var(--shadow-md);
+  }
+
+  .login-panel-footer {
+    position: relative;
+    z-index: 20;
     display: flex;
     align-items: center;
     justify-content: center;
-    background: var(--color-bg);
-    padding: 24px;
+    gap: 9px;
+    padding: 7px 16px;
+    margin-bottom: max(4px, env(safe-area-inset-bottom));
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--color-surface), transparent 8%);
+    border: 1px solid color-mix(in srgb, var(--color-border), transparent 45%);
+    box-shadow: var(--shadow-sm, 0 2px 10px rgba(0, 0, 0, 0.08));
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    transition:
+      color 0.4s ease,
+      background 0.4s ease,
+      border-color 0.4s ease;
   }
 
+  .footer-separator {
+    width: 14px;
+    height: 1px;
+    background: var(--footer-line);
+  }
+
+  /* ── Login card ───────────────────────────────────────── */
+
   .login-card {
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: calc(var(--radius) * 1.5);
-    box-shadow: var(--shadow-md);
-    padding: 40px;
     width: 100%;
-    max-width: 400px;
+    max-width: 430px;
+    padding: clamp(26px, 4vw, 38px);
+    border: 1px solid var(--surface-card-border);
+    border-radius: var(--radius);
+    background: var(--surface-card-bg);
+    box-shadow: var(--shadow-md);
+    animation: card-enter 520ms ease-out both;
   }
 
   .login-brand {
     display: flex;
     align-items: center;
-    gap: 12px;
-    margin-bottom: 28px;
+    margin-bottom: 22px;
   }
 
-  .brand-name {
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-size: 1.24rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: brand-shimmer 5s ease-in-out infinite;
-    filter: drop-shadow(1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(-1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px 1px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px -1px 1px rgba(94,242,214,0.15));
+  .form-heading {
+    margin-bottom: 24px;
   }
 
-  @keyframes brand-shimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-  }
-
-  .login-title {
-    font-size: 1.2rem;
-    font-weight: 700;
+  .form-heading h2 {
+    margin: 0 0 6px;
     color: var(--color-text);
-    margin-bottom: 4px;
+    font-size: 1.35rem;
+    font-weight: 800;
   }
 
-  .login-sub {
+  .form-heading p {
+    margin: 0;
     color: var(--color-text-muted);
-    font-size: 0.85rem;
-    margin: 0 0 28px;
+    font-size: 0.9rem;
+    line-height: 1.55;
   }
 
   .form {
@@ -212,67 +339,78 @@
   .field {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: 7px;
   }
 
   .label {
     font-size: 0.8rem;
-    font-weight: 600;
+    font-weight: 700;
     color: var(--color-text);
   }
 
   .input {
-    padding: 10px 12px;
+    min-height: 50px;
+    width: 100%;
+    padding: 12px 14px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius);
     background: var(--color-bg);
     color: var(--color-text);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     outline: none;
-    transition: border-color 0.15s, box-shadow 0.15s;
-    width: 100%;
+    transition:
+      border-color 0.15s,
+      box-shadow 0.15s,
+      background 0.15s;
   }
 
   .input:focus {
     border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgb(56 99 90 / 0.12);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 82%);
+  }
+
+  .error-msg,
+  .info-msg {
+    border-radius: var(--radius);
+    padding: 11px 12px;
+    font-size: 0.82rem;
+    line-height: 1.45;
   }
 
   .error-msg {
     background: #fee2e2;
     color: var(--color-danger);
     border: 1px solid #fecaca;
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    font-size: 0.8rem;
   }
 
   .info-msg {
+    margin-bottom: 16px;
     background: color-mix(in srgb, var(--color-accent), transparent 88%);
     color: var(--color-accent);
     border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
-    border-radius: var(--radius);
-    padding: 10px 12px;
-    font-size: 0.8rem;
-    margin-bottom: 4px;
   }
 
   .submit-btn {
-    padding: 11px 16px;
-    background: var(--color-accent);
-    color: #fff;
-    border: none;
-    border-radius: var(--radius);
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    transition: background 0.15s, opacity 0.15s;
+    min-height: 50px;
     width: 100%;
-    margin-top: 4px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
+    margin-top: 2px;
+    padding: 12px 16px;
+    border: none;
+    border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--color-accent), var(--color-accent-hover));
+    color: #fff;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 0.95rem;
+    font-weight: 800;
+    transition:
+      filter 0.15s,
+      opacity 0.15s,
+      transform 0.15s;
   }
 
   .submit-btn :global(.loader) {
@@ -281,7 +419,8 @@
   }
 
   .submit-btn:hover:not(:disabled) {
-    background: var(--color-accent-hover);
+    filter: brightness(1.06);
+    transform: translateY(-1px);
   }
 
   .submit-btn:disabled {
@@ -291,59 +430,120 @@
 
   .demo-accounts {
     margin-top: 24px;
-    border-top: 1px solid var(--color-border);
     padding-top: 20px;
+    border-top: 1px solid var(--color-border);
   }
 
   .demo-label {
     display: block;
-    font-size: 0.72rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    color: var(--color-text-muted);
     margin-bottom: 10px;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
   }
 
   .demo-chips {
     display: flex;
-    gap: 8px;
     flex-wrap: wrap;
+    gap: 8px;
     margin-bottom: 12px;
   }
 
   .demo-chip {
+    min-height: 34px;
     padding: 6px 14px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
     border: 1px solid var(--color-border);
+    border-radius: 999px;
     background: var(--color-surface);
     color: var(--color-text);
-    transition: background 0.12s, border-color 0.12s, color 0.12s;
+    cursor: pointer;
     font-family: inherit;
+    font-size: 0.8rem;
+    font-weight: 700;
+    transition:
+      background 0.12s,
+      border-color 0.12s,
+      color 0.12s;
   }
 
-  .demo-chip--admin  { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
-  .demo-chip--admin:hover  { background: #7c3aed18; border-color: #7c3aed; }
+  .demo-chip--admin { border-color: #7c3aed40; color: #7c3aed; background: #7c3aed0a; }
   .demo-chip--qalead { border-color: #0891b240; color: #0891b2; background: #0891b20a; }
-  .demo-chip--qalead:hover { background: #0891b218; border-color: #0891b2; }
-  .demo-chip--qa     { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
-  .demo-chip--qa:hover { background: color-mix(in srgb, var(--color-accent), transparent 82%); }
-  .demo-chip--dev    { border-color: #15803d40; color: #15803d; background: #15803d0a; }
-  .demo-chip--dev:hover { background: #15803d18; border-color: #15803d; }
+  .demo-chip--qa { border-color: var(--color-accent); color: var(--color-accent); background: var(--color-accent-subtle); }
+  .demo-chip--dev { border-color: #15803d40; color: #15803d; background: #15803d0a; }
   .demo-chip--viewer { border-color: #0284c740; color: #0284c7; background: #0284c70a; }
-  .demo-chip--viewer:hover { background: #0284c718; border-color: #0284c7; }
-  .demo-chip--guest  { border-color: var(--color-border); color: var(--color-text-muted); }
-  .demo-chip--guest:hover { background: var(--color-accent-subtle); border-color: var(--color-accent); color: var(--color-accent); }
+  .demo-chip--guest { border-color: var(--color-border); color: var(--color-text-muted); }
+
+  .demo-chip:hover {
+    background: var(--color-accent-subtle);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+  }
 
   .demo-note {
-    text-align: center;
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    opacity: 0.7;
     margin: 0;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    line-height: 1.45;
   }
 
+  /* ── Keyframes ────────────────────────────────────────── */
+
+  @keyframes card-enter {
+    from { opacity: 0; transform: translateY(18px) scale(0.98); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  @keyframes sep-wave-anim {
+    0%, 100% {
+      d: path('M10 0 C 18 8.33, 2 16.67, 10 25 C 18 33.33, 2 41.67, 10 50 C 18 58.33, 2 66.67, 10 75 C 18 83.33, 2 91.67, 10 100');
+    }
+    50% {
+      d: path('M10 0 C 2 8.33, 18 16.67, 10 25 C 2 33.33, 18 41.67, 10 50 C 2 58.33, 18 66.67, 10 75 C 2 83.33, 18 91.67, 10 100');
+    }
+  }
+
+  /* ── Responsive ───────────────────────────────────────── */
+
+  @media (max-width: 980px) {
+    .login-page {
+      grid-template-columns: 1fr;
+      overflow: visible;
+    }
+
+    .login-brand {
+      display: none;
+    }
+
+    .panel-sep {
+      display: none;
+    }
+
+    .login-panel {
+      min-height: auto;
+      padding: 18px 16px 28px;
+      background: transparent;
+    }
+
+    .theme-wrap {
+      max-width: 430px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .login-card,
+    .submit-btn {
+      animation: none;
+      transition-duration: 0.001ms;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      transform: none;
+    }
+
+    .sep-path {
+      animation: none;
+    }
+  }
 </style>

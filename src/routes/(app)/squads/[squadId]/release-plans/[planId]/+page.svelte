@@ -10,6 +10,7 @@
   import ReportExportMenu from '$lib/components/ReportExportMenu.svelte';
   import AppAlert from '$lib/ui/feedback/AppAlert.svelte';
   import EmptyState from '$lib/components/EmptyState.svelte';
+  import TrackedIssuesTable from '$lib/components/issues/TrackedIssuesTable.svelte';
   import {
     addSquadPlanBuild, removeSquadPlanBuild, closeSquadPlan, updateSquadPlan, deleteSquadPlan,
     type PlanBuild, type PlanLifecycleEvent, type ReleasePlan, type SquadPlanMetrics
@@ -27,6 +28,7 @@
       builds: PlanBuild[];
       metrics: SquadPlanMetrics | null;
       lifecycle: PlanLifecycleEvent[];
+      issuesEnabled: boolean;
       error: string | null;
     }
   } = $props();
@@ -373,11 +375,6 @@
           variant={metrics.totalBuilds > 0 && metrics.verifiedBuilds === metrics.totalBuilds ? 'success' : 'default'}
         />
         <MetricCard
-          label="In Progress"
-          value={String(metrics.inProgressBuilds)}
-          sub={`${metrics.initiatedBuilds} initiated`}
-        />
-        <MetricCard
           label="Projects"
           value={String(metrics.totalProjects)}
           sub="involved"
@@ -422,7 +419,7 @@
           minHeight="240px"
         >
           <svelte:fragment slot="icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="16.5" y1="9.4" x2="7.5" y2="4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>
             </svg>
           </svelte:fragment>
@@ -489,6 +486,12 @@
         </div>
       {/if}
     </section>
+
+    {#if data.issuesEnabled}
+      <section class="section">
+        <TrackedIssuesTable context="plan" squadId={data.squadId} planId={data.planId} enabled={data.issuesEnabled} />
+      </section>
+    {/if}
 
     <!-- Lifecycle -->
     <section class="section section--audit">
@@ -658,7 +661,7 @@
 </Modal>
 
 <style>
-  .page { max-width: min(1400px, 100%); display: flex; flex-direction: column; gap: 0; }
+  .page { max-width: min(100%); display: flex; flex-direction: column; gap: 0; min-height: calc(100vh - 80px); }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }

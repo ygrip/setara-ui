@@ -1,6 +1,6 @@
 {
   "name": "setara-ui",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "license": "Apache-2.0",
   "repository": {
@@ -14,7 +14,6 @@
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
     "check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
-    "check:voice-models": "node scripts/check-asa-voice-models.mjs",
     "test:ui": "node --test tests/*.test.mjs",
     "generate:types": "openapi-typescript ${SETARA_API_URL:-http://localhost:8080}/q/openapi -o src/lib/api/openapi.d.ts && echo 'Types generated → src/lib/api/openapi.d.ts'",
     "check:contract": "node scripts/check-contract.mjs",
@@ -42,8 +41,10 @@
     "chart.js": "^4.5.1",
     "clsx": "^2.1.1",
     "culori": "^4.0.2",
+    "curtainsjs": "^8.1.6",
     "d3-interpolate": "^3.0.1",
     "formsnap": "^2.0.1",
+    "gsap": "^3.15.0",
     "highlight.js": "^11.11.1",
     "layerchart": "^1.0.13",
     "marked": "^18.0.4",

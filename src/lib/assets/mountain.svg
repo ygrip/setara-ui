@@ -1,0 +1,171 @@
+<svg
+        class="mountain-scape-svg"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="20 -22 1930 520"
+        preserveAspectRatio="xMidYMax meet"
+        aria-hidden="true"
+        focusable="false"
+      >
+        <defs>
+          <style>
+            .mountain-snow {
+              fill: var(--mountain-snow, #f4ffff);
+            }
+
+            .mountain-snow-soft {
+              fill: var(--mountain-snow-soft, #c9fbf7);
+            }
+
+            .mountain-snow-shadow {
+              fill: var(--mountain-snow-shadow, #a7efea);
+            }
+          </style>
+
+          <linearGradient id="mountainBase" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#35C8C6"/>
+            <stop offset="42%" stop-color="#16879F"/>
+            <stop offset="72%" stop-color="#0C5878"/>
+            <stop offset="100%" stop-color="#063B59"/>
+          </linearGradient>
+
+          <linearGradient id="leftLight" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#C9FFF8"/>
+            <stop offset="100%" stop-color="#42C7C5"/>
+          </linearGradient>
+
+          <linearGradient id="leftMid" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#48D1CF"/>
+            <stop offset="100%" stop-color="#0B7992"/>
+          </linearGradient>
+
+          <linearGradient id="shade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#116F89"/>
+            <stop offset="100%" stop-color="#05304F"/>
+          </linearGradient>
+
+          <linearGradient id="deepShade" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#0B5D78"/>
+            <stop offset="100%" stop-color="#031F3B"/>
+          </linearGradient>
+
+          <!-- traced silhouette: tall left peak, lower mid-right peak, small right hill, flat shared base -->
+          <path id="mountainSilhouette" d="
+            M70 480
+            L125 420
+            L172 325
+            L230 230
+            L302 135
+            L350 92
+            L392 74
+            L424 40
+            L454 82
+            L506 198
+            L555 210
+            L640 282
+            L724 335
+            L810 392
+            L914 300
+            L1018 238
+            L1120 272
+            L1192 226
+            L1240 168
+            L1328 132
+            L1378 172
+            L1422 232
+            L1484 284
+            L1572 322
+            L1660 368
+            L1756 430
+            L1814 406
+            L1850 450
+            L1888 438
+            L1930 500
+            L70 500
+            Z
+          "/>
+
+          <clipPath id="clipMountain" clipPathUnits="userSpaceOnUse">
+            <use href="#mountainSilhouette"/>
+          </clipPath>
+        </defs>
+
+        <!-- base mountain mass -->
+        <use href="#mountainSilhouette" fill="url(#mountainBase)"/>
+
+        <!-- low-poly fill clipped to traced silhouette -->
+        <g clip-path="url(#clipMountain)">
+          <!-- large left peak planes -->
+          <polygon fill="#0B4968" points="70,480 230,230 356,500"/>
+          <polygon fill="url(#leftMid)" points="70,480 172,325 356,500"/>
+          <polygon fill="#2EBBBE" points="172,325 302,135 356,500"/>
+          <polygon fill="url(#leftLight)" points="230,230 350,92 302,135 172,325"/>
+          <polygon fill="#64DDD8" points="302,135 392,74 350,92"/>
+          <polygon fill="#B9FFF8" points="350,92 424,40 390,108"/>
+          <polygon fill="#0B5F7B" points="424,40 454,82 506,198 390,108"/>
+          <polygon fill="#083A58" points="506,198 555,210 640,282 430,410"/>
+          <polygon fill="#0C6380" points="390,108 506,198 430,410 356,500"/>
+          <polygon fill="#39BCBD" points="356,500 430,410 640,282 700,500"/>
+          <polygon fill="#0B5270" points="430,410 555,210 640,282"/>
+
+          <!-- left snow cap / ridgeline patches -->
+          <polygon class="mountain-snow" opacity=".88" points="350,92 424,40 390,108"/>
+          <polygon class="mountain-snow-soft" opacity=".74" points="230,230 350,92 302,135 172,325"/>
+          <polygon class="mountain-snow" opacity=".92" points="230,350 390,210 430,280 312,382"/>
+          <polygon class="mountain-snow-soft" opacity=".70" points="312,382 430,280 410,350 318,450"/>
+          <polygon class="mountain-snow" opacity=".92" points="506,198 555,210 640,282 520,302"/>
+          <polygon class="mountain-snow-shadow" opacity=".64" points="520,302 640,282 610,344 510,360"/>
+
+          <!-- first saddle and center-left mountain -->
+          <polygon fill="#0A3F61" points="555,210 700,500 810,392 640,282"/>
+          <polygon fill="#146F88" points="555,210 640,282 724,335 610,344"/>
+          <polygon fill="#2BB0B4" points="610,344 724,335 810,392 700,500"/>
+          <polygon fill="#093453" points="700,500 810,392 914,300 900,500"/>
+          <polygon fill="#177F96" points="724,335 914,300 810,392"/>
+          <polygon fill="#0B5370" points="914,300 1018,238 1120,272 900,500"/>
+          <polygon fill="#31B9BA" points="914,300 1018,238 970,310 882,384"/>
+          <polygon class="mountain-snow-soft" opacity=".72" points="970,310 1018,238 1086,266 1032,310"/>
+          <polygon class="mountain-snow" opacity=".86" points="880,384 970,310 950,390 850,448"/>
+
+          <!-- central peak system -->
+          <polygon fill="#0B5E78" points="900,500 1120,272 1192,226 1184,500"/>
+          <polygon fill="#43C8C4" points="1018,238 1120,272 970,310"/>
+          <polygon fill="#1A879B" points="1120,272 1192,226 1240,168 1184,500"/>
+          <polygon fill="#87E9E1" points="1192,226 1240,168 1328,132 1288,198"/>
+          <polygon fill="#0B4B68" points="1328,132 1378,172 1422,232 1320,390"/>
+          <polygon fill="#0D6B83" points="1288,198 1328,132 1320,390 1184,500"/>
+          <polygon fill="#239BA7" points="1184,500 1320,390 1422,232 1540,500"/>
+          <polygon fill="#0A3B5A" points="1422,232 1484,284 1572,322 1540,500"/>
+
+          <!-- center snow patches -->
+          <polygon class="mountain-snow" opacity=".94" points="1240,168 1328,132 1288,198 1270,242 1196,250 1174,218"/>
+          <polygon class="mountain-snow" opacity=".92" points="1196,250 1270,242 1312,280 1248,306 1208,292"/>
+          <polygon class="mountain-snow-soft" opacity=".88" points="1120,272 1174,218 1160,300 1108,370 1080,360"/>
+          <polygon class="mountain-snow-soft" opacity=".82" points="1080,360 1108,370 1032,438 986,450 1018,382"/>
+          <polygon class="mountain-snow" opacity=".92" points="1378,172 1422,232 1484,284 1452,310 1394,258"/>
+          <polygon class="mountain-snow" opacity=".90" points="1394,258 1452,310 1502,344 1510,392 1448,426 1408,360"/>
+
+          <!-- descending right range -->
+          <polygon fill="#0B4B68" points="1540,500 1572,322 1660,368 1760,500"/>
+          <polygon fill="#1D8998" points="1572,322 1660,368 1610,410 1540,500"/>
+          <polygon fill="#0A3957" points="1660,368 1756,430 1850,450 1760,500"/>
+          <polygon fill="#2EACB1" points="1610,410 1660,368 1710,450 1648,470"/>
+          <polygon class="mountain-snow-soft" opacity=".84" points="1660,368 1710,450 1680,470 1640,424"/>
+
+          <!-- small far-right hill -->
+          <polygon fill="#0C4B67" points="1760,500 1756,430 1814,406 1850,450 1930,500"/>
+          <polygon fill="#1D8F9B" points="1756,430 1814,406 1850,450 1760,500"/>
+          <polygon fill="#0A3453" points="1814,406 1888,438 1930,500 1850,450"/>
+          <polygon class="mountain-snow" opacity=".86" points="1768,452 1814,406 1844,454 1794,470"/>
+
+          <!-- subtle terrain facets / contours as filled planes -->
+          <polygon fill="#44C6C4" opacity=".35" points="188,358 318,300 356,500 172,420"/>
+          <polygon fill="#A2F5EE" opacity=".28" points="328,178 390,108 420,205 302,260"/>
+          <polygon fill="#33B3B7" opacity=".34" points="610,344 700,500 640,282"/>
+          <polygon fill="#1E8296" opacity=".38" points="882,384 900,500 1018,382"/>
+          <polygon fill="#65D9D3" opacity=".25" points="1184,500 1208,292 1320,390"/>
+          <polygon fill="#2BA2A9" opacity=".28" points="1448,426 1540,500 1510,392"/>
+
+          <!-- dark shared base band to keep the silhouette readable -->
+          <polygon fill="#063652" opacity=".78" points="70,480 356,500 700,500 900,500 1184,500 1540,500 1930,500 1930,520 70,520"/>
+        </g>
+      </svg>

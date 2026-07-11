@@ -633,7 +633,7 @@
 </div>
 
 <style>
-  .page { max-width: min(1520px, 100%); margin: 0 auto; padding: 2rem 1.5rem; }
+  .page { max-width: min(100%); margin: 0 auto; padding: 2rem 1.5rem; }
 
   .history-loading-more { text-align: center; padding: 12px; color: var(--color-text-muted); font-size: 0.82rem; }
   .breadcrumb { display: flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 1.5rem; flex-wrap: wrap; }

@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" class="moon-svg" role="img" aria-label="Moon">
+  <defs>
+    <clipPath id="moon-disc-clip">
+      <circle cx="60" cy="60" r="31" />
+    </clipPath>
+  </defs>
+
+  <circle class="moon-glow" cx="60" cy="60" r="42" fill="#cdeae9" opacity="0.28" />
+  <circle class="moon-base" cx="60" cy="60" r="31" fill="#b9d8da" />
+
+  <g clip-path="url(#moon-disc-clip)" stroke="#e3f4f3" stroke-opacity="0.2" stroke-width="0.6" stroke-linejoin="round">
+    <polygon fill="#b9d8da" points="60,60 91.0,60.0 88.6,71.9" />
+    <polygon fill="#93b8bd" points="60,60 88.6,71.9 81.9,81.9" />
+    <polygon fill="#6f95a0" points="60,60 81.9,81.9 71.9,88.6" />
+    <polygon fill="#6f95a0" points="60,60 71.9,88.6 60.0,91.0" />
+    <polygon fill="#93b8bd" points="60,60 60.0,91.0 48.1,88.6" />
+    <polygon fill="#b9d8da" points="60,60 48.1,88.6 38.1,81.9" />
+    <polygon fill="#d7edec" points="60,60 38.1,81.9 31.4,71.9" />
+    <polygon fill="#f1fbfa" points="60,60 31.4,71.9 29.0,60.0" />
+    <polygon fill="#f1fbfa" points="60,60 29.0,60.0 31.4,48.1" />
+    <polygon fill="#f1fbfa" points="60,60 31.4,48.1 38.1,38.1" />
+    <polygon fill="#f1fbfa" points="60,60 38.1,38.1 48.1,31.4" />
+    <polygon fill="#d7edec" points="60,60 48.1,31.4 60.0,29.0" />
+    <polygon fill="#b9d8da" points="60,60 60.0,29.0 71.9,31.4" />
+    <polygon fill="#93b8bd" points="60,60 71.9,31.4 81.9,38.1" />
+    <polygon fill="#6f95a0" points="60,60 81.9,38.1 88.6,48.1" />
+    <polygon fill="#93b8bd" points="60,60 88.6,48.1 91.0,60.0" />
+  </g>
+
+  <g clip-path="url(#moon-disc-clip)">
+    <circle class="moon-crater" cx="48" cy="50" r="6" fill="#5c828d" opacity="0.35" />
+    <circle class="moon-crater" cx="75" cy="68" r="8" fill="#5c828d" opacity="0.3" />
+    <circle class="moon-crater" cx="55" cy="80" r="5" fill="#5c828d" opacity="0.32" />
+    <circle class="moon-crater" cx="82" cy="45" r="4.5" fill="#5c828d" opacity="0.28" />
+  </g>
+</svg>

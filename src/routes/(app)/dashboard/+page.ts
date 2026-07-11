@@ -1,45 +1,34 @@
-import { listProjects, type Project } from '$lib/api/projects';
-import {
-  getDashboardSummary,
-  listAggregateStatisticHistory,
-  type AggregateStatisticPoint,
-  type DashboardSummary
-} from '$lib/api/statistics';
+import { getDashboard, type DashboardResponse } from '$lib/api/dashboard';
 
 export const prerender = import.meta.env.VITE_MOCK === 'true';
 
 export async function load() {
+  const end = new Date();
+  const start = new Date();
+  start.setDate(end.getDate() - 29);
+  const chartStart = start.toISOString().slice(0, 10);
+  const chartEnd = end.toISOString().slice(0, 10);
   try {
-    const end = new Date();
-    const start = new Date();
-    start.setDate(end.getDate() - 29);
-    const startText = start.toISOString().slice(0, 10);
-    const endText = end.toISOString().slice(0, 10);
-    const [projectsResult, summary, aggregateHistory] = await Promise.all([
-      listProjects(undefined, undefined, 'createdAt', 'desc'),
-      getDashboardSummary(),
-      listAggregateStatisticHistory(startText, endText, 'daily')
-    ]);
+    const dashboard = await getDashboard({
+      start: chartStart,
+      end: chartEnd,
+      group: 'daily',
+      attentionLimit: 5
+    });
     return {
-      projects: projectsResult.items.slice(0, 5),
-      summary,
-      aggregateHistory,
-      chartStart: startText,
-      chartEnd: endText,
+      dashboard,
+      chartStart,
+      chartEnd,
       groupedBy: 'daily' as const,
-      nextCursor: projectsResult.nextCursor,
       error: null
     };
-  } catch (e) {
+  } catch (error) {
     return {
-      projects: [] as Project[],
-      summary: null as DashboardSummary | null,
-      aggregateHistory: [] as AggregateStatisticPoint[],
-      chartStart: '',
-      chartEnd: '',
+      dashboard: null as DashboardResponse | null,
+      chartStart,
+      chartEnd,
       groupedBy: 'daily' as const,
-      nextCursor: null,
-      error: (e as Error).message
+      error: (error as Error).message
     };
   }
 }

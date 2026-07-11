@@ -58,8 +58,53 @@
   --sidebar-width: 220px;
   --topbar-height: 63px;
   --radius: 8px;
-  --shadow: 0 1px 4px rgb(0 0 0 / 0.06), 0 4px 16px rgb(0 0 0 / 0.04);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.08), 0 12px 32px rgb(0 0 0 / 0.06);
+  --surface-card-bg:
+    linear-gradient(
+      270deg,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        transparent 92%
+      ) 0%,
+      transparent 72%
+    ) top right / 100% 12px no-repeat,
+    linear-gradient(
+      270deg,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        white 20%
+      ) 0%,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        transparent 68%
+      ) 38%,
+      transparent 84%
+    ) top right / 100% 1px no-repeat,
+    var(--color-surface);
+
+  --surface-card-border: color-mix(
+    in srgb,
+    var(--color-border),
+    var(--color-accent) 5%
+  );
+
+  --surface-card-corner-color: color-mix(
+    in srgb,
+    var(--surface-accent, var(--color-accent)),
+    transparent 35%
+  );
+
+  --surface-card-corner-size: 32px;
+  --surface-card-corner-width: 2px;
+  --shadow:
+    0 1px 0 rgb(255 255 255 / 0.72) inset,
+    0 5px 18px rgb(15 23 42 / 0.055);
+  --shadow-md:
+    0 1px 0 rgb(255 255 255 / 0.78) inset,
+    0 12px 30px rgb(15 23 42 / 0.1),
+    0 0 20px color-mix(in srgb, var(--color-accent), transparent 96%);
 }
 
 [data-theme="dark"] {
@@ -72,6 +117,151 @@
   --color-accent-hover: #5EF2D6;
   --color-accent-subtle: #0A1A2E;
   --color-accent-mint: #5EF2D6;
+  --surface-card-bg:
+    linear-gradient(
+      270deg,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        transparent 90%
+      ) 0%,
+      transparent 72%
+    ) top right / 100% 12px no-repeat,
+    linear-gradient(
+      270deg,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        white 18%
+      ) 0%,
+      color-mix(
+        in srgb,
+        var(--surface-accent, var(--color-accent)),
+        transparent 60%
+      ) 38%,
+      transparent 84%
+    ) top right / 100% 1px no-repeat,
+    var(--color-surface);
+
+  --surface-card-border: color-mix(
+    in srgb,
+    var(--color-border),
+    var(--color-accent) 10%
+  );
+
+  --surface-card-corner-color: color-mix(
+    in srgb,
+    var(--surface-accent, var(--color-accent)),
+    white 12%
+  );
+  --shadow:
+    0 1px 0 rgb(255 255 255 / 0.035) inset,
+    0 8px 24px rgb(0 0 0 / 0.2);
+  --shadow-md:
+    0 1px 0 rgb(255 255 255 / 0.055) inset,
+    0 16px 36px rgb(0 0 0 / 0.3),
+    0 0 22px color-mix(in srgb, var(--color-accent), transparent 93%);
+}
+
+.surface-card {
+  position: relative;
+  overflow: hidden;
+
+  background: var(--surface-card-bg);
+  border: 1px solid var(--surface-card-border);
+  border-radius: var(--radius-lg, 14px);
+}
+
+.surface-card::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  right: -1px;
+
+  width: var(--surface-card-corner-size);
+  height: var(--surface-card-corner-size);
+
+  border-top: var(--surface-card-corner-width) solid
+    var(--surface-card-corner-color);
+
+  border-right: var(--surface-card-corner-width) solid
+    var(--surface-card-corner-color);
+
+  border-top-right-radius: inherit;
+
+  pointer-events: none;
+  z-index: 1;
+
+  -webkit-mask:
+    linear-gradient(
+      to left,
+      black 0%,
+      black 34%,
+      transparent 100%
+    ) top right / 100% var(--surface-card-corner-width) no-repeat,
+    linear-gradient(
+      to bottom,
+      black 0%,
+      black 34%,
+      transparent 100%
+    ) top right / var(--surface-card-corner-width) 100% no-repeat,
+    radial-gradient(
+      circle at top right,
+      black 0 42%,
+      transparent 70%
+    ) top right / 18px 18px no-repeat;
+
+  mask:
+    linear-gradient(
+      to left,
+      black 0%,
+      black 34%,
+      transparent 100%
+    ) top right / 100% var(--surface-card-corner-width) no-repeat,
+    linear-gradient(
+      to bottom,
+      black 0%,
+      black 34%,
+      transparent 100%
+    ) top right / var(--surface-card-corner-width) 100% no-repeat,
+    radial-gradient(
+      circle at top right,
+      black 0 42%,
+      transparent 70%
+    ) top right / 18px 18px no-repeat;
+}
+
+/* Soft glow behind the corner */
+.surface-card::after {
+  z-index: 1;
+  opacity: var(--surface-card-corner-glow-opacity);
+  filter: blur(var(--surface-card-corner-glow-blur));
+
+  background:
+    linear-gradient(
+      to left,
+      var(--surface-card-corner-glow) 0%,
+      var(--surface-card-corner-glow) 24%,
+      transparent 100%
+    ) top right / 100% 8px no-repeat,
+
+    linear-gradient(
+      to bottom,
+      var(--surface-card-corner-glow) 0%,
+      var(--surface-card-corner-glow) 24%,
+      transparent 100%
+    ) top right / 8px 100% no-repeat;
+}
+
+.surface-card:hover::before,
+.surface-card:focus-within::before {
+  opacity: 1;
+}
+
+.surface-card:hover::after,
+.surface-card:focus-within::after {
+  opacity: calc(var(--surface-card-corner-glow-opacity) + 0.18);
+  filter: blur(calc(var(--surface-card-corner-glow-blur) + 2px));
 }
 
 /* ── Reset & base ──────────────────────────────────────────── */

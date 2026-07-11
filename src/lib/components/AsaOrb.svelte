@@ -1,9 +1,28 @@
 <script lang="ts">
   import { onMount, onDestroy, tick } from 'svelte';
   import { asa } from '$lib/stores/asa.svelte';
-  import type { AsaAction } from '$lib/api/asa';
+  import { fetchVoiceModelsInfo, type AsaAction, type AsaVoiceModelsInfo } from '$lib/api/asa';
   import { renderMarkdown } from '$lib/markdown';
-  import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
+  import { sidecarVoice, type SidecarTranscript } from '$lib/voice/sidecar-voice.svelte';
+  import { getValidSession } from '$lib/auth';
+
+  // Push-to-talk transcript awaiting user review — never auto-sent (setara-s94o.10).
+  let pendingTranscript = $state<SidecarTranscript | null>(null);
+  let pendingDraft = $state('');
+
+  // Dev/admin voice diagnostics panel (setara-s94o.12) — mode/provider/model come from GET
+  // /models; last-request latency/fallback come from sidecarVoice.lastSttStats.
+  const DIAGNOSTICS_ROLES = new Set(['SYSTEM_ADMIN', 'ADMIN', 'DEVELOPER']);
+  const canSeeDiagnostics = DIAGNOSTICS_ROLES.has(getValidSession()?.role ?? '');
+  let diagnosticsOpen = $state(false);
+  let voiceModelsInfo = $state<AsaVoiceModelsInfo | null>(null);
+
+  async function toggleDiagnostics() {
+    diagnosticsOpen = !diagnosticsOpen;
+    if (diagnosticsOpen && !voiceModelsInfo) {
+      voiceModelsInfo = await fetchVoiceModelsInfo();
+    }
+  }
 
   // ── Constants ─────────────────────────────────────────────────────────────
   const ORB_SIZE   = 80;
@@ -152,11 +171,12 @@
   let chatEl    = $state<HTMLElement | null>(null);
   let inputEl   = $state<HTMLInputElement | null>(null);
   let orbEl     = $state<HTMLElement | null>(null);
+  let reviewEl  = $state<HTMLTextAreaElement | null>(null);
   let voiceSettingsOpen = $state(false);
 
   $effect(() => {
     asa.scrollRevision;
-    tick().then(() => chatEl?.scrollTo({ top: chatEl.scrollHeight, behavior: 'smooth' }));
+    tick().then(() => { if (chatEl) chatEl.scrollTop = chatEl.scrollHeight; });
   });
 
   $effect(() => {
@@ -186,18 +206,36 @@
     await asa.send(text);
   }
 
-  // Sidecar push-to-talk: click to record, click again to stop → transcribe → auto-send, so the
-  // user can hold a hands-free spoken conversation with ASA (reply is spoken back as it streams).
+  // Sidecar push-to-talk: click to record, click again to stop → transcribe → show an editable
+  // review panel. Never auto-sent — the user edits/confirms or discards (setara-s94o.10).
   async function toggleSidecarMic() {
     if (sidecarVoice.recording) {
       const transcript = await sidecarVoice.stopRecording();
       if (transcript) {
         if (!asa.open) asa.activate();
-        await asa.send(transcript.text, transcript.voiceInput);
+        pendingTranscript = transcript;
+        pendingDraft = transcript.text;
+        await tick();
+        reviewEl?.focus();
       }
     } else {
+      pendingTranscript = null;
       await sidecarVoice.startRecording();
     }
+  }
+
+  async function confirmPendingTranscript() {
+    const text = pendingDraft.trim();
+    if (!text || !pendingTranscript) return;
+    const voiceInput = { ...pendingTranscript.voiceInput, resolvedText: text };
+    pendingTranscript = null;
+    pendingDraft = '';
+    await asa.send(text, voiceInput);
+  }
+
+  function discardPendingTranscript() {
+    pendingTranscript = null;
+    pendingDraft = '';
   }
 
   function closePanel() {
@@ -418,6 +456,18 @@
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
           </button>
           {/if}
+          {#if asa.voiceSidecar && canSeeDiagnostics}
+          <button
+            class="icon-btn"
+            class:icon-btn--active={diagnosticsOpen}
+            onclick={toggleDiagnostics}
+            title="Voice diagnostics"
+            aria-label="Voice diagnostics"
+            aria-expanded={diagnosticsOpen}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h6v4H9zM4 21V11a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v10"/><path d="M9 21v-6h6v6"/></svg>
+          </button>
+          {/if}
           <button
             class="icon-btn"
             onpointerdown={(event) => event.stopPropagation()}
@@ -489,6 +539,23 @@
         </div>
       {/if}
 
+      {#if diagnosticsOpen && canSeeDiagnostics}
+        <div class="voice-diagnostics" role="group" aria-label="Voice diagnostics">
+          {#if voiceModelsInfo}
+            <dl>
+              <dt>Voice mode</dt><dd>{voiceModelsInfo.mode}</dd>
+              <dt>STT provider</dt><dd>{voiceModelsInfo.stt.activeProvider}</dd>
+              <dt>STT model</dt><dd>{voiceModelsInfo.stt.activeModel}</dd>
+              <dt>Fallback</dt><dd>{voiceModelsInfo.stt.fallbackProvider ? `enabled (${voiceModelsInfo.stt.fallbackProvider})` : 'disabled'}</dd>
+              <dt>Last latency</dt><dd>{sidecarVoice.lastSttStats?.latencyMs != null ? `${sidecarVoice.lastSttStats.latencyMs}ms` : '—'}</dd>
+              <dt>Fallback used</dt><dd>{sidecarVoice.lastSttStats ? (sidecarVoice.lastSttStats.fallbackUsed ? 'true' : 'false') : '—'}</dd>
+            </dl>
+          {:else}
+            <span class="voice-diagnostics__empty">Voice service info unavailable.</span>
+          {/if}
+        </div>
+      {/if}
+
       <!-- Messages -->
       <div class="messages" bind:this={chatEl} onscroll={onMessagesScroll} aria-live="polite">
         {#if asa.historyLoading && asa.messages.length > 0}
@@ -510,7 +577,9 @@
               {/if}
               <div class="msg-bubble">
                 {#if msg.content}
-                  {#if msg.role === 'assistant'}
+                  {#if msg.role === 'assistant' && msg.streaming}
+                    <div class="msg-streaming">{msg.content}</div>
+                  {:else if msg.role === 'assistant'}
                     <!-- Content originates from our own backend LLM; rendered as markdown. -->
                     <div class="msg-md">{@html renderMarkdown(msg.content)}</div>
                   {:else}
@@ -552,6 +621,28 @@
         <div class="interim-transcript" role="status" aria-live="polite">{sidecarVoice.interimTranscript}</div>
       {/if}
 
+      {#if pendingTranscript}
+        <!-- Voice transcript review: never auto-sent, user edits/confirms or discards (setara-s94o.10). -->
+        <div class="transcript-review" role="group" aria-label="Review voice transcript">
+          <textarea
+            bind:this={reviewEl}
+            bind:value={pendingDraft}
+            class="transcript-review__text"
+            rows="2"
+            aria-label="Edit transcribed text before sending"
+            onkeydown={(e) => {
+              if (e.key === 'Escape') { discardPendingTranscript(); return; }
+              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void confirmPendingTranscript(); }
+            }}
+          ></textarea>
+          <div class="transcript-review__actions">
+            <button type="button" class="action-chip" onclick={discardPendingTranscript}>Discard</button>
+            <button type="button" class="action-chip action-chip--send" disabled={!pendingDraft.trim()} onclick={confirmPendingTranscript}>
+              Send
+            </button>
+          </div>
+        </div>
+      {:else}
       <form class="input-row" onsubmit={handleSubmit}>
         {#if asa.voiceSidecar}
         <!-- Push-to-talk via sidecar: click to record, click again to stop + transcribe. -->
@@ -588,6 +679,11 @@
           </button>
         {/if}
       </form>
+      {/if}
+
+      {#if asa.voiceSidecar && sidecarVoice.notice}
+        <div class="voice-state voice-state--notice" role="status">{sidecarVoice.notice}</div>
+      {/if}
 
       {#if asa.voiceSidecar && sidecarVoice.status === 'recording'}
         <!-- svelte-ignore a11y_unknown_role -->
@@ -618,6 +714,16 @@
       <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
       {action.payload.label ?? action.payload.path}
     </a>
+  {:else if action.type === 'confirm_required'}
+    <div class="confirmation-card" role="group" aria-label="Confirm ASA action">
+      <span class="confirmation-summary">{action.payload.summary ?? 'Confirm this action?'}</span>
+      <div class="confirmation-actions">
+        <button type="button" class="action-chip" disabled={asa.streaming}
+          onclick={() => asa.confirmAction(action, 'REJECT')}>Cancel</button>
+        <button type="button" class="action-chip action-chip--confirm" disabled={asa.streaming}
+          onclick={() => asa.confirmAction(action, 'APPROVE')}>Approve</button>
+      </div>
+    </div>
   {/if}
 {/snippet}
 
@@ -856,6 +962,17 @@
     font-family: inherit;
   }
 
+  .voice-diagnostics {
+    padding: 9px 12px;
+    border-bottom: 1px solid rgba(203,213,225,0.45);
+    background: var(--color-surface, #fff);
+    font-size: 11px;
+  }
+  .voice-diagnostics dl { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; margin: 0; }
+  .voice-diagnostics dt { color: var(--color-text-muted, #64748b); font-weight: 500; }
+  .voice-diagnostics dd { margin: 0; color: var(--color-text, #0f172a); text-align: right; overflow-wrap: anywhere; }
+  .voice-diagnostics__empty { color: var(--color-text-muted, #64748b); }
+
   /* Messages */
   .messages {
     flex: 1;
@@ -865,7 +982,6 @@
     flex-direction: column;
     gap: 10px;
     min-height: 0;
-    scroll-behavior: smooth;
   }
 
   .history-status {
@@ -974,8 +1090,31 @@
     transition: background 0.1s;
   }
   .action-chip:hover { background: rgba(14,165,233,0.2); }
+  .confirmation-card { display: grid; gap: 7px; width: 100%; }
+  .confirmation-summary { font-size: 0.78rem; color: var(--color-text); }
+  .confirmation-actions { display: flex; gap: 6px; }
+  .action-chip--confirm { color: var(--color-danger, #dc2626); border-color: color-mix(in srgb, var(--color-danger, #dc2626), transparent 65%); }
+  .action-chip--send { color: #fff; background: var(--color-accent, #0ea5e9); border-color: var(--color-accent, #0ea5e9); }
+  .action-chip--send:hover:not(:disabled) { background: var(--color-accent-hover, #0284c7); }
+  .action-chip--send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .transcript-review { display: grid; gap: 6px; padding: 8px; }
+  .transcript-review__text {
+    width: 100%; resize: vertical; min-height: 44px;
+    padding: 8px 10px; border-radius: 10px;
+    border: 1px solid var(--color-border, #cbd5e1);
+    background: var(--color-bg, #f8fafc); color: var(--color-text, #0b1220);
+    font-size: 0.85rem; font-family: inherit; line-height: 1.4;
+  }
+  .transcript-review__text:focus { outline: none; border-color: var(--color-accent, #0ea5e9); }
+  .transcript-review__actions { display: flex; justify-content: flex-end; gap: 6px; }
 
   /* Markdown-rendered assistant content (injected via {@html}, so selectors are :global). */
+  .msg-streaming {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
   .msg-md { white-space: normal; }
   .msg-md :global(p) { margin: 0 0 6px; }
   .msg-md :global(p:last-child) { margin-bottom: 0; }
@@ -1126,6 +1265,7 @@
     font-size: 10px;
   }
   .voice-state--error { color: var(--color-danger); }
+  .voice-state--notice { color: var(--color-accent, #00afa5); }
   .voice-level {
     width: 7px;
     height: 7px;

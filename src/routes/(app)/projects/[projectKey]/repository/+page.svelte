@@ -120,6 +120,10 @@
   let moveTargetParentId = $state<string | 'ROOT' | null>(null);
   let moveSearch = $state('');
 
+  // ── Drag-and-drop reparenting ────────────────────────────────
+  let dragNodeId = $state<string | null>(null);
+  let dropTargetId = $state<string | 'ROOT' | null>(null);
+
   // ── Delete directory modal ───────────────────────────────────
   let showDeleteDirModal = $state(false);
   let deleteDirNodeId = $state<string | null>(null);
@@ -672,6 +676,49 @@
     });
   }
 
+  // ── Drag-and-drop handlers ───────────────────────────────────
+  function isValidDropTarget(draggedId: string, targetId: string | 'ROOT'): boolean {
+    if (targetId === draggedId) return false;
+    if (targetId === 'ROOT') return true;
+    const dragged = data.directories.find((d: TestDirectory) => d.id === draggedId);
+    const target = data.directories.find((d: TestDirectory) => d.id === targetId);
+    if (!dragged || !target) return false;
+    return !target.path?.startsWith(dragged.path + '/');
+  }
+
+  function handleDragStart(nodeId: string, e: DragEvent) {
+    dragNodeId = nodeId;
+    e.dataTransfer!.effectAllowed = 'move';
+  }
+
+  function handleDragEnd() {
+    dragNodeId = null;
+    dropTargetId = null;
+  }
+
+  function handleDragOver(targetId: string | 'ROOT', e: DragEvent) {
+    if (!dragNodeId || !isValidDropTarget(dragNodeId, targetId)) return;
+    e.preventDefault();
+    e.dataTransfer!.dropEffect = 'move';
+    dropTargetId = targetId;
+  }
+
+  function handleDragLeave(targetId: string | 'ROOT') {
+    if (dropTargetId === targetId) dropTargetId = null;
+  }
+
+  async function handleDrop(targetId: string | 'ROOT', e: DragEvent) {
+    e.preventDefault();
+    const dragged = dragNodeId;
+    dragNodeId = null;
+    dropTargetId = null;
+    if (!dragged || !isValidDropTarget(dragged, targetId)) return;
+    const newParentId = targetId === 'ROOT' ? null : targetId;
+    await runAction(async () => {
+      await moveDirectory(data.projectKey, dragged, newParentId);
+    });
+  }
+
   // ── Delete directory ─────────────────────────────────────────
   function openDeleteDirModal(nodeId: string, name: string) {
     deleteDirNodeId = nodeId;
@@ -850,7 +897,18 @@
               <span {...treeApi.getBranchIndicatorProps({ indexPath, node })} class="tree-caret">
                 {#if nodeState.expanded}{@render iconChevronDown()}{:else}{@render iconChevronRight()}{/if}
               </span>
-              <span {...treeApi.getBranchTextProps({ indexPath, node })} class="tree-node" class:active={selectedNodeId === node.id}>
+              <span
+                {...treeApi.getBranchTextProps({ indexPath, node })}
+                class="tree-node"
+                class:active={selectedNodeId === node.id}
+                class:drop-target={dropTargetId === node.id}
+                draggable={canWrite}
+                ondragstart={(e) => handleDragStart(node.id, e)}
+                ondragend={handleDragEnd}
+                ondragover={(e) => handleDragOver(node.id, e)}
+                ondragleave={() => handleDragLeave(node.id)}
+                ondrop={(e) => handleDrop(node.id, e)}
+              >
                 <span class="node-icon folder">{#if nodeState.expanded}{@render iconFolderOpen()}{:else}{@render iconFolder()}{/if}</span>
                 <span class="node-label"><strong>{node.name}</strong></span>
                 <span class="count-pill">{totalCount(node)}</span>
@@ -866,7 +924,19 @@
         {:else}
           <div {...treeApi.getItemProps({ indexPath, node })} class="tree-line">
             <span class="leaf-indent"></span>
-            <span class="tree-node" class:active={selectedNodeId === node.id}>
+            <span
+              role="button"
+              tabindex="0"
+              class="tree-node"
+              class:active={selectedNodeId === node.id}
+              class:drop-target={dropTargetId === node.id}
+              draggable={canWrite}
+              ondragstart={(e) => handleDragStart(node.id, e)}
+              ondragend={handleDragEnd}
+              ondragover={(e) => handleDragOver(node.id, e)}
+              ondragleave={() => handleDragLeave(node.id)}
+              ondrop={(e) => handleDrop(node.id, e)}
+            >
               <span class="node-icon folder">{@render iconFolder()}</span>
               <span class="node-label"><strong>{node.name}</strong></span>
               <span class="count-pill">{totalCount(node)}</span>
@@ -879,7 +949,11 @@
         <button
           class="tree-all-btn"
           class:active={selectedNodeId === null}
+          class:drop-target={dropTargetId === 'ROOT'}
           onclick={() => { selectedNodeId = null; selectedScenarioIds = []; }}
+          ondragover={(e) => handleDragOver('ROOT', e)}
+          ondragleave={() => handleDragLeave('ROOT')}
+          ondrop={(e) => handleDrop('ROOT', e)}
         >
           <span class="all-icon">{@render iconLayers()}</span>
           <span class="all-label">All Scenarios</span>
@@ -1067,7 +1141,7 @@
             minHeight="200px"
           >
             <svelte:fragment slot="icon">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
               </svg>
             </svelte:fragment>
@@ -1776,6 +1850,8 @@
   }
   .tree-node:hover { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
   .tree-node.active { background: color-mix(in srgb, var(--color-accent), transparent 88%); color: var(--color-accent); }
+  .tree-node.drop-target,
+  .tree-all-btn.drop-target { background: color-mix(in srgb, var(--color-accent), transparent 72%); color: var(--color-accent); outline: 2px dashed var(--color-accent); outline-offset: -2px; }
   /* Zag branch/content open/close */
   [data-part="branch"][data-state="open"] > [data-part="branch-content"] { display: block; }
   [data-part="branch"][data-state="closed"] > [data-part="branch-content"] { display: none; }

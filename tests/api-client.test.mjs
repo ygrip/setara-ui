@@ -35,7 +35,7 @@ describe('API client helpers', () => {
     assert.equal(buildCursorParams('', undefined, 'name'), '?sort_by=name');
   });
 
-  it('encodes execution websocket URLs and optional token safely', () => {
+  it('requires a token and encodes execution websocket URLs safely', () => {
     const body = extractFunctionBody(read('src/lib/api/realtime.ts'), 'executionSocketUrl');
     const makeUrl = (base, token) => new Function(
       'projectKey',
@@ -48,7 +48,7 @@ describe('API client helpers', () => {
     const withoutToken = makeUrl();
     assert.equal(
       withoutToken('PAY MENT', undefined, () => 'ws://localhost:8080/', () => undefined),
-      'ws://localhost:8080/ws/projects/PAY%20MENT/executions'
+      ''
     );
 
     const withRun = makeUrl();

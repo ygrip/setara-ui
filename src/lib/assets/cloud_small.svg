@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Low-poly cloud variant 2">
+  <defs>
+    <clipPath id="c2-clip">
+      <path d="M64 240
+        L78 202 L104 182 L124 162 L162 156 L180 136 L216 132 L242 104 L292 92 L352 94
+        L396 106 L426 128 L448 130 L484 144 L512 170 L548 176 L574 194 L584 222 L576 246
+        L552 260 L520 264 L486 278 L440 278 L404 286 L348 286 L308 282 L258 278 L216 278
+        L174 272 L136 268 L102 260 L80 256 Z"/>
+    </clipPath>
+    <linearGradient id="c2-base" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#edf1f5"/>
+    </linearGradient>
+    <filter id="c2-shadow" x="-20%" y="-30%" width="160%" height="200%">
+      <feDropShadow dx="0" dy="18" stdDeviation="14" flood-color="#7a828c" flood-opacity="0.28"/>
+    </filter>
+    <style>
+      .w{fill:#ffffff}.l1{fill:#f5f5f6}.l2{fill:#ececee}.w1{fill:#efe7df}.c1{fill:#dfe7f2}.c2{fill:#c9d4df}.g1{fill:#d4d5d8}.g2{fill:#c0c4ca}.g3{fill:#aeb4bc}
+    </style>
+  </defs>
+  <g filter="url(#c2-shadow)"><path fill="url(#c2-base)" d="M64 240 L78 202 L104 182 L124 162 L162 156 L180 136 L216 132 L242 104 L292 92 L352 94 L396 106 L426 128 L448 130 L484 144 L512 170 L548 176 L574 194 L584 222 L576 246 L552 260 L520 264 L486 278 L440 278 L404 286 L348 286 L308 282 L258 278 L216 278 L174 272 L136 268 L102 260 L80 256 Z"/></g>
+  <g clip-path="url(#c2-clip)">
+    <polygon class="w" points="64,240 78,202 124,162 140,208 102,260"/>
+    <polygon class="w1" points="78,202 140,208 174,272 120,250"/>
+    <polygon class="l1" points="124,162 180,136 206,176 140,208"/>
+    <polygon class="w" points="180,136 216,132 242,104 264,152 206,176"/>
+    <polygon class="l2" points="206,176 264,152 286,212 232,224"/>
+    <polygon class="c1" points="140,208 206,176 232,224 174,272"/>
+    <polygon class="w" points="242,104 292,92 352,94 344,154 286,152"/>
+    <polygon class="l1" points="352,94 396,106 426,128 410,174 344,154"/>
+    <polygon class="w" points="286,152 344,154 332,212 286,228 232,224"/>
+    <polygon class="l2" points="344,154 410,174 398,224 332,212"/>
+    <polygon class="g1" points="232,224 286,228 308,282 258,278 216,278"/>
+    <polygon class="w1" points="286,228 332,212 348,286 308,282"/>
+    <polygon class="w" points="410,174 448,130 484,144 478,188 444,200"/>
+    <polygon class="c1" points="444,200 478,188 512,170 520,214 480,234"/>
+    <polygon class="w" points="398,224 444,200 480,234 440,278 404,286"/>
+    <polygon class="c2" points="478,188 512,170 548,176 544,226 520,214"/>
+    <polygon class="l1" points="520,214 544,226 552,260 520,264 480,234"/>
+    <polygon class="w" points="544,226 576,246 584,222 574,194"/>
+    <polygon class="c1" points="552,260 576,246 566,274 540,280"/>
+    <polygon class="l1" points="410,174 444,200 398,224" opacity=".76"/>
+    <polygon class="l1" points="286,152 344,154 332,212 286,228" opacity=".6"/>
+    <polygon class="g2" points="174,272 216,278 258,278 220,292 154,286" opacity=".82"/>
+    <polygon class="g2" points="258,278 308,282 348,286 312,294 232,296" opacity=".72"/>
+    <polygon class="g2" points="348,286 404,286 440,278 486,278 444,292 368,296" opacity=".62"/>
+    <polygon class="g3" points="102,260 154,286 120,294 84,288" opacity=".5"/>
+  </g>
+</svg>

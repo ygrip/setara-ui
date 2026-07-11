@@ -117,7 +117,7 @@
 </div>
 
 <style>
-  .page { max-width: 920px; }
+  .page { max-width: 100%; }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; }
   .breadcrumb a { color: var(--color-accent); }
   .sep { opacity: 0.5; }

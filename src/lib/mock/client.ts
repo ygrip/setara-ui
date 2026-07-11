@@ -4,17 +4,27 @@ import {
   mockScenariosByProject,
   mockBuildsByProject, mockBuildScenariosByBuild, mockBuildAuditByBuild,
   mockSquadPlans, mockPlanBuilds, mockTagsByProject,
-  mockStatisticsOverride
+  mockStatisticsOverride,
+  mockLinkedIssuesByExecution, mockLinkedIssuesByBuild, mockLinkedIssuesByPlan
 } from './data';
 import type { Project } from '$lib/api/projects';
 import type { AutomationRun, ScenarioRunResult, HeatmapDay } from '$lib/api/runs';
 import type { ApiKey } from '$lib/api/apikeys';
 import type { Tribe, Squad, User, TribeDetail, SquadDetail, SquadMember, UserDetail } from '$lib/api/organization';
+
+function trimToNull(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
 import type { PlanBuild, PlanMetrics, ReleasePlan } from '$lib/api/plans';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild, RunScenarioView } from '$lib/api/builds';
 import type { Scenario, TagInput, TagView, TestDirectory, StepSuggestion, StepSuggestionResponse, SimilarScenarioResult } from '$lib/api/testcases';
 import type { ProjectStatistic, SquadProjectCoverage } from '$lib/api/statistics';
 import type { CursorPage } from '$lib/api/pagination';
+import type {
+  IssueSortBy, IssueTrackerStatus, TrackedIssueSummary, TrackedIssueDetail,
+  LinkIssuesRequest, LinkIssuesResult, BulkCreateIssuesRequest, BulkCreateIssuesResponse
+} from '$lib/api/issues';
 
 export function isMockMode(): boolean {
   return import.meta.env.VITE_MOCK === 'true';
@@ -128,7 +138,10 @@ export async function mockListSquads(tribeId: string, _cursor?: string, _limit?:
   return { items: mockSquads[tribeId] ?? [], nextCursor: null, prevCursor: null };
 }
 
-export async function mockCreateSquad(tribeId: string, body: { name: string }): Promise<Squad> {
+export async function mockCreateSquad(
+  tribeId: string,
+  body: { name: string; issueTrackerProjectKey?: string | null }
+): Promise<Squad> {
   await delay(120);
   const tribe = mockTribes.find(t => t.id === tribeId);
   const squad = {
@@ -136,6 +149,7 @@ export async function mockCreateSquad(tribeId: string, body: { name: string }): 
     tribeId,
     tribeName: tribe?.name ?? null,
     name: body.name,
+    issueTrackerProjectKey: trimToNull(body.issueTrackerProjectKey),
     createdAt: new Date().toISOString()
   };
   mockSquads[tribeId] = [squad, ...(mockSquads[tribeId] ?? [])];
@@ -631,7 +645,14 @@ export async function mockGetSquad(squadId: string): Promise<Squad> {
   const squad = allSquads.find(s => s.id === squadId);
   if (!squad) {
     // Return a minimal stub if not found
-    return { id: squadId, tribeId: '', tribeName: null, name: squadId, createdAt: new Date().toISOString() };
+    return {
+      id: squadId,
+      tribeId: '',
+      tribeName: null,
+      name: squadId,
+      issueTrackerProjectKey: null,
+      createdAt: new Date().toISOString()
+    };
   }
   // Enrich with tribe name
   const tribe = mockTribes.find(t => t.id === squad.tribeId);
@@ -685,11 +706,39 @@ export async function mockGetSquadDetail(squadId: string): Promise<SquadDetail> 
     tribeName: tribe?.name ?? null,
     name: squad?.name ?? squadId,
     description: null,
+    issueTrackerProjectKey: squad?.issueTrackerProjectKey ?? null,
     leadId: null,
     leadName: null,
     createdAt: squad?.createdAt ?? new Date().toISOString(),
     updatedAt: squad?.createdAt ?? new Date().toISOString(),
     members
+  };
+}
+
+export async function mockUpdateSquad(squadId: string, body: {
+  name?: string;
+  description?: string | null;
+  tribeId?: string | null;
+  leadId?: string | null;
+  issueTrackerProjectKey?: string | null;
+}): Promise<SquadDetail> {
+  await delay(100);
+  const squad = Object.values(mockSquads).flat().find(item => item.id === squadId);
+  if (!squad) {
+    throw new Error('Squad not found');
+  }
+  if (body.name !== undefined) {
+    squad.name = body.name;
+  }
+  if (body.issueTrackerProjectKey !== undefined) {
+    squad.issueTrackerProjectKey = trimToNull(body.issueTrackerProjectKey);
+  }
+  const detail = await mockGetSquadDetail(squadId);
+  return {
+    ...detail,
+    description: body.description ?? detail.description,
+    tribeId: body.tribeId ?? detail.tribeId,
+    leadId: body.leadId ?? detail.leadId
   };
 }
 
@@ -844,4 +893,105 @@ export async function mockGetRunHeatmap(projectKey: string, days = 182): Promise
     cur.setUTCDate(cur.getUTCDate() + 1);
   }
   return result;
+}
+
+// ── Issue tracker (mock) ─────────────────────────────────────────────────────
+export async function mockGetIssueTrackerStatus(): Promise<IssueTrackerStatus> {
+  await delay(80);
+  return { enabled: true, provider: 'JIRA', missing: [], cacheTtlSeconds: 60 };
+}
+
+export async function mockGetIssueDetail(issueKey: string): Promise<TrackedIssueDetail> {
+  await delay(100);
+  const all = [...Object.values(mockLinkedIssuesByExecution), ...Object.values(mockLinkedIssuesByBuild), ...Object.values(mockLinkedIssuesByPlan)].flat();
+  const found = all.find(i => i.issueKey === issueKey);
+  if (!found) throw new Error(`Issue ${issueKey} not found`);
+  return { ...found, issueDescription: `Mock description for ${issueKey}.`, issueReporter: 'reporter@example.com', issueAssignee: 'assignee@example.com' };
+}
+
+function sortIssues(items: TrackedIssueSummary[], sortBy?: IssueSortBy, sortDir?: string): TrackedIssueSummary[] {
+  const field = sortBy ?? 'key';
+  const key = (i: TrackedIssueSummary) => (field === 'priority' ? i.issuePriority : field === 'status' ? i.issueStatus : i.issueKey) ?? '';
+  const sorted = [...items].sort((a, b) => key(a).localeCompare(key(b), undefined, { sensitivity: 'base' }));
+  return sortDir === 'desc' ? sorted.reverse() : sorted;
+}
+
+/** ponytail: mock lists are pre-seeded flat per entity, not unioned from child levels like the real backend. */
+export async function mockListExecutionIssues(executionId: string, sortBy?: IssueSortBy, sortDir?: string): Promise<CursorPage<TrackedIssueSummary>> {
+  await delay(120);
+  return { items: sortIssues(mockLinkedIssuesByExecution[executionId] ?? [], sortBy, sortDir), nextCursor: null, prevCursor: null };
+}
+
+export async function mockListBuildIssues(buildId: string, sortBy?: IssueSortBy, sortDir?: string): Promise<CursorPage<TrackedIssueSummary>> {
+  await delay(120);
+  return { items: sortIssues(mockLinkedIssuesByBuild[buildId] ?? [], sortBy, sortDir), nextCursor: null, prevCursor: null };
+}
+
+export async function mockListPlanIssues(planId: string, sortBy?: IssueSortBy, sortDir?: string): Promise<CursorPage<TrackedIssueSummary>> {
+  await delay(120);
+  return { items: sortIssues(mockLinkedIssuesByPlan[planId] ?? [], sortBy, sortDir), nextCursor: null, prevCursor: null };
+}
+
+function targetStore(body: { executionId?: string | null; buildId?: string | null; planId?: string | null }):
+    { store: Record<string, TrackedIssueSummary[]>; id: string } | null {
+  if (body.executionId) return { store: mockLinkedIssuesByExecution, id: body.executionId };
+  if (body.buildId) return { store: mockLinkedIssuesByBuild, id: body.buildId };
+  if (body.planId) return { store: mockLinkedIssuesByPlan, id: body.planId };
+  return null;
+}
+
+export async function mockLinkIssues(body: LinkIssuesRequest): Promise<LinkIssuesResult> {
+  await delay(150);
+  const target = targetStore(body);
+  if (!target) return { linked: [], alreadyLinked: [], failed: body.issueKeys.map(k => ({ issueKey: k, reason: 'No plan, build, or execution given' })) };
+  const { store, id } = target;
+  const existing = store[id] ?? [];
+  const linked: { issueKey: string; linkedIssueId: string }[] = [];
+  const alreadyLinked: string[] = [];
+  for (const key of body.issueKeys) {
+    const trimmed = key.trim().toUpperCase();
+    if (existing.some(i => i.issueKey === trimmed)) {
+      alreadyLinked.push(trimmed);
+      continue;
+    }
+    const linkedIssueId = `li-mock-${trimmed}-${Date.now()}`;
+    existing.push({ linkedIssueId, issueType: 'Bug', issueKey: trimmed, issueSummary: `Mock summary for ${trimmed}`, issueStatus: 'Open', issuePriority: 'Medium', issueUrl: `https://tracker.example/browse/${trimmed}` });
+    linked.push({ issueKey: trimmed, linkedIssueId });
+  }
+  store[id] = existing;
+  return { linked, alreadyLinked, failed: [] };
+}
+
+export async function mockRemoveLinkedIssue(linkedIssueId: string): Promise<void> {
+  await delay(100);
+  for (const store of [mockLinkedIssuesByExecution, mockLinkedIssuesByBuild, mockLinkedIssuesByPlan]) {
+    for (const id of Object.keys(store)) {
+      store[id] = store[id].filter(i => i.linkedIssueId !== linkedIssueId);
+    }
+  }
+}
+
+export async function mockBulkCreateIssues(body: BulkCreateIssuesRequest): Promise<BulkCreateIssuesResponse> {
+  await delay(200);
+  const target = targetStore(body);
+  const created: { issueKey: string; issueUrl: string }[] = [];
+  const failed: { summary: string; reason: string }[] = [];
+  if (!target) {
+    for (const issue of body.issues) failed.push({ summary: issue.summary, reason: 'executionId or buildId is required' });
+    return { created, failed };
+  }
+  const { store, id } = target;
+  const existing = store[id] ?? [];
+  body.issues.forEach((issue, index) => {
+    if (!issue.summary?.trim()) {
+      failed.push({ summary: issue.summary || '(blank)', reason: 'summary is required' });
+      return;
+    }
+    const issueKey = `MOCK-${Date.now()}-${index}`;
+    const issueUrl = `https://tracker.example/browse/${issueKey}`;
+    existing.push({ linkedIssueId: `li-mock-${issueKey}`, issueType: issue.issueType, issueKey, issueSummary: issue.summary, issueStatus: 'Open', issuePriority: issue.priority ?? 'Medium', issueUrl });
+    created.push({ issueKey, issueUrl });
+  });
+  store[id] = existing;
+  return { created, failed };
 }

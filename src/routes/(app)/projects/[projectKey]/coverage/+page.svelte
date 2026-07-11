@@ -2,6 +2,7 @@
   import { page } from '$app/state';
   import Card from '$lib/components/Card.svelte';
   import BentoCard from '$lib/components/BentoCard.svelte';
+  import MetricCard from '$lib/components/MetricCard.svelte';
   import DonutChart from '$lib/components/DonutChart.svelte';
   import LineChart from '$lib/components/LineChart.svelte';
   import type { ProjectStatistic } from '$lib/api/statistics';
@@ -17,6 +18,22 @@
   let granularity = $state<'daily' | 'weekly'>('daily');
   let historyData = $state<ProjectStatistic[]>(untrack(() => data.history));
   let loadingHistory = $state(false);
+
+  type RangeOption = '7d' | '30d' | '90d' | 'custom';
+  let range = $state<RangeOption>('30d');
+
+  function isoDate(d: Date): string { return d.toISOString().slice(0, 10); }
+
+  function selectRange(next: RangeOption) {
+    range = next;
+    if (next === 'custom') return;
+    const days = Number(next.slice(0, -1));
+    const end = new Date();
+    const start = new Date(end.getTime() - (days - 1) * 86_400_000);
+    chartEnd = isoDate(end);
+    chartStart = isoDate(start);
+    refetchHistory();
+  }
 
   async function refetchHistory() {
     const start = chartStart, end = chartEnd;
@@ -86,59 +103,68 @@
 
   <!-- ── Stat cards ───────────────────────────────────────── -->
   <div class="stats-grid">
-    <div class="stat-card">
-      <div class="stat-card-icon total">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    <MetricCard
+      label="Total Scenarios"
+      value={latest?.totalScenarios ?? '—'}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-info), transparent 86%)", color: "var(--color-info)" }}
+    />
+    <MetricCard
+      label="Automated"
+      value={latest?.totalAutomated ?? '—'}
+      variant="success"
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-success), transparent 86%)", color: "var(--color-success)" }}
+    />
+    <MetricCard
+      label="Automatable"
+      value={latest?.totalAutomatable ?? '—'}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-status-manual), transparent 86%)", color: "var(--color-status-manual)" }}
+    />
+    <MetricCard
+      label="Coverage"
+      value={`${latest?.coveragePercentage ?? '—'}%`}
+      iconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>'
+      iconFrame={{ size: "40px", padding: "6px", border: "1px solid color-mix(in srgb, var(--color-border), transparent 75%)", radius: "10px", background: "color-mix(in srgb, var(--color-accent), transparent 86%)", color: "var(--color-accent)" }}
+    >
+      <div class="stat-card-bar">
+        <div class="stat-card-bar-fill" style="width:{latest?.coveragePercentage ?? 0}%"></div>
       </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalScenarios ?? '—'}</span>
-        <span class="stat-card-label">Total Scenarios</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon automated">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalAutomated ?? '—'}</span>
-        <span class="stat-card-label">Automated</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon automatable">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="10" rx="2"/><path d="M12 2a3 3 0 0 0-3 3v3a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.totalAutomatable ?? '—'}</span>
-        <span class="stat-card-label">Automatable</span>
-      </div>
-    </div>
-    <div class="stat-card">
-      <div class="stat-card-icon coverage-stat">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><polyline points="7 15 10 12 13 14 18 8"/></svg>
-      </div>
-      <div class="stat-card-body">
-        <span class="stat-card-value">{latest?.coveragePercentage ?? '—'}%</span>
-        <span class="stat-card-label">Coverage</span>
-        <div class="stat-card-bar">
-          <div class="stat-card-bar-fill" style="width:{latest?.coveragePercentage ?? 0}%"></div>
-        </div>
-      </div>
-    </div>
+    </MetricCard>
   </div>
 
   <!-- ── Coverage Trend (full width) ───────────────────────── -->
   <div class="trend-section">
   <BentoCard title="Coverage Trend{loadingHistory ? ' …' : ''}" subtitle="Automation coverage over time" variant="default">
-    <div class="chart-controls">
-      <label>Start <input type="date" bind:value={chartStart} onchange={refetchHistory} /></label>
-      <label>End <input type="date" bind:value={chartEnd} onchange={refetchHistory} /></label>
-      <label>Group
-        <select bind:value={granularity}>
+    <div class="toolbar">
+      <div class="presets">
+        {#each (['7d', '30d', '90d', 'custom'] as const) as opt}
+          <button class:active={range === opt} onclick={() => selectRange(opt)}>
+            {opt === 'custom' ? 'Custom' : opt.toUpperCase()}
+          </button>
+        {/each}
+      </div>
+      <div class="toolbar-right">
+        {#if range === 'custom'}
+          <div class="date-fields">
+            <label class="date-field">
+              <span>From</span>
+              <input type="date" value={chartStart} max={chartEnd || undefined}
+                onchange={(e) => { chartStart = e.currentTarget.value; refetchHistory(); }} />
+            </label>
+            <label class="date-field">
+              <span>To</span>
+              <input type="date" value={chartEnd} min={chartStart || undefined}
+                onchange={(e) => { chartEnd = e.currentTarget.value; refetchHistory(); }} />
+            </label>
+          </div>
+        {/if}
+        <select aria-label="Group by period" bind:value={granularity}>
           <option value="daily">Daily</option>
           <option value="weekly">Weekly</option>
         </select>
-      </label>
+      </div>
     </div>
     {#if historyData.length === 0}
       <p class="empty-text">No coverage statistics captured yet.</p>
@@ -195,7 +221,7 @@
 </div>
 
 <style>
-  .page { max-width: min(1520px, 100%); }
+  .page { max-width: min(100%); }
 
   .breadcrumb {
     display: flex; align-items: center; gap: 6px;
@@ -209,39 +235,84 @@
 
   /* ── Stat cards ──────────────────────────────────────────── */
   .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 28px; }
-  .stat-card {
-    display: flex; align-items: center; gap: 14px;
-    padding: 16px 18px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius);
-  }
-  .stat-card-icon {
-    display: inline-grid; place-items: center;
-    width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0;
-  }
-  .stat-card-icon.total { background: color-mix(in srgb, #3b82f6, transparent 86%); color: #1d4ed8; }
-  .stat-card-icon.automated { background: color-mix(in srgb, #16a34a, transparent 86%); color: #15803d; }
-  .stat-card-icon.automatable { background: color-mix(in srgb, #6366f1, transparent 86%); color: #4f46e5; }
-  .stat-card-icon.coverage-stat { background: color-mix(in srgb, #0d9488, transparent 86%); color: #0f766e; }
-  .stat-card-body { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-  .stat-card-value { font-size: 1.4rem; font-weight: 800; line-height: 1.1; color: var(--color-text); }
-  .stat-card-label { font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
   .stat-card-bar { height: 4px; background: var(--color-border); border-radius: 2px; overflow: hidden; margin-top: 4px; }
-  .stat-card-bar-fill { height: 100%; background: #0d9488; border-radius: 2px; transition: width 0.4s ease; }
+  .stat-card-bar-fill { height: 100%; background: var(--color-accent); border-radius: 2px; transition: width 0.4s ease; }
 
   /* ── Trend card ──────────────────────────────────────────── */
   .trend-section { margin-bottom: 28px; }
-  .chart-controls { display: flex; align-items: flex-end; gap: 10px; margin-bottom: 12px; flex-wrap: wrap; }
-  .chart-controls label {
-    display: flex; flex-direction: column; gap: 4px;
-    font-size: 0.72rem; color: var(--color-text-muted); font-weight: 600;
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 1rem;
+    padding: 0.45rem 0.6rem;
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: 0.6rem;
   }
-  .chart-controls input,
-  .chart-controls select {
-    border: 1px solid var(--color-border); border-radius: 6px;
-    background: var(--color-bg); color: var(--color-text);
-    padding: 7px 9px; font: inherit;
+
+  .presets { display: flex; gap: 0.25rem; }
+
+  .presets button {
+    padding: 0.28rem 0.65rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+  }
+
+  .presets button.active {
+    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  }
+
+  .presets button:hover:not(.active) {
+    background: var(--color-surface);
+    color: var(--color-text);
+  }
+
+  .toolbar-right { display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; }
+  .date-fields { display: flex; gap: 0.4rem; }
+
+  .date-field {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.7rem;
+    color: var(--color-text-muted);
+    font-weight: 600;
+  }
+
+  .date-field input {
+    height: 1.9rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.7rem;
+    padding: 0 0.4rem;
+  }
+
+  select {
+    height: 1.9rem;
+    padding: 0 0.55rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.35rem;
+    background: var(--color-surface);
+    color: var(--color-text);
+    font: inherit;
+    font-size: 0.7rem;
+    cursor: pointer;
   }
   .empty-text { color: var(--color-text-muted); font-size: 0.85rem; margin: 0; }
 

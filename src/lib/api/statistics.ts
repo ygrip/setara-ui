@@ -6,6 +6,264 @@ import {
   mockListProjectStatisticHistory
 } from '$lib/mock/client';
 import { mockSquads, mockTribes, mockProjects, mockScenariosByProject, mockRunsByProject, mockStatisticsOverride } from '$lib/mock/data';
+import type { ProjectHealthStatus } from './projects';
+
+export type SquadQualityRequest = {
+  start?: string;
+  end?: string;
+  group?: 'daily' | 'weekly' | 'monthly';
+};
+
+export type SquadQualityProject = {
+  id: string;
+  key: string;
+  name: string;
+  totalScenarios: number;
+  automatedScenarios: number;
+  coveragePercent: number | null;
+  passRatePercent: number | null;
+  finishedExecutions: number;
+  openFailures: number | null;
+  flakyTests: number;
+  lastExecutionAt: string | null;
+  healthScore: number;
+  status: ProjectHealthStatus;
+};
+
+export type SquadQualityOverview = {
+  squad: { id: string; name: string; tribeId: string | null; tribeName: string | null };
+  period: {
+    start: string;
+    end: string;
+    previousStart: string;
+    previousEnd: string;
+    group: 'DAILY' | 'WEEKLY' | 'MONTHLY';
+  };
+  summary: {
+    totalProjects: number;
+    totalScenarios: number;
+    automatedScenarios: number;
+    coveragePercent: number | null;
+    passRatePercent: number | null;
+    openFailures: number | null;
+    projectsAtRisk: number;
+    lastExecutionAt: string | null;
+    healthScore: number;
+    healthStatus: ProjectHealthStatus;
+  };
+  deltas: {
+    totalScenarios: number | null;
+    automatedScenarios: number | null;
+    coveragePercent: number | null;
+    passRatePercent: number | null;
+    projectsAtRisk: number | null;
+  };
+  trend: Array<{
+    date: string;
+    totalScenarios: number;
+    automatedScenarios: number;
+    totalExecutions: number;
+    coveragePercent: number | null;
+    passRatePercent: number | null;
+  }>;
+  attention: {
+    lowCoverage: string[];
+    noRecentRun: string[];
+    noScenarios: string[];
+    highFailureRate: string[];
+    flakyTests: string[];
+  };
+  thresholds: {
+    coverageTargetPercent: number;
+    passRateHealthyPercent: number;
+    passRateHighRiskPercent: number;
+    recentRunWindowDays: number;
+    flakyTestsWarningThreshold: number;
+  };
+};
+
+export type SquadProjectsPage = {
+  items: SquadQualityProject[];
+  page: number;
+  size: number;
+  total: number;
+  hasNext: boolean;
+};
+
+export type SquadProjectsRequest = {
+  start?: string;
+  end?: string;
+  sort?: string;
+  dir?: 'asc' | 'desc';
+  search?: string;
+  status?: string;
+  page?: number;
+  size?: number;
+};
+
+export async function getSquadQualityOverview(
+  squadId: string,
+  request: SquadQualityRequest = {}
+): Promise<SquadQualityOverview> {
+  if (isMockMode()) return createMockSquadQualityOverview(squadId, request);
+  const params = new URLSearchParams();
+  if (request.start) params.set('start', request.start);
+  if (request.end) params.set('end', request.end);
+  if (request.group) params.set('group', request.group);
+  const suffix = params.size > 0 ? `?${params}` : '';
+  const response = await apiFetch(`/api/squads/${squadId}/quality-overview${suffix}`);
+  return readJsonOrThrow<SquadQualityOverview>(response);
+}
+
+export async function createMockSquadQualityOverview(
+  squadId: string,
+  request: SquadQualityRequest = {}
+): Promise<SquadQualityOverview> {
+  const squad = Object.values(mockSquads).flat().find((item) => item.id === squadId)
+    ?? Object.values(mockSquads).flat()[0];
+  const tribe = mockTribes.find((item) => item.id === squad.tribeId);
+  const sourceProjects = mockProjects.filter((item) => item.squadId === squad.id);
+  const projects = (sourceProjects.length > 0 ? sourceProjects : mockProjects.slice(0, 5)).map((project, index) => {
+    const stats = mockStatisticsOverride[project.projectKey];
+    const totalScenarios = index === 4 ? 0 : (stats?.totalScenarios ?? 60 + index * 15);
+    const automatedScenarios = totalScenarios === 0 ? 0 : (stats?.totalAutomated ?? Math.round(totalScenarios * (0.92 - index * 0.08)));
+    const runs = mockRunsByProject[project.projectKey] ?? [];
+    const latest = runs.find((run) => run.finishedAt) ?? null;
+    const finished = latest?.totalScenarios ?? (index === 3 || index === 4 ? 0 : totalScenarios);
+    const passed = latest?.passedScenarios ?? Math.round(finished * (0.96 - index * 0.1));
+    const passRate = finished > 0 ? Number((passed * 100 / finished).toFixed(2)) : null;
+    const coverage = totalScenarios > 0 ? Number((automatedScenarios * 100 / totalScenarios).toFixed(2)) : null;
+    const status: ProjectHealthStatus = finished === 0 ? 'NO_RUNS'
+      : passRate != null && passRate < 60 ? 'CRITICAL'
+      : passRate != null && passRate < 70 ? 'HIGH_RISK'
+      : passRate != null && passRate < 85 ? 'NEEDS_REVIEW'
+      : 'HEALTHY';
+    return {
+      id: project.id,
+      key: project.projectKey,
+      name: project.name,
+      totalScenarios,
+      automatedScenarios,
+      coveragePercent: coverage,
+      passRatePercent: passRate,
+      finishedExecutions: finished,
+      openFailures: finished > 0 ? Math.max(0, finished - passed) : null,
+      flakyTests: index === 2 ? 4 : 0,
+      lastExecutionAt: index === 3 || index === 4 ? null : latest?.finishedAt ?? `2026-07-0${6 - index}T10:00:00Z`,
+      healthScore: status === 'HEALTHY' ? 90 : status === 'NEEDS_REVIEW' ? 76 : status === 'HIGH_RISK' ? 64 : status === 'CRITICAL' ? 50 : 0,
+      status
+    } satisfies SquadQualityProject;
+  });
+  const today = request.end ?? '2026-07-06';
+  const start = request.start ?? '2026-06-23';
+  const history = await listSquadHistory(squadId, start, today, request.group ?? 'daily');
+  const totalScenarios = projects.reduce((sum, project) => sum + project.totalScenarios, 0);
+  const automatedScenarios = projects.reduce((sum, project) => sum + project.automatedScenarios, 0);
+  const covered = projects.filter((project) => project.totalScenarios > 0);
+  const runProjects = projects.filter((project) => project.passRatePercent != null);
+  const noScenarios = projects.filter((project) => project.totalScenarios === 0).map((project) => project.id);
+  const noRecentRun = projects.filter((project) => project.totalScenarios > 0 && !project.lastExecutionAt).map((project) => project.id);
+  const highFailureRate = projects.filter((project) => project.passRatePercent != null && project.passRatePercent < 75).map((project) => project.id);
+  const lowCoverage = projects.filter((project) => project.coveragePercent != null && project.coveragePercent < 80 && !highFailureRate.includes(project.id)).map((project) => project.id);
+  const flakyTests = projects.filter((project) => project.flakyTests >= 3 && !lowCoverage.includes(project.id)).map((project) => project.id);
+  const projectsAtRisk = new Set([...noScenarios, ...noRecentRun, ...highFailureRate, ...lowCoverage, ...flakyTests]).size;
+  return {
+    squad: { id: squad.id, name: squad.name, tribeId: squad.tribeId, tribeName: tribe?.name ?? null },
+    period: { start, end: today, previousStart: '2026-06-09', previousEnd: '2026-06-22', group: (request.group ?? 'daily').toUpperCase() as 'DAILY' | 'WEEKLY' | 'MONTHLY' },
+    summary: {
+      totalProjects: projects.length,
+      totalScenarios,
+      automatedScenarios,
+      coveragePercent: covered.length === 0 ? null : Number((automatedScenarios * 100 / totalScenarios).toFixed(2)),
+      passRatePercent: runProjects.length === 0 ? null : Number((runProjects.reduce((sum, project) => sum + (project.passRatePercent ?? 0), 0) / runProjects.length).toFixed(2)),
+      openFailures: runProjects.length === 0 ? null : runProjects.reduce((sum, project) => sum + (project.openFailures ?? 0), 0),
+      projectsAtRisk,
+      lastExecutionAt: projects.map((project) => project.lastExecutionAt).filter((value): value is string => value != null).sort().at(-1) ?? null,
+      healthScore: projectsAtRisk === 0 ? 90 : 72,
+      healthStatus: projectsAtRisk === 0 ? 'HEALTHY' : 'NEEDS_REVIEW'
+    },
+    deltas: { totalScenarios: 3, automatedScenarios: 5, coveragePercent: 1.2, passRatePercent: 1.8, projectsAtRisk: -1 },
+    trend: history.map((point) => ({ date: point.bucketDate, totalScenarios: point.totalScenarios, automatedScenarios: point.totalAutomated, totalExecutions: 12, coveragePercent: point.totalScenarios === 0 ? null : point.coveragePercentage, passRatePercent: point.avgPassPercentage })),
+    attention: { lowCoverage, noRecentRun, noScenarios, highFailureRate, flakyTests },
+    thresholds: { coverageTargetPercent: 80, passRateHealthyPercent: 90, passRateHighRiskPercent: 75, recentRunWindowDays: 7, flakyTestsWarningThreshold: 3 }
+  };
+}
+
+export async function getSquadProjects(
+  squadId: string,
+  request: SquadProjectsRequest = {}
+): Promise<SquadProjectsPage> {
+  if (isMockMode()) {
+    const squad = Object.values(mockSquads).flat().find((item) => item.id === squadId)
+      ?? Object.values(mockSquads).flat()[0];
+    const sourceProjects = mockProjects.filter((item) => item.squadId === squad.id);
+    let items: SquadQualityProject[] = (sourceProjects.length > 0 ? sourceProjects : mockProjects.slice(0, 5)).map((project, index) => {
+      const stats = mockStatisticsOverride[project.projectKey];
+      const totalScenarios = index === 4 ? 0 : (stats?.totalScenarios ?? 60 + index * 15);
+      const automatedScenarios = totalScenarios === 0 ? 0 : (stats?.totalAutomated ?? Math.round(totalScenarios * (0.92 - index * 0.08)));
+      const runs = mockRunsByProject[project.projectKey] ?? [];
+      const latest = runs.find((run) => run.finishedAt) ?? null;
+      const finished = latest?.totalScenarios ?? (index === 3 || index === 4 ? 0 : totalScenarios);
+      const passed = latest?.passedScenarios ?? Math.round(finished * (0.96 - index * 0.1));
+      const passRate = finished > 0 ? Number((passed * 100 / finished).toFixed(2)) : null;
+      const coverage = totalScenarios > 0 ? Number((automatedScenarios * 100 / totalScenarios).toFixed(2)) : null;
+      const status: ProjectHealthStatus = finished === 0 ? 'NO_RUNS'
+        : passRate != null && passRate < 60 ? 'CRITICAL'
+        : passRate != null && passRate < 70 ? 'HIGH_RISK'
+        : passRate != null && passRate < 85 ? 'NEEDS_REVIEW'
+        : 'HEALTHY';
+      return {
+        id: project.id,
+        key: project.projectKey,
+        name: project.name,
+        totalScenarios,
+        automatedScenarios,
+        coveragePercent: coverage,
+        passRatePercent: passRate,
+        finishedExecutions: finished,
+        openFailures: finished > 0 ? Math.max(0, finished - passed) : null,
+        flakyTests: index === 2 ? 4 : 0,
+        lastExecutionAt: index === 3 || index === 4 ? null : latest?.finishedAt ?? `2026-07-0${6 - index}T10:00:00Z`,
+        healthScore: status === 'HEALTHY' ? 90 : status === 'NEEDS_REVIEW' ? 76 : status === 'HIGH_RISK' ? 64 : status === 'CRITICAL' ? 50 : 0,
+        status
+      } satisfies SquadQualityProject;
+    });
+    if (request.search) {
+      const q = request.search.toLowerCase();
+      items = items.filter((p) => p.name.toLowerCase().includes(q) || p.key.toLowerCase().includes(q));
+    }
+    if (request.status) {
+      items = items.filter((p) => p.status === request.status);
+    }
+    const sort = request.sort ?? 'health';
+    const dir = request.dir ?? 'asc';
+    items = [...items].sort((a, b) => {
+      let diff = 0;
+      if (sort === 'coverage') diff = (a.coveragePercent ?? 0) - (b.coveragePercent ?? 0);
+      else if (sort === 'scenarios') diff = a.totalScenarios - b.totalScenarios;
+      else if (sort === 'passrate') diff = (a.passRatePercent ?? 0) - (b.passRatePercent ?? 0);
+      else if (sort === 'project') diff = a.name.localeCompare(b.name);
+      else diff = a.healthScore - b.healthScore;
+      return dir === 'asc' ? diff : -diff;
+    });
+    const page = request.page ?? 0;
+    const size = request.size ?? 20;
+    const from = page * size;
+    const pageItems = items.slice(from, from + size);
+    return { items: pageItems, page, size, total: items.length, hasNext: from + size < items.length };
+  }
+  const q = new URLSearchParams();
+  if (request.start) q.set('start', request.start);
+  if (request.end) q.set('end', request.end);
+  if (request.sort) q.set('sort', request.sort);
+  if (request.dir) q.set('dir', request.dir);
+  if (request.search) q.set('q', request.search);
+  if (request.status) q.set('status', request.status);
+  if (request.page !== undefined) q.set('page', String(request.page));
+  if (request.size !== undefined) q.set('size', String(request.size));
+  const res = await apiFetch(`/api/squads/${squadId}/projects?${q}`);
+  return readJsonOrThrow<SquadProjectsPage>(res);
+}
 
 export interface ProjectStatistic {
   id: string;

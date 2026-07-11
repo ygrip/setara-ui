@@ -109,8 +109,16 @@
     height: 100%;
     padding: 24px;
     box-sizing: border-box;
+    aspect-ratio: auto !important; 
+    display: block;
     color: var(--color-accent, var(--color-text-muted));
     animation: float 3s ease-in-out infinite;
+  }
+
+  .empty-icon svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
   }
 
   .empty-title {

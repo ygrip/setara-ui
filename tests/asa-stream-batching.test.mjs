@@ -72,4 +72,19 @@ describe('ASA stream batching', () => {
     assert.match(store, /case 'error':[\s\S]*?tokenBatcher\.flush\(\)/);
     assert.match(store, /cancel\(\) \{[\s\S]*?this\.flushActiveTokenBuffer\?\.\(\)/);
   });
+
+  it('invokes browser timers through globalThis so Firefox keeps the required receiver', () => {
+    const batcher = read('src/lib/stores/stream-batcher.ts');
+
+    assert.match(batcher, /globalThis\.setTimeout\(callback, delayMs\)/);
+    assert.match(batcher, /globalThis\.clearTimeout\(handle\)/);
+  });
+
+  it('reconciles a missing or partial token stream with the authoritative completed content', async () => {
+    const { reconcileCompletedContent } = await loadStreamBatcher();
+
+    assert.equal(reconcileCompletedContent('', 'Complete answer'), 'Complete answer');
+    assert.equal(reconcileCompletedContent('**Partial', '**Complete answer**'), '**Complete answer**');
+    assert.equal(reconcileCompletedContent('Complete answer', ''), 'Complete answer');
+  });
 });

@@ -1,8 +1,29 @@
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import tailwindcss from '@tailwindcss/vite';
+
+const packageMetadata = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8')
+) as { version: string };
+
+function resolveBuildSha(): string {
+  const injectedSha = process.env.VITE_BUILD_SHA ?? process.env.GITHUB_SHA;
+  if (injectedSha?.trim()) return injectedSha.trim();
+
+  try {
+    return execFileSync('git', ['rev-parse', '--short=12', 'HEAD'], {
+      encoding: 'utf8'
+    }).trim();
+  } catch {
+    return 'dev';
+  }
+}
+
+const appVersion = packageMetadata.version;
+const buildSha = resolveBuildSha();
 
 // Self-host the @ricky0123/vad-web (Silero) model + onnxruntime-web wasm flat under /vad/ so
 // hands-free VAD works on air-gapped/on-prem deployments (no CDN). Loaded lazily only when
@@ -65,6 +86,10 @@ function pruneUnusedSvelteKitServerImport() {
 }
 
 export default defineConfig({
+  define: {
+    __APP_VERSION__: JSON.stringify(appVersion),
+    __BUILD_SHA__: JSON.stringify(buildSha)
+  },
   plugins: [
     tailwindcss(),
     copyVadAssetsPlugin(),

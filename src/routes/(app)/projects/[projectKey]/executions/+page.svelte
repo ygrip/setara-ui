@@ -117,14 +117,14 @@
           backgroundColor: 'rgba(16, 185, 129, 0.12)',
           fill: true,
           tension: 0.32,
-          yAxisID: 'y1'
+          yAxisID: 'yPercent'
         },
         {
           type: 'bar' as const,
           label: 'Failed Scenarios',
           data: sorted.map(([, v]) => v.failed),
           backgroundColor: 'rgba(239, 68, 68, 0.5)',
-          yAxisID: 'y'
+          yAxisID: 'yVolume'
         }
       ]
     };
@@ -281,7 +281,7 @@
     <BentoCard title="Pass Rate" subtitle="Scenario pass rate per day" variant="default">
       {#if passRateTrend.labels.length > 0}
         <div class="chart-fill">
-          <LineChart chartData={passRateTrend} showLegend={true} />
+          <LineChart chartData={passRateTrend} showLegend={true} axisMode="mixed" />
         </div>
       {:else}
         <div class="chart-empty">No data yet</div>
@@ -347,7 +347,7 @@
       hint="Set up an API key and run your automation suite to see results here."
     >
       <svelte:fragment slot="icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="5 3 19 12 5 21 5 3"/>
         </svg>
       </svelte:fragment>
@@ -359,7 +359,7 @@
       minHeight="280px"
     >
       <svelte:fragment slot="icon">
-        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
         </svg>
       </svelte:fragment>

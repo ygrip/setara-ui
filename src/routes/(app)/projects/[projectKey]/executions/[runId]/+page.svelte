@@ -13,6 +13,8 @@
   import type { ExecutionEvent } from '$lib/api/realtime';
   import { listRunResults } from '$lib/api/runs';
   import type { AutomationRun, ScenarioRunResult } from '$lib/api/runs';
+  import FailedExecutionIssueModal from '$lib/components/issues/FailedExecutionIssueModal.svelte';
+  import TrackedIssuesTable from '$lib/components/issues/TrackedIssuesTable.svelte';
 
   let { data }: {
     data: {
@@ -20,6 +22,7 @@
       runId: string;
       run: AutomationRun | null;
       results: ScenarioRunResult[];
+      issuesEnabled: boolean;
       error: string | null;
     }
   } = $props();
@@ -28,6 +31,9 @@
   let results = $state<ScenarioRunResult[]>([]);
   let events = $state<ExecutionEvent[]>([]);
   let refreshingResults = false;
+  let issueModalOpen = $state(false);
+  let issuesRefreshToken = $state(0);
+  let issueCreateMessage = $state('');
 
   // Detail panel state
   let selectedResult = $state<ScenarioRunResult | null>(null);
@@ -210,6 +216,10 @@
   const reportPath = $derived(`/api/projects/${data.projectKey}/runs/${data.runId}/report`);
   const reportFilename = $derived(`setara-execution-${data.projectKey}-${data.runId}`);
   const isRunning = $derived(run?.status?.toUpperCase() === 'RUNNING');
+  const failedScenarioResults = $derived(results.filter(result => result.status?.toUpperCase() === 'FAILED'));
+  const canQuickCreateIssue = $derived(
+    data.issuesEnabled && run?.status?.toUpperCase() === 'FAILED' && failedScenarioResults.length > 0
+  );
   const runDonut = $derived({
     labels: ['Passed', 'Failed', 'Skipped'],
     datasets: [{
@@ -366,6 +376,20 @@
         </div>
       </div>
     </div>
+
+    {#if data.issuesEnabled}
+      <div class="section">
+        <TrackedIssuesTable
+          context="execution"
+          projectKey={data.projectKey}
+          executionId={data.runId}
+          enabled={data.issuesEnabled}
+          refreshToken={issuesRefreshToken}
+          quickCreate={canQuickCreateIssue ? () => (issueModalOpen = true) : undefined}
+          notice={issueCreateMessage}
+        />
+      </div>
+    {/if}
 
     <!-- Live indicator + event feed -->
     {#if isRunning || events.length > 0}
@@ -530,8 +554,23 @@
   {/if}
 </div>
 
+{#if run && canQuickCreateIssue}
+  <FailedExecutionIssueModal
+    open={issueModalOpen}
+    projectKey={data.projectKey}
+    executionId={data.runId}
+    {run}
+    failedResults={failedScenarioResults}
+    onclose={() => (issueModalOpen = false)}
+    oncreated={(response) => {
+      issuesRefreshToken += 1;
+      issueCreateMessage = `Created tracked issue ${response.created.map(issue => issue.issueKey).join(', ')}.`;
+    }}
+  />
+{/if}
+
 <style>
-  .page { max-width: min(1520px, 100%); }
+  .page { max-width: min(100%); }
 
   .breadcrumb {
     display: flex;

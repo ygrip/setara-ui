@@ -2,7 +2,7 @@ import { apiFetch } from './client';
 import { readJsonOrThrow } from './errors';
 import type { CursorPage } from './pagination';
 import { buildCursorParams } from './pagination';
-import { isMockMode, mockCreateSquad, mockCreateTribe, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads, mockGetTribe, mockGetSquadDetail, mockSearchUsers } from '$lib/mock/client';
+import { isMockMode, mockCreateSquad, mockCreateTribe, mockListTribes, mockListSquads, mockListUsers, mockGetSquad, mockListAllSquads, mockGetTribe, mockGetSquadDetail, mockSearchUsers, mockUpdateSquad } from '$lib/mock/client';
 
 export interface Tribe {
   id: string;
@@ -15,6 +15,7 @@ export interface Squad {
   tribeId: string;
   tribeName?: string | null;
   name: string;
+  issueTrackerProjectKey: string | null;
   createdAt: string;
 }
 
@@ -59,7 +60,7 @@ export async function listSquads(tribeId: string, cursor?: string, limit?: numbe
   return readJsonOrThrow<CursorPage<Squad>>(res);
 }
 
-export async function createSquad(tribeId: string, body: { name: string }): Promise<Squad> {
+export async function createSquad(tribeId: string, body: { name: string; issueTrackerProjectKey?: string | null }): Promise<Squad> {
   if (isMockMode()) return mockCreateSquad(tribeId, body);
   const res = await apiFetch(`/api/tribes/${tribeId}/squads`, {
     method: 'POST',
@@ -167,6 +168,7 @@ export async function deleteTribe(tribeId: string): Promise<void> {
 export interface SquadDetail {
   id: string; tribeId: string | null; tribeName: string | null;
   name: string; description: string | null;
+  issueTrackerProjectKey: string | null;
   leadId: string | null; leadName: string | null;
   createdAt: string; updatedAt: string;
   members: SquadMember[];
@@ -182,8 +184,14 @@ export async function getSquadDetail(squadId: string): Promise<SquadDetail> {
   return readJsonOrThrow<SquadDetail>(res);
 }
 
-export async function updateSquad(squadId: string, body: { name?: string; description?: string | null; tribeId?: string | null; leadId?: string | null }): Promise<SquadDetail> {
-  if (isMockMode()) return mockGetSquadDetail(squadId).then(d => ({ ...d, ...body }));
+export async function updateSquad(squadId: string, body: {
+  name?: string;
+  description?: string | null;
+  tribeId?: string | null;
+  leadId?: string | null;
+  issueTrackerProjectKey?: string | null;
+}): Promise<SquadDetail> {
+  if (isMockMode()) return mockUpdateSquad(squadId, body);
   const res = await apiFetch(`/api/squads/${squadId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
   });

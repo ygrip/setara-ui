@@ -1,8 +1,10 @@
-import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStream, fetchVoiceCatalog, fetchEntityCatalog, fetchVoiceCue, type AsaVoiceOption } from '$lib/api/asa';
-import type { AsaEntityCatalog, AsaVoiceInput } from '$lib/api/asa';
+import { transcribeAudio, synthesizeSpeech, synthesizeSpeechStream, openSttStream, fetchVoiceCatalog, fetchEntityCatalog, fetchVoiceCue, prepareVoiceSession, type AsaPreparedVoiceSession, type AsaVoiceOption } from '$lib/api/asa';
+import type { AsaEntityCatalog, AsaVoiceInput, SttErrorReason } from '$lib/api/asa';
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
+import { classifyPcmStreamError } from './stream-errors';
 import { normalizeTranscript } from './transcript-normalizer';
+import { isLikelyVoiceNoise } from './transcript-quality';
 import { createMlVad, type MlVadHandle } from './ml-vad';
 import { routeVoiceTranscript, type WakeMode } from './wake-router';
 import type { EntityMatch, ResolverContext } from './entity-resolver';
@@ -14,7 +16,8 @@ import type { EntityMatch, ResolverContext } from './entity-resolver';
  */
 const PREF_KEY = 'setara.asa.voice.sidecar';
 const ML_VAD_PREF_KEY = 'setara.asa.voice.mlVad';
-const MAX_RECORD_MS = 12_000;
+const MANUAL_MAX_RECORD_MS = 5 * 60_000;
+const HANDS_FREE_MAX_UTTERANCE_MS = 12_000;
 const SPEAK_SHORT_LIMIT = 400; // chars; don't read long markdown aloud
 
 // Hands-free VAD tuning (energy-based, no ML model). RMS is 0..~0.3 for typical mic levels.
@@ -26,21 +29,15 @@ const VAD_MIN_UTTERANCE_MS = 500; // ignore blips shorter than this
 const VAD_ONSET_FRAMES = 3; // consecutive loud frames required to START (debounces clicks/noise)
 const VAD_SETTLE_MS = 450; // ignore onset right after arming (skip TTS tail / room echo)
 const VAD_MIN_PEAK_RMS = 0.06; // an utterance must peak above this, else it's just noise → discard
-// Common faster-whisper hallucinations on near-silence — drop these to avoid phantom "yes"/"you".
-const STT_HALLUCINATIONS = new Set([
-  'you', 'yes', 'no', 'thank you', 'thanks', 'thanks for watching', 'bye', 'okay', 'ok', 'uh', 'um',
-  'mm', 'hmm', 'so', '.', 'the', 'i', 'a',
-]);
-
 // Let the browser clean the mic input: cancel speaker echo (ASA's own TTS), suppress steady noise,
 // and normalize level. Big, free quality win — applied to every capture.
 const AUDIO_CONSTRAINTS: MediaStreamConstraints = {
   audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
 };
 
-const TTS_FRAME_MS = 160;   // merge streamed PCM into ~this-size buffers (fewer node boundaries)
-const TTS_PREROLL_MS = 240; // jitter buffer: hold playback back this long so decode jitter can't underrun
-const TTS_UNDERRUN_RECOVERY_MS = 80; // when CPU falls behind, rebuild a small lead instead of clicking
+const TTS_FRAME_MS = 480;   // merge streamed PCM into larger buffers — fewer AudioBufferSourceNode allocations/GC per reply
+const TTS_PREROLL_MS = 480; // jitter buffer: hold playback back this long so decode jitter can't underrun
+const TTS_UNDERRUN_RECOVERY_MS = 160; // when CPU falls behind, rebuild lead; larger = fewer cascade underruns
 const STREAM_RATE = 16_000; // sidecar's native STT rate; we downsample the mic to this before sending
 const STREAM_FINAL_TIMEOUT_MS = 4_000; // give up waiting for the WS "final" and use the last partial
 const MAX_PENDING_STT_FRAMES = 24; // cap ~2s of ScriptProcessor frames while WS connects
@@ -58,6 +55,30 @@ function downsamplePcm16(input: Float32Array, ratio: number): ArrayBuffer {
     out[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
   }
   return out.buffer;
+}
+
+/** Maps an STT failure reason to the plain, actionable copy from the voice error UX plan
+ *  (setara-s94o.11) — falls back to the sidecar's own detail message for reasons that don't have
+ *  a fixed canned message (e.g. quota/format, which already carry a clear plain-text detail). */
+function sttErrorMessage(reason: SttErrorReason, detail: string): string {
+  switch (reason) {
+    case 'audio_too_long':
+      return 'Audio exceeds the configured voice limit. Record a shorter command or type your request.';
+    case 'billing_not_configured':
+      return 'Hosted STT credentials or billing are not configured.';
+    case 'empty_transcript':
+      return 'Could not understand audio. Try again with less background noise.';
+    case 'stt_unavailable':
+      return 'Voice service is unavailable right now. Try again or type your request.';
+    case 'network_error':
+      return 'Could not reach the voice service. Try again.';
+    case 'unsupported_format':
+    case 'quota_exceeded':
+      return detail || 'Could not process that audio. Try again.';
+    case 'voice_unavailable':
+    default:
+      return detail || 'Voice service is unavailable. You can still type your request.';
+  }
 }
 
 type SidecarStatus = 'idle' | 'listening' | 'recording' | 'transcribing' | 'error';
@@ -101,6 +122,10 @@ class SidecarVoice {
   turnState = $state<VoiceTurnState>('idle');
   wakeMode = $state<WakeMode>('wake');
   ttsPlayback = $state<TtsPlaybackStats>({ chunks: 0, underruns: 0, scheduledMs: 0, sampleRate: 0 });
+  /** Non-blocking info message (e.g. "used local fallback") shown alongside a successful transcript. */
+  notice = $state<string | null>(null);
+  /** Diagnostics: mode/provider/model/latency/fallback from the most recent /stt call (setara-s94o.12). */
+  lastSttStats = $state<{ provider?: string; model?: string; latencyMs?: number; fallbackUsed?: boolean } | null>(null);
 
   // Rolling-window streaming STT (hands-free): a ScriptProcessor taps the mic, PCM16 @16kHz is
   // streamed over a WS to the sidecar (via core), partials arrive live, final on "flush".
@@ -117,6 +142,8 @@ class SidecarVoice {
   private stream: MediaStream | null = null;
   private autoStop: ReturnType<typeof setTimeout> | null = null;
   private catalog: AsaEntityCatalog | null = null;
+  private voiceSession: AsaPreparedVoiceSession | null = null;
+  private preparedFinal: SidecarTranscript | null = null;
 
   // Hands-free VAD
   private vadSource: MediaStreamAudioSourceNode | null = null;
@@ -182,6 +209,7 @@ class SidecarVoice {
   /** Load the entity catalog so spoken project/plan/build/squad names can be corrected. */
   async loadCatalog(): Promise<void> {
     this.catalog = await fetchEntityCatalog();
+    this.voiceSession = await prepareVoiceSession();
   }
 
   async startRecording(): Promise<void> {
@@ -189,7 +217,7 @@ class SidecarVoice {
     this.stopAudio(); // barge-in: silence ASA the moment the user starts talking
     // This click is a user gesture — unlock audio now so the (voice-triggered) spoken reply,
     // which fires later outside any gesture, isn't blocked by the autoplay policy.
-    if (this.ttsEnabled) this.ensureAudioContext();
+    this.ensureAudioContext();
     this.error = null;
     try {
       this.stream = await navigator.mediaDevices.getUserMedia(AUDIO_CONSTRAINTS);
@@ -204,11 +232,14 @@ class SidecarVoice {
     this.recorder = new MediaRecorder(this.stream, mime ? { mimeType: mime } : undefined);
     this.recorder.ondataavailable = (e) => { if (e.data.size > 0) this.chunks.push(e.data); };
     this.recorder.start();
+    // PTT uses the batch /stt path only (see stopRecording). Deliberately NOT opening the streaming
+    // WS here: a concurrent WS decode holds the sidecar's single STT slot and makes the batch upload
+    // 429 → /transcribe 503. Hands-free still uses streaming (beginStreamCapture in the VAD path).
     this.status = 'recording';
     this.turnState = 'hearing';
     this.beep(); // static mic-on beep (was the spoken "Yes?" cue)
     asaLog('voice', 'recording started');
-    this.autoStop = setTimeout(() => { void this.stopRecording(); }, MAX_RECORD_MS);
+    this.autoStop = setTimeout(() => { void this.stopRecording(); }, MANUAL_MAX_RECORD_MS);
   }
 
   /** Stop, upload, transcribe. Returns the transcript text for review, or null on failure. */
@@ -220,23 +251,43 @@ class SidecarVoice {
       recorder.onstop = () => resolve(new Blob(this.chunks, { type: recorder.mimeType || 'audio/webm' }));
       recorder.stop();
     });
-    this.releaseStream();
     this.recorder = null;
     this.turnState = 'finalizing';
+    // PTT uses the batch /stt upload as the authoritative transcript: it decodes the whole
+    // recording with full context (accurate, handles long dictation via faster-whisper chunking).
+    // Defensively close any streaming session first so its decode can't hold the sidecar's single
+    // STT slot while the batch upload runs (that contention returned 429 → 503 on /transcribe).
+    if (this.streaming) await this.endStreamCapture();
+    this.releaseStream();
     return this.processBlob(blob);
   }
 
   /** Transcribe → normalize → resolve entities → LLM refine. Shared by push-to-talk + hands-free. */
-  private async processBlob(blob: Blob): Promise<SidecarTranscript | null> {
+  private async processBlob(blob: Blob, playProcessingCue = true): Promise<SidecarTranscript | null> {
     this.status = 'transcribing';
     this.turnState = 'understanding';
+    this.notice = null;
     asaLog('voice', 'transcribing', { bytes: blob.size, type: blob.type });
-    const result = await transcribeAudio(blob);
-    if (!result || !result.text.trim()) {
-      this.fail('Could not transcribe that clearly. Try again or type your request.');
+    const outcome = await transcribeAudio(blob);
+    if (!outcome.ok) {
+      this.fail(sttErrorMessage(outcome.error.reason, outcome.error.message));
       return null;
     }
-    this.playCue('processing'); // spoken ack — got the transcript
+    const { result } = outcome;
+    this.lastSttStats = {
+      provider: result.provider,
+      model: result.model,
+      latencyMs: result.latencyMs,
+      fallbackUsed: result.fallbackUsed,
+    };
+    if (isLikelyVoiceNoise(result.text)) {
+      this.fail(sttErrorMessage('empty_transcript', ''));
+      return null;
+    }
+    if (result.fallbackUsed) {
+      this.notice = `Primary STT unavailable. Used ${result.provider || 'the fallback'} provider.`;
+    }
+    if (playProcessingCue) this.playCue('processing');
     this.status = 'idle';
     this.turnState = this.handsFree ? 'armed' : 'idle';
     return this.finalizeTranscript(result.text);
@@ -294,6 +345,7 @@ class SidecarVoice {
     if (this.autoStop) { clearTimeout(this.autoStop); this.autoStop = null; }
     try { this.recorder?.stop(); } catch { /* ignore */ }
     this.recorder = null;
+    if (this.streaming) this.teardownStream();
     this.releaseStream();
     this.status = 'idle';
   }
@@ -339,10 +391,10 @@ class SidecarVoice {
     const res = await synthesizeSpeechStream(text, this.voiceId ?? undefined);
     if (gen !== this.speechGen) { try { await res?.body?.cancel(); } catch { /* ignore */ } return; }
     if (res && res.body) {
-      await this.playPcmStream(res, ctx, gen);
-      return;
+      if (await this.playPcmStream(res, ctx, gen)) return;
+      asaWarn('voice', 'TTS stream failed before audio; falling back to batch synth');
     }
-    asaWarn('voice', 'TTS stream unavailable — falling back to batch synth');
+    else asaWarn('voice', 'TTS stream unavailable; falling back to batch synth');
     await this.synthAndPlayBatch(text, gen, ctx);
   }
 
@@ -353,7 +405,7 @@ class SidecarVoice {
    * monotonic cursor so consecutive samples abut exactly (no clicks). Only a true underrun (decode
    * slower than real-time, cursor falls behind) inserts a gap instead of overlapping.
    */
-  private async playPcmStream(res: Response, ctx: AudioContext, gen: number): Promise<void> {
+  private async playPcmStream(res: Response, ctx: AudioContext, gen: number): Promise<boolean> {
     const sampleRate = Number(res.headers.get('X-Sample-Rate')) || 24000;
     const frameSamples = Math.max(1, Math.floor((TTS_FRAME_MS / 1000) * sampleRate));
     const reader = res.body!.getReader();
@@ -365,6 +417,7 @@ class SidecarVoice {
     let chunks = 0;
     let underruns = 0;
     let scheduledSamples = 0;
+    let receivedSamples = 0;
 
     const schedule = (frame: Float32Array) => {
       const buffer = ctx.createBuffer(1, frame.length, sampleRate);
@@ -400,11 +453,24 @@ class SidecarVoice {
       if (off > 0) pending = pending.slice(off);
     };
 
+    const finishPlayback = async () => {
+      if (pending.length > 0 && gen === this.speechGen) schedule(pending);
+      await Promise.all(ended);
+      this.ttsPlayback = {
+        chunks,
+        underruns,
+        scheduledMs: Math.round((scheduledSamples / sampleRate) * 1000),
+        sampleRate,
+      };
+      asaLog('voice', 'TTS stream playback stats', this.ttsPlayback);
+      return true;
+    };
+
     try {
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
-        if (gen !== this.speechGen) { try { await reader.cancel(); } catch { /* ignore */ } return; }
+        if (gen !== this.speechGen) { try { await reader.cancel(); } catch { /* ignore */ } return true; }
         if (!value || value.length === 0) continue;
 
         // Concatenate any leftover odd byte, then split into whole 16-bit samples.
@@ -421,19 +487,19 @@ class SidecarVoice {
         const view = new DataView(bytes.buffer, bytes.byteOffset, usable);
         const samples = new Float32Array(usable / 2);
         for (let i = 0; i < samples.length; i++) samples[i] = view.getInt16(i * 2, true) / 32768;
+        receivedSamples += samples.length;
         appendSamples(samples);
       }
-      if (pending.length > 0 && gen === this.speechGen) schedule(pending); // flush the tail
-      await Promise.all(ended);
-      this.ttsPlayback = {
-        chunks,
-        underruns,
-        scheduledMs: Math.round((scheduledSamples / sampleRate) * 1000),
-        sampleRate,
-      };
-      asaLog('voice', 'TTS stream playback stats', this.ttsPlayback);
+      return finishPlayback();
     } catch (e) {
+      const disposition = classifyPcmStreamError(e, receivedSamples);
+      if (disposition === 'eof') {
+        asaLog('voice', 'Firefox closed TTS transport after audio; treating as end of stream');
+        return finishPlayback();
+      }
       asaWarn('voice', 'TTS stream playback failed', e);
+      if (disposition === 'failed') return finishPlayback();
+      return false;
     }
   }
 
@@ -758,7 +824,7 @@ class SidecarVoice {
     this.status = 'recording';
     this.turnState = 'hearing';
     this.beep();
-    this.autoStop = setTimeout(() => { void this.endVadCapture(); }, MAX_RECORD_MS);
+    this.autoStop = setTimeout(() => { void this.endVadCapture(); }, HANDS_FREE_MAX_UTTERANCE_MS);
   }
 
   private async endVadCapture(): Promise<void> {
@@ -777,10 +843,10 @@ class SidecarVoice {
     if (this.streaming) {
       const finalText = await this.endStreamCapture(); // flush + await final partial
       if (tooShort || tooQuiet) { this.rearmAfterNoise(tooShort, tooQuiet); return; }
-      this.playCue('processing');
       this.status = 'idle';
       this.turnState = 'understanding';
-      transcript = finalText ? await this.finalizeTranscript(finalText) : null;
+      transcript = this.preparedFinal ?? (finalText ? await this.finalizeTranscript(finalText) : null);
+      this.preparedFinal = null;
     } else {
       const recorder = this.recorder!;
       const blob = await new Promise<Blob>((resolve) => {
@@ -789,13 +855,14 @@ class SidecarVoice {
       });
       this.recorder = null;
       if (tooShort || tooQuiet) { this.rearmAfterNoise(tooShort, tooQuiet); return; }
-      transcript = await this.processBlob(blob);
+      transcript = await this.processBlob(blob, false);
     }
 
-    if (transcript && !this.isLikelyHallucination(transcript.text) && this.onTranscript) {
+    if (transcript && !isLikelyVoiceNoise(transcript.text) && this.onTranscript) {
       const route = routeVoiceTranscript(this.wakeMode, transcript.text);
       this.wakeMode = route.nextMode;
       if (route.action === 'review') {
+        this.playCue('processing');
         this.releaseStream(true); // free the mic during reply so it cannot hear ASA
         this.onTranscript(route.command, {
           ...transcript.voiceInput,
@@ -821,12 +888,6 @@ class SidecarVoice {
     return typeof localStorage !== 'undefined' && localStorage.getItem(ML_VAD_PREF_KEY) === '1';
   }
 
-  /** Whisper tends to emit a stock short word on near-silence; treat those as noise in hands-free. */
-  private isLikelyHallucination(text: string): boolean {
-    const t = text.trim().toLowerCase().replace(/[.!?,]+$/, '');
-    return t.length <= 2 || STT_HALLUCINATIONS.has(t);
-  }
-
   // ── Streaming STT capture (taps the mic, sends PCM16@16k over a WS; partials arrive live) ──────
   /** Begin streaming capture on the current mic stream. Returns false if the WS can't open (the
    *  caller then falls back to the batch MediaRecorder path). */
@@ -834,13 +895,21 @@ class SidecarVoice {
     const ctx = this.audioCtx;
     if (!ctx || !this.stream) return false;
     if (this.streaming || this.sttWs) return false;
-    const ws = openSttStream();
+    const ws = openSttStream(this.voiceSession?.voiceSessionId);
     if (!ws) return false;
     this.sttWs = ws;
     this.streaming = true;
     this.interimTranscript = '';
     this.pendingSttFrames = []; // frames captured before the socket finishes opening
     ws.onopen = () => {
+      if (this.voiceSession) {
+        ws.send(JSON.stringify({
+          type: 'config',
+          language: this.voiceSession.stt.language,
+          prompt: this.voiceSession.stt.prompt,
+          hotwords: this.voiceSession.stt.hotwords,
+        }));
+      }
       for (const b of this.pendingSttFrames) ws.send(b);
       this.pendingSttFrames = [];
       asaLog('voice', 'streaming STT started');
@@ -894,6 +963,10 @@ class SidecarVoice {
       }
       setTimeout(() => this.finishSttFinal(this.interimTranscript), STREAM_FINAL_TIMEOUT_MS);
     });
+    // Single-STT: the WS streaming decode is authoritative. The old second STT pass
+    // (finalizeVoicePcm -> /stt/raw) contended for the sidecar's single STT slot and
+    // returned 429 -> core 503. endVadCapture normalizes + resolves the WS final via
+    // finalizeTranscript. (setara-02o4)
     this.teardownStream();
     return finalText.trim() || null;
   }
@@ -963,6 +1036,7 @@ class SidecarVoice {
   }
 
   private fail(message: string): void {
+    if (this.streaming) this.teardownStream();
     this.releaseStream(true);
     this.recorder = null;
     this.error = message;

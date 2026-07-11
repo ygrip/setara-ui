@@ -2,7 +2,10 @@
   import { navigating, page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+  import { APP_BUILD_LABEL, APP_VERSION_LABEL } from '$lib/app-metadata';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
+  import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
+  import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
   import LazyAsaOrb from '$lib/components/LazyAsaOrb.svelte';
   import { asa } from '$lib/stores/asa.svelte';
@@ -13,35 +16,12 @@
   let { children } = $props();
 
   const isMock = isMockMode();
+  const CURRENT_YEAR = new Date().getFullYear();
 
   let session = $state<SetaraSession | null>(null);
   let sidebarOpen = $state(false);
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
-  let pinnedItems = $state<string[]>([]);
-
-  // ── Pin feature (localStorage) ──────────────────────────
-  function loadPins() {
-    try {
-      const stored = localStorage.getItem('setara_pinned');
-      if (stored) pinnedItems = JSON.parse(stored);
-    } catch { pinnedItems = []; }
-  }
-
-  function savePins() {
-    localStorage.setItem('setara_pinned', JSON.stringify(pinnedItems));
-  }
-
-  function togglePin(href: string) {
-    if (pinnedItems.includes(href)) {
-      pinnedItems = pinnedItems.filter(h => h !== href);
-    } else {
-      pinnedItems = [...pinnedItems, href];
-    }
-    savePins();
-  }
-
-  function isPinned(href: string) { return pinnedItems.includes(href); }
 
   // Topbar search hint cycling
   const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
@@ -50,20 +30,7 @@
 
   const projectKey = $derived(page.params.projectKey ?? null);
 
-  // Pin definitions: label, href, icon snippet
-  const pinOptions = $derived([
-    { label: 'Dashboard', href: '/dashboard', icon: '<rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>' },
-    { label: 'Projects', href: '/projects', icon: '<path d="M3 7h18M3 12h18M3 17h18"/>' },
-    { label: 'Plans', href: '/plans', icon: '<path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>' },
-    { label: 'Overview', href: '/coverage-overview', icon: '<path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>' },
-    { label: 'Settings', href: '/admin', icon: '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>' },
-    ...(projectKey ? [{ label: 'Builds', href: `/projects/${projectKey}/builds`, icon: '<path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>' },
-                       { label: 'Repository', href: `/projects/${projectKey}/repository`, icon: '<path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>' },
-                       { label: 'Executions', href: `/projects/${projectKey}/executions`, icon: '<polygon points="5 3 19 12 5 21 5 3"/>' }] : [])
-  ]);
-
   onMount(() => {
-    loadPins();
     session = getValidSession();
     if (!session) {
       goto('/login');
@@ -127,7 +94,7 @@
   $effect(() => {
     const path = page.url.pathname;
     try {
-      const label = document.title.replace(/\s*[–—]\s*Setara.*$/i, '').trim() || path;
+      const label = document.title.replace(/\s*[-\u2013\u2014]\s*Setara.*$/i, '').trim() || path;
       const key = 'setara:recent';
       const existing: { href: string; label: string }[] = JSON.parse(localStorage.getItem(key) ?? '[]');
       const fresh = [{ href: path, label }, ...existing.filter(p => p.href !== path)].slice(0, 10);
@@ -187,18 +154,19 @@
   <!-- Sidebar -->
   <aside class="sidebar" class:sidebar--open={sidebarOpen}>
     <div class="sidebar-brand">
-      <span class="brand-icon-anim brand-icon-anim--lg" role="img" aria-label="Setara"></span>
-      <span class="brand-name">SETARA</span>
-      <span class="sidebar-brand-theme-desktop"><ThemeToggle /></span>
+      <a href="/dashboard" class="brand-link" aria-label="Setara home" onclick={closeSidebar}>
+        <SetaraLoader size={32} mode="orbit"/>
+        <SetaraGsapLogo size={110} loop={true} animate={true} />
+      </a>
     </div>
 
     <nav class="sidebar-nav">
-      <!-- Search shortcut — mobile only, always at top of nav above all sections -->
+      <!-- Search shortcut - mobile only, always at top of nav above all sections -->
       <div class="sidebar-nav-search">
         <button
           class="sidebar-search-btn"
           onclick={() => { paletteOpen = true; closeSidebar(); }}
-          aria-label="Search — press ⌘K to open"
+          aria-label="Search - press ⌘K to open"
         >
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -207,29 +175,6 @@
         </button>
       </div>
 
-      <!-- Pinned section -->
-      {#if pinnedItems.length > 0}
-        <div class="nav-section-label">Pinned</div>
-        {#each pinnedItems as href}
-          {@const opt = pinOptions.find(o => o.href === href)}
-          {#if opt}
-            <a
-              {href}
-              class="nav-item nav-item--pinned"
-              class:nav-item--active={isActive(href)}
-              onclick={closeSidebar}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                {@html opt.icon}
-              </svg>
-              {opt.label}
-              <button class="pin-toggle" title="Unpin" onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin(href); }} aria-label="Unpin {opt.label}">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none" opacity="0.7"><path d="M12 2C6.47 2 2 6.47 2 12s4.47 10 10 10 10-4.47 10-10S17.53 2 12 2zm5 13.59L15.59 17 12 13.41 8.41 17 7 15.59 10.59 12 7 8.41 8.41 7 12 10.59 15.59 7 17 8.41 13.41 12 17 15.59z"/></svg>
-              </button>
-            </a>
-          {/if}
-        {/each}
-      {/if}
       <div class="nav-section-label">Browse</div>
       <a
         href="/dashboard"
@@ -241,9 +186,6 @@
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
         </svg>
         Dashboard
-        <button class="pin-btn" title={isPinned('/dashboard') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/dashboard'); }} aria-label={isPinned('/dashboard') ? 'Unpin Dashboard' : 'Pin Dashboard'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/dashboard') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/projects"
@@ -255,9 +197,6 @@
           <path d="M3 7h18M3 12h18M3 17h18"/>
         </svg>
         Projects
-        <button class="pin-btn" title={isPinned('/projects') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/projects'); }} aria-label={isPinned('/projects') ? 'Unpin Projects' : 'Pin Projects'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/projects') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/plans"
@@ -269,9 +208,6 @@
           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
         </svg>
         Plans
-        <button class="pin-btn" title={isPinned('/plans') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/plans'); }} aria-label={isPinned('/plans') ? 'Unpin Plans' : 'Pin Plans'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/plans') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
       <a
         href="/coverage-overview"
@@ -283,18 +219,30 @@
           <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
         </svg>
         Overview
-        <button class="pin-btn" title={isPinned('/coverage-overview') ? 'Unpin' : 'Pin'} onclick={(e) => { e.preventDefault(); e.stopPropagation(); togglePin('/coverage-overview'); }} aria-label={isPinned('/coverage-overview') ? 'Unpin Overview' : 'Pin Overview'}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill={isPinned('/coverage-overview') ? 'currentColor' : 'none'} stroke="currentColor" stroke-width="2"><path d="M16 12V4h1V2H7v2h1v8l-2 2v2h5.2v6h1.6v-6H18v-2l-2-2z"/></svg>
-        </button>
       </a>
 
-      <!-- Divider with label -->
-      <div class="nav-divider">
-        <span class="nav-divider-label">Project</span>
+      <!-- Project context header -->
+      <div class="project-ctx-wrap">
         {#if projectKey}
-          <span class="nav-divider-key">{projectKey}</span>
+          <a href="/projects/{projectKey}" class="project-ctx-card" onclick={closeSidebar} title="Go to project overview">
+            <svg class="project-ctx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+            </svg>
+            <div class="project-ctx-body">
+              <span class="project-ctx-eyebrow">Project</span>
+              <span class="project-ctx-key">{projectKey}</span>
+            </div>
+            <svg class="project-ctx-arrow" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
+            </svg>
+          </a>
         {:else}
-          <span class="nav-divider-hint">(none selected)</span>
+          <div class="project-ctx-empty">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
+            </svg>
+            <span>No project selected</span>
+          </div>
         {/if}
       </div>
 
@@ -393,9 +341,8 @@
     </nav>
 
     <div class="sidebar-footer">
-      <!-- Theme toggle — always visible on mobile, desktop-only in brand row -->
+      <!-- Theme selection lives in the lower sidebar across desktop and mobile. -->
       <div class="sidebar-footer-theme">
-        <span class="sidebar-footer-label">Theme</span>
         <ThemeToggle />
       </div>
     </div>
@@ -406,7 +353,7 @@
     <!-- Top bar (always visible) -->
     <header class="topbar">
       <div class="topbar-left">
-        <!-- Hamburger — mobile only: toggles sidebar -->
+        <!-- Hamburger - mobile only: toggles sidebar -->
         <button class="topbar-brand-mobile" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle navigation" aria-expanded={sidebarOpen}>
           {#if sidebarOpen}
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
@@ -418,10 +365,10 @@
             </svg>
           {/if}
         </button>
-        <!-- Brand — mobile only: visible in topbar since sidebar is off-screen -->
+        <!-- Brand - mobile only: visible in topbar since sidebar is off-screen -->
         <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
-          <span class="brand-icon-anim brand-icon-anim--sm" aria-hidden="true"></span>
-          <span class="topbar-brand-inline-text">SETARA</span>
+          <SetaraLoader size={28} mode="orbit"/>
+          <SetaraGsapLogo size={88} loop={true} animate={true} />
         </a>
         <!-- Project key pill (desktop) -->
         {#if projectKey}
@@ -429,9 +376,9 @@
         {/if}
       </div>
 
-      <!-- Search — centred in topbar -->
+      <!-- Search - centred in topbar -->
       <div class="topbar-center">
-        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search — press ⌘K">
+        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search - press ⌘K">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
@@ -444,7 +391,7 @@
 
       <div class="topbar-right">
         <!-- Live indicator -->
-        <div class="live-indicator" title="Connected — receiving live test run updates">
+        <div class="live-indicator" title="Connected - receiving live test run updates">
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
@@ -497,7 +444,7 @@
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
         </svg>
-        <span><strong>Preview mode</strong> — Showing sample data. Connect a live backend to see your real results.</span>
+        <span><strong>Preview mode</strong> - Showing sample data. Connect a live backend to see your real results.</span>
       </div>
     {/if}
 
@@ -509,15 +456,17 @@
     <main class="content">
       {@render children()}
       <footer class="app-footer">
-        <span>© 2026 Setara</span>
+        <span>© {CURRENT_YEAR} Setara</span>
         <span class="footer-sep" aria-hidden="true">·</span>
-        <span>v0.1.0</span>
+        <span>{APP_VERSION_LABEL}</span>
+        <span class="footer-sep" aria-hidden="true">·</span>
+        <span>build {APP_BUILD_LABEL}</span>
       </footer>
     </main>
   </div>
 </div>
 
-<!-- Mobile user popup — rendered outside app-shell so position:fixed is relative to viewport,
+<!-- Mobile user popup - rendered outside app-shell so position:fixed is relative to viewport,
      not the topbar's backdrop-filter stacking context -->
 {#if userMenuOpen && session}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
@@ -586,62 +535,20 @@
   .sidebar-brand {
     display: flex;
     align-items: center;
-    gap: 10px;
     padding: 16px 14px 14px;
     background: #ffffff;
     border-bottom: 1px solid var(--color-border);
-    justify-content: space-between;
     box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
   }
 
-  /* Animated brand icon — CSS mask over gradient (matches brand-shimmer timing) */
-  .brand-icon-anim {
-    display: block;
-    flex-shrink: 0;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-mask: url('/favicon.svg') no-repeat center / contain;
-    mask: url('/favicon.svg') no-repeat center / contain;
-    animation: brand-shimmer 5s ease-in-out infinite;
-  }
-
-  .brand-icon-anim--lg {
-    width: 28px;
-    height: 28px;
-  }
-
-  .brand-icon-anim--sm {
-    width: 20px;
-    height: 20px;
-  }
-
-  /* Hide brand-row ThemeToggle on mobile (it moves to sidebar footer) */
-  .sidebar-brand-theme-desktop {
-    display: contents;
-  }
-
-  .brand-name {
-    flex: 1;
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-weight: 700;
-    font-size: 1rem;
-    letter-spacing: 0.16em;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: brand-shimmer 5s ease-in-out infinite;
-    filter: drop-shadow(1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(-1px 0px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px 1px 1px rgba(94,242,214,0.15)) 
-          drop-shadow(0px -1px 1px rgba(94,242,214,0.15));
-  }
-
-  @keyframes brand-shimmer {
-    0%, 100% { background-position: 0% 50%; }
-    50%       { background-position: 100% 50%; }
+  .brand-link {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    width: 100%;
+    color: inherit;
+    text-decoration: none;
   }
 
   .sidebar-nav {
@@ -654,7 +561,7 @@
     overflow-y: auto; /* nav scrolls, not the whole sidebar */
   }
 
-  /* Search shortcut at top of nav — hidden on desktop, shown on mobile */
+  /* Search shortcut at top of nav - hidden on desktop, shown on mobile */
   .sidebar-nav-search {
     display: none;
     padding: 0 0 8px;
@@ -670,43 +577,97 @@
     opacity: 0.58;
   }
 
-  .nav-divider {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 10px 12px 4px;
-    margin-top: 4px;
-  }
-
   .nav-divider--simple {
     border-top: 1px solid var(--color-border);
     padding-top: 6px;
     margin-top: 4px;
   }
 
-  .nav-divider-label {
-    font-size: 0.68rem;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    color: var(--color-text-muted);
-    opacity: 0.7;
+  /* Project context card */
+  .project-ctx-wrap {
+    padding: 6px 0 4px;
+    margin-top: 6px;
   }
 
-  .nav-divider-key {
-    font-size: 0.68rem;
+  .project-ctx-card {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.6rem;
+    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
+    border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
+    text-decoration: none;
+    cursor: pointer;
+    transition: background 0.12s, border-color 0.12s;
+  }
+
+  .project-ctx-card:hover {
+    background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface));
+    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
+  }
+
+  .project-ctx-icon {
+    flex: 0 0 auto;
+    width: 15px;
+    height: 15px;
+    color: var(--color-accent);
+    opacity: 0.75;
+  }
+
+  .project-ctx-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+  }
+
+  .project-ctx-eyebrow {
+    font-size: 0.6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.09em;
+    color: var(--color-text-muted);
+    line-height: 1.3;
+  }
+
+  .project-ctx-key {
+    font-size: 0.78rem;
     font-weight: 700;
     color: var(--color-accent);
-    background: var(--color-accent-subtle);
-    padding: 1px 6px;
-    border-radius: 4px;
+    font-family: ui-monospace, monospace;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.35;
   }
 
-  .nav-divider-hint {
-    font-size: 0.68rem;
+  .project-ctx-arrow {
+    flex: 0 0 auto;
+    width: 13px;
+    height: 13px;
+    color: var(--color-accent);
+    opacity: 0.45;
+  }
+
+  .project-ctx-empty {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.6rem;
+    border: 1px dashed var(--color-border);
     color: var(--color-text-muted);
-    opacity: 0.5;
+    font-size: 0.76rem;
+    opacity: 0.55;
     font-style: italic;
+  }
+
+  .project-ctx-empty svg {
+    flex: 0 0 auto;
+    width: 14px;
+    height: 14px;
   }
 
   .nav-item {
@@ -722,11 +683,6 @@
     transition: background 0.12s, color 0.12s;
   }
 
-  .nav-item--pinned {
-    color: var(--color-text);
-    background: color-mix(in srgb, var(--color-bg), var(--color-accent) 4%);
-  }
-
   .nav-item:hover {
     background: var(--color-accent-subtle);
     color: var(--color-accent);
@@ -734,99 +690,16 @@
   }
 
   .nav-item--active {
-    background: var(--color-accent-subtle);
+    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
     color: var(--color-accent);
     font-weight: 600;
+    box-shadow: inset 3px 0 0 var(--color-accent);
+    padding-left: 7px;
   }
 
   .nav-item--dimmed {
     opacity: 0.45;
     pointer-events: none;
-  }
-
-  .pin-btn {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-left: auto;
-    opacity: 0.55;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: opacity 0.15s, background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  }
-
-  .nav-item:hover .pin-btn { opacity: 0.85; }
-
-  .pin-btn:hover {
-    opacity: 1;
-    background: var(--color-accent-subtle);
-    border-color: var(--color-accent);
-    color: var(--color-accent);
-    box-shadow: 0 2px 8px rgba(0,175,165,0.2);
-  }
-
-  :global([data-theme="dark"]) .pin-btn {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.55);
-  }
-  :global([data-theme="dark"]) .pin-btn:hover {
-    background: rgba(0,175,165,0.15);
-    border-color: var(--color-accent);
-    color: var(--color-accent-mint);
-    box-shadow: 0 2px 12px rgba(94,242,214,0.15);
-  }
-
-  .pin-toggle {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    border: 1px solid var(--color-border);
-    background: var(--color-surface);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    flex-shrink: 0;
-    margin-left: auto;
-    opacity: 0.7;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-    transition: background 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
-  }
-
-  .pin-toggle:hover {
-    background: var(--color-accent-subtle);
-    border-color: var(--color-danger);
-    color: var(--color-danger);
-    box-shadow: 0 2px 8px rgba(239,68,68,0.15);
-  }
-
-  :global([data-theme="dark"]) .pin-toggle {
-    background: rgba(255,255,255,0.06);
-    border-color: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.65);
-  }
-  :global([data-theme="dark"]) .pin-toggle:hover {
-    background: rgba(239,68,68,0.12);
-    border-color: rgba(239,68,68,0.4);
-    color: #fca5a5;
-  }
-
-  @media (max-width: 768px) {
-    .pin-btn, .pin-toggle {
-      width: 28px;
-      height: 28px;
-      opacity: 0.6;
-    }
-    .nav-item:hover .pin-btn { opacity: 0.85; }
   }
 
   .sidebar-footer {
@@ -868,24 +741,11 @@
     background: rgba(255,255,255,0.04);
   }
 
-  /* Theme row in sidebar footer — shown on mobile, hidden on desktop where brand row has it */
+  /* Theme row in sidebar footer. */
   .sidebar-footer-theme {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
+    display: grid;
+    gap: 6px;
     padding: 8px 4px;
-  }
-
-  @media (min-width: 769px) {
-    .sidebar-footer-theme {
-      display: none;
-    }
-  }
-
-  .sidebar-footer-label {
-    font-size: 0.8rem;
-    font-weight: 500;
-    color: var(--color-text-muted);
   }
 
   /* ── Main area ── */
@@ -944,7 +804,7 @@
     flex-shrink: 0;
   }
 
-  /* Icon toggle button — mobile only */
+  /* Icon toggle button - mobile only */
   .topbar-brand-mobile {
     display: none;
     align-items: center;
@@ -965,27 +825,13 @@
     color: var(--color-accent);
   }
 
-  /* Brand inline (mobile topbar) — hidden on desktop where sidebar shows it */
+  /* Brand inline (mobile topbar) - hidden on desktop where sidebar shows it */
   .topbar-brand-inline {
     display: none;
     align-items: center;
     gap: 7px;
     text-decoration: none;
     flex-shrink: 0;
-  }
-
-  .topbar-brand-inline-text {
-    font-family: var(--font-sans, "Sora", sans-serif);
-    font-weight: 700;
-    font-size: 0.85rem;
-    letter-spacing: 0.16em;
-    background: linear-gradient(120deg, #00AFA5 0%, #5EF2D6 45%, #00C2B8 70%, #00AFA5 100%);
-    background-size: 220% 100%;
-    -webkit-background-clip: text;
-    background-clip: text;
-    -webkit-text-fill-color: transparent;
-    color: transparent;
-    animation: brand-shimmer 5s ease-in-out infinite;
   }
 
   .project-key-pill {
@@ -1119,7 +965,7 @@
   }
 
   /* ── Mobile user popup ── */
-  /* Hidden on desktop — shown only via mobile media query */
+  /* Hidden on desktop - shown only via mobile media query */
   .user-popup-overlay {
     display: none;
   }
@@ -1221,7 +1067,7 @@
     overflow-y: auto;
   }
 
-  /* Footer — inside .content scroll container so it scrolls with page content */
+  /* Footer - inside .content scroll container so it scrolls with page content */
   .app-footer {
     display: flex;
     align-items: center;
@@ -1289,9 +1135,6 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .brand-icon-anim,
-    .brand-name,
-    .topbar-brand-inline-text,
     .search-placeholder,
     .live-dot,
     .route-skeleton {
@@ -1315,7 +1158,7 @@
       left: 0;
       top: 0;
       bottom: 0;
-      height: auto; /* override base 100vh — top+bottom anchoring is reliable on iOS Safari */
+      height: auto; /* override base 100vh - top+bottom anchoring is reliable on iOS Safari */
       z-index: 50;
       transform: translateX(-100%);
       transition: transform 0.25s ease;
@@ -1335,11 +1178,6 @@
       display: flex;
     }
 
-    /* Hide desktop ThemeToggle in brand row on mobile */
-    .sidebar-brand-theme-desktop {
-      display: none;
-    }
-
     /* Show search at top of nav on mobile */
     .sidebar-nav-search {
       display: block;
@@ -1350,7 +1188,7 @@
       display: none;
     }
 
-    /* Search bar hidden on mobile — lives in sidebar instead */
+    /* Search bar hidden on mobile - lives in sidebar instead */
     .topbar-center {
       display: none;
     }

@@ -9,6 +9,8 @@ export interface AsaMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  /** True only for the in-flight assistant message; completed/history messages render as markdown. */
+  streaming?: boolean;
   actions?: AsaAction[];
   /** Selectable choices when ASA asks the user to disambiguate. Clicking one sends its value. */
   options?: AsaMessageOption[];
@@ -23,6 +25,11 @@ export interface AsaAction {
   type: string;  // versioned: e.g., 'navigate:v1', 'show_toast:v1'
   version?: string;  // optional separate version field for forward compat
   payload: Record<string, unknown>;
+}
+
+export interface AsaConfirmationSubmission {
+  token: string;
+  decision: 'APPROVE' | 'REJECT';
 }
 
 export interface AsaCapabilitiesRequest {
@@ -52,7 +59,8 @@ export interface AsaMessagePage {
 export interface AsaEvent {
   protocolVersion: string;
   eventId: string;
-  eventType: 'thinking' | 'token' | 'speech' | 'action' | 'clarification' | 'timing' | 'error' | 'done';
+  eventType: 'thinking' | 'token' | 'speech' | 'action' | 'clarification' | 'timing'
+    | 'user_input_revision' | 'error' | 'done';
   payload: Record<string, unknown>;
 }
 
@@ -81,19 +89,94 @@ export interface AsaVoiceOption {
   language: string;
 }
 
-/** Sidecar STT: upload a recorded audio blob, get a transcript back. */
-export async function transcribeAudio(blob: Blob): Promise<{ text: string } | null> {
+/**
+ * Decode any browser audio blob (WebM/OGG/MP4) → 16 kHz mono WAV via the Web Audio API.
+ * AudioContext.decodeAudioData handles every format the browser's MediaRecorder can produce,
+ * giving the sidecar a format it can always parse without Opus codec dependencies.
+ */
+async function toWav16k(blob: Blob): Promise<Blob> {
+  const ctx = new AudioContext({ sampleRate: 16_000 });
   try {
+    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+    const samples = decoded.getChannelData(0); // mono: first channel
+    const dataLen = samples.length * 2;
+    const buf = new ArrayBuffer(44 + dataLen);
+    const v = new DataView(buf);
+    const s = (off: number, str: string) => { for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); };
+    s(0, 'RIFF'); v.setUint32(4, 36 + dataLen, true); s(8, 'WAVE');
+    s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
+    v.setUint16(22, 1, true); v.setUint32(24, 16_000, true); v.setUint32(28, 32_000, true);
+    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    s(36, 'data'); v.setUint32(40, dataLen, true);
+    for (let i = 0; i < samples.length; i++)
+      v.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, samples[i] * 32768)), true);
+    return new Blob([buf], { type: 'audio/wav' });
+  } finally {
+    await ctx.close();
+  }
+}
+
+export type SttErrorReason =
+  | 'audio_too_long'
+  | 'unsupported_format'
+  | 'quota_exceeded'
+  | 'billing_not_configured'
+  | 'stt_unavailable'
+  | 'voice_unavailable'
+  | 'empty_transcript'
+  | 'network_error';
+
+export interface SttTranscribeResult {
+  text: string;
+  provider?: string;
+  model?: string;
+  fallbackUsed?: boolean;
+  latencyMs?: number;
+}
+
+export interface SttTranscribeError {
+  reason: SttErrorReason;
+  message: string;
+}
+
+/** Sidecar STT: upload a recorded audio blob, get a transcript back (with provider/latency/fallback
+ *  metadata) on success, or a distinct error reason on failure so the UI can show a specific message
+ *  instead of one generic fallback string. */
+export async function transcribeAudio(
+  blob: Blob
+): Promise<{ ok: true; result: SttTranscribeResult } | { ok: false; error: SttTranscribeError }> {
+  try {
+    const wav = await toWav16k(blob);
     const res = await apiFetch('/api/asa/voice/transcribe', {
       method: 'POST',
-      headers: { 'Content-Type': blob.type || 'audio/webm' },
-      body: blob,
+      headers: { 'Content-Type': 'audio/wav' },
+      body: wav,
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return { text: String(data.text ?? '') };
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const reason = (data?.error as SttErrorReason) ?? 'stt_unavailable';
+      const message = String(data?.message ?? 'Voice service is unavailable. You can still type your request.');
+      return { ok: false, error: { reason, message } };
+    }
+    const text = String(data.text ?? '');
+    if (!text.trim()) {
+      return { ok: false, error: { reason: 'empty_transcript', message: 'Could not understand audio.' } };
+    }
+    return {
+      ok: true,
+      result: {
+        text,
+        provider: data.provider,
+        model: data.model,
+        fallbackUsed: Boolean(data.fallbackUsed),
+        latencyMs: typeof data.latencyMs === 'number' ? data.latencyMs : undefined,
+      },
+    };
   } catch {
-    return null;
+    return {
+      ok: false,
+      error: { reason: 'network_error', message: 'Could not reach the voice service. Try again.' },
+    };
   }
 }
 
@@ -148,16 +231,49 @@ export async function synthesizeSpeechStream(text: string, voiceId?: string): Pr
  * null if there's no session or the environment has no WebSocket. Caller sends binary PCM16 mono
  * @16kHz frames + a "flush" text message at end-of-utterance, and receives {type,text} JSON.
  */
-export function openSttStream(): WebSocket | null {
+export function openSttStream(voiceSessionId?: string): WebSocket | null {
   if (typeof WebSocket === 'undefined') return null;
   const session = getValidSession();
   if (!session?.accessToken) return null;
   const base = getApiBaseUrl().replace(/^http/, 'ws');
-  const url = `${base}/ws/asa/voice/stt?token=${encodeURIComponent(session.accessToken)}`;
+  const params = new URLSearchParams({ token: session.accessToken });
+  if (voiceSessionId) params.set('voiceSessionId', voiceSessionId);
+  const url = `${base}/ws/asa/voice/stt?${params}`;
   try {
     const ws = new WebSocket(url);
     ws.binaryType = 'arraybuffer';
     return ws;
+  } catch {
+    return null;
+  }
+}
+
+export interface AsaVoiceModelsInfo {
+  mode: string;
+  stt: {
+    activeProvider: string;
+    activeModel: string;
+    fallbackProvider?: string | null;
+    availableProviders: string[];
+  };
+}
+
+/** Voice mode/provider/model info for the dev/admin diagnostics panel (setara-s94o.12). */
+export async function fetchVoiceModelsInfo(): Promise<AsaVoiceModelsInfo | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/models');
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (!data?.stt) return null;
+    return {
+      mode: String(data.mode ?? ''),
+      stt: {
+        activeProvider: String(data.stt.activeProvider ?? ''),
+        activeModel: String(data.stt.activeModel ?? ''),
+        fallbackProvider: data.stt.fallbackProvider ?? null,
+        availableProviders: Array.isArray(data.stt.availableProviders) ? data.stt.availableProviders : [],
+      },
+    };
   } catch {
     return null;
   }
@@ -236,6 +352,7 @@ export async function cancelAsaRequest(requestId: string): Promise<void> {
 
 export const CLIENT_SUPPORTED_ACTIONS: string[] = [
   'navigate:v1',
+  'reload_page:v1',
   'open_modal:v1',
   'close_modal:v1',
   'show_toast:v1',
@@ -243,6 +360,7 @@ export const CLIENT_SUPPORTED_ACTIONS: string[] = [
   'select_option:v1',
   'highlight:v1',
   'focus_element:v1',
+  'confirm_required:v1',
 ];
 
 export async function negotiateCapabilities(): Promise<AsaCapabilitiesResponse | null> {
@@ -274,7 +392,7 @@ export interface AsaVoiceEntity {
   display: string;
   originalSpan: string;
   score: number;
-  resolution: 'auto' | 'confirmed';
+  resolution: string;
 }
 
 export interface AsaVoiceInput {
@@ -283,6 +401,71 @@ export interface AsaVoiceInput {
   normalizedText: string;
   resolvedText: string;
   entities: AsaVoiceEntity[];
+}
+
+export interface AsaPreparedVoiceSession {
+  voiceSessionId: string;
+  stt: {
+    streamUrl: string;
+    finalUrl: string;
+    sampleRate: number;
+    channels: number;
+    sampleFormat: string;
+    language: string;
+    hotwords: string[];
+    prompt: string;
+  };
+}
+
+export interface AsaResolvedVoiceTranscript {
+  rawText: string;
+  normalizedText: string;
+  resolvedText: string;
+  confidence: number;
+  entities: AsaVoiceEntity[];
+  ambiguities: unknown[];
+  needsClarification: boolean;
+}
+
+export async function prepareVoiceSession(): Promise<AsaPreparedVoiceSession | null> {
+  try {
+    const route = typeof window === 'undefined' ? '/' : window.location.pathname;
+    const res = await apiFetch('/api/asa/voice/session/prepare', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        requestId: crypto.randomUUID(),
+        mode: 'VOICE_COMMAND',
+        context: { session: {}, navigation: { route }, page: {}, formatted: `route=${route}` },
+      }),
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
+}
+
+export async function finalizeVoicePcm(
+  session: AsaPreparedVoiceSession,
+  pcm: ArrayBuffer,
+): Promise<AsaResolvedVoiceTranscript | null> {
+  try {
+    const res = await apiFetch(session.stt.finalUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'audio/l16',
+        'X-Sample-Rate': String(session.stt.sampleRate),
+        'X-Channels': String(session.stt.channels),
+        'X-Sample-Format': session.stt.sampleFormat,
+      },
+      body: pcm,
+    });
+    if (!res.ok) return null;
+    return res.json();
+  } catch {
+    return null;
+  }
 }
 
 export async function fetchEntityCatalog(): Promise<AsaEntityCatalog | null> {
@@ -304,6 +487,7 @@ export function streamAsaMessage(opts: {
   message: string;
   context: Record<string, unknown>;
   voiceInput?: AsaVoiceInput;
+  confirmation?: AsaConfirmationSubmission;
   signal: AbortSignal;
 }): ReadableStreamDefaultReader<string> {
   const body = JSON.stringify({
@@ -311,50 +495,92 @@ export function streamAsaMessage(opts: {
     message: opts.message,
     context: opts.context,
     ...(opts.voiceInput ? { voiceInput: opts.voiceInput } : {}),
+    ...(opts.confirmation ? {
+      confirmationToken: opts.confirmation.token,
+      confirmationDecision: opts.confirmation.decision,
+    } : {}),
   });
+
+  const url = `${getApiBaseUrl()}/api/asa/chat`;
 
   const stream = new ReadableStream<string>({
     async start(controller) {
       try {
-        const res = await fetch(`${getApiBaseUrl()}/api/asa/chat`, {
+        const res = await fetch(url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...authHeaders() },
+          headers: {
+            Accept: 'text/event-stream',
+            'Content-Type': 'application/json',
+            ...authHeaders(),
+          },
           body,
           signal: opts.signal,
           credentials: 'include',
         });
-        if (!res.ok || !res.body) {
-          controller.error(new Error(`ASA error: ${res.status}`));
+
+        if (!res.ok) {
+          const errorBody = await res.text().catch(() => '');
+          controller.error(new Error(`ASA HTTP ${res.status}: ${errorBody.slice(0, 500)}`));
           return;
         }
+
+        if (!res.body) {
+          controller.error(new Error('ASA response has no body'));
+          return;
+        }
+
+        const contentType = res.headers.get('content-type') ?? '';
+        if (!contentType.includes('text/event-stream')) {
+          const preview = await res.text().catch(() => '');
+          controller.error(
+            new Error(
+              `Expected text/event-stream but got ${contentType}. URL=${url}. Preview=${preview.slice(0, 500)}`,
+            ),
+          );
+          return;
+        }
+
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buf = '';
-        const enqueueLine = (line: string) => {
-          // SSE allows "data:value" and "data: value" (one optional leading space). RESTEasy
-          // emits no space. Slice past the colon and trim to handle both.
-          if (!line.startsWith('data:')) return;
-          const payload = line.slice(5).trim();
+
+        const emitFrame = (frame: string) => {
+          const dataLines: string[] = [];
+          for (const rawLine of frame.split('\n')) {
+            const line = rawLine.trimEnd();
+            if (!line || line.startsWith(':')) continue;
+            if (line.startsWith('data:')) {
+              // SSE allows "data:value" and "data: value" (one optional leading space)
+              dataLines.push(line.slice(5).replace(/^ /, ''));
+            }
+          }
+          const payload = dataLines.join('\n').trim();
           if (payload) controller.enqueue(payload);
         };
+
+        const processBuffer = () => {
+          buf = buf.replace(/\r\n/g, '\n');
+          let index: number;
+          while ((index = buf.indexOf('\n\n')) >= 0) {
+            const frame = buf.slice(0, index);
+            buf = buf.slice(index + 2);
+            emitFrame(frame);
+          }
+        };
+
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           buf += decoder.decode(value, { stream: true });
-          const lines = buf.split('\n');
-          buf = lines.pop() ?? '';
-          for (const line of lines) {
-            enqueueLine(line);
-          }
+          processBuffer();
         }
+
         buf += decoder.decode();
-        if (buf.trim()) {
-          for (const line of buf.split('\n')) enqueueLine(line);
-        }
+        if (buf.trim()) emitFrame(buf);
         controller.close();
       } catch (err) {
-        if ((err as Error).name !== 'AbortError') controller.error(err);
-        else controller.close();
+        if ((err as Error).name === 'AbortError') controller.close();
+        else controller.error(err);
       }
     },
   });

@@ -30,6 +30,7 @@
   }
 
   let createName = $state('');
+  let createIssueTrackerProjectKey = $state('');
   let createTribeId = $state('');
   let createOpen = $state(false);
   let creating = $state(false);
@@ -38,6 +39,7 @@
   let editing = $state(false);
   let editName = $state('');
   let editDesc = $state('');
+  let editIssueTrackerProjectKey = $state('');
   let editTribeId = $state<string | null>(null);
   let editLeadId = $state<string | null>(null);
   let editingSquadId = $state('');
@@ -71,6 +73,7 @@
 
   function openCreate() {
     createName = '';
+    createIssueTrackerProjectKey = '';
     createTribeId = data.tribes[0]?.id ?? '';
     error = '';
     createOpen = true;
@@ -80,10 +83,14 @@
     if (!createTribeId) { error = 'Select a tribe'; return; }
     creating = true; error = '';
     try {
-      await createSquad(createTribeId, { name: createName.trim() });
+      await createSquad(createTribeId, {
+        name: createName.trim(),
+        issueTrackerProjectKey: createIssueTrackerProjectKey.trim() || null
+      });
       await refreshSquads();
       createOpen = false;
       createName = '';
+      createIssueTrackerProjectKey = '';
       createTribeId = '';
     }
     catch (err) { error = (err as Error).message; } finally { creating = false; }
@@ -93,7 +100,13 @@
     editingSquadId = squad.id; editName = squad.name; editDesc = '';
     editTribeId = squad.tribeId; editLeadId = null; members = [];
     userSearch = ''; userResults = []; editOpen = true; detailLoading = true;
-    try { const d = await getSquadDetail(squad.id); editDesc = d.description ?? ''; editLeadId = d.leadId; members = d.members; }
+    try {
+      const d = await getSquadDetail(squad.id);
+      editDesc = d.description ?? '';
+      editIssueTrackerProjectKey = d.issueTrackerProjectKey ?? '';
+      editLeadId = d.leadId;
+      members = d.members;
+    }
     catch {} finally { detailLoading = false; }
   }
 
@@ -104,7 +117,17 @@
 
   async function handleSaveEdit() {
     if (editing || !editingSquadId) return; editing = true; error = '';
-    try { await updateSquad(editingSquadId, { name: editName, description: editDesc || null, tribeId: editTribeId, leadId: editLeadId }); editOpen = false; await refreshSquads(); }
+    try {
+      await updateSquad(editingSquadId, {
+        name: editName,
+        description: editDesc || null,
+        tribeId: editTribeId,
+        leadId: editLeadId,
+        issueTrackerProjectKey: editIssueTrackerProjectKey.trim() || null
+      });
+      await refreshSquads();
+      editOpen = false;
+    }
     catch (err) { error = (err as Error).message; } finally { editing = false; }
   }
 
@@ -184,6 +207,7 @@
           <tr>
             <th><button class="sort-btn" onclick={() => toggleSort('name')}>Name {sortBy === 'name' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
             <th><button class="sort-btn" onclick={() => toggleSort('tribe')}>Tribe {sortBy === 'tribe' ? (sortDir === 'asc' ? '▲' : '▽') : '⇅'}</button></th>
+            <th>Project key</th>
             <th>Created</th>
             <th></th>
           </tr>
@@ -193,6 +217,7 @@
             <tr>
               <td data-label="Name" class="bold">{squad.name}</td>
               <td data-label="Tribe" class="muted">{squad.tribeName ?? '-'}</td>
+              <td data-label="Project key" class="muted">{squad.issueTrackerProjectKey ?? 'Global default'}</td>
               <td data-label="Created">{formatDate(squad.createdAt)}</td>
               <td data-label="">
                 <Button variant="ghost" iconOnly onclick={() => openEdit(squad)} title="Edit" ariaLabel="Edit squad">
@@ -224,6 +249,16 @@
     <label class="field" for="cs-name">
       <span>Squad Name</span>
       <input id="cs-name" class="input" bind:value={createName} required placeholder="Squad name" />
+    </label>
+    <label class="field" for="cs-issue-tracker-project-key">
+      <span>Issue tracker project key</span>
+      <input
+        id="cs-issue-tracker-project-key"
+        class="input"
+        bind:value={createIssueTrackerProjectKey}
+        placeholder="For example, PAY"
+      />
+      <small>Leave blank to use the global issue-tracker project key.</small>
     </label>
     <div class="modal-actions">
       <Button variant="secondary" size="sm" onclick={() => createOpen = false}>Cancel</Button>
@@ -257,6 +292,16 @@
       <label class="field"><span>Name</span><input class="input" bind:value={editName} /></label>
       <label class="field"><span>Tribe</span><select class="input" bind:value={editTribeId}><option value={null}>None</option>{#each data.tribes as t}<option value={t.id}>{t.name}</option>{/each}</select></label>
       <label class="field full"><span>Description</span><textarea class="input" bind:value={editDesc} rows={2}></textarea></label>
+      <label class="field full" for="es-issue-tracker-project-key">
+        <span>Issue tracker project key</span>
+        <input
+          id="es-issue-tracker-project-key"
+          class="input"
+          bind:value={editIssueTrackerProjectKey}
+          placeholder="For example, PAY"
+        />
+        <small>Leave blank to use the global issue-tracker project key.</small>
+      </label>
       <label class="field full"><span>Lead</span>
         <input class="input" placeholder="Search user…" value={userSearch} oninput={(e) => searchUsersForLead((e.target as HTMLInputElement).value)} />
         {#if userResults.length > 0}

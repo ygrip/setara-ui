@@ -1,4 +1,4 @@
-import type { AsaAction, AsaEvent, AsaMessage, AsaMessageOption, AsaSession, AsaVoiceInput } from '$lib/api/asa';
+import type { AsaAction, AsaConfirmationSubmission, AsaEvent, AsaMessage, AsaMessageOption, AsaSession, AsaVoiceInput } from '$lib/api/asa';
 import {
   cancelAsaRequest,
   fetchAsaConfig,
@@ -10,7 +10,8 @@ import {
 import { asaLog, asaWarn } from '$lib/asa-debug';
 import { stripMarkdown } from '$lib/markdown';
 import { sidecarVoice } from '$lib/voice/sidecar-voice.svelte';
-import { StreamBatcher } from './stream-batcher';
+import { reconcileCompletedContent, StreamBatcher } from './stream-batcher';
+import { AsaTurnAccumulator, normalizeAssistantContent } from './asa-turn-accumulator';
 
 export type AsaOrbState = 'hidden' | 'idle' | 'opening' | 'open' | 'thinking';
 
@@ -151,7 +152,7 @@ class AsaStore {
     }
   }
 
-  async send(text: string, voiceInput?: AsaVoiceInput) {
+  async send(text: string, voiceInput?: AsaVoiceInput, confirmation?: AsaConfirmationSubmission) {
     if (!text.trim() || this.streaming) return;
     asaLog('chat', 'send', { text, voice: Boolean(voiceInput) });
     this.error = null;
@@ -163,7 +164,7 @@ class AsaStore {
     this.messages = [
       ...this.messages,
       { id: `${requestId}:user`, role: 'user', content: text, timestamp },
-      { id: `${requestId}:assistant`, role: 'assistant', content: '', timestamp },
+      { id: `${requestId}:assistant`, role: 'assistant', content: '', timestamp, streaming: true },
     ];
     this.scrollRevision += 1;
 
@@ -179,10 +180,12 @@ class AsaStore {
     let gotSpeech = false;
     let gotDone = false;
     let fullContent = '';
+    const turn = new AsaTurnAccumulator();
     const tokenBatcher = new StreamBatcher({
       delayMs: TOKEN_FLUSH_INTERVAL_MS,
       onFlush: (content) => {
-        fullContent += content;
+        turn.appendToken(content);
+        fullContent = turn.content;
         this.updateAssistant(requestId, { content: fullContent });
         this.scrollRevision += 1;
       },
@@ -198,6 +201,7 @@ class AsaStore {
         message: text,
         context,
         voiceInput,
+        confirmation,
         signal: this.abortController.signal,
       });
 
@@ -217,29 +221,35 @@ class AsaStore {
 
         switch (event.eventType) {
           case 'thinking':
-            this.thinkingText = String(event.payload.content ?? 'Thinking');
+            turn.apply(event);
+            this.thinkingText = turn.thinkingText;
             break;
           case 'token': {
+            // The batch flush owns token accumulation and message projection. Applying here as
+            // well duplicates every chunk and lets delayed flushes overwrite terminal content.
             this.thinkingText = null;
             tokenBatcher.push(String(event.payload.content ?? ''));
             break;
           }
           case 'speech': {
             // Dedicated spoken text (separate from the displayed markdown) — speak only this.
+            // Fire-and-forget: TTS failures must never propagate into the chat stream loop.
             this.thinkingText = null;
             const speechText = String(event.payload.text ?? '');
             if (this.voiceSidecar && speechText.trim()) {
-              gotSpeech = this.safeVoiceCall('speakText', () => sidecarVoice.speakText(speechText));
+              gotSpeech = true;
+              this.safeVoiceCall('speakText', () => sidecarVoice.speakText(speechText));
             }
             break;
           }
           case 'clarification': {
             // ASA is unsure and is asking the user to pick. Render question + option buttons.
             tokenBatcher.flush();
-            this.thinkingText = null;
+            turn.apply(event);
+            this.thinkingText = turn.thinkingText;
             const question = String(event.payload.question ?? event.payload.content ?? '');
             const options = this.parseOptions(event.payload.options);
-            if (question) fullContent = question;
+            if (question) fullContent = turn.content;
             this.updateAssistant(requestId, { content: fullContent, options });
             this.scrollRevision += 1;
             break;
@@ -254,14 +264,29 @@ class AsaStore {
           case 'timing':
             asaLog('chat:timing', event.payload);
             break;
+          case 'user_input_revision':
+            if (String(event.payload.requestId ?? '') === requestId) {
+              this.applyUserInputRevision(requestId, event.payload.text);
+            }
+            break;
           case 'done':
             tokenBatcher.flush();
             gotDone = true;
+            turn.apply(event);
+            fullContent = reconcileCompletedContent(fullContent, turn.content);
+            this.updateAssistant(requestId, { content: fullContent });
+            this.applyUserInputRevision(requestId, event.payload.userInputRevision);
+            this.scrollRevision += 1;
             this.updateSessionBudget(event.payload);
             break;
           case 'error':
             tokenBatcher.flush();
             gotError = true;
+            // Clear markup-only partial content (e.g. bare `**`) that would show alongside the error
+            if (stripMarkdown(fullContent).trim().length === 0 && fullContent) {
+              fullContent = '';
+              this.updateAssistant(requestId, { content: '' });
+            }
             this.error = String(event.payload.message ?? 'ASA error');
             if (this.voiceSidecar) {
               this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
@@ -281,6 +306,11 @@ class AsaStore {
         if (gotDone || stripMarkdown(fullContent).trim().length > 0) {
           ok = true;
         } else {
+          // Clear markdown-syntax-only partial content (e.g. bare `**`) so broken markup doesn't render
+          if (fullContent) {
+            fullContent = '';
+            this.updateAssistant(requestId, { content: '' });
+          }
           this.error = 'Connection error. Try again.';
           if (this.voiceSidecar) {
             this.safeVoiceCall('stopAudio', () => sidecarVoice.stopAudio());
@@ -291,6 +321,7 @@ class AsaStore {
     } finally {
       tokenBatcher.flush();
       tokenBatcher.dispose();
+      this.updateAssistant(requestId, { streaming: false });
       if (this.flushActiveTokenBuffer) this.flushActiveTokenBuffer = null;
       this.streaming = false;
       this.thinkingText = null;
@@ -313,7 +344,9 @@ class AsaStore {
   cancel() {
     this.flushActiveTokenBuffer?.();
     if (this.currentRequestId) {
-      void cancelAsaRequest(this.currentRequestId);
+      const requestId = this.currentRequestId;
+      void cancelAsaRequest(requestId);
+      this.updateAssistant(requestId, { streaming: false });
       this.currentRequestId = null;
     }
     this.abortController?.abort();
@@ -324,6 +357,17 @@ class AsaStore {
       this.streaming = false;
       if (this.open) this.orbState = 'open';
     }
+  }
+
+  async confirmAction(action: AsaAction, decision: 'APPROVE' | 'REJECT') {
+    const token = action.payload.confirmToken;
+    const summary = String(action.payload.summary ?? 'the requested action');
+    if (typeof token !== 'string' || !token) {
+      this.error = 'This confirmation is invalid. Please ask ASA to prepare the action again.';
+      return;
+    }
+    const text = decision === 'APPROVE' ? `Approve: ${summary}` : `Cancel: ${summary}`;
+    await this.send(text, undefined, { token, decision });
   }
 
   clearConversation() {
@@ -342,6 +386,18 @@ class AsaStore {
     );
   }
 
+  private applyUserInputRevision(requestId: string, value: unknown) {
+    if (typeof value !== 'string') return;
+    const text = value.trim();
+    if (!text || text.length > 2_000) return;
+    const userMessageId = `${requestId}:user`;
+    this.messages = this.messages.map((message) =>
+      message.id === userMessageId && message.role === 'user'
+        ? { ...message, content: text }
+        : message,
+    );
+  }
+
   private updateSessionBudget(payload: Record<string, unknown>) {
     if (!this.session) return;
     this.session = {
@@ -354,12 +410,15 @@ class AsaStore {
     };
   }
 
-  private safeVoiceCall(label: string, fn: () => void): boolean {
+  private safeVoiceCall(label: string, fn: () => unknown): boolean {
     try {
-      fn();
+      const result = fn();
+      if (result instanceof Promise) {
+        void result.catch((err) => asaWarn('voice', `${label} async failed`, err));
+      }
       return true;
-    } catch (error) {
-      asaWarn('voice', `${label} failed`, error);
+    } catch (err) {
+      asaWarn('voice', `${label} failed`, err);
       return false;
     }
   }
@@ -388,7 +447,10 @@ class AsaStore {
       if (seen.has(message.id)) return false;
       seen.add(message.id);
       return true;
-    });
+    }).map((message) => message.role === 'assistant'
+      ? { ...message, content: normalizeAssistantContent(message.content) }
+      : message
+    );
   }
 
   private initActionRegistry() {
@@ -396,6 +458,20 @@ class AsaStore {
       const path = payload.path as string | undefined;
       if (path) {
         void import('$app/navigation').then(({ goto }) => goto(path));
+      }
+    });
+    this.actionRegistry.set('reload_page:v1', () => {
+      void import('$app/navigation').then(({ invalidateAll }) => invalidateAll());
+    });
+    this.actionRegistry.set('download:v1', (payload) => {
+      const url = payload.url as string | undefined;
+      if (url && typeof document !== 'undefined') {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = '';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
       }
     });
     this.actionRegistry.set('show_toast:v1', (payload) => {
@@ -419,6 +495,8 @@ class AsaStore {
         if (el instanceof HTMLElement) el.focus();
       }
     });
+    // Confirmation actions are rendered as explicit Approve/Cancel controls in the chat bubble.
+    this.actionRegistry.set('confirm_required:v1', () => {});
     // open_modal, close_modal, show_form, select_option: emit custom DOM events
     // so page components can handle them without coupling to the ASA store.
     for (const type of ['open_modal:v1', 'close_modal:v1', 'show_form:v1', 'select_option:v1']) {

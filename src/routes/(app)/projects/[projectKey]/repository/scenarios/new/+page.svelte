@@ -328,7 +328,7 @@
 
 <style>
   /* ── Page ───────────────────────────────────────────────────────── */
-  .page { max-width: min(1200px, 100%); padding-bottom: 40px; }
+  .page { max-width: min(100%); padding-bottom: 40px; }
 
   .breadcrumb {
     display: flex; align-items: center; gap: 6px;

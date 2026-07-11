@@ -25,6 +25,7 @@ export interface Tribe {
   id: string;
   name: string;
   description: string | null;
+  issueTrackerProjectKey: string | null;
   createdAt: string;
 }
 

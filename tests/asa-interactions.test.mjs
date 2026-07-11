@@ -28,7 +28,7 @@ describe('ASA interaction contracts', () => {
     assert.match(source, /asa\.thinkingText/);
     assert.match(source, /await asa\.loadOlderMessages\(\)/);
     assert.match(source, /aria-label="Close ASA"/);
-    assert.match(source, /event\.key !== 'Escape'/);
+    assert.match(source, /if \(event\.key === 'Escape'\) \{[\s\S]*?closePanel\(\)/);
     assert.match(source, /tick\(\)\.then\(\(\) => orbEl\?\.focus\(\)\)/);
     assert.match(source, /window\.addEventListener\('keydown', onWindowKeydown\)/);
     assert.match(source, /onpointerdown=\{onPanelPointerDown\}/);
@@ -39,40 +39,35 @@ describe('ASA interaction contracts', () => {
     assert.match(source, /window\.addEventListener\('resize', fitToViewport\)/);
     assert.match(source, /window\.innerWidth - ORB_SIZE/);
     assert.match(source, /backdrop-filter: blur\(18px\) saturate\(140%\)/);
-    assert.match(source, /var\(--color-surface\) 86%, transparent/);
-    assert.match(source, /aria-label=\{asaVoice\.enabled \? 'Toggle ASA voice listening' : 'Start ASA voice listening'\}/);
-    assert.match(source, /onclick=\{toggleOrbVoice\}/);
-    assert.match(source, /Say “Hi ASA”/);
+    assert.match(source, /background: color-mix\(in srgb, var\(--color-surface\) 55%, transparent\)/);
+    assert.match(source, /aria-label=\{sidecarVoice\.recording \? 'Stop recording' : 'Record a voice command'\}/);
+    assert.match(source, /onclick=\{toggleSidecarMic\}/);
+    assert.match(source, /sidecarVoice\.syncHandsFree\(asa\.open && asa\.voiceSidecar\)/);
     assert.doesNotMatch(source, /glass-container|class=”|role=”/);
   });
 
-  it('keeps voice local, opt-in, pinned, and transcript-reviewed', () => {
-    const source = read('src/lib/voice/asa-voice.svelte.ts');
-    const manifest = JSON.parse(read('src/lib/voice/model-manifest.json'));
+  it('keeps sidecar voice opt-in, constrained, and transcript-routed', () => {
+    const source = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(source, /getUserMedia\(\{ audio: true \}\)/);
+    assert.match(source, /navigator\.mediaDevices\.getUserMedia\(AUDIO_CONSTRAINTS\)/);
+    assert.match(source, /echoCancellation: true/);
+    assert.match(source, /noiseSuppression: true/);
     const wakeRouter = read('src/lib/voice/wake-router.ts');
-    assert.match(wakeRouter, /\(\?:hi\|hello\)/);
-    assert.match(source, /this\.state = 'reviewing'/);
-    assert.match(source, /MoonshineSttEngine/);
-    assert.match(source, /runanywhere-adapters/);
-    const adapters = read('src/lib/voice/runanywhere-adapters.ts');
-    assert.match(adapters, /@runanywhere\/web-onnx/);
-    assert.equal(manifest.dependencies[0].package, '@moonshine-ai/moonshine-js');
-    assert.equal(manifest.dependencies[0].version, '0.1.29');
-    assert.equal(manifest.dependencies[0].license, 'MIT');
-    assert.equal(manifest.dependencies[1].package, '@ricky0123/vad-web');
-    assert.equal(manifest.dependencies[1].version, '0.0.30');
-    assert.equal(manifest.dependencies[1].license, 'ISC');
+    assert.match(wakeRouter, /\(\?:hi\|hey\|hello\)/);
+    assert.match(source, /const route = routeVoiceTranscript\(this\.wakeMode, transcript\.text\)/);
+    assert.match(source, /source: 'sidecar'/);
+    assert.match(source, /this\.onTranscript\(route\.command/);
   });
 
-  it('allows the blob-backed Sherpa helper module required by RunAnywhere', () => {
-    const app = read('src/app.html');
-    const runtime = read('node_modules/@runanywhere/web-onnx/dist/Foundation/SherpaHelperLoader.js');
+  it('does not depend on the removed browser Moonshine and RunAnywhere stack', () => {
+    const pkg = JSON.parse(read('package.json'));
+    const source = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(runtime, /URL\.createObjectURL\(blob\)/);
-    assert.match(runtime, /import\(\/\* @vite-ignore \*\/ blobUrl\)/);
-    assert.match(app, /script-src[^;]*\bblob:/);
+    assert.equal(pkg.dependencies['@runanywhere/web-onnx'], undefined);
+    assert.equal(pkg.dependencies['@moonshine-ai/moonshine-js'], undefined);
+    assert.doesNotMatch(source, /RunAnywhere|MoonshineSttEngine|model-manifest/);
+    assert.match(source, /transcribeAudio\(blob\)/);
+    assert.match(source, /synthesizeSpeechStream\(text/);
   });
 });
 

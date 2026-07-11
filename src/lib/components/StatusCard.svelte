@@ -35,11 +35,11 @@
 {/snippet}
 
 {#if href}
-  <a class="status-card status-card--{variant} status-card--link" {href} aria-label={ariaLabel || `${label}: ${status}`}>
+  <a class="status-card surface-card status-card--{variant} status-card--link" {href} aria-label={ariaLabel || `${label}: ${status}`}>
     {@render content()}
   </a>
 {:else}
-  <div class="status-card status-card--{variant}">
+  <div class="status-card surface-card status-card--{variant}">
     {@render content()}
   </div>
 {/if}
@@ -51,9 +51,9 @@
     min-height: 116px;
     min-width: 140px;
     overflow: hidden;
-    border: 1px solid var(--color-border);
+    border: 1px solid color-mix(in srgb, var(--surface-card-border, var(--color-border)), var(--status-color) 6%);
     border-radius: var(--radius);
-    background: var(--color-surface);
+    background: var(--surface-card-bg, var(--color-surface));
     box-shadow: var(--shadow);
     color: inherit;
     text-decoration: none;
@@ -73,9 +73,13 @@
   }
 
   .status-strip {
-    width: 4px;
+    width: 3px;
     flex: 0 0 auto;
-    background: var(--status-color, var(--color-text-muted));
+    background: linear-gradient(180deg,
+      color-mix(in srgb, var(--status-color), white 24%),
+      var(--status-color) 52%,
+      color-mix(in srgb, var(--status-color), transparent 72%));
+    box-shadow: 2px 0 10px color-mix(in srgb, var(--status-color), transparent 78%);
   }
 
   .status-body {
@@ -124,4 +128,3 @@
     }
   }
 </style>
-

@@ -5,6 +5,7 @@ import type { Tribe, Squad, User } from '$lib/api/organization';
 import type { PlanBuild, ReleasePlan } from '$lib/api/plans';
 import type { Scenario, TagView, TestDirectory } from '$lib/api/testcases';
 import type { BuildAuditEvent, BuildScenario, ProjectBuild } from '$lib/api/builds';
+import type { TrackedIssueSummary } from '$lib/api/issues';
 
 function tag(sanitized: string): TagView {
   return { id: `tag-${sanitized}`, sanitized, display: sanitized };
@@ -1326,22 +1327,22 @@ export const mockTribes: Tribe[] = [
 
 export const mockSquads: Record<string, Squad[]> = {
   'tribe-1': [
-    { id: 'squad-1', name: 'Identity', tribeId: 'tribe-1', createdAt: '2026-01-10T00:00:00Z' },
-    { id: 'squad-2', name: 'Infrastructure', tribeId: 'tribe-1', createdAt: '2026-01-10T00:00:00Z' },
+    { id: 'squad-1', name: 'Identity', tribeId: 'tribe-1', issueTrackerProjectKey: null, createdAt: '2026-01-10T00:00:00Z' },
+    { id: 'squad-2', name: 'Infrastructure', tribeId: 'tribe-1', issueTrackerProjectKey: null, createdAt: '2026-01-10T00:00:00Z' },
   ],
   'tribe-2': [
-    { id: 'squad-3', name: 'Payments', tribeId: 'tribe-2', createdAt: '2026-01-15T00:00:00Z' },
-    { id: 'squad-4', name: 'Catalog & Search', tribeId: 'tribe-2', createdAt: '2026-01-15T00:00:00Z' },
-    { id: 'squad-6', name: 'Order Fulfillment', tribeId: 'tribe-2', createdAt: '2026-02-01T00:00:00Z' },
+    { id: 'squad-3', name: 'Payments', tribeId: 'tribe-2', issueTrackerProjectKey: 'PAY', createdAt: '2026-01-15T00:00:00Z' },
+    { id: 'squad-4', name: 'Catalog & Search', tribeId: 'tribe-2', issueTrackerProjectKey: null, createdAt: '2026-01-15T00:00:00Z' },
+    { id: 'squad-6', name: 'Order Fulfillment', tribeId: 'tribe-2', issueTrackerProjectKey: null, createdAt: '2026-02-01T00:00:00Z' },
   ],
   'tribe-3': [
-    { id: 'squad-5', name: 'Notifications', tribeId: 'tribe-3', createdAt: '2026-02-10T00:00:00Z' },
-    { id: 'squad-7', name: 'Wallet & Rewards', tribeId: 'tribe-3', createdAt: '2026-02-10T00:00:00Z' },
-    { id: 'squad-8', name: 'Pricing', tribeId: 'tribe-3', createdAt: '2026-02-15T00:00:00Z' },
+    { id: 'squad-5', name: 'Notifications', tribeId: 'tribe-3', issueTrackerProjectKey: null, createdAt: '2026-02-10T00:00:00Z' },
+    { id: 'squad-7', name: 'Wallet & Rewards', tribeId: 'tribe-3', issueTrackerProjectKey: null, createdAt: '2026-02-10T00:00:00Z' },
+    { id: 'squad-8', name: 'Pricing', tribeId: 'tribe-3', issueTrackerProjectKey: null, createdAt: '2026-02-15T00:00:00Z' },
   ],
   'tribe-4': [
-    { id: 'squad-9', name: 'iOS', tribeId: 'tribe-4', createdAt: '2026-03-01T00:00:00Z' },
-    { id: 'squad-10', name: 'Android', tribeId: 'tribe-4', createdAt: '2026-03-01T00:00:00Z' },
+    { id: 'squad-9', name: 'iOS', tribeId: 'tribe-4', issueTrackerProjectKey: null, createdAt: '2026-03-01T00:00:00Z' },
+    { id: 'squad-10', name: 'Android', tribeId: 'tribe-4', issueTrackerProjectKey: null, createdAt: '2026-03-01T00:00:00Z' },
   ],
 };
 
@@ -1709,5 +1710,33 @@ export const mockPlanBuilds: Record<string, PlanBuild[]> = {
   ],
   'plan-squad10-and-may': [
     { id: 'rpb-android-rc1', buildId: 'build-android-rc1', buildKey: 'AND-2026-05-RC1', buildName: 'Android 2026.05 RC1', buildVersion: '6.2.0-rc1', projectId: '12', projectKey: 'ANDROID', projectName: 'Android App', squadId: 'squad-10', squadName: 'Android', status: 'IN_PROGRESS', initiatedAt: '2026-05-20T10:00:00Z', verifiedAt: null, addedAt: '2026-05-05T10:10:00Z', addedBy: 'david.chen', metrics: { totalScenarios: 7, passed: 5, failed: 1, blocked: 0, skipped: 0, notExecuted: 1, passPercentage: 71.43, executionCoverage: 85.71 } },
+  ],
+};
+
+// ── Issue tracker (Jira) mock links ─────────────────────────────────────────
+function issue(linkedIssueId: string, issueKey: string, type: string, summary: string, status: string, priority: string): TrackedIssueSummary {
+  return { linkedIssueId, issueType: type, issueKey, issueSummary: summary, issueStatus: status, issuePriority: priority, issueUrl: `https://tracker.example/browse/${issueKey}` };
+}
+
+export const mockLinkedIssuesByExecution: Record<string, TrackedIssueSummary[]> = {
+  'run-002': [
+    issue('li-run002-1', 'QA-101', 'Bug', 'Refund flow throws 500 on partial refund', 'In Progress', 'High'),
+    issue('li-run002-2', 'QA-102', 'Bug', 'Smoke test flaky on staging environment', 'Open', 'Medium'),
+  ],
+  'run-chk-002': [
+    issue('li-runchk002-1', 'QA-201', 'Bug', 'Voucher code rejected when applied twice', 'Open', 'High'),
+  ],
+};
+
+export const mockLinkedIssuesByBuild: Record<string, TrackedIssueSummary[]> = {
+  'build-payment-rc1': [
+    issue('li-buildpayrc1-1', 'QA-103', 'Bug', 'Build RC1 regression: currency rounding off by 1 cent', 'Open', 'Critical'),
+  ],
+};
+
+export const mockLinkedIssuesByPlan: Record<string, TrackedIssueSummary[]> = {
+  'plan-squad3-may': [
+    issue('li-plansq3may-1', 'QA-104', 'Task', 'Confirm sign-off with payments compliance before release', 'To Do', 'Medium'),
+    issue('li-plansq3may-2', 'QA-105', 'Bug', 'Checkout voucher issue blocks release candidate', 'Open', 'High'),
   ],
 };

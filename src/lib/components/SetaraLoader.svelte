@@ -10,9 +10,11 @@
   let {
     mode = 'progress',
     size = 64,
-    label = 'Loading'
+    label = 'Loading',
+    color = 'accent'
   }: {
     mode?: 'progress' | 'orbit';
+    color?: 'white' | 'accent' | 'bright' | 'black';
     size?: number;
     label?: string;
   } = $props();
@@ -20,7 +22,7 @@
 
 <div
   class="loader loader--{mode}"
-  style={`--loader-size:${size}px`}
+  style={`--loader-size:${size}px; color: var(--loader-${color});`}
   role="status"
   aria-label={label}
 >
@@ -76,14 +78,15 @@
 <style>
   .loader {
     --loader-accent: var(--color-accent, #00afa5);
-    --loader-mint: var(--color-accent-mint, #5ef2d6);
+    --loader-bright: var(--color-accent-mint, #5ef2d6);
+    --loader-white: var(--color-text, #ffffff);
+    --loader-black: #000000;
     --loader-size: 64px;
     display: inline-grid;
     place-items: center;
     width: var(--loader-size);
     height: var(--loader-size);
     --orbit-duration: 3s;
-    color: var(--loader-accent);
   }
 
   .loader-svg {
