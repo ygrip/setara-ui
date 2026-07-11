@@ -154,7 +154,7 @@
     {#if roles.length === 0}
       <Card padding="md">
         <EmptyState title="No roles yet" hint="Create a role to start assigning permissions." minHeight="240px">
-          <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+          <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
             <path d="M12 2 4 6v6c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V6l-8-4Z" />
           </svg>
         </EmptyState>

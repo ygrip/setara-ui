@@ -181,7 +181,7 @@
     </div>
     {#if users.length === 0}
       <EmptyState title="No users found" hint="Try a different search, or clear filters to see all users." minHeight="240px">
-        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="8" r="4" />
           <path d="M4 21v-1a7 7 0 0 1 14 0v1" />
         </svg>

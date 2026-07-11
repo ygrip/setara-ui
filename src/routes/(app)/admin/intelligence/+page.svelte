@@ -265,7 +265,7 @@
         hint="Intelligence requires a live backend with an embedding provider configured."
         minHeight="260px"
       >
-        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="11" width="18" height="10" rx="2" />
           <path d="M7 11V7a5 5 0 0 1 10 0v4" />
         </svg>

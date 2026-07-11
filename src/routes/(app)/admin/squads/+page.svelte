@@ -202,7 +202,7 @@
     </div>
     {#if squads.length === 0}
       <EmptyState title="No squads yet" hint="Squads you create will show up here." minHeight="240px">
-        <svg slot="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+        <svg slot="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 8V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V8" />
           <path d="M3.5 8 6 3h12l2.5 5" />
           <path d="M3 8h5.5l1 2h5l1-2H21" />
