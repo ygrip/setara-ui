@@ -58,7 +58,7 @@
 </div>
 
 <style>
-  .page { max-width: none; }
+  .page { max-width: 100%; }
   .breadcrumb { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--color-text-muted); margin-bottom: 20px; flex-wrap: wrap; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
   .sep { opacity: 0.5; }

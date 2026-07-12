@@ -40,7 +40,7 @@ describe('ASA interaction contracts', () => {
     assert.match(source, /window\.innerWidth - ORB_SIZE/);
     assert.match(source, /backdrop-filter: blur\(18px\) saturate\(140%\)/);
     assert.match(source, /background: color-mix\(in srgb, var\(--color-surface\) 55%, transparent\)/);
-    assert.match(source, /aria-label=\{sidecarVoice\.recording \? 'Stop recording' : 'Record a voice command'\}/);
+    assert.match(source, /aria-label=\{handsFreeCapturing \? 'Hands-free Command recording'[^\n]+manualVoiceLabel/);
     assert.match(source, /onclick=\{toggleSidecarMic\}/);
     assert.match(source, /sidecarVoice\.syncHandsFree\(asa\.open && asa\.voiceSidecar\)/);
     assert.doesNotMatch(source, /glass-container|class=”|role=”/);
@@ -48,15 +48,16 @@ describe('ASA interaction contracts', () => {
 
   it('keeps sidecar voice opt-in, constrained, and transcript-routed', () => {
     const source = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const constraints = read('src/lib/voice/audio/audio-constraints.ts');
 
-    assert.match(source, /navigator\.mediaDevices\.getUserMedia\(AUDIO_CONSTRAINTS\)/);
-    assert.match(source, /echoCancellation: true/);
-    assert.match(source, /noiseSuppression: true/);
+    assert.match(source, /navigator\.mediaDevices\.getUserMedia\(\{ audio: this\.microphoneConstraints\(\) \}\)/);
+    assert.match(constraints, /echoCancellation: true/);
+    assert.match(constraints, /autoGainControl: true/);
     const wakeRouter = read('src/lib/voice/wake-router.ts');
     assert.match(wakeRouter, /\(\?:hi\|hey\|hello\)/);
     assert.match(source, /const route = routeVoiceTranscript\(this\.wakeMode, transcript\.text\)/);
     assert.match(source, /source: 'sidecar'/);
-    assert.match(source, /this\.onTranscript\(route\.command/);
+    assert.match(source, /this\.onTranscript\(routedTranscript\.text/);
   });
 
   it('does not depend on the removed browser Moonshine and RunAnywhere stack', () => {
@@ -66,7 +67,8 @@ describe('ASA interaction contracts', () => {
     assert.equal(pkg.dependencies['@runanywhere/web-onnx'], undefined);
     assert.equal(pkg.dependencies['@moonshine-ai/moonshine-js'], undefined);
     assert.doesNotMatch(source, /RunAnywhere|MoonshineSttEngine|model-manifest/);
-    assert.match(source, /transcribeAudio\(blob\)/);
+    assert.match(source, /new SttSession\(\{/);
+    assert.doesNotMatch(source, /MediaRecorder|transcribeAudio\(blob\)/);
     assert.match(source, /synthesizeSpeechStream\(text/);
   });
 });

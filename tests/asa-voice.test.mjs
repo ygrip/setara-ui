@@ -8,17 +8,21 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 describe('ASA sidecar voice contracts', () => {
-  it('captures constrained microphone audio and falls back to batch transcription', () => {
+  it('captures constrained microphone audio concurrently with the v2 session handshake', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const constraints = read('src/lib/voice/audio/audio-constraints.ts');
 
-    assert.match(voice, /const AUDIO_CONSTRAINTS: MediaStreamConstraints/);
-    assert.match(voice, /echoCancellation: true/);
-    assert.match(voice, /noiseSuppression: true/);
-    assert.match(voice, /autoGainControl: true/);
-    assert.match(voice, /navigator\.mediaDevices\.getUserMedia\(AUDIO_CONSTRAINTS\)/);
-    assert.match(voice, /const outcome = await transcribeAudio\(blob\)/);
-    assert.match(voice, /if \(!outcome\.ok\)/);
-    assert.match(voice, /const \{ result \} = outcome/);
+    assert.match(constraints, /export function buildMicrophoneConstraints/);
+    assert.match(constraints, /echoCancellation: true/);
+    assert.match(constraints, /autoGainControl: true/);
+    assert.match(voice, /navigator\.mediaDevices\.getUserMedia\(\{ audio: this\.microphoneConstraints\(\) \}\)/);
+    assert.match(voice, /const sessionOpening = this\.openSttSession\(mode\)/);
+    assert.match(voice, /const captureStarted = await this\.startPcmCapture\(\)/);
+    assert.match(voice, /if \(!captureStarted\)/);
+    assert.match(voice, /await sessionOpening/);
+    assert.match(voice, /await session\.open\(\)/);
+    assert.match(voice, /!session\?\.isReady/);
+    assert.doesNotMatch(voice, /MediaRecorder|new Blob|transcribeAudio/);
   });
 
   it('normalizes and routes structured sidecar transcripts', () => {
@@ -28,24 +32,61 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /new EntityResolver\(this\.catalog\)\.resolve/);
     assert.match(voice, /source: 'sidecar'/);
     assert.match(voice, /routeVoiceTranscript\(this\.wakeMode, transcript\.text\)/);
-    assert.match(voice, /this\.onTranscript\(route\.command/);
+    assert.match(voice, /this\.onTranscript\(routedTranscript\.text/);
   });
 
-  it('keeps long manual dictation separate from bounded hands-free utterances', () => {
+  it('configures command, hands-free, and dictation as distinct v2 policies', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
-    const startRecording = voice.slice(voice.indexOf('async startRecording()'), voice.indexOf('async stopRecording()'));
-    const stopRecording = voice.slice(voice.indexOf('async stopRecording()'), voice.indexOf('private async processBlob'));
-    const beginVadCapture = voice.slice(voice.indexOf('private beginVadCapture'), voice.indexOf('private async endVadCapture'));
+    const policy = read('src/lib/voice/stt-stream/mode-policy.ts');
+    const startRecording = voice.slice(voice.indexOf('async startRecording('), voice.indexOf('async stopRecording()'));
+    const beginVadCapture = voice.slice(voice.indexOf('private async beginVadCapture'), voice.indexOf('private async endVadCapture'));
 
-    assert.match(voice, /const MANUAL_MAX_RECORD_MS = 5 \* 60_000/);
-    assert.match(voice, /const HANDS_FREE_MAX_UTTERANCE_MS = 12_000/);
-    assert.match(startRecording, /MANUAL_MAX_RECORD_MS/);
-    assert.doesNotMatch(startRecording, /this\.beginStreamCapture\(\)/);
-    assert.match(beginVadCapture, /this\.beginStreamCapture\(\)/);
-    assert.match(stopRecording, /await this\.endStreamCapture\(\)/);
-    assert.match(stopRecording, /return this\.processBlob\(blob\)/);
-    assert.doesNotMatch(stopRecording, /return this\.finalizeTranscript\(finalText\)/);
-    assert.match(beginVadCapture, /HANDS_FREE_MAX_UTTERANCE_MS/);
+    assert.match(policy, /command:[\s\S]*maxDurationSeconds: 15/);
+    assert.match(policy, /hands_free:[\s\S]*maxDurationSeconds: 30/);
+    assert.match(policy, /dictation:[\s\S]*maxDurationSeconds: 300/);
+    assert.match(startRecording, /this\.openSttSession\(mode\)/);
+    assert.match(beginVadCapture, /STT_MODE_POLICIES\.hands_free/);
+    assert.doesNotMatch(voice, /12_000|MANUAL_MAX_RECORD_MS/);
+  });
+
+  it('offers accessible command and dictation capture while keeping review-only finals editable', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const orb = read('src/lib/components/AsaOrb.svelte');
+    const policy = read('src/lib/voice/stt-stream/mode-policy.ts');
+
+    assert.match(orb, /let manualVoiceMode = \$state<ManualVoiceMode>\('command'\)/);
+    assert.match(orb, /sidecarVoice\.startRecording\(manualVoiceMode\)/);
+    assert.match(orb, /function toggleManualVoiceMode\(\) \{/);
+    assert.match(orb, /manualVoiceMode = manualVoiceMode === 'command' \? 'dictation' : 'command';/);
+    assert.match(orb, /disabled=\{sidecarVoice\.busy\}/);
+    assert.match(orb, /Record Command \(up to 15 seconds/);
+    assert.match(orb, /Record Dictation \(up to 5 minutes/);
+    assert.match(orb, /sidecarVoice\.onReviewTranscript = \(transcript\)/);
+    assert.match(orb, /showTranscriptForReview\(transcript\)/);
+    assert.match(orb, /sidecarVoice\.resumeHandsFreeAfterReview\(\)/);
+    assert.match(policy, /autoSubmit: 'never'/);
+    assert.match(voice, /sttFinalDisposition\(mode, result\) === 'auto_submit'/);
+    assert.match(voice, /this\.onTranscript\?\.\(transcript\.text, transcript\.voiceInput\)/);
+    assert.match(voice, /this\.onReviewTranscript\?\.\(routedTranscript\)/);
+  });
+
+  it('keeps selector, auto-stop, idle refresh, and cleanup races lifecycle-safe', () => {
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const orb = read('src/lib/components/AsaOrb.svelte');
+
+    assert.equal(orb.match(/onclick=\{toggleManualVoiceMode\}/g)?.length, 1);
+    assert.equal(orb.match(/disabled=\{sidecarVoice\.busy\}/g)?.length, 1);
+    assert.doesNotMatch(orb, /class="orb-voice-mode"/);
+    assert.match(orb, /event\.shiftKey && \(event\.key === 'm' \|\| event\.key === 'M'\)/);
+    assert.match(orb, /if \(asa\.voiceSidecar && !sidecarVoice\.busy\) \{/);
+    assert.match(voice, /this\.finishManualCapture\(policy\.maxDurationReason\)/);
+    assert.match(voice, /policy\.maxDurationSeconds \* 1_000/);
+    assert.match(voice, /this\.status === 'listening' && this\.handsFreeRuntimeActive/);
+    assert.match(voice, /void this\.refreshHandsFreeSession\(generation\)/);
+    assert.match(voice, /const captureGeneration = \+\+this\.captureGeneration/);
+    assert.match(voice, /if \(captureGeneration !== this\.captureGeneration\)/);
+    assert.match(voice, /this\.handsFreeGeneration \+= 1/);
+    assert.match(voice, /this\.destroySttSession\(session\);[\s\S]*this\.releaseStream\(true\)/);
   });
 
   it('plays the hands-free processing cue only for a confirmed command', () => {
@@ -55,7 +96,8 @@ describe('ASA sidecar voice contracts', () => {
 
     assert.doesNotMatch(endVadCapture.slice(0, endVadCapture.indexOf("if (route.action === 'review')")), /playCue\('processing'\)/);
     assert.match(reviewBranch, /playCue\('processing'\)/);
-    assert.match(endVadCapture, /this\.processBlob\(blob, false\)/);
+    assert.match(endVadCapture, /this\.processSttResult\('hands_free', result, false\)/);
+    assert.match(endVadCapture, /sttFinalDisposition\('hands_free', result\)/);
   });
 
   it('keeps one hands-free session across noise and wake transitions', () => {
@@ -67,13 +109,20 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /void this\.armHandsFree\(\); \/\/ nothing usable/);
   });
 
-  it('bounds audio buffered while the streaming STT socket connects', () => {
+  it('buffers PCM captured before the session is ready, then flushes it once ready', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    assert.match(voice, /private pendingSttFrames: ArrayBuffer\[\] = \[\]/);
-    assert.match(voice, /this\.pendingSttFrames\.length < MAX_PENDING_STT_FRAMES/);
-    assert.match(voice, /for \(const b of this\.pendingSttFrames\) ws\.send\(b\)/);
-    assert.match(voice, /ws\.send\('flush'\)/);
+    // setara-s94o STT truncation incident: capture used to start only after openSttSession()
+    // resolved (HTTP prepare + WS ready), silently losing any speech during that handshake. Audio
+    // is now captured concurrently and buffered (bounded by PRE_ROLL_MAX_BYTES) until ready.
+    assert.match(voice, /new SttSession\(\{/);
+    assert.match(voice, /await session\.open\(\)/);
+    assert.match(voice, /const sessionOpening = this\.openSttSession\(mode\)/);
+    assert.match(voice, /const captureStarted = await this\.startPcmCapture\(\)/);
+    assert.match(voice, /PRE_ROLL_MAX_BYTES/);
+    assert.match(voice, /private bufferPreRollFrame\(frame: ArrayBuffer\)/);
+    assert.match(voice, /private flushPreRollFrames\(session: SttSession\)/);
+    assert.match(voice, /this\.flushPreRollFrames\(session\)/);
   });
 
   it('persists only current sidecar voice preferences', () => {

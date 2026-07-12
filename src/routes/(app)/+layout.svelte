@@ -20,8 +20,11 @@
 
   let session = $state<SetaraSession | null>(null);
   let sidebarOpen = $state(false);
+  let sidebarCollapsed = $state(false);
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
+
+  const SIDEBAR_COLLAPSED_KEY = 'setara:sidebar-collapsed';
 
   // Topbar search hint cycling
   const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
@@ -31,6 +34,9 @@
   const projectKey = $derived(page.params.projectKey ?? null);
 
   onMount(() => {
+    sidebarCollapsed =
+      localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+
     session = getValidSession();
     if (!session) {
       goto('/login');
@@ -126,6 +132,15 @@
     return page.url.pathname.startsWith(href);
   }
 
+  function toggleSidebarCollapsed() {
+    sidebarCollapsed = !sidebarCollapsed;
+
+    localStorage.setItem(
+      SIDEBAR_COLLAPSED_KEY,
+      String(sidebarCollapsed)
+    );
+  }
+
   $effect(() => {
     const path = page.url.pathname;
     if (!session) return;
@@ -152,12 +167,46 @@
 
 <div class="app-shell">
   <!-- Sidebar -->
-  <aside class="sidebar" class:sidebar--open={sidebarOpen}>
+  <aside
+      class="sidebar"
+      class:sidebar--open={sidebarOpen}
+      class:sidebar--collapsed={sidebarCollapsed}
+    >
     <div class="sidebar-brand">
       <a href="/dashboard" class="brand-link" aria-label="Setara home" onclick={closeSidebar}>
-        <SetaraLoader size={32} mode="orbit"/>
-        <SetaraGsapLogo size={110} loop={true} animate={true} />
+        <span class="brand-mark">
+          <SetaraLoader size={32} mode="orbit" />
+        </span>
+        <span class="brand-wordmark">
+          <SetaraGsapLogo size={110} loop={true} animate={true} />
+        </span>
       </a>
+
+      <!-- Desktop only: the brand always stays visible, even in compact mode. -->
+      <button
+        type="button"
+        class="sidebar-collapse-btn"
+        onclick={toggleSidebarCollapsed}
+        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!sidebarCollapsed}
+        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          {#if sidebarCollapsed}
+            <path d="m9 18 6-6-6-6" />
+          {:else}
+            <path d="m15 18-6-6 6-6" />
+          {/if}
+        </svg>
+      </button>
     </div>
 
     <nav class="sidebar-nav">
@@ -181,50 +230,58 @@
         class="nav-item"
         class:nav-item--active={isActive('/dashboard')}
         onclick={closeSidebar}
+        aria-label="Dashboard"
+        title={sidebarCollapsed ? 'Dashboard' : undefined}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
         </svg>
-        Dashboard
+        <span class="nav-item-label">Dashboard</span>
       </a>
       <a
         href="/projects"
         class="nav-item"
         class:nav-item--active={isActive('/projects') && !projectKey}
         onclick={closeSidebar}
+        aria-label="Projects"
+        title={sidebarCollapsed ? 'Projects' : undefined}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 7h18M3 12h18M3 17h18"/>
         </svg>
-        Projects
+        <span class="nav-item-label">Projects</span>
       </a>
       <a
         href="/plans"
         class="nav-item"
         class:nav-item--active={isActive('/plans')}
         onclick={closeSidebar}
+        aria-label="Plans"
+        title={sidebarCollapsed ? 'Plans' : undefined}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
         </svg>
-        Plans
+        <span class="nav-item-label">Plans</span>
       </a>
       <a
         href="/coverage-overview"
         class="nav-item"
         class:nav-item--active={isActive('/coverage-overview')}
         onclick={closeSidebar}
+        aria-label="Overview"
+        title={sidebarCollapsed ? 'Overview' : undefined}
       >
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
         </svg>
-        Overview
+        <span class="nav-item-label">Overview</span>
       </a>
 
       <!-- Project context header -->
       <div class="project-ctx-wrap">
         {#if projectKey}
-          <a href="/projects/{projectKey}" class="project-ctx-card" onclick={closeSidebar} title="Go to project overview">
+          <a href="/projects/{projectKey}" class="project-ctx-card" onclick={closeSidebar} title="Go to project overview" aria-label="Project overview">
             <svg class="project-ctx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
             </svg>
@@ -253,69 +310,77 @@
           class="nav-item"
           class:nav-item--active={isActive(`/projects/${projectKey}/builds`)}
           onclick={closeSidebar}
+          aria-label="Builds"
+          title={sidebarCollapsed ? 'Builds' : undefined}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
           </svg>
-          Builds
+          <span class="nav-item-label">Builds</span>
         </a>
         <a
           href="/projects/{projectKey}/repository"
           class="nav-item"
           class:nav-item--active={isActive(`/projects/${projectKey}/repository`)}
           onclick={closeSidebar}
+          aria-label="Test Repository"
+          title={sidebarCollapsed ? 'Test Repository' : undefined}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
           </svg>
-          Test Repository
+          <span class="nav-item-label">Test Repository</span>
         </a>
         <a
           href="/projects/{projectKey}/executions"
           class="nav-item"
           class:nav-item--active={isActive(`/projects/${projectKey}/executions`)}
           onclick={closeSidebar}
+          aria-label="Executions"
+          title={sidebarCollapsed ? 'Executions' : undefined}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          Executions
+          <span class="nav-item-label">Executions</span>
         </a>
         <a
           href="/projects/{projectKey}/coverage"
           class="nav-item"
           class:nav-item--active={isActive(`/projects/${projectKey}/coverage`)}
           onclick={closeSidebar}
+          aria-label="Coverage"
+          title={sidebarCollapsed ? 'Coverage' : undefined}
         >
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
-          Coverage
+          <span class="nav-item-label">Coverage</span>
         </a>
       {:else}
         <span class="nav-item nav-item--dimmed" title="Open a project first to access Builds">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
           </svg>
-          Builds
+          <span class="nav-item-label">Builds</span>
         </span>
         <span class="nav-item nav-item--dimmed" title="Open a project first to access Test Repository">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
           </svg>
-          Test Repository
+          <span class="nav-item-label">Test Repository</span>
         </span>
         <span class="nav-item nav-item--dimmed" title="Open a project first to access Executions">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <polygon points="5 3 19 12 5 21 5 3"/>
           </svg>
-          Executions
+          <span class="nav-item-label">Executions</span>
         </span>
         <span class="nav-item nav-item--dimmed" title="Open a project first to access Coverage">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
             <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
           </svg>
-          Coverage
+          <span class="nav-item-label">Coverage</span>
         </span>
       {/if}
 
@@ -336,7 +401,7 @@
           <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
           <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
         </svg>
-        Settings
+        <span class="nav-item-label">Settings</span>
       </a>
     </nav>
 
@@ -365,6 +430,7 @@
             </svg>
           {/if}
         </button>
+
         <!-- Brand - mobile only: visible in topbar since sidebar is off-screen -->
         <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
           <SetaraLoader size={28} mode="orbit"/>
@@ -525,6 +591,7 @@
     top: 0;
     height: 100vh;
     overflow: hidden; /* nav scrolls internally; brand + footer always visible */
+    transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   :global([data-theme="dark"]) .sidebar {
@@ -533,9 +600,11 @@
   }
 
   .sidebar-brand {
+    position: relative;
     display: flex;
     align-items: center;
-    padding: 16px 14px 14px;
+    min-height: var(--topbar-height);
+    padding: 10px 8px 9px;
     background: #ffffff;
     border-bottom: 1px solid var(--color-border);
     box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
@@ -544,11 +613,66 @@
   .brand-link {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 5px;
     min-width: 0;
-    width: 100%;
+    flex: 1;
     color: inherit;
     text-decoration: none;
+  }
+
+  .brand-mark,
+  .brand-wordmark {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+  }
+
+  .sidebar-collapse-btn {
+    position: absolute;
+    right: -15px;
+    top: 50%;
+    z-index: 12;
+    display: none;
+    width: 30px;
+    height: 30px;
+    padding: 0;
+    flex: 0 0 auto;
+    transform: translateY(-50%);
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in srgb, var(--color-border), transparent 8%);
+    border-radius: 8px;
+    background: color-mix(in srgb, var(--color-surface), transparent 8%);
+    color: var(--color-text-muted);
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgb(15 23 42 / 0.05);
+    transition:
+      color 140ms ease,
+      background 140ms ease,
+      border-color 140ms ease,
+      box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  .sidebar-collapse-btn svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .sidebar-collapse-btn:hover {
+    color: var(--color-accent);
+    border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
+    background: var(--color-accent-subtle);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  }
+
+  .sidebar-collapse-btn:active {
+    transform: translateY(-50%) scale(0.94);
+  }
+
+  .sidebar-collapse-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
   }
 
   .sidebar-nav {
@@ -680,7 +804,29 @@
     font-weight: 500;
     font-size: 0.875rem;
     text-decoration: none;
-    transition: background 0.12s, color 0.12s;
+    white-space: nowrap;
+    overflow: hidden;
+    transition:
+      background 0.12s,
+      color 0.12s,
+      padding 0.2s ease,
+      gap 0.2s ease;
+  }
+
+  .nav-item > svg {
+    flex: 0 0 auto;
+  }
+
+  .nav-item-label {
+    min-width: 0;
+    max-width: 150px;
+    overflow: hidden;
+    opacity: 1;
+    transform: translateX(0);
+    transition:
+      max-width 180ms ease,
+      opacity 120ms ease,
+      transform 180ms ease;
   }
 
   .nav-item:hover {
@@ -1150,8 +1296,160 @@
     z-index: 40;
   }
 
+  /* ── Desktop compact sidebar ── */
+  @media (min-width: 769px) {
+    .sidebar {
+      overflow: visible;
+    }
+
+    .sidebar-nav {
+      overflow-x: hidden;
+    }
+
+    .sidebar-collapse-btn {
+      display: inline-flex;
+    }
+
+    /*
+     * Keep the larger Setara wordmark visible while reducing the navigation
+     * rail to a much more compact desktop width.
+     */
+    .sidebar--collapsed {
+      width: 84px;
+    }
+
+    .sidebar--collapsed .sidebar-brand {
+      padding-inline: 20px;
+    }
+
+    .sidebar--collapsed .brand-link {
+      justify-content: center;
+      gap: 0;
+    }
+
+    .sidebar--collapsed .brand-wordmark {
+      display: none;
+    }
+
+    .sidebar--collapsed .sidebar-nav {
+      padding-inline: 10px;
+      scrollbar-width: none;
+    }
+
+    .sidebar--collapsed .sidebar-nav::-webkit-scrollbar {
+      display: none;
+    }
+
+    .sidebar--collapsed .nav-section-label {
+      height: 8px;
+      margin: 5px 0;
+      padding: 0;
+      font-size: 0;
+      opacity: 0;
+      overflow: hidden;
+    }
+
+    .sidebar--collapsed .nav-item {
+      position: relative;
+      justify-content: center;
+      gap: 0;
+      min-height: 42px;
+      padding: 10px;
+    }
+
+    .sidebar--collapsed .nav-item-label {
+      max-width: 0;
+      opacity: 0;
+      transform: translateX(-5px);
+      pointer-events: none;
+    }
+
+    .sidebar--collapsed .nav-item > svg {
+      width: 19px;
+      height: 19px;
+    }
+
+    .sidebar--collapsed .nav-item--active {
+      padding-left: 10px;
+      box-shadow: none;
+    }
+
+    .sidebar--collapsed .nav-item--active::before {
+      content: "";
+      position: absolute;
+      left: 0;
+      top: 9px;
+      bottom: 9px;
+      width: 3px;
+      border-radius: 0 999px 999px 0;
+      background: var(--color-accent);
+    }
+
+    .sidebar--collapsed .project-ctx-wrap {
+      padding-inline: 0;
+    }
+
+    .sidebar--collapsed .project-ctx-card,
+    .sidebar--collapsed .project-ctx-empty {
+      justify-content: center;
+      gap: 0;
+      min-height: 42px;
+      padding: 10px;
+    }
+
+    .sidebar--collapsed .project-ctx-icon,
+    .sidebar--collapsed .project-ctx-empty svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .sidebar--collapsed .project-ctx-body,
+    .sidebar--collapsed .project-ctx-arrow,
+    .sidebar--collapsed .project-ctx-empty span {
+      display: none;
+    }
+
+    .sidebar--collapsed .nav-divider--simple {
+      margin-inline: 14px;
+    }
+
+    .sidebar--collapsed .sidebar-footer {
+      padding: 10px;
+    }
+
+    .sidebar--collapsed .sidebar-footer-theme {
+      padding: 0;
+    }
+
+    /* Stack Light and Dark vertically in compact mode. */
+    .sidebar--collapsed :global(.theme-select) {
+      grid-template-columns: 1fr;
+      width: 100%;
+    }
+
+    .sidebar--collapsed :global(.theme-option) {
+      width: 100%;
+      min-height: 34px;
+      padding: 7px 0;
+    }
+
+    .sidebar--collapsed :global(.theme-option span) {
+      display: none;
+    }
+  }
+
   /* ── Responsive ── */
   @media (max-width: 768px) {
+    .sidebar-collapse-btn {
+      display: none;
+    }
+
+    /* A persisted desktop preference must never compact the mobile drawer. */
+    .sidebar.sidebar--collapsed {
+      width: var(--sidebar-width);
+      overflow: hidden;
+    }
+
     /* Sidebar slides in from left */
     .sidebar {
       position: fixed;

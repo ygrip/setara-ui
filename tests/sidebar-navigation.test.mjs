@@ -15,7 +15,7 @@ describe('Sidebar navigation', () => {
     assert.doesNotMatch(layout, />Pinned</);
 
     for (const label of ['Dashboard', 'Projects', 'Plans', 'Overview']) {
-      assert.match(layout, new RegExp(`\\n\\s*${label}\\n`));
+      assert.match(layout, new RegExp(`class="nav-item-label">${label}<`));
     }
   });
 

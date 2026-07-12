@@ -7,9 +7,9 @@ const voice = readFileSync(new URL('../src/lib/voice/sidecar-voice.svelte.ts', i
 
 test('prepares a bounded server voice session and trusts the WebSocket final', () => {
   assert.match(api, /\/api\/asa\/voice\/session\/prepare/);
-  assert.match(voice, /type: 'config'/);
-  assert.match(voice, /hotwords: this\.voiceSession\.stt\.hotwords/);
-  assert.match(voice, /return finalText\.trim\(\) \|\| null/);
-  assert.doesNotMatch(voice, /this\.utterancePcmFrames\.push/);
-  assert.doesNotMatch(voice, /await\s+finalizeVoicePcm\(/);
+  assert.match(voice, /sessionId: prepared\.voiceSessionId/);
+  assert.match(voice, /hotwords: prepared\.stt\.hotwords/);
+  assert.match(voice, /await session\.open\(\)/);
+  assert.match(voice, /if \(!ctx \|\| !this\.stream \|\| this\.sttCaptureActive \|\| this\.sttCaptureStarting\)/);
+  assert.doesNotMatch(voice, /utterancePcmFrames|pendingSttFrames|finalizeVoicePcm/);
 });

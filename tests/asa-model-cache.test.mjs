@@ -14,8 +14,9 @@ describe('ASA sidecar model ownership', () => {
 
     assert.equal(existsSync(join(root, 'src/lib/voice/model-cache.ts')), false);
     assert.equal(existsSync(join(root, 'src/lib/voice/model-manifest.json')), false);
-    assert.match(sidecar, /transcribeAudio\(blob\)/);
-    assert.match(api, /apiFetch\('\/api\/asa\/voice\/transcribe'/);
+    assert.match(sidecar, /new SttSession\(\{/);
+    assert.match(sidecar, /openSttStream\(prepared\.voiceSessionId\)/);
+    assert.doesNotMatch(api, /apiFetch\('\/api\/asa\/voice\/transcribe'/);
     assert.match(api, /apiFetch\('\/api\/asa\/voice\/synthesize\/stream'/);
   });
 });

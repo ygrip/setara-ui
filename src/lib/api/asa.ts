@@ -89,97 +89,6 @@ export interface AsaVoiceOption {
   language: string;
 }
 
-/**
- * Decode any browser audio blob (WebM/OGG/MP4) → 16 kHz mono WAV via the Web Audio API.
- * AudioContext.decodeAudioData handles every format the browser's MediaRecorder can produce,
- * giving the sidecar a format it can always parse without Opus codec dependencies.
- */
-async function toWav16k(blob: Blob): Promise<Blob> {
-  const ctx = new AudioContext({ sampleRate: 16_000 });
-  try {
-    const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
-    const samples = decoded.getChannelData(0); // mono: first channel
-    const dataLen = samples.length * 2;
-    const buf = new ArrayBuffer(44 + dataLen);
-    const v = new DataView(buf);
-    const s = (off: number, str: string) => { for (let i = 0; i < str.length; i++) v.setUint8(off + i, str.charCodeAt(i)); };
-    s(0, 'RIFF'); v.setUint32(4, 36 + dataLen, true); s(8, 'WAVE');
-    s(12, 'fmt '); v.setUint32(16, 16, true); v.setUint16(20, 1, true);
-    v.setUint16(22, 1, true); v.setUint32(24, 16_000, true); v.setUint32(28, 32_000, true);
-    v.setUint16(32, 2, true); v.setUint16(34, 16, true);
-    s(36, 'data'); v.setUint32(40, dataLen, true);
-    for (let i = 0; i < samples.length; i++)
-      v.setInt16(44 + i * 2, Math.max(-32768, Math.min(32767, samples[i] * 32768)), true);
-    return new Blob([buf], { type: 'audio/wav' });
-  } finally {
-    await ctx.close();
-  }
-}
-
-export type SttErrorReason =
-  | 'audio_too_long'
-  | 'unsupported_format'
-  | 'quota_exceeded'
-  | 'billing_not_configured'
-  | 'stt_unavailable'
-  | 'voice_unavailable'
-  | 'empty_transcript'
-  | 'network_error';
-
-export interface SttTranscribeResult {
-  text: string;
-  provider?: string;
-  model?: string;
-  fallbackUsed?: boolean;
-  latencyMs?: number;
-}
-
-export interface SttTranscribeError {
-  reason: SttErrorReason;
-  message: string;
-}
-
-/** Sidecar STT: upload a recorded audio blob, get a transcript back (with provider/latency/fallback
- *  metadata) on success, or a distinct error reason on failure so the UI can show a specific message
- *  instead of one generic fallback string. */
-export async function transcribeAudio(
-  blob: Blob
-): Promise<{ ok: true; result: SttTranscribeResult } | { ok: false; error: SttTranscribeError }> {
-  try {
-    const wav = await toWav16k(blob);
-    const res = await apiFetch('/api/asa/voice/transcribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'audio/wav' },
-      body: wav,
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const reason = (data?.error as SttErrorReason) ?? 'stt_unavailable';
-      const message = String(data?.message ?? 'Voice service is unavailable. You can still type your request.');
-      return { ok: false, error: { reason, message } };
-    }
-    const text = String(data.text ?? '');
-    if (!text.trim()) {
-      return { ok: false, error: { reason: 'empty_transcript', message: 'Could not understand audio.' } };
-    }
-    return {
-      ok: true,
-      result: {
-        text,
-        provider: data.provider,
-        model: data.model,
-        fallbackUsed: Boolean(data.fallbackUsed),
-        latencyMs: typeof data.latencyMs === 'number' ? data.latencyMs : undefined,
-      },
-    };
-  } catch {
-    return {
-      ok: false,
-      error: { reason: 'network_error', message: 'Could not reach the voice service. Try again.' },
-    };
-  }
-}
-
 /** Fetch a pre-generated spoken cue clip ("ok"/"processing"/…) in a voice. Null if unavailable. */
 export async function fetchVoiceCue(voiceId: string, cue: string): Promise<ArrayBuffer | null> {
   try {
@@ -228,8 +137,8 @@ export async function synthesizeSpeechStream(text: string, voiceId?: string): Pr
 /**
  * Open the rolling-window streaming STT WebSocket (core relays to the sidecar). The access token
  * rides on the query string because browsers can't set Authorization on a WS handshake. Returns
- * null if there's no session or the environment has no WebSocket. Caller sends binary PCM16 mono
- * @16kHz frames + a "flush" text message at end-of-utterance, and receives {type,text} JSON.
+ * null if there's no session or the environment has no WebSocket. SttSession owns the protocol v2
+ * start/ready handshake, exact PCM framing, finality, backpressure, and teardown lifecycle.
  */
 export function openSttStream(voiceSessionId?: string): WebSocket | null {
   if (typeof WebSocket === 'undefined') return null;
@@ -417,16 +326,6 @@ export interface AsaPreparedVoiceSession {
   };
 }
 
-export interface AsaResolvedVoiceTranscript {
-  rawText: string;
-  normalizedText: string;
-  resolvedText: string;
-  confidence: number;
-  entities: AsaVoiceEntity[];
-  ambiguities: unknown[];
-  needsClarification: boolean;
-}
-
 export async function prepareVoiceSession(): Promise<AsaPreparedVoiceSession | null> {
   try {
     const route = typeof window === 'undefined' ? '/' : window.location.pathname;
@@ -438,28 +337,6 @@ export async function prepareVoiceSession(): Promise<AsaPreparedVoiceSession | n
         mode: 'VOICE_COMMAND',
         context: { session: {}, navigation: { route }, page: {}, formatted: `route=${route}` },
       }),
-    });
-    if (!res.ok) return null;
-    return res.json();
-  } catch {
-    return null;
-  }
-}
-
-export async function finalizeVoicePcm(
-  session: AsaPreparedVoiceSession,
-  pcm: ArrayBuffer,
-): Promise<AsaResolvedVoiceTranscript | null> {
-  try {
-    const res = await apiFetch(session.stt.finalUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'audio/l16',
-        'X-Sample-Rate': String(session.stt.sampleRate),
-        'X-Channels': String(session.stt.channels),
-        'X-Sample-Format': session.stt.sampleFormat,
-      },
-      body: pcm,
     });
     if (!res.ok) return null;
     return res.json();

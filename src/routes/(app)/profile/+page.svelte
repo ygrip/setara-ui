@@ -395,7 +395,7 @@
             {/each}
           </ul>
 
-          <div class="form-actions">
+          <div class="form-actions account-action-row">
             <Button variant="primary" onclick={handleChangePassword} disabled={pwLoading}>
               {pwLoading ? 'Updating…' : 'Update password'}
             </Button>

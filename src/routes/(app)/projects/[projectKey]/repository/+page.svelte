@@ -1564,7 +1564,7 @@
 </Dialog.Root>
 
 <style>
-  .page { max-width: none; }
+  .page { max-width: 100%; }
   :global(.page > .app-alert) { margin-bottom: 12px; }
   /* Footer not relevant on full-viewport layout */
   :global(.app-footer) { display: none; }
