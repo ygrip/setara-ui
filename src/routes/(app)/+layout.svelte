@@ -2,14 +2,21 @@
   import { navigating, page } from '$app/state';
   import { goto } from '$app/navigation';
   import { onMount } from 'svelte';
+
   import { APP_BUILD_LABEL, APP_VERSION_LABEL } from '$lib/app-metadata';
   import ThemeToggle from '$lib/components/ThemeToggle.svelte';
   import SetaraGsapLogo from '$lib/components/SetaraGsapLogo.svelte';
   import SetaraLoader from '$lib/components/SetaraLoader.svelte';
   import LazyCommandPalette from '$lib/components/LazyCommandPalette.svelte';
   import LazyAsaOrb from '$lib/components/LazyAsaOrb.svelte';
+
   import { asa } from '$lib/stores/asa.svelte';
-  import { clearSession, getValidSession, hasPermission, type SetaraSession } from '$lib/auth';
+  import {
+    clearSession,
+    getValidSession,
+    hasPermission,
+    type SetaraSession
+  } from '$lib/auth';
   import { isMockMode } from '$lib/mock/client';
   import { lockBodyScroll } from '$lib/scroll-lock';
 
@@ -18,139 +25,250 @@
   const isMock = isMockMode();
   const CURRENT_YEAR = new Date().getFullYear();
 
+  const DESKTOP_MEDIA_QUERY = '(min-width: 769px)';
+  const SIDEBAR_COLLAPSED_KEY = 'setara:sidebar-collapsed';
+
   let session = $state<SetaraSession | null>(null);
+
+  // Mobile drawer state.
   let sidebarOpen = $state(false);
+
+  // Desktop sidebar state.
   let sidebarCollapsed = $state(false);
+  let isDesktop = $state(false);
+  let sidebarStateReady = $state(false);
+
   let userMenuOpen = $state(false);
   let paletteOpen = $state(false);
 
-  const SIDEBAR_COLLAPSED_KEY = 'setara:sidebar-collapsed';
+  const searchHints = [
+    'Search anything…',
+    'Find projects…',
+    'Jump to a page…',
+    'Search runs…',
+    'Find scenarios…'
+  ];
 
-  // Topbar search hint cycling
-  const searchHints = ['Search anything…', 'Find projects…', 'Jump to a page…', 'Search runs…', 'Find scenarios…'];
   let searchHintIndex = $state(0);
-  let searchHintKey = $state(0); // triggers {#key} re-mount for animation
+  let searchHintKey = $state(0);
 
   const projectKey = $derived(page.params.projectKey ?? null);
 
-  onMount(() => {
-    sidebarCollapsed =
-      localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
-
-    session = getValidSession();
-    if (!session) {
-      goto('/login');
-      return;
-    }
-    if (session.pendingPasswordChange && !page.url.pathname.startsWith('/profile')) {
-      goto('/profile?reason=set_password');
-      return;
-    }
-
-    function handleKeydown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        paletteOpen = true;
-      }
-      if ((e.metaKey || e.ctrlKey) && e.key === 'i') {
-        e.preventDefault();
-        asa.toggle();
-      }
-      if (e.key === 'Escape') {
-        userMenuOpen = false;
-      }
-    }
-
-    function handleOutsideClick(e: MouseEvent) {
-      const wrap = document.querySelector('.user-menu-wrap');
-      if (wrap && !wrap.contains(e.target as Node)) {
-        userMenuOpen = false;
-      }
-    }
-
-    function handleFocus() {
-      const valid = getValidSession();
-      if (valid) session = valid;
-      else goto('/login');
-    }
-
-    const hintInterval = setInterval(() => {
-      searchHintIndex = (searchHintIndex + 1) % searchHints.length;
-      searchHintKey += 1;
-    }, 3000);
-
-    window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('click', handleOutsideClick);
-
-    return () => {
-      clearInterval(hintInterval);
-      window.removeEventListener('keydown', handleKeydown);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('click', handleOutsideClick);
-    };
-  });
-
-  // Notify ASA on navigation (clears page-scoped context)
-  $effect(() => {
-    asa.onNavigate(page.url.pathname);
-  });
-
-  // Record recent pages for command palette
-  $effect(() => {
-    const path = page.url.pathname;
+  function readSidebarPreference(): boolean {
     try {
-      const label = document.title.replace(/\s*[-\u2013\u2014]\s*Setara.*$/i, '').trim() || path;
-      const key = 'setara:recent';
-      const existing: { href: string; label: string }[] = JSON.parse(localStorage.getItem(key) ?? '[]');
-      const fresh = [{ href: path, label }, ...existing.filter(p => p.href !== path)].slice(0, 10);
-      localStorage.setItem(key, JSON.stringify(fresh));
-    } catch {}
-  });
+      return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
+    } catch {
+      return false;
+    }
+  }
 
-  $effect(() => {
-    const isMobileView = window.matchMedia('(max-width: 768px)').matches;
-    const shouldLock = sidebarOpen || (userMenuOpen && isMobileView);
-    if (!shouldLock) return;
-    return lockBodyScroll();
-  });
+  function saveSidebarPreference(collapsed: boolean): void {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // The sidebar still works when storage is unavailable.
+    }
+  }
 
-  function signOut() {
+  function toggleSidebarCollapsed(): void {
+    if (!isDesktop) return;
+
+    sidebarCollapsed = !sidebarCollapsed;
+    saveSidebarPreference(sidebarCollapsed);
+  }
+
+  function toggleMobileSidebar(): void {
+    if (isDesktop) return;
+    sidebarOpen = !sidebarOpen;
+  }
+
+  function closeSidebar(): void {
+    sidebarOpen = false;
+  }
+
+  function signOut(): void {
     clearSession();
     goto('/login');
   }
 
-  function can(permission: string) {
+  function can(permission: string): boolean {
     return hasPermission(session, permission);
-  }
-
-  function closeSidebar() {
-    sidebarOpen = false;
   }
 
   function isActive(href: string): boolean {
     return page.url.pathname.startsWith(href);
   }
 
-  function toggleSidebarCollapsed() {
-    sidebarCollapsed = !sidebarCollapsed;
+  onMount(() => {
+    session = getValidSession();
 
-    localStorage.setItem(
-      SIDEBAR_COLLAPSED_KEY,
-      String(sidebarCollapsed)
-    );
-  }
+    if (!session) {
+      goto('/login');
+      return;
+    }
 
+    if (
+      session.pendingPasswordChange &&
+      !page.url.pathname.startsWith('/profile')
+    ) {
+      goto('/profile?reason=set_password');
+      return;
+    }
+
+    const desktopMedia = window.matchMedia(DESKTOP_MEDIA_QUERY);
+
+    function syncViewport(): void {
+      isDesktop = desktopMedia.matches;
+      sidebarOpen = false;
+
+      if (isDesktop) {
+        sidebarCollapsed = readSidebarPreference();
+      }
+    }
+
+    function handleKeydown(event: KeyboardEvent): void {
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'k'
+      ) {
+        event.preventDefault();
+        paletteOpen = true;
+        return;
+      }
+
+      if (
+        (event.metaKey || event.ctrlKey) &&
+        event.key.toLowerCase() === 'i'
+      ) {
+        event.preventDefault();
+        asa.toggle();
+        return;
+      }
+
+      if (event.key === 'Escape') {
+        userMenuOpen = false;
+
+        if (!isDesktop) {
+          sidebarOpen = false;
+        }
+      }
+    }
+
+    function handleOutsideClick(event: MouseEvent): void {
+      const userMenu = document.querySelector('.user-menu-wrap');
+
+      if (
+        userMenu &&
+        !userMenu.contains(event.target as Node)
+      ) {
+        userMenuOpen = false;
+      }
+    }
+
+    function handleWindowFocus(): void {
+      const validSession = getValidSession();
+
+      if (validSession) {
+        session = validSession;
+        return;
+      }
+
+      goto('/login');
+    }
+
+    function handleViewportChange(): void {
+      syncViewport();
+    }
+
+    syncViewport();
+
+    requestAnimationFrame(() => {
+      sidebarStateReady = true;
+    });
+
+    const hintInterval = window.setInterval(() => {
+      searchHintIndex = (searchHintIndex + 1) % searchHints.length;
+      searchHintKey += 1;
+    }, 3000);
+
+    desktopMedia.addEventListener('change', handleViewportChange);
+    window.addEventListener('keydown', handleKeydown);
+    window.addEventListener('focus', handleWindowFocus);
+    document.addEventListener('click', handleOutsideClick);
+
+    return () => {
+      window.clearInterval(hintInterval);
+      desktopMedia.removeEventListener('change', handleViewportChange);
+      window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('focus', handleWindowFocus);
+      document.removeEventListener('click', handleOutsideClick);
+    };
+  });
+
+  // Clear page-scoped ASA context after navigation.
+  $effect(() => {
+    asa.onNavigate(page.url.pathname);
+  });
+
+  // Store recent routes for the command palette.
   $effect(() => {
     const path = page.url.pathname;
+
+    try {
+      const label =
+        document.title
+          .replace(/\s*[-\u2013\u2014]\s*Setara.*$/i, '')
+          .trim() || path;
+
+      const key = 'setara:recent';
+      const existing: Array<{ href: string; label: string }> =
+        JSON.parse(localStorage.getItem(key) ?? '[]');
+
+      const fresh = [
+        { href: path, label },
+        ...existing.filter((item) => item.href !== path)
+      ].slice(0, 10);
+
+      localStorage.setItem(key, JSON.stringify(fresh));
+    } catch {
+      // Recent-route history is optional.
+    }
+  });
+
+  // Only mobile overlays lock body scrolling.
+  $effect(() => {
+    const shouldLock =
+      !isDesktop &&
+      (sidebarOpen || userMenuOpen);
+
+    if (!shouldLock) return;
+
+    return lockBodyScroll();
+  });
+
+  // Route permission protection.
+  $effect(() => {
+    const path = page.url.pathname;
+
     if (!session) return;
-    if (path.startsWith('/admin') && !can('settings:read')) {
+
+    if (
+      path.startsWith('/admin') &&
+      !can('settings:read')
+    ) {
       goto('/forbidden');
       return;
     }
-    if ((path.includes('/repository/scenarios/new') || path.includes('/repository/import')) && !can('scenario:write')) {
+
+    const isScenarioWriteRoute =
+      path.includes('/repository/scenarios/new') ||
+      path.includes('/repository/import');
+
+    if (
+      isScenarioWriteRoute &&
+      !can('scenario:write')
+    ) {
       goto('/forbidden');
-      return;
     }
   });
 </script>
@@ -159,43 +277,479 @@
   <title>Setara</title>
 </svelte:head>
 
-<!-- Mobile backdrop -->
 {#if sidebarOpen}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="backdrop" role="button" tabindex="-1" aria-label="Close menu" onclick={closeSidebar} onkeydown={(e) => e.key === 'Escape' && closeSidebar()}></div>
+  <div
+    class="backdrop"
+    role="button"
+    tabindex="-1"
+    aria-label="Close navigation"
+    onclick={closeSidebar}
+    onkeydown={(event) => event.key === 'Escape' && closeSidebar()}
+  ></div>
 {/if}
 
 <div class="app-shell">
-  <!-- Sidebar -->
   <aside
-      class="sidebar"
-      class:sidebar--open={sidebarOpen}
-      class:sidebar--collapsed={sidebarCollapsed}
-    >
+    class="sidebar"
+    class:sidebar--open={sidebarOpen}
+    class:sidebar--collapsed={isDesktop && sidebarCollapsed}
+    class:sidebar--ready={sidebarStateReady}
+  >
     <div class="sidebar-brand">
-      <a href="/dashboard" class="brand-link" aria-label="Setara home" onclick={closeSidebar}>
-        <span class="brand-mark">
-          <SetaraLoader size={32} mode="orbit" />
+      <a
+        href="/dashboard"
+        class="brand-link"
+        aria-label="Setara home"
+        onclick={closeSidebar}
+      >
+        <span class="sidebar-brand-icon">
+          <SetaraLoader size={32} mode="orbit" color={isDesktop && sidebarCollapsed ? 'accent' : 'accent'} />
         </span>
-        <span class="brand-wordmark">
-          <SetaraGsapLogo size={110} loop={true} animate={true} />
+
+        <!-- Keep the GSAP logo mounted so it always measures at 100px. -->
+        <span
+          class="sidebar-brand-wordmark"
+          aria-hidden={isDesktop && sidebarCollapsed}
+        >
+          <SetaraGsapLogo
+            size={100}
+            loop={true}
+            animate={true}
+          />
         </span>
       </a>
+    </div>
 
-      <!-- Desktop only: the brand always stays visible, even in compact mode. -->
+    <nav class="sidebar-nav" aria-label="Primary navigation">
+      <div class="sidebar-nav-search">
+        <button
+          type="button"
+          class="sidebar-search-btn"
+          onclick={() => {
+            paletteOpen = true;
+            closeSidebar();
+          }}
+          aria-label="Search. Press Command K to open."
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
+          </svg>
+          <span>Search anything…</span>
+        </button>
+      </div>
+
+      <div class="nav-section-label">Browse</div>
+
+      <a
+        href="/dashboard"
+        class="nav-item"
+        class:nav-item--active={isActive('/dashboard')}
+        onclick={closeSidebar}
+        aria-label="Dashboard"
+        title={isDesktop && sidebarCollapsed ? 'Dashboard' : undefined}
+      >
+        <svg
+          class="nav-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="3" width="7" height="7" />
+          <rect x="14" y="3" width="7" height="7" />
+          <rect x="14" y="14" width="7" height="7" />
+          <rect x="3" y="14" width="7" height="7" />
+        </svg>
+        <span class="nav-item-label">Dashboard</span>
+      </a>
+
+      <a
+        href="/projects"
+        class="nav-item"
+        class:nav-item--active={isActive('/projects') && !projectKey}
+        onclick={closeSidebar}
+        aria-label="Projects"
+        title={isDesktop && sidebarCollapsed ? 'Projects' : undefined}
+      >
+        <svg
+          class="nav-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 7h18M3 12h18M3 17h18" />
+        </svg>
+        <span class="nav-item-label">Projects</span>
+      </a>
+
+      <a
+        href="/plans"
+        class="nav-item"
+        class:nav-item--active={isActive('/plans')}
+        onclick={closeSidebar}
+        aria-label="Plans"
+        title={isDesktop && sidebarCollapsed ? 'Plans' : undefined}
+      >
+        <svg
+          class="nav-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+          <path d="M9 12h6M9 16h4" />
+        </svg>
+        <span class="nav-item-label">Plans</span>
+      </a>
+
+      <a
+        href="/coverage-overview"
+        class="nav-item"
+        class:nav-item--active={isActive('/coverage-overview')}
+        onclick={closeSidebar}
+        aria-label="Coverage overview"
+        title={isDesktop && sidebarCollapsed ? 'Overview' : undefined}
+      >
+        <svg
+          class="nav-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 3v18h18" />
+          <path d="M7 15l3-3 3 2 5-7" />
+        </svg>
+        <span class="nav-item-label">Overview</span>
+      </a>
+
+      <div class="project-ctx-wrap">
+        {#if projectKey}
+          <a
+            href="/projects/{projectKey}"
+            class="project-ctx-card"
+            onclick={closeSidebar}
+            aria-label="Open project {projectKey}"
+            title={isDesktop && sidebarCollapsed
+              ? `Project ${projectKey}`
+              : 'Go to project overview'}
+          >
+            <svg
+              class="project-ctx-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            </svg>
+
+            <div class="project-ctx-body">
+              <span class="project-ctx-eyebrow">Project</span>
+              <span class="project-ctx-key">{projectKey}</span>
+            </div>
+
+            <svg
+              class="project-ctx-arrow"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </a>
+        {:else}
+          <div
+            class="project-ctx-empty"
+            title={isDesktop && sidebarCollapsed
+              ? 'No project selected'
+              : undefined}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.75"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z" />
+            </svg>
+            <span>No project selected</span>
+          </div>
+        {/if}
+      </div>
+
+      {#if projectKey}
+        <a
+          href="/projects/{projectKey}/builds"
+          class="nav-item"
+          class:nav-item--active={isActive(`/projects/${projectKey}/builds`)}
+          onclick={closeSidebar}
+          aria-label="Builds"
+          title={isDesktop && sidebarCollapsed ? 'Builds' : undefined}
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 7l8-4 8 4-8 4-8-4z" />
+            <path d="M4 12l8 4 8-4" />
+            <path d="M4 17l8 4 8-4" />
+          </svg>
+          <span class="nav-item-label">Builds</span>
+        </a>
+
+        <a
+          href="/projects/{projectKey}/repository"
+          class="nav-item"
+          class:nav-item--active={isActive(`/projects/${projectKey}/repository`)}
+          onclick={closeSidebar}
+          aria-label="Test Repository"
+          title={isDesktop && sidebarCollapsed ? 'Test Repository' : undefined}
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16" />
+          </svg>
+          <span class="nav-item-label">Test Repository</span>
+        </a>
+
+        <a
+          href="/projects/{projectKey}/executions"
+          class="nav-item"
+          class:nav-item--active={isActive(`/projects/${projectKey}/executions`)}
+          onclick={closeSidebar}
+          aria-label="Executions"
+          title={isDesktop && sidebarCollapsed ? 'Executions' : undefined}
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          <span class="nav-item-label">Executions</span>
+        </a>
+
+        <a
+          href="/projects/{projectKey}/coverage"
+          class="nav-item"
+          class:nav-item--active={isActive(`/projects/${projectKey}/coverage`)}
+          onclick={closeSidebar}
+          aria-label="Coverage"
+          title={isDesktop && sidebarCollapsed ? 'Coverage' : undefined}
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          <span class="nav-item-label">Coverage</span>
+        </a>
+      {:else}
+        <span
+          class="nav-item nav-item--dimmed"
+          title="Open a project first to access Builds"
+          aria-label="Builds unavailable. Open a project first."
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M4 7l8-4 8 4-8 4-8-4z" />
+            <path d="M4 12l8 4 8-4" />
+            <path d="M4 17l8 4 8-4" />
+          </svg>
+          <span class="nav-item-label">Builds</span>
+        </span>
+
+        <span
+          class="nav-item nav-item--dimmed"
+          title="Open a project first to access Test Repository"
+          aria-label="Test Repository unavailable. Open a project first."
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16" />
+          </svg>
+          <span class="nav-item-label">Test Repository</span>
+        </span>
+
+        <span
+          class="nav-item nav-item--dimmed"
+          title="Open a project first to access Executions"
+          aria-label="Executions unavailable. Open a project first."
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+          <span class="nav-item-label">Executions</span>
+        </span>
+
+        <span
+          class="nav-item nav-item--dimmed"
+          title="Open a project first to access Coverage"
+          aria-label="Coverage unavailable. Open a project first."
+        >
+          <svg
+            class="nav-item-icon"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.75"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+          </svg>
+          <span class="nav-item-label">Coverage</span>
+        </span>
+      {/if}
+
+      <div class="nav-divider nav-divider--simple"></div>
+
+      <a
+        href={can('settings:read') ? '/admin' : '/profile'}
+        class="nav-item"
+        class:nav-item--active={isActive('/admin')}
+        class:nav-item--dimmed={!can('settings:read')}
+        aria-disabled={!can('settings:read')}
+        aria-label="Settings"
+        title={can('settings:read')
+          ? (isDesktop && sidebarCollapsed ? 'Settings' : undefined)
+          : 'You need QA Lead or Admin role to access Settings'}
+        onclick={closeSidebar}
+      >
+        <svg
+          class="nav-item-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.75"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
+        </svg>
+        <span class="nav-item-label">Settings</span>
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-footer-theme">
+        <ThemeToggle />
+      </div>
+    </div>
+  </aside>
+
+  <div class="main-area">
+    <header class="topbar">
+
+      <!-- Desktop collapse control. Only its outlined left half protrudes over the separator. -->
       <button
         type="button"
         class="sidebar-collapse-btn"
         onclick={toggleSidebarCollapsed}
-        aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-label={sidebarCollapsed
+          ? 'Expand sidebar'
+          : 'Collapse sidebar'}
         aria-expanded={!sidebarCollapsed}
-        title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        title={sidebarCollapsed
+          ? 'Expand sidebar'
+          : 'Collapse sidebar'}
       >
         <svg
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          stroke-width="2"
+          stroke-width="2.25"
           stroke-linecap="round"
           stroke-linejoin="round"
           aria-hidden="true"
@@ -207,265 +761,102 @@
           {/if}
         </svg>
       </button>
-    </div>
-
-    <nav class="sidebar-nav">
-      <!-- Search shortcut - mobile only, always at top of nav above all sections -->
-      <div class="sidebar-nav-search">
-        <button
-          class="sidebar-search-btn"
-          onclick={() => { paletteOpen = true; closeSidebar(); }}
-          aria-label="Search - press ⌘K to open"
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-          </svg>
-          <span>Search anything…</span>
-        </button>
-      </div>
-
-      <div class="nav-section-label">Browse</div>
-      <a
-        href="/dashboard"
-        class="nav-item"
-        class:nav-item--active={isActive('/dashboard')}
-        onclick={closeSidebar}
-        aria-label="Dashboard"
-        title={sidebarCollapsed ? 'Dashboard' : undefined}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
-        </svg>
-        <span class="nav-item-label">Dashboard</span>
-      </a>
-      <a
-        href="/projects"
-        class="nav-item"
-        class:nav-item--active={isActive('/projects') && !projectKey}
-        onclick={closeSidebar}
-        aria-label="Projects"
-        title={sidebarCollapsed ? 'Projects' : undefined}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 7h18M3 12h18M3 17h18"/>
-        </svg>
-        <span class="nav-item-label">Projects</span>
-      </a>
-      <a
-        href="/plans"
-        class="nav-item"
-        class:nav-item--active={isActive('/plans')}
-        onclick={closeSidebar}
-        aria-label="Plans"
-        title={sidebarCollapsed ? 'Plans' : undefined}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/><path d="M9 12h6M9 16h4"/>
-        </svg>
-        <span class="nav-item-label">Plans</span>
-      </a>
-      <a
-        href="/coverage-overview"
-        class="nav-item"
-        class:nav-item--active={isActive('/coverage-overview')}
-        onclick={closeSidebar}
-        aria-label="Overview"
-        title={sidebarCollapsed ? 'Overview' : undefined}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M3 3v18h18"/><path d="M7 15l3-3 3 2 5-7"/>
-        </svg>
-        <span class="nav-item-label">Overview</span>
-      </a>
-
-      <!-- Project context header -->
-      <div class="project-ctx-wrap">
-        {#if projectKey}
-          <a href="/projects/{projectKey}" class="project-ctx-card" onclick={closeSidebar} title="Go to project overview" aria-label="Project overview">
-            <svg class="project-ctx-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-            </svg>
-            <div class="project-ctx-body">
-              <span class="project-ctx-eyebrow">Project</span>
-              <span class="project-ctx-key">{projectKey}</span>
-            </div>
-            <svg class="project-ctx-arrow" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/>
-            </svg>
-          </a>
-        {:else}
-          <div class="project-ctx-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z"/>
-            </svg>
-            <span>No project selected</span>
-          </div>
-        {/if}
-      </div>
-
-      <!-- Project-contextual section -->
-      {#if projectKey}
-        <a
-          href="/projects/{projectKey}/builds"
-          class="nav-item"
-          class:nav-item--active={isActive(`/projects/${projectKey}/builds`)}
-          onclick={closeSidebar}
-          aria-label="Builds"
-          title={sidebarCollapsed ? 'Builds' : undefined}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
-          </svg>
-          <span class="nav-item-label">Builds</span>
-        </a>
-        <a
-          href="/projects/{projectKey}/repository"
-          class="nav-item"
-          class:nav-item--active={isActive(`/projects/${projectKey}/repository`)}
-          onclick={closeSidebar}
-          aria-label="Test Repository"
-          title={sidebarCollapsed ? 'Test Repository' : undefined}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
-          </svg>
-          <span class="nav-item-label">Test Repository</span>
-        </a>
-        <a
-          href="/projects/{projectKey}/executions"
-          class="nav-item"
-          class:nav-item--active={isActive(`/projects/${projectKey}/executions`)}
-          onclick={closeSidebar}
-          aria-label="Executions"
-          title={sidebarCollapsed ? 'Executions' : undefined}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          <span class="nav-item-label">Executions</span>
-        </a>
-        <a
-          href="/projects/{projectKey}/coverage"
-          class="nav-item"
-          class:nav-item--active={isActive(`/projects/${projectKey}/coverage`)}
-          onclick={closeSidebar}
-          aria-label="Coverage"
-          title={sidebarCollapsed ? 'Coverage' : undefined}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <span class="nav-item-label">Coverage</span>
-        </a>
-      {:else}
-        <span class="nav-item nav-item--dimmed" title="Open a project first to access Builds">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M4 7l8-4 8 4-8 4-8-4z"/><path d="M4 12l8 4 8-4"/><path d="M4 17l8 4 8-4"/>
-          </svg>
-          <span class="nav-item-label">Builds</span>
-        </span>
-        <span class="nav-item nav-item--dimmed" title="Open a project first to access Test Repository">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M3 4h18v6H3zM3 14h18v6H3zM8 4v16M16 4v16"/>
-          </svg>
-          <span class="nav-item-label">Test Repository</span>
-        </span>
-        <span class="nav-item nav-item--dimmed" title="Open a project first to access Executions">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <polygon points="5 3 19 12 5 21 5 3"/>
-          </svg>
-          <span class="nav-item-label">Executions</span>
-        </span>
-        <span class="nav-item nav-item--dimmed" title="Open a project first to access Coverage">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
-          </svg>
-          <span class="nav-item-label">Coverage</span>
-        </span>
-      {/if}
-
-      <!-- Divider -->
-      <div class="nav-divider nav-divider--simple"></div>
-
-      <!-- Admin section -->
-      <a
-        href={can('settings:read') ? '/admin' : '/profile'}
-        class="nav-item"
-        class:nav-item--active={isActive('/admin')}
-        class:nav-item--dimmed={!can('settings:read')}
-        aria-disabled={!can('settings:read')}
-        title={can('settings:read') ? 'Settings' : 'You need QA Lead or Admin role to access Settings'}
-        onclick={closeSidebar}
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/>
-          <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
-        </svg>
-        <span class="nav-item-label">Settings</span>
-      </a>
-    </nav>
-
-    <div class="sidebar-footer">
-      <!-- Theme selection lives in the lower sidebar across desktop and mobile. -->
-      <div class="sidebar-footer-theme">
-        <ThemeToggle />
-      </div>
-    </div>
-  </aside>
-
-  <!-- Main area (topbar + content) -->
-  <div class="main-area">
-    <!-- Top bar (always visible) -->
-    <header class="topbar">
       <div class="topbar-left">
-        <!-- Hamburger - mobile only: toggles sidebar -->
-        <button class="topbar-brand-mobile" onclick={() => sidebarOpen = !sidebarOpen} aria-label="Toggle navigation" aria-expanded={sidebarOpen}>
+        <button
+          type="button"
+          class="topbar-brand-mobile"
+          onclick={toggleMobileSidebar}
+          aria-label="Toggle navigation"
+          aria-expanded={sidebarOpen}
+        >
           {#if sidebarOpen}
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <path d="M18 6 6 18M6 6l12 12"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <path d="M18 6 6 18M6 6l12 12" />
             </svg>
           {:else}
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
-              <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="7" x2="20" y2="7" />
+              <line x1="4" y1="12" x2="20" y2="12" />
+              <line x1="4" y1="17" x2="20" y2="17" />
             </svg>
           {/if}
         </button>
 
-        <!-- Brand - mobile only: visible in topbar since sidebar is off-screen -->
-        <a href="/dashboard" class="topbar-brand-inline" aria-label="Setara home">
-          <SetaraLoader size={28} mode="orbit"/>
-          <SetaraGsapLogo size={88} loop={true} animate={true} />
+        <a
+          href="/dashboard"
+          class="topbar-brand-inline"
+          aria-label="Setara home"
+        >
+          <SetaraLoader size={28} mode="orbit" />
+          <SetaraGsapLogo
+            size={88}
+            loop={true}
+            animate={true}
+          />
         </a>
-        <!-- Project key pill (desktop) -->
+
         {#if projectKey}
           <span class="project-key-pill">{projectKey}</span>
         {/if}
       </div>
 
-      <!-- Search - centred in topbar -->
       <div class="topbar-center">
-        <button class="search-btn" onclick={() => paletteOpen = true} aria-label="Search - press ⌘K">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+        <button
+          type="button"
+          class="search-btn"
+          onclick={() => paletteOpen = true}
+          aria-label="Search. Press Command K."
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.35-4.35" />
           </svg>
+
           {#key searchHintKey}
-            <span class="search-placeholder">{searchHints[searchHintIndex]}</span>
+            <span class="search-placeholder">
+              {searchHints[searchHintIndex]}
+            </span>
           {/key}
+
           <kbd class="search-kbd">⌘K</kbd>
         </button>
       </div>
 
       <div class="topbar-right">
-        <!-- Live indicator -->
-        <div class="live-indicator" title="Connected - receiving live test run updates">
+        <div
+          class="live-indicator"
+          title="Connected. Receiving live test-run updates."
+        >
           <span class="live-dot"></span>
           <span class="live-text">Live</span>
         </div>
 
-        <!-- User avatar -->
         {#if session}
           <div class="user-menu-wrap">
             <button
+              type="button"
               class="topbar-avatar"
               onclick={() => userMenuOpen = !userMenuOpen}
               aria-haspopup="dialog"
@@ -476,24 +867,57 @@
             </button>
 
             {#if userMenuOpen}
-              <!-- Desktop: positioned dropdown -->
               <div class="user-dropdown">
                 <div class="dropdown-header">
                   <span class="dropdown-name">{session.name}</span>
                   <span class="dropdown-email">{session.email}</span>
                   <span class="dropdown-role">{session.role}</span>
                 </div>
+
                 <div class="dropdown-divider"></div>
-                <a href="/profile" class="dropdown-item" onclick={() => userMenuOpen = false}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+
+                <a
+                  href="/profile"
+                  class="dropdown-item"
+                  onclick={() => userMenuOpen = false}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
                   </svg>
                   Profile
                 </a>
+
                 <div class="dropdown-divider"></div>
-                <button class="dropdown-item dropdown-item--danger" onclick={() => { userMenuOpen = false; signOut(); }}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+
+                <button
+                  type="button"
+                  class="dropdown-item dropdown-item--danger"
+                  onclick={() => {
+                    userMenuOpen = false;
+                    signOut();
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
                   </svg>
                   Sign out
                 </button>
@@ -504,23 +928,45 @@
       </div>
     </header>
 
-    <!-- Preview mode banner -->
     {#if isMock}
-      <div class="preview-banner" role="status" aria-live="polite">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-          <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+      <div
+        class="preview-banner"
+        role="status"
+        aria-live="polite"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10" />
+          <line x1="12" y1="8" x2="12" y2="12" />
+          <line x1="12" y1="16" x2="12.01" y2="16" />
         </svg>
-        <span><strong>Preview mode</strong> - Showing sample data. Connect a live backend to see your real results.</span>
+
+        <span>
+          <strong>Preview mode</strong>
+          - Showing sample data. Connect a live backend to see your real results.
+        </span>
       </div>
     {/if}
 
     {#if navigating.to}
-      <div class="route-skeleton" role="status" aria-live="polite" aria-label="Loading page"></div>
+      <div
+        class="route-skeleton"
+        role="status"
+        aria-live="polite"
+        aria-label="Loading page"
+      ></div>
     {/if}
 
-    <!-- Page content + footer in same scroll container so footer is not sticky -->
     <main class="content">
       {@render children()}
+
       <footer class="app-footer">
         <span>© {CURRENT_YEAR} Setara</span>
         <span class="footer-sep" aria-hidden="true">·</span>
@@ -532,312 +978,295 @@
   </div>
 </div>
 
-<!-- Mobile user popup - rendered outside app-shell so position:fixed is relative to viewport,
-     not the topbar's backdrop-filter stacking context -->
 {#if userMenuOpen && session}
   <!-- svelte-ignore a11y_click_events_have_key_events a11y_no_static_element_interactions -->
-  <div class="user-popup-overlay" role="dialog" aria-modal="true" aria-label="Account" tabindex="-1" onclick={(e) => { if (e.target === e.currentTarget) userMenuOpen = false; }}>
+  <div
+    class="user-popup-overlay"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Account"
+    tabindex="-1"
+    onclick={(event) => {
+      if (event.target === event.currentTarget) {
+        userMenuOpen = false;
+      }
+    }}
+  >
     <div class="user-popup">
-      <div class="user-popup-avatar">{session.name?.[0]?.toUpperCase() ?? '?'}</div>
+      <div class="user-popup-avatar">
+        {session.name?.[0]?.toUpperCase() ?? '?'}
+      </div>
       <div class="user-popup-name">{session.name}</div>
       <div class="user-popup-email">{session.email}</div>
       <div class="user-popup-role">{session.role}</div>
+
       <div class="user-popup-actions">
-        <a href="/profile" class="popup-btn" onclick={() => userMenuOpen = false}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
+        <a
+          href="/profile"
+          class="popup-btn"
+          onclick={() => userMenuOpen = false}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+            <circle cx="12" cy="7" r="4" />
           </svg>
           Profile
         </a>
-        <button class="popup-btn popup-btn--danger" onclick={() => { userMenuOpen = false; signOut(); }}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>
+
+        <button
+          type="button"
+          class="popup-btn popup-btn--danger"
+          onclick={() => {
+            userMenuOpen = false;
+            signOut();
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+            <polyline points="16 17 21 12 16 7" />
+            <line x1="21" y1="12" x2="9" y2="12" />
           </svg>
           Sign out
         </button>
       </div>
-      <button class="popup-close" onclick={() => userMenuOpen = false} aria-label="Close">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-          <path d="M18 6 6 18M6 6l12 12"/>
+
+      <button
+        type="button"
+        class="popup-close"
+        onclick={() => userMenuOpen = false}
+        aria-label="Close"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          aria-hidden="true"
+        >
+          <path d="M18 6 6 18M6 6l12 12" />
         </svg>
       </button>
     </div>
   </div>
 {/if}
 
-<!-- Command Palette -->
-<LazyCommandPalette open={paletteOpen} onclose={() => paletteOpen = false} />
+<LazyCommandPalette
+  open={paletteOpen}
+  onclose={() => paletteOpen = false}
+/>
 
-<!-- ASA floating orb -->
 <LazyAsaOrb />
 
 <style>
+
   .app-shell {
     display: flex;
     min-height: 100vh;
   }
 
-  /* ── Sidebar ── */
+  /* ── Sidebar ───────────────────────────────────────────── */
+
   .sidebar {
     width: var(--sidebar-width);
-    background: rgba(248, 250, 252, 0.85);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border-right: 1px solid rgba(203, 213, 225, 0.6);
-    display: flex;
-    flex-direction: column;
-    flex-shrink: 0;
+    height: 100vh;
     position: sticky;
     top: 0;
-    height: 100vh;
-    overflow: hidden; /* nav scrolls internally; brand + footer always visible */
-    transition: width 220ms cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 60;
+
+    display: flex;
+    flex-direction: column;
+    flex: 0 0 auto;
+
+    overflow: hidden;
+    background: rgba(248, 250, 252, 0.85);
+    border-right: 1px solid rgba(203, 213, 225, 0.6);
+
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
   }
 
-  :global([data-theme="dark"]) .sidebar {
+  .sidebar--ready {
+    transition:
+      width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      background 180ms ease,
+      border-color 180ms ease;
+  }
+
+  .sidebar--ready .sidebar-brand {
+    transition:
+      background-color 240ms cubic-bezier(0.4, 0, 0.2, 1),
+      border-color 200ms ease,
+      box-shadow 240ms ease;
+  }
+
+  :global([data-theme='dark']) .sidebar {
     background: rgba(11, 18, 32, 0.82);
-    border-right: 1px solid rgba(255, 255, 255, 0.06);
+    border-right-color: rgba(255, 255, 255, 0.06);
   }
 
   .sidebar-brand {
+    min-height: var(--topbar-height);
     position: relative;
     display: flex;
     align-items: center;
-    min-height: var(--topbar-height);
-    padding: 10px 8px 9px;
-    background: #ffffff;
+    flex: 0 0 auto;
+
+    padding: 0 14px;
+    overflow: visible;
+
+    background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
     box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
   }
 
+  :global([data-theme='dark']) .sidebar-brand {
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
   .brand-link {
-    display: flex;
+    display: grid;
+    grid-template-columns: 32px 100px;
     align-items: center;
-    gap: 5px;
-    min-width: 0;
-    flex: 1;
+    column-gap: 10px;
+
+    width: 142px;
+    min-width: 142px;
+    overflow: hidden;
+
     color: inherit;
     text-decoration: none;
   }
 
-  .brand-mark,
-  .brand-wordmark {
-    display: inline-flex;
-    align-items: center;
-    flex: 0 0 auto;
-  }
-
-  .sidebar-collapse-btn {
-    position: absolute;
-    right: -15px;
-    top: 50%;
-    z-index: 12;
-    display: none;
-    width: 30px;
-    height: 30px;
-    padding: 0;
-    flex: 0 0 auto;
-    transform: translateY(-50%);
-    align-items: center;
-    justify-content: center;
-    border: 1px solid color-mix(in srgb, var(--color-border), transparent 8%);
-    border-radius: 8px;
-    background: color-mix(in srgb, var(--color-surface), transparent 8%);
-    color: var(--color-text-muted);
-    cursor: pointer;
-    box-shadow: 0 1px 3px rgb(15 23 42 / 0.05);
+  .sidebar--ready .brand-link {
     transition:
-      color 140ms ease,
-      background 140ms ease,
-      border-color 140ms ease,
-      box-shadow 140ms ease,
-      transform 140ms ease;
+      grid-template-columns 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      column-gap 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      width 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      min-width 220ms cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .sidebar-collapse-btn svg {
-    width: 16px;
-    height: 16px;
+  .sidebar-brand-icon {
+    width: 32px;
+    min-width: 32px;
+    height: 32px;
+
+    display: grid;
+    place-items: center;
   }
 
-  .sidebar-collapse-btn:hover {
-    color: var(--color-accent);
-    border-color: color-mix(in srgb, var(--color-accent) 42%, var(--color-border));
-    background: var(--color-accent-subtle);
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent) 10%, transparent);
+  .sidebar-brand-wordmark {
+    width: 100px;
+    min-width: 100px;
+    max-width: 100px;
+
+    display: block;
+    overflow: visible;
+    opacity: 1;
+    visibility: visible;
+
+    transform: translateX(0);
+    transform-origin: left center;
   }
 
-  .sidebar-collapse-btn:active {
-    transform: translateY(-50%) scale(0.94);
+  .sidebar--ready .sidebar-brand-wordmark {
+    transition:
+      opacity 130ms ease 90ms,
+      transform 200ms cubic-bezier(0.4, 0, 0.2, 1) 40ms,
+      visibility 0s linear 0s;
   }
 
-  .sidebar-collapse-btn:focus-visible {
-    outline: 2px solid var(--color-accent);
-    outline-offset: 2px;
+  .sidebar-brand-wordmark :global(.setara-gsap-logo) {
+    display: block;
+    width: 100px !important;
+    min-width: 100px;
+    max-width: 100px;
+    flex: 0 0 100px;
   }
 
   .sidebar-nav {
     flex: 1;
-    min-height: 0; /* allow flex child to shrink so footer stays visible */
-    padding: 12px 8px;
+    min-height: 0;
+
     display: flex;
     flex-direction: column;
     gap: 3px;
-    overflow-y: auto; /* nav scrolls, not the whole sidebar */
+
+    padding: 12px 8px;
+    overflow-x: hidden;
+    overflow-y: auto;
+    scrollbar-width: thin;
   }
 
-  /* Search shortcut at top of nav - hidden on desktop, shown on mobile */
   .sidebar-nav-search {
     display: none;
-    padding: 0 0 8px;
+    padding-bottom: 8px;
   }
 
   .nav-section-label {
     padding: 10px 12px 4px;
+
     color: var(--color-text-muted);
     font-size: 0.66rem;
     font-weight: 800;
     letter-spacing: 0.08em;
     text-transform: uppercase;
+
     opacity: 0.58;
   }
 
-  .nav-divider--simple {
-    border-top: 1px solid var(--color-border);
-    padding-top: 6px;
-    margin-top: 4px;
-  }
-
-  /* Project context card */
-  .project-ctx-wrap {
-    padding: 6px 0 4px;
-    margin-top: 6px;
-  }
-
-  .project-ctx-card {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.5rem 0.65rem;
-    border-radius: 0.6rem;
-    background: color-mix(in srgb, var(--color-accent) 7%, var(--color-surface));
-    border: 1px solid color-mix(in srgb, var(--color-accent) 18%, var(--color-border));
-    text-decoration: none;
-    cursor: pointer;
-    transition: background 0.12s, border-color 0.12s;
-  }
-
-  .project-ctx-card:hover {
-    background: color-mix(in srgb, var(--color-accent) 13%, var(--color-surface));
-    border-color: color-mix(in srgb, var(--color-accent) 35%, var(--color-border));
-  }
-
-  .project-ctx-icon {
-    flex: 0 0 auto;
-    width: 15px;
-    height: 15px;
-    color: var(--color-accent);
-    opacity: 0.75;
-  }
-
-  .project-ctx-body {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 0;
-    min-width: 0;
-  }
-
-  .project-ctx-eyebrow {
-    font-size: 0.6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.09em;
-    color: var(--color-text-muted);
-    line-height: 1.3;
-  }
-
-  .project-ctx-key {
-    font-size: 0.78rem;
-    font-weight: 700;
-    color: var(--color-accent);
-    font-family: ui-monospace, monospace;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    line-height: 1.35;
-  }
-
-  .project-ctx-arrow {
-    flex: 0 0 auto;
-    width: 13px;
-    height: 13px;
-    color: var(--color-accent);
-    opacity: 0.45;
-  }
-
-  .project-ctx-empty {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding: 0.5rem 0.65rem;
-    border-radius: 0.6rem;
-    border: 1px dashed var(--color-border);
-    color: var(--color-text-muted);
-    font-size: 0.76rem;
-    opacity: 0.55;
-    font-style: italic;
-  }
-
-  .project-ctx-empty svg {
-    flex: 0 0 auto;
-    width: 14px;
-    height: 14px;
-  }
-
   .nav-item {
+    min-height: 36px;
+
     display: flex;
     align-items: center;
     gap: 10px;
+
     padding: 8px 10px;
-    border-radius: 6px;
+    border-radius: 7px;
+
     color: var(--color-text-muted);
-    font-weight: 500;
     font-size: 0.875rem;
+    font-weight: 500;
     text-decoration: none;
     white-space: nowrap;
-    overflow: hidden;
-    transition:
-      background 0.12s,
-      color 0.12s,
-      padding 0.2s ease,
-      gap 0.2s ease;
-  }
 
-  .nav-item > svg {
-    flex: 0 0 auto;
-  }
-
-  .nav-item-label {
-    min-width: 0;
-    max-width: 150px;
-    overflow: hidden;
-    opacity: 1;
-    transform: translateX(0);
     transition:
-      max-width 180ms ease,
-      opacity 120ms ease,
-      transform 180ms ease;
+      background 120ms ease,
+      color 120ms ease,
+      box-shadow 120ms ease;
   }
 
   .nav-item:hover {
-    background: var(--color-accent-subtle);
     color: var(--color-accent);
+    background: var(--color-accent-subtle);
     text-decoration: none;
   }
 
   .nav-item--active {
-    background: color-mix(in srgb, var(--color-accent) 10%, var(--color-surface));
     color: var(--color-accent);
+    background: color-mix(
+      in srgb,
+      var(--color-accent) 10%,
+      var(--color-surface)
+    );
+
     font-weight: 600;
     box-shadow: inset 3px 0 0 var(--color-accent);
     padding-left: 7px;
@@ -848,538 +1277,302 @@
     pointer-events: none;
   }
 
-  .sidebar-footer {
-    padding: 16px 12px;
-    border-top: 1px solid var(--color-border);
-    flex-shrink: 0;
-    background: inherit;
-    /* Height matches app-footer (16px padding × 2 + ~18px text line-height + 1px border) */
-    min-height: 50px;
+  .nav-item-icon {
+    width: 18px;
+    min-width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
   }
 
-  .sidebar-search-btn {
+  .nav-item-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .nav-divider--simple {
+    margin-top: 4px;
+    padding-top: 6px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .project-ctx-wrap {
+    margin-top: 6px;
+    padding: 6px 0 4px;
+  }
+
+  .project-ctx-card,
+  .project-ctx-empty {
+    min-height: 42px;
+
     display: flex;
     align-items: center;
-    gap: 10px;
-    width: 100%;
-    padding: 10px 12px;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
+    gap: 0.55rem;
+
+    padding: 0.5rem 0.65rem;
+    border-radius: 0.6rem;
+  }
+
+  .project-ctx-card {
+    color: inherit;
+    text-decoration: none;
     cursor: pointer;
+
+    background: color-mix(
+      in srgb,
+      var(--color-accent) 7%,
+      var(--color-surface)
+    );
+
+    border: 1px solid color-mix(
+      in srgb,
+      var(--color-accent) 18%,
+      var(--color-border)
+    );
+
+    transition:
+      background 120ms ease,
+      border-color 120ms ease;
+  }
+
+  .project-ctx-card:hover {
+    background: color-mix(
+      in srgb,
+      var(--color-accent) 13%,
+      var(--color-surface)
+    );
+
+    border-color: color-mix(
+      in srgb,
+      var(--color-accent) 35%,
+      var(--color-border)
+    );
+  }
+
+  .project-ctx-empty {
     color: var(--color-text-muted);
-    font-family: inherit;
-    font-size: 0.875rem;
-    text-align: left;
-    transition: border-color 0.12s, box-shadow 0.12s, background 0.12s;
+    font-size: 0.76rem;
+    font-style: italic;
+
+    opacity: 0.55;
+    border: 1px dashed var(--color-border);
   }
 
-  .sidebar-search-btn span { flex: 1; }
+  .project-ctx-icon,
+  .project-ctx-empty svg {
+    width: 15px;
+    min-width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
 
-  .sidebar-search-btn:hover {
-    border-color: var(--color-accent);
-    box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1);
-    color: var(--color-text);
-    background: var(--color-accent-subtle);
+    color: var(--color-accent);
+    opacity: 0.75;
   }
 
-  :global([data-theme="dark"]) .sidebar-search-btn {
-    background: rgba(255,255,255,0.04);
+  .project-ctx-body {
+    min-width: 0;
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
   }
 
-  /* Theme row in sidebar footer. */
+  .project-ctx-eyebrow {
+    color: var(--color-text-muted);
+    font-size: 0.6rem;
+    font-weight: 700;
+    line-height: 1.3;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+  }
+
+  .project-ctx-key {
+    overflow: hidden;
+
+    color: var(--color-accent);
+    font-family: ui-monospace, monospace;
+    font-size: 0.78rem;
+    font-weight: 700;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-ctx-arrow {
+    width: 13px;
+    min-width: 13px;
+    height: 13px;
+
+    color: var(--color-accent);
+    opacity: 0.45;
+  }
+
+  .sidebar-footer {
+    min-height: 50px;
+    flex: 0 0 auto;
+
+    padding: 10px 12px;
+    border-top: 1px solid var(--color-border);
+    background: inherit;
+  }
+
   .sidebar-footer-theme {
     display: grid;
     gap: 6px;
-    padding: 8px 4px;
+    padding: 4px;
   }
 
-  /* ── Main area ── */
-  .main-area {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-  }
-
-  /* ── Top bar ── */
-  .topbar {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    height: var(--topbar-height);
-    padding: 0 20px;
-    background: #ffffff;
-    border-bottom: 1px solid var(--color-border);
-    box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
-    position: sticky;
-    top: 0;
-    z-index: 50;
-  }
-
-  :global([data-theme="dark"]) .topbar {
-    background: rgba(11, 18, 32, 0.84);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  :global([data-theme="dark"]) .sidebar-brand {
-    background: rgba(11, 18, 32, 0.84);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  }
-
-  .topbar-left {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  .topbar-center {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    padding: 0 16px;
-  }
-
-  .topbar-right {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-shrink: 0;
-  }
-
-  /* Icon toggle button - mobile only */
-  .topbar-brand-mobile {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    background: none;
-    border: none;
-    cursor: pointer;
-    padding: 6px;
-    border-radius: 8px;
-    color: var(--color-text-muted);
-    transition: background 0.12s, color 0.12s;
-    min-width: 36px;
-    min-height: 36px;
-  }
-
-  .topbar-brand-mobile:hover {
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-  }
-
-  /* Brand inline (mobile topbar) - hidden on desktop where sidebar shows it */
-  .topbar-brand-inline {
-    display: none;
-    align-items: center;
-    gap: 7px;
-    text-decoration: none;
-    flex-shrink: 0;
-  }
-
-  .project-key-pill {
-    display: inline-flex;
-    align-items: center;
-    padding: 3px 10px;
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-    border-radius: 20px;
-    font-size: 0.78rem;
-    font-weight: 700;
-    letter-spacing: 0.03em;
-  }
-
-  /* Search button */
-  .search-btn {
+  .sidebar-search-btn {
     width: 100%;
-    max-width: 480px;
+
+    display: flex;
+    align-items: center;
+    gap: 10px;
+
+    padding: 10px 12px;
+
+    color: var(--color-text-muted);
+    font: inherit;
+    font-size: 0.875rem;
+    text-align: left;
+
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    border-radius: 10px;
-    padding: 8px 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    border-radius: 8px;
     cursor: pointer;
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-    transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.04);
   }
 
-  :global([data-theme="dark"]) .search-btn {
-    background: rgba(255,255,255,0.04);
+  .sidebar-search-btn span {
+    flex: 1;
   }
 
-  .search-btn:hover {
+  .sidebar-search-btn:hover {
+    color: var(--color-text);
+    background: var(--color-accent-subtle);
     border-color: var(--color-accent);
     box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1);
-    color: var(--color-text);
   }
 
-  .search-placeholder {
-    flex: 1;
-    text-align: left;
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-    animation: hint-fade 3s ease forwards;
+  .sidebar-brand-icon :global(.loader) {
+    transition:
+      color 220ms cubic-bezier(0.4, 0, 0.2, 1),
+      filter 220ms ease,
+      transform 220ms ease;
   }
 
-  @keyframes hint-fade {
-    0%   { opacity: 0; transform: translateY(4px); }
-    15%  { opacity: 1; transform: translateY(0); }
-    80%  { opacity: 1; transform: translateY(0); }
-    100% { opacity: 0.7; transform: translateY(0); }
-  }
+  /* ── Desktop collapsed sidebar ─────────────────────────── */
 
-  .search-kbd {
-    font-family: inherit;
-    font-size: 0.7rem;
-    background: var(--color-accent-subtle);
-    border: 1px solid var(--color-border);
-    border-radius: 5px;
-    padding: 2px 6px;
-    color: var(--color-accent);
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    flex-shrink: 0;
-  }
-
-  @media (max-width: 768px) {
-    .search-kbd { display: none; }
-  }
-
-  /* Live indicator */
-  .live-indicator {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-
-  .live-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    background: var(--color-success);
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.6; transform: scale(0.85); }
-  }
-
-  .live-text {
-    font-size: 0.75rem;
-    font-weight: 600;
-    color: var(--color-success);
-  }
-
-  /* Dropdown header (name + email) */
-  .dropdown-header {
-    padding: 12px 16px 8px;
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-  }
-
-  .dropdown-name {
-    font-size: 0.875rem;
-    font-weight: 600;
-    color: var(--color-text);
-  }
-
-  .dropdown-email {
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-  }
-
-  .dropdown-role,
-  .user-popup-role {
-    width: fit-content;
-    margin-top: 5px;
-    border-radius: 999px;
-    background: var(--color-accent-subtle);
-    color: var(--color-accent);
-    font-size: 0.68rem;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    padding: 3px 7px;
-  }
-
-  /* ── Mobile user popup ── */
-  /* Hidden on desktop - shown only via mobile media query */
-  .user-popup-overlay {
-    display: none;
-  }
-
-  /* User menu */
-  .user-menu-wrap {
-    position: relative;
-  }
-
-  .topbar-avatar {
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    background: var(--color-accent);
-    color: #fff;
-    font-weight: 700;
-    font-size: 0.8rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    cursor: pointer;
-    border: none;
-    transition: opacity 0.12s;
-  }
-
-  .topbar-avatar:hover {
-    opacity: 0.85;
-  }
-
-  .user-dropdown {
-    position: absolute;
-    right: 0;
-    top: calc(100% + 8px);
-    min-width: 180px;
-    background: rgba(255, 255, 255, 0.88);
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    border: 1px solid rgba(255, 255, 255, 0.5);
-    border-radius: 12px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
-    z-index: 200;
-    overflow: hidden;
-    animation: dropdown-in 0.12s ease;
-  }
-
-  :global([data-theme="dark"]) .user-dropdown {
-    background: rgba(11, 18, 32, 0.94);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-
-  @keyframes dropdown-in {
-    from { opacity: 0; transform: translateY(-6px) scale(0.96); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  .dropdown-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 16px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--color-text);
-    text-decoration: none;
-    width: 100%;
-    background: none;
-    border: none;
-    cursor: pointer;
-    text-align: left;
-    transition: background 0.1s;
-    font-family: inherit;
-  }
-
-  .dropdown-item:hover {
-    background: rgba(13, 148, 136, 0.08);
-    text-decoration: none;
-  }
-
-  .dropdown-item--danger {
-    color: var(--color-danger);
-  }
-
-  .dropdown-item--danger:hover {
-    background: rgba(220, 38, 38, 0.08);
-  }
-
-  .dropdown-divider {
-    height: 1px;
-    background: var(--color-border);
-    margin: 4px 0;
-  }
-
-  /* Content */
-  .content {
-    flex: 1;
-    min-height: 0;
-    padding: 32px;
-    overflow-y: auto;
-  }
-
-  /* Footer - inside .content scroll container so it scrolls with page content */
-  .app-footer {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    padding: 16px 24px;
-    border-top: 1px solid var(--color-border);
-    font-size: 0.72rem;
-    color: var(--color-text-muted);
-    opacity: 0.7;
-    /* Break out of .content's 32px side padding so border spans full width */
-    margin: 32px -32px -32px;
-    max-height: 50px; /* prevent footer from growing too tall if it wraps on mobile */
-  }
-
-  .footer-sep {
-    opacity: 0.5;
-  }
-
-  /* ── Preview banner ── */
-  .preview-banner {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 20px;
-    background: color-mix(in srgb, var(--color-accent), transparent 88%);
-    border-bottom: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
-    color: var(--color-accent);
-    font-size: 0.78rem;
-    font-weight: 500;
-    line-height: 1.4;
-    flex-shrink: 0;
-  }
-
-  .preview-banner strong {
-    font-weight: 700;
-  }
-
-  :global([data-theme="dark"]) .preview-banner {
-    background: color-mix(in srgb, var(--color-accent), transparent 82%);
-    border-bottom-color: color-mix(in srgb, var(--color-accent), transparent 60%);
-  }
-
-  .route-skeleton {
-    position: fixed;
-    top: var(--topbar-height);
-    left: 0;
-    right: 0;
-    height: 3px;
-    z-index: 200;
-    pointer-events: none;
-    background: linear-gradient(90deg,
-      transparent 0%,
-      var(--color-accent) 35%,
-      var(--color-accent-mint) 65%,
-      transparent 100%
-    );
-    background-size: 200% 100%;
-    animation: route-loading-sweep 1.2s ease-in-out infinite;
-  }
-
-  @keyframes route-loading-sweep {
-    from { background-position: 200% 0; }
-    to { background-position: -200% 0; }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .search-placeholder,
-    .live-dot,
-    .route-skeleton {
-      animation: none;
-    }
-  }
-
-  /* ── Mobile backdrop ── */
-  .backdrop {
-    position: fixed;
-    inset: 0;
-    background: rgb(0 0 0 / 0.4);
-    z-index: 40;
-  }
-
-  /* ── Desktop compact sidebar ── */
   @media (min-width: 769px) {
-    .sidebar {
-      overflow: visible;
-    }
-
-    .sidebar-nav {
-      overflow-x: hidden;
-    }
-
-    .sidebar-collapse-btn {
-      display: inline-flex;
-    }
-
-    /*
-     * Keep the larger Setara wordmark visible while reducing the navigation
-     * rail to a much more compact desktop width.
-     */
     .sidebar--collapsed {
-      width: 84px;
+      width: 72px;
     }
 
     .sidebar--collapsed .sidebar-brand {
+      justify-content: center;
       padding-inline: 20px;
+      background-color: var(--color-surface);
+
+      border-bottom-color: color-mix(
+        in srgb,
+        var(--color-accent) 72%,
+        white
+      );
+
+      box-shadow:
+        0 4px 16px color-mix(
+          in srgb,
+          var(--color-accent) 22%,
+          transparent
+        ),
+        inset -1px 0 0 rgb(255 255 255 / 0.12);
     }
 
     .sidebar--collapsed .brand-link {
-      justify-content: center;
-      gap: 0;
+      grid-template-columns: 32px 0;
+      column-gap: 0;
+
+      width: 32px;
+      min-width: 32px;
+      margin-inline: auto;
     }
 
-    .sidebar--collapsed .brand-wordmark {
-      display: none;
+    .sidebar:not(.sidebar--collapsed)
+      .sidebar-brand-icon
+      :global(.loader) {
+      filter: none;
+      transform: scale(1);
+    }
+    .sidebar--collapsed
+      .sidebar-brand-icon
+      :global(.loader) {
+      filter:
+        drop-shadow(0 0 7px rgb(255 255 255 / 0.28));
+
+      transform: scale(1.04);
+    }
+
+    .sidebar--collapsed .sidebar-brand-wordmark {
+      opacity: 0;
+      visibility: hidden;
+      transform: translateX(-8px);
+      pointer-events: none;
+
+      transition:
+        opacity 90ms ease,
+        transform 160ms ease,
+        visibility 0s linear 160ms;
     }
 
     .sidebar--collapsed .sidebar-nav {
       padding-inline: 10px;
-      scrollbar-width: none;
-    }
-
-    .sidebar--collapsed .sidebar-nav::-webkit-scrollbar {
-      display: none;
     }
 
     .sidebar--collapsed .nav-section-label {
-      height: 8px;
-      margin: 5px 0;
+      height: 10px;
+      margin: 4px 0;
       padding: 0;
+
+      overflow: hidden;
       font-size: 0;
       opacity: 0;
-      overflow: hidden;
     }
 
     .sidebar--collapsed .nav-item {
       position: relative;
       justify-content: center;
       gap: 0;
+
       min-height: 42px;
       padding: 10px;
     }
 
     .sidebar--collapsed .nav-item-label {
-      max-width: 0;
+      width: 0;
+      min-width: 0;
       opacity: 0;
-      transform: translateX(-5px);
+      visibility: hidden;
       pointer-events: none;
     }
 
-    .sidebar--collapsed .nav-item > svg {
+    .sidebar--collapsed .nav-item-icon {
       width: 19px;
+      min-width: 19px;
       height: 19px;
+      flex-basis: 19px;
     }
 
     .sidebar--collapsed .nav-item--active {
-      padding-left: 10px;
+      padding: 10px;
       box-shadow: none;
     }
 
     .sidebar--collapsed .nav-item--active::before {
-      content: "";
+      content: '';
       position: absolute;
-      left: 0;
       top: 9px;
       bottom: 9px;
+      left: -1px;
+
       width: 3px;
       border-radius: 0 999px 999px 0;
       background: var(--color-accent);
@@ -1393,14 +1586,15 @@
     .sidebar--collapsed .project-ctx-empty {
       justify-content: center;
       gap: 0;
-      min-height: 42px;
       padding: 10px;
     }
 
     .sidebar--collapsed .project-ctx-icon,
     .sidebar--collapsed .project-ctx-empty svg {
       width: 18px;
+      min-width: 18px;
       height: 18px;
+      flex-basis: 18px;
     }
 
     .sidebar--collapsed .project-ctx-body,
@@ -1410,254 +1604,937 @@
     }
 
     .sidebar--collapsed .nav-divider--simple {
-      margin-inline: 14px;
+      margin-inline: 8px;
     }
 
     .sidebar--collapsed .sidebar-footer {
-      padding: 10px;
+      padding-inline: 8px;
     }
 
     .sidebar--collapsed .sidebar-footer-theme {
       padding: 0;
     }
 
-    /* Stack Light and Dark vertically in compact mode. */
-    .sidebar--collapsed :global(.theme-select) {
-      grid-template-columns: 1fr;
-      width: 100%;
-    }
-
-    .sidebar--collapsed :global(.theme-option) {
-      width: 100%;
-      min-height: 34px;
-      padding: 7px 0;
-    }
-
     .sidebar--collapsed :global(.theme-option span) {
       display: none;
     }
+
+    .sidebar--collapsed :global(.theme-select) {
+      grid-template-columns: 1fr;
+    }
+
+    .sidebar--collapsed :global(.theme-option) {
+      padding-inline: 0;
+    }
   }
 
-  /* ── Responsive ── */
-  @media (max-width: 768px) {
+  /* ── Main area and topbar ──────────────────────────────── */
+
+  .main-area {
+    min-width: 0;
+    height: 100vh;
+    flex: 1;
+
+    display: flex;
+    flex-direction: column;
+
+    /* The desktop collapse control protrudes into the sidebar. */
+    overflow: visible;
+  }
+
+  .topbar {
+    --topbar-surface: #ffffff;
+    --topbar-separator: var(--color-border);
+
+    height: var(--topbar-height);
+    flex: 0 0 var(--topbar-height);
+
+    position: sticky;
+    top: 0;
+    z-index: 70;
+    overflow: visible;
+
+    display: flex;
+    align-items: center;
+    gap: 12px;
+
+    padding: 0 20px;
+
+    background: var(--topbar-surface);
+    border-bottom: 1px solid var(--color-border);
+    box-shadow: 0 2px 8px rgba(0, 100, 120, 0.08);
+  }
+
+  /*
+   * Continue the sidebar separator through the topbar. The toggle sits above
+   * this line and covers its middle section, so the separator flows into the
+   * visible left-half outline instead of ending beside a floating button.
+   */
+  .topbar::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -1px;
+    z-index: 0;
+
+    width: 1px;
+    background: var(--topbar-separator);
+    pointer-events: none;
+  }
+
+  :global([data-theme='dark']) .topbar {
+    --topbar-surface: rgba(11, 18, 32, 0.84);
+    --topbar-separator: rgba(255, 255, 255, 0.08);
+
+    border-bottom-color: rgba(255, 255, 255, 0.06);
+  }
+
+  .topbar-left,
+  .topbar-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex: 0 0 auto;
+  }
+
+  .topbar-center {
+    min-width: 0;
+    flex: 1;
+
+    display: flex;
+    justify-content: center;
+    padding: 0 16px;
+  }
+
+  .topbar-brand-mobile,
+  .topbar-brand-inline {
+    display: none;
+  }
+
+  .topbar-brand-mobile {
+    width: 36px;
+    height: 36px;
+
+    align-items: center;
+    justify-content: center;
+
+    padding: 6px;
+    color: var(--color-text-muted);
+
+    background: none;
+    border: 0;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .topbar-brand-mobile svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .topbar-brand-inline {
+    align-items: center;
+    gap: 7px;
+    flex: 0 0 auto;
+    text-decoration: none;
+  }
+
+  .sidebar-collapse-btn {
+    --collapse-outline: var(--topbar-separator);
+
+    position: absolute;
+    top: 50%;
+    left: 0;
+    z-index: 12;
+
+    display: none;
+    align-items: center;
+    justify-content: center;
+
+    width: 26px;
+    height: 30px;
+    padding: 0;
+    flex: 0 0 auto;
+
+    /* Exactly half of the control protrudes into the brand section. */
+    transform: translate(-50%, -50%);
+
+    color: var(--color-text-muted);
+    background: var(--topbar-surface);
+    border: 0;
+    border-radius: 8px 0 0 8px;
+    cursor: pointer;
+
+    box-shadow: -3px 0 2px rgb(15 23 42 / 0.055);
+
+    transition:
+      color 140ms ease,
+      box-shadow 140ms ease,
+      transform 140ms ease;
+  }
+
+  /*
+   * Draw only the protruding half of the outline. Its open right edge ends on
+   * the vertical separator, producing one continuous D-shaped seam.
+   */
+  .sidebar-collapse-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+
+    width: 50%;
+    box-sizing: border-box;
+
+    border-top: 1px solid var(--collapse-outline);
+    border-bottom: 1px solid var(--collapse-outline);
+    border-left: 1px solid var(--collapse-outline);
+    border-radius: 8px 0 0 8px;
+
+    pointer-events: none;
+    transition: border-color 140ms ease;
+  }
+
+  .sidebar-collapse-btn svg {
+    position: relative;
+    z-index: 1;
+
+    width: 14px;
+    height: 14px;
+    transform: translateX(-1px);
+
+    transition: transform 140ms ease;
+  }
+
+  .sidebar-collapse-btn:hover {
+    --collapse-outline: color-mix(
+      in srgb,
+      var(--color-accent) 48%,
+      var(--topbar-separator)
+    );
+
+    color: var(--color-accent);
+    box-shadow: -2px 2px 7px rgb(0 175 165 / 0.1);
+  }
+
+  .sidebar-collapse-btn:hover svg {
+    transform: translateX(-1px) scale(1.07);
+  }
+
+  .sidebar-collapse-btn:active {
+    transform: translate(-50%, -50%) scale(0.94);
+  }
+
+  .sidebar-collapse-btn:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  :global([data-theme='dark']) .sidebar-collapse-btn {
+    color: var(--color-text-muted);
+    background: var(--topbar-surface);
+    box-shadow: -2px 2px 7px rgb(0 0 0 / 0.18);
+  }
+
+  :global([data-theme='dark']) .sidebar-collapse-btn:hover {
+    --collapse-outline: color-mix(
+      in srgb,
+      var(--color-accent) 42%,
+      var(--topbar-separator)
+    );
+
+    color: var(--color-accent);
+  }
+
+  @media (min-width: 769px) {
     .sidebar-collapse-btn {
-      display: none;
+      display: inline-flex;
+    }
+  }
+
+  .project-key-pill {
+    display: inline-flex;
+    align-items: center;
+
+    padding: 3px 10px;
+
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    border-radius: 20px;
+
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+  }
+
+  .search-btn {
+    width: 100%;
+    max-width: 480px;
+
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    padding: 8px 14px;
+
+    color: var(--color-text-muted);
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+    transition:
+      border-color 150ms ease,
+      box-shadow 150ms ease,
+      background 150ms ease;
+  }
+
+  .search-btn > svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+  }
+
+  :global([data-theme='dark']) .search-btn {
+    background: rgba(255, 255, 255, 0.04);
+  }
+
+  .search-btn:hover {
+    color: var(--color-text);
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 3px rgba(0, 175, 165, 0.1);
+  }
+
+  .search-placeholder {
+    min-width: 0;
+    flex: 1;
+
+    color: var(--color-text-muted);
+    font-size: 0.85rem;
+    text-align: left;
+
+    animation: hint-fade 3s ease forwards;
+  }
+
+  .search-kbd {
+    padding: 2px 6px;
+
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    border: 1px solid var(--color-border);
+    border-radius: 5px;
+
+    font: inherit;
+    font-size: 0.7rem;
+  }
+
+  @keyframes hint-fade {
+    0% {
+      opacity: 0;
+      transform: translateY(4px);
     }
 
-    /* A persisted desktop preference must never compact the mobile drawer. */
-    .sidebar.sidebar--collapsed {
-      width: var(--sidebar-width);
-      overflow: hidden;
+    15% {
+      opacity: 1;
+      transform: translateY(0);
     }
 
-    /* Sidebar slides in from left */
+    80% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    100% {
+      opacity: 0.7;
+      transform: translateY(0);
+    }
+  }
+
+  .live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+
+    padding: 5px 9px;
+
+    color: var(--color-text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+  }
+
+  .live-dot {
+    width: 7px;
+    height: 7px;
+
+    background: var(--color-success);
+    border-radius: 50%;
+
+    box-shadow: 0 0 0 4px color-mix(
+      in srgb,
+      var(--color-success) 12%,
+      transparent
+    );
+
+    animation: live-pulse 2s ease-in-out infinite;
+  }
+
+  @keyframes live-pulse {
+    0%,
+    100% {
+      opacity: 0.75;
+    }
+
+    50% {
+      opacity: 1;
+      box-shadow: 0 0 0 6px color-mix(
+        in srgb,
+        var(--color-success) 8%,
+        transparent
+      );
+    }
+  }
+
+  .user-menu-wrap {
+    position: relative;
+  }
+
+  .topbar-avatar {
+    width: 34px;
+    height: 34px;
+
+    display: grid;
+    place-items: center;
+
+    color: #ffffff;
+    background: var(--color-accent);
+    border: 0;
+    border-radius: 50%;
+
+    font: inherit;
+    font-size: 0.82rem;
+    font-weight: 700;
+
+    cursor: pointer;
+  }
+
+  .user-dropdown {
+    width: 240px;
+    position: absolute;
+    top: calc(100% + 10px);
+    right: 0;
+    z-index: 120;
+
+    padding: 8px;
+
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+
+    box-shadow: 0 18px 48px rgba(15, 23, 42, 0.16);
+  }
+
+  .dropdown-header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    padding: 8px 10px 10px;
+  }
+
+  .dropdown-name {
+    color: var(--color-text);
+    font-size: 0.86rem;
+    font-weight: 700;
+  }
+
+  .dropdown-email {
+    overflow: hidden;
+    color: var(--color-text-muted);
+    font-size: 0.72rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dropdown-role {
+    width: fit-content;
+    margin-top: 6px;
+    padding: 3px 7px;
+
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    border-radius: 999px;
+
+    font-size: 0.65rem;
+    font-weight: 700;
+  }
+
+  .dropdown-divider {
+    height: 1px;
+    margin: 4px 0;
+    background: var(--color-border);
+  }
+
+  .dropdown-item {
+    width: 100%;
+
+    display: flex;
+    align-items: center;
+    gap: 9px;
+
+    padding: 9px 10px;
+
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+
+    font: inherit;
+    font-size: 0.8rem;
+    text-align: left;
+    text-decoration: none;
+
+    cursor: pointer;
+  }
+
+  .dropdown-item svg {
+    width: 15px;
+    height: 15px;
+    flex: 0 0 15px;
+  }
+
+  .dropdown-item:hover {
+    color: var(--color-accent);
+    background: var(--color-accent-subtle);
+    text-decoration: none;
+  }
+
+  .dropdown-item--danger {
+    color: var(--color-danger);
+  }
+
+  .dropdown-item--danger:hover {
+    color: var(--color-danger);
+    background: rgba(220, 38, 38, 0.08);
+  }
+
+  /* ── Page content ──────────────────────────────────────── */
+
+  .content {
+    min-height: 0;
+    flex: 1;
+
+    padding: 32px;
+    overflow-y: auto;
+  }
+
+  .app-footer {
+    max-height: 50px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+
+    margin: 32px -32px -32px;
+    padding: 16px 24px;
+
+    color: var(--color-text-muted);
+    border-top: 1px solid var(--color-border);
+
+    font-size: 0.72rem;
+    opacity: 0.7;
+  }
+
+  .footer-sep {
+    opacity: 0.5;
+  }
+
+  .preview-banner {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+
+    padding: 8px 20px;
+
+    color: var(--color-accent);
+    background: color-mix(
+      in srgb,
+      var(--color-accent),
+      transparent 88%
+    );
+
+    border-bottom: 1px solid color-mix(
+      in srgb,
+      var(--color-accent),
+      transparent 70%
+    );
+
+    font-size: 0.78rem;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+
+  .preview-banner svg {
+    width: 14px;
+    height: 14px;
+    flex: 0 0 14px;
+  }
+
+  .route-skeleton {
+    height: 3px;
+    position: fixed;
+    top: var(--topbar-height);
+    right: 0;
+    left: 0;
+    z-index: 200;
+
+    pointer-events: none;
+
+    background:
+      linear-gradient(
+        90deg,
+        transparent 0%,
+        var(--color-accent) 35%,
+        var(--color-accent-mint) 65%,
+        transparent 100%
+      );
+
+    background-size: 200% 100%;
+    animation: route-loading-sweep 1.2s ease-in-out infinite;
+  }
+
+  @keyframes route-loading-sweep {
+    from {
+      background-position: 200% 0;
+    }
+
+    to {
+      background-position: -200% 0;
+    }
+  }
+
+  /* ── Mobile overlay and popup ──────────────────────────── */
+
+  .backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+
+    background: rgba(0, 0, 0, 0.4);
+  }
+
+  .user-popup-overlay {
+    display: none;
+  }
+
+  @media (max-width: 768px) {
     .sidebar {
+      height: auto;
       position: fixed;
-      left: 0;
       top: 0;
       bottom: 0;
-      height: auto; /* override base 100vh - top+bottom anchoring is reliable on iOS Safari */
+      left: 0;
       z-index: 50;
+
       transform: translateX(-100%);
-      transition: transform 0.25s ease;
+      transition: transform 250ms ease;
     }
 
     .sidebar--open {
       transform: translateX(0);
     }
 
-    /* Show hamburger button */
-    .topbar-brand-mobile {
-      display: flex;
+    .sidebar-brand {
+      padding-inline: 14px;
     }
 
-    /* Show brand inline in topbar */
-    .topbar-brand-inline {
-      display: flex;
+    .brand-link {
+      grid-template-columns: 32px 100px;
+      column-gap: 10px;
+
+      width: 142px;
+      min-width: 142px;
     }
 
-    /* Show search at top of nav on mobile */
+    .sidebar-brand-wordmark {
+      opacity: 1;
+      visibility: visible;
+      transform: none;
+    }
+
     .sidebar-nav-search {
       display: block;
     }
 
-    /* Hide project pill on mobile */
-    .project-key-pill {
+    .sidebar-collapse-btn {
       display: none;
     }
 
-    /* Search bar hidden on mobile - lives in sidebar instead */
+    .topbar {
+      padding: 0 14px;
+    }
+
+    .topbar-brand-mobile {
+      display: inline-flex;
+    }
+
+    .topbar-brand-inline {
+      display: flex;
+    }
+
     .topbar-center {
       display: none;
     }
 
-    /* Push live indicator + avatar to the right since center slot is gone */
     .topbar-right {
       margin-left: auto;
     }
 
-    /* Hide Live text, keep dot only */
+    .project-key-pill {
+      display: none;
+    }
+
     .live-text {
       display: none;
     }
 
-    /* Hide desktop positioned dropdown */
+    .live-indicator {
+      padding: 7px;
+      border: 0;
+    }
+
     .user-dropdown {
       display: none;
-    }
-
-    /* Show mobile popup overlay */
-    .user-popup-overlay {
-      display: flex;
-      position: fixed;
-      inset: 0;
-      z-index: 300;
-      background: rgba(0, 0, 0, 0.5);
-      backdrop-filter: blur(6px);
-      -webkit-backdrop-filter: blur(6px);
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      animation: popup-fade-in 0.15s ease;
-      overflow: hidden;
-    }
-
-    @keyframes popup-fade-in {
-      from { opacity: 0; }
-      to   { opacity: 1; }
-    }
-
-    .user-popup {
-      position: relative;
-      width: 100%;
-      max-width: 320px;
-      max-height: min(86vh, calc(100dvh - 48px));
-      background: rgba(248, 250, 252, 0.95);
-      backdrop-filter: blur(28px) saturate(200%);
-      -webkit-backdrop-filter: blur(28px) saturate(200%);
-      border: 1px solid rgba(255, 255, 255, 0.7);
-      border-radius: 20px;
-      box-shadow: 0 24px 64px rgba(0,0,0,0.2);
-      padding: 28px 24px 20px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 6px;
-      text-align: center;
-      animation: popup-slide-in 0.18s ease;
-      overflow-y: auto;
-      overscroll-behavior: contain;
-    }
-
-    :global([data-theme="dark"]) .user-popup {
-      background: rgba(11, 18, 32, 0.95);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-    }
-
-    @keyframes popup-slide-in {
-      from { opacity: 0; transform: scale(0.94) translateY(8px); }
-      to   { opacity: 1; transform: scale(1) translateY(0); }
-    }
-
-    .user-popup-avatar {
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: var(--color-accent);
-      color: #fff;
-      font-family: var(--font-sans, "Sora", sans-serif);
-      font-weight: 700;
-      font-size: 1.4rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 4px;
-    }
-
-    .user-popup-name {
-      font-family: var(--font-sans, "Sora", sans-serif);
-      font-weight: 700;
-      font-size: 1rem;
-      color: var(--color-text);
-    }
-
-    .user-popup-email {
-      font-size: 0.78rem;
-      color: var(--color-text-muted);
-    }
-
-    .user-popup-role {
-      margin: 8px auto 12px;
-    }
-
-    .user-popup-actions {
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 4px;
-    }
-
-    .popup-btn {
-      width: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      font-family: var(--font-body, "Inter", sans-serif);
-      cursor: pointer;
-      text-decoration: none;
-      border: 1px solid var(--color-border);
-      background: var(--color-surface);
-      color: var(--color-text);
-      transition: background 0.12s, border-color 0.12s;
-    }
-
-    .popup-btn:hover {
-      background: var(--color-accent-subtle);
-      border-color: var(--color-accent);
-      color: var(--color-accent);
-      text-decoration: none;
-    }
-
-    .popup-btn--danger {
-      color: var(--color-danger);
-      border-color: rgba(239, 68, 68, 0.25);
-      background: rgba(239, 68, 68, 0.05);
-    }
-
-    .popup-btn--danger:hover {
-      background: rgba(239, 68, 68, 0.1);
-      border-color: var(--color-danger);
-      color: var(--color-danger);
-    }
-
-    .popup-close {
-      position: absolute;
-      top: 14px;
-      right: 16px;
-      background: none;
-      border: none;
-      cursor: pointer;
-      color: var(--color-text-muted);
-      font-size: 0.9rem;
-      padding: 4px 6px;
-      border-radius: 6px;
-      line-height: 1;
-    }
-
-    .popup-close:hover {
-      background: var(--color-accent-subtle);
-      color: var(--color-accent);
     }
 
     .content {
       padding: 20px 16px;
     }
 
+    .app-footer {
+      margin: 24px -16px -20px;
+      padding-inline: 16px;
+      flex-wrap: wrap;
+    }
+
+    .user-popup-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 300;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+
+      padding: 24px;
+      overflow: hidden;
+
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+
+      animation: popup-fade-in 150ms ease;
+    }
+
+    .user-popup {
+      width: 100%;
+      max-width: 320px;
+      max-height: min(86vh, calc(100dvh - 48px));
+
+      position: relative;
+
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+
+      padding: 28px 24px 20px;
+      overflow-y: auto;
+
+      background: rgba(248, 250, 252, 0.95);
+      border: 1px solid rgba(255, 255, 255, 0.7);
+      border-radius: 20px;
+
+      box-shadow: 0 24px 64px rgba(0, 0, 0, 0.2);
+
+      backdrop-filter: blur(28px) saturate(200%);
+      -webkit-backdrop-filter: blur(28px) saturate(200%);
+
+      text-align: center;
+      overscroll-behavior: contain;
+
+      animation: popup-slide-in 180ms ease;
+    }
+
+    :global([data-theme='dark']) .user-popup {
+      background: rgba(11, 18, 32, 0.95);
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .user-popup-avatar {
+      width: 56px;
+      height: 56px;
+
+      display: grid;
+      place-items: center;
+
+      margin-bottom: 4px;
+
+      color: #ffffff;
+      background: var(--color-accent);
+      border-radius: 50%;
+
+      font-family: var(--font-sans, 'Sora', sans-serif);
+      font-size: 1.4rem;
+      font-weight: 700;
+    }
+
+    .user-popup-name {
+      color: var(--color-text);
+      font-family: var(--font-sans, 'Sora', sans-serif);
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .user-popup-email {
+      color: var(--color-text-muted);
+      font-size: 0.78rem;
+    }
+
+    .user-popup-role {
+      margin: 8px auto 12px;
+      padding: 4px 9px;
+
+      color: var(--color-accent);
+      background: var(--color-accent-subtle);
+      border-radius: 999px;
+
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+
+    .user-popup-actions {
+      width: 100%;
+
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+
+      margin-top: 4px;
+    }
+
+    .popup-btn {
+      width: 100%;
+
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+
+      padding: 12px 16px;
+
+      color: var(--color-text);
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 12px;
+
+      font-family: var(--font-body, 'Inter', sans-serif);
+      font-size: 0.9rem;
+      font-weight: 600;
+      text-decoration: none;
+
+      cursor: pointer;
+    }
+
+    .popup-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .popup-btn:hover {
+      color: var(--color-accent);
+      background: var(--color-accent-subtle);
+      border-color: var(--color-accent);
+      text-decoration: none;
+    }
+
+    .popup-btn--danger {
+      color: var(--color-danger);
+      background: rgba(239, 68, 68, 0.05);
+      border-color: rgba(239, 68, 68, 0.25);
+    }
+
+    .popup-btn--danger:hover {
+      color: var(--color-danger);
+      background: rgba(239, 68, 68, 0.1);
+      border-color: var(--color-danger);
+    }
+
+    .popup-close {
+      position: absolute;
+      top: 14px;
+      right: 16px;
+
+      padding: 4px 6px;
+
+      color: var(--color-text-muted);
+      background: none;
+      border: 0;
+      border-radius: 6px;
+
+      cursor: pointer;
+    }
+
+    .popup-close svg {
+      width: 14px;
+      height: 14px;
+    }
+
+    .popup-close:hover {
+      color: var(--color-accent);
+      background: var(--color-accent-subtle);
+    }
+
+    @keyframes popup-fade-in {
+      from {
+        opacity: 0;
+      }
+
+      to {
+        opacity: 1;
+      }
+    }
+
+    @keyframes popup-slide-in {
+      from {
+        opacity: 0;
+        transform: scale(0.94) translateY(8px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .sidebar,
+    .brand-link,
+    .sidebar-brand-wordmark,
+    .sidebar-collapse-btn,
+    .sidebar-collapse-btn svg,
+    .search-placeholder,
+    .live-dot,
+    .route-skeleton {
+      animation: none;
+      transition: none;
+    }
   }
 </style>

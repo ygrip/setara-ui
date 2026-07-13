@@ -45,12 +45,6 @@ const LEGACY_SCRIPT_PROCESSOR_PREF_KEY = 'setara.asa.voice.legacyScriptProcessor
 // fallback baked in — see plan section 8.3. Override with 'browser' or 'none' to force it off.
 const NOISE_SUPPRESSION_MODE_PREF_KEY = 'setara.asa.voice.noiseSuppressionMode';
 const SPEAK_SHORT_LIMIT = 400; // chars; don't read long markdown aloud
-// Capture starts as soon as the mic is granted, concurrently with the HTTP prepare + WS ready
-// handshake - PCM produced before the session is ready is buffered here instead of dropped, so
-// speech during that handshake window (previously lost entirely - setara-s94o STT truncation
-// incident) survives. Bounded well above any realistic handshake stall so a pathologically slow
-// connect can't grow this unbounded.
-const PRE_ROLL_MAX_BYTES = 5 * 16_000 * 2; // 5s of 16kHz mono PCM16
 
 // Hands-free VAD tuning (energy-based, no ML model). RMS is 0..~0.3 for typical mic levels.
 const VAD_START_RMS = 0.035; // speech onset threshold (lower = more sensitive)
@@ -179,9 +173,6 @@ class SidecarVoice {
   private sttCaptureStarting = false; // synchronous re-entry guard while startPcmCaptureWorklet awaits
   private sttFinalizing = false;
   private captureGeneration = 0;
-  private pendingPcmFrames: ArrayBuffer[] = []; // pre-roll buffered while the session isn't ready yet
-  private pendingPcmBytes = 0;
-  private frameLogGeneration = -1; // setara-s94o: one-shot first-frame timing probe, see routePcmFrame
 
   private stream: MediaStream | null = null;
   private autoStop: ReturnType<typeof setTimeout> | null = null;
@@ -295,20 +286,21 @@ class SidecarVoice {
       return;
     }
     this.stream = stream;
-    this.pendingPcmFrames = [];
-    this.pendingPcmBytes = 0;
     try {
-      // Start capturing the moment the mic is available, concurrently with the HTTP prepare + WS
-      // ready handshake below - not sequentially after it. Anything spoken during that handshake
-      // window is buffered (see onPcmFrame in startPcmCaptureWorklet) rather than lost.
-      const sessionOpening = this.openSttSession(mode);
+      // Wait for the session to be ready before starting capture at all - not concurrently with it.
+      // Starting capture early (setara-s94o round 5) meant PCM had nowhere authoritative to go until
+      // ready, so it was buffered and burst-flushed once the handshake resolved: ~50 frames arriving
+      // at once, exceeding the core relay's in-flight window and frame-rate policy (RC-03, ASA STT
+      // accuracy recovery plan). The AudioContext + STT worklet module are already warmed well before
+      // this point (preloadCapture(), called on ASA panel open), so this sequential order costs only
+      // the real session-open handshake latency, not a cold worklet compile.
+      await this.openSttSession(mode);
+      if (captureGeneration !== this.captureGeneration) return;
       const captureStarted = await this.startPcmCapture();
       if (captureGeneration !== this.captureGeneration) return;
       if (!captureStarted) {
         throw new SttSessionError('STT_CAPTURE_UNAVAILABLE', 'Microphone capture could not start', true);
       }
-      await sessionOpening;
-      if (captureGeneration !== this.captureGeneration) return;
     } catch (error) {
       if (captureGeneration !== this.captureGeneration) return;
       this.fail(sttErrorMessage(error));
@@ -1212,9 +1204,6 @@ class SidecarVoice {
       this.destroySttSession(session);
       throw error;
     }
-    // Capture may already be running (started concurrently in startRecording) and have buffered
-    // pre-roll PCM while this handshake was in flight - send it now, in order, before anything else.
-    this.flushPreRollFrames(session);
     asaLog('voice', 'streaming STT ready', { mode, maxDurationSeconds: start.maxDurationSeconds });
   }
 
@@ -1237,51 +1226,15 @@ class SidecarVoice {
     }
   }
 
-  /** Frames arrive continuously from the moment the graph is built, which is now concurrent with
-   *  the session's HTTP prepare + WS ready handshake - the session may not exist yet, or may exist
-   *  but not be ready. Buffer instead of dropping so speech during that window isn't lost. */
+  /** Capture graph is only ever built after the session is confirmed ready (see startRecording /
+   *  beginVadCapture), so a not-ready session here means this frame raced a teardown of its own
+   *  capture generation - drop it silently, same as the generation check above, rather than buffer
+   *  it (setara-s94o RC-03: buffering-then-bursting this was itself the cause of relay pressure). */
   private routePcmFrame(captureGeneration: number, frame: ArrayBuffer): void {
     if (this.captureGeneration !== captureGeneration) return;
-    if (this.frameLogGeneration !== captureGeneration) {
-      // setara-s94o: one-shot timing probe to prove/disprove the AudioContext-resume-latency
-      // theory for start-of-recording truncation - remove once the gap is confirmed closed.
-      this.frameLogGeneration = captureGeneration;
-      asaLog('voice', 'first PCM frame', {
-        tPerf: Math.round(performance.now()),
-        ctxState: this.audioCtx?.state,
-      });
-    }
     const session = this.sttSession;
-    if (!session?.isReady) {
-      this.bufferPreRollFrame(frame);
-      return;
-    }
-    this.flushPreRollFrames(session);
+    if (!session?.isReady) return;
     session.sendPcm(frame);
-  }
-
-  private bufferPreRollFrame(frame: ArrayBuffer): void {
-    if (this.pendingPcmBytes + frame.byteLength > PRE_ROLL_MAX_BYTES) {
-      // Drop the OLDEST buffered audio to make room - keep the pre-roll closest to when the user
-      // actually started talking, not the earliest dead air.
-      while (this.pendingPcmFrames.length > 0 && this.pendingPcmBytes + frame.byteLength > PRE_ROLL_MAX_BYTES) {
-        const dropped = this.pendingPcmFrames.shift()!;
-        this.pendingPcmBytes -= dropped.byteLength;
-      }
-    }
-    this.pendingPcmFrames.push(frame);
-    this.pendingPcmBytes += frame.byteLength;
-  }
-
-  private flushPreRollFrames(session: SttSession): void {
-    if (this.pendingPcmFrames.length === 0) return;
-    const frames = this.pendingPcmFrames;
-    this.pendingPcmFrames = [];
-    this.pendingPcmBytes = 0;
-    for (const frame of frames) {
-      if (this.sttSession !== session) break;
-      session.sendPcm(frame);
-    }
   }
 
   /** setara-f05x.9/.10: default STT capture path — AudioWorklet plus the selected noise-suppression
@@ -1335,8 +1288,6 @@ class SidecarVoice {
   private stopPcmCapture(): void {
     this.sttCaptureActive = false;
     this.interimTranscript = '';
-    this.pendingPcmFrames = [];
-    this.pendingPcmBytes = 0;
     this.sttCapture?.destroy();
     this.sttCapture = null;
     try { if (this.sttProcessor) this.sttProcessor.onaudioprocess = null; } catch { /* ignore */ }

@@ -309,216 +309,226 @@
       .forEach((layer) => layer.remove());
   }
 
+  function afterLayout(callback: () => void) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(callback);
+    });
+  }
+
+
+
   onMount(() => {
     let ctx: gsap.Context | undefined;
     let killed = false;
 
     tick().then(() => {
-      if (killed || !root) return;
+      afterLayout(() => {
+        if (killed || !root) return;
 
-      keepWordmarkOnly(root);
-      fitSvgToVisibleWordmark(root);
+              keepWordmarkOnly(root);
+              fitSvgToVisibleWordmark(root);
 
-      ctx = gsap.context(() => {
-        const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+              ctx = gsap.context(() => {
+                const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-        const svgs = Array.from(root!.querySelectorAll<SVGSVGElement>('svg'));
-        svgs.forEach(prepareSvg);
+                const svgs = Array.from(root!.querySelectorAll<SVGSVGElement>('svg'));
+                svgs.forEach(prepareSvg);
 
-        const baseSvg = root!.querySelector<SVGSVGElement>('.setara-gsap-logo__base svg');
-        const shine = root!.querySelector<HTMLElement>('.setara-gsap-logo__shine');
-        const glow = root!.querySelector<HTMLElement>('.setara-gsap-logo__glow');
+                const baseSvg = root!.querySelector<SVGSVGElement>('.setara-gsap-logo__base svg');
+                const shine = root!.querySelector<HTMLElement>('.setara-gsap-logo__shine');
+                const glow = root!.querySelector<HTMLElement>('.setara-gsap-logo__glow');
 
-        if (!baseSvg) return;
+                if (!baseSvg) return;
 
-        removeScribbleLayer(root!);
+                removeScribbleLayer(root!);
 
-        const baseShapes = sortLeftToRight(getVisibleDrawableShapes(baseSvg));
-        const scribbleShapes = createScribbleLayer(baseSvg);
+                const baseShapes = sortLeftToRight(getVisibleDrawableShapes(baseSvg));
+                const scribbleShapes = createScribbleLayer(baseSvg);
 
-        gsap.set(root!, {
-          autoAlpha: 1,
-          filter: 'drop-shadow(0 10px 20px var(--logo-shadow-soft))'
-        });
+                gsap.set(root!, {
+                  autoAlpha: 1,
+                  filter: 'drop-shadow(0 10px 20px var(--logo-shadow-soft))'
+                });
 
-        gsap.set(baseShapes, {
-          autoAlpha: 1,
-          fill: 'none',
-          stroke: 'none',
-          transformOrigin: '50% 50%'
-        });
+                gsap.set(baseShapes, {
+                  autoAlpha: 1,
+                  fill: 'none',
+                  stroke: 'none',
+                  transformOrigin: '50% 50%'
+                });
 
-        gsap.set(shine, {
-          autoAlpha: 0,
-          '--shine-x': '-42%'
-        } as gsap.TweenVars);
+                gsap.set(shine, {
+                  autoAlpha: 0,
+                  '--shine-x': '-42%'
+                } as gsap.TweenVars);
 
-        gsap.set(glow, {
-          autoAlpha: 0,
-          scaleX: 0.2,
-          transformOrigin: '50% 50%'
-        });
+                gsap.set(glow, {
+                  autoAlpha: 0,
+                  scaleX: 0.2,
+                  transformOrigin: '50% 50%'
+                });
 
-        if (!animate || reduceMotion || scribbleShapes.length === 0) {
-          gsap.set(baseShapes, {
-            autoAlpha: 1,
-            fillOpacity: 1,
-            scale: 1,
-            x: 0,
-            y: 0
-          });
+                if (!animate || reduceMotion || scribbleShapes.length === 0) {
+                  gsap.set(baseShapes, {
+                    autoAlpha: 1,
+                    fillOpacity: 1,
+                    scale: 1,
+                    x: 0,
+                    y: 0
+                  });
 
-          gsap.set([shine, glow], { autoAlpha: 0 });
-          removeScribbleLayer(root!);
-          return;
-        }
+                  gsap.set([shine, glow], { autoAlpha: 0 });
+                  removeScribbleLayer(root!);
+                  return;
+                }
 
-        /**
-         * Hide the real filled logo first.
-         * The temporary cloned stroke layer is what gets drawn.
-         */
-        gsap.set(baseShapes, {
-          autoAlpha: 0,
-          fillOpacity: 0,
-          scale: 0.997,
-          x: -1,
-          y: 1
-        });
+                /**
+                 * Hide the real filled logo first.
+                 * The temporary cloned stroke layer is what gets drawn.
+                 */
+                gsap.set(baseShapes, {
+                  autoAlpha: 0,
+                  fillOpacity: 0,
+                  scale: 0.997,
+                  x: -1,
+                  y: 1
+                });
 
-        gsap.set(scribbleShapes, {
-          autoAlpha: 1,
-          stroke: 'currentColor',
-          fill: 'none'
-        });
+                gsap.set(scribbleShapes, {
+                  autoAlpha: 1,
+                  stroke: 'currentColor',
+                  fill: 'none'
+                });
 
-        const intro = gsap.timeline({
-          defaults: {
-            ease: 'power2.out'
-          }
-        });
+                const intro = gsap.timeline({
+                  defaults: {
+                    ease: 'power2.out'
+                  }
+                });
 
-        intro
-          /**
-           * Scribble / handwriting pass.
-           * This draws cloned strokes from the actual SVG paths.
-           */
-          .to(scribbleShapes, {
-            strokeDashoffset: 0,
-            duration: 0.5,
-            stagger: {
-              each: 0.2,
-              from: 'start'
-            }
-          })
+                intro
+                  /**
+                   * Scribble / handwriting pass.
+                   * This draws cloned strokes from the actual SVG paths.
+                   */
+                  .to(scribbleShapes, {
+                    strokeDashoffset: 0,
+                    duration: 0.5,
+                    stagger: {
+                      each: 0.2,
+                      from: 'start'
+                    }
+                  })
 
-          /**
-           * Solid logo fill appears after the scribble.
-           */
-          .to(
-            baseShapes,
-            {
-              autoAlpha: 1,
-              fillOpacity: 1,
-              scale: 1,
-              x: 0,
-              y: 0,
-              duration: 0.28,
-              stagger: {
-                each: 0.012,
-                from: 'start'
-              }
-            },
-            '-=0.16'
-          )
+                  /**
+                   * Solid logo fill appears after the scribble.
+                   */
+                  .to(
+                    baseShapes,
+                    {
+                      autoAlpha: 1,
+                      fillOpacity: 1,
+                      scale: 1,
+                      x: 0,
+                      y: 0,
+                      duration: 0.28,
+                      stagger: {
+                        each: 0.012,
+                        from: 'start'
+                      }
+                    },
+                    '-=0.16'
+                  )
 
-          /**
-           * Remove the temporary scribble layer.
-           */
-          .to(
-            scribbleShapes,
-            {
-              autoAlpha: 0,
-              duration: 0.12
-            },
-            '-=0.06'
-          )
+                  /**
+                   * Remove the temporary scribble layer.
+                   */
+                  .to(
+                    scribbleShapes,
+                    {
+                      autoAlpha: 0,
+                      duration: 0.12
+                    },
+                    '-=0.06'
+                  )
 
-          .add(() => {
-            removeScribbleLayer(root!);
-          })
+                  .add(() => {
+                    removeScribbleLayer(root!);
+                  })
 
-          .to(
-            root!,
-            {
-              filter: 'drop-shadow(0 0 18px var(--logo-shadow-pulse))',
-              duration: 0.24,
-              yoyo: true,
-              repeat: 1
-            },
-            '-=0.1'
-          )
+                  .to(
+                    root!,
+                    {
+                      filter: 'drop-shadow(0 0 18px var(--logo-shadow-pulse))',
+                      duration: 0.24,
+                      yoyo: true,
+                      repeat: 1
+                    },
+                    '-=0.1'
+                  )
 
-          .to(
-            glow,
-            {
-              autoAlpha: 0.65,
-              scaleX: 1,
-              duration: 0.42,
-              ease: 'expo.out'
-            },
-            '-=0.28'
-          )
+                  .to(
+                    glow,
+                    {
+                      autoAlpha: 0.65,
+                      scaleX: 1,
+                      duration: 0.42,
+                      ease: 'expo.out'
+                    },
+                    '-=0.28'
+                  )
 
-          .to(glow, { autoAlpha: 0, duration: 0.36 }, '-=0.1')
+                  .to(glow, { autoAlpha: 0, duration: 0.36 }, '-=0.1')
 
-          .to(shine, { autoAlpha: 0.9, duration: 0.01 }, '-=0.36')
+                  .to(shine, { autoAlpha: 0.9, duration: 0.01 }, '-=0.36')
 
-          .to(
-            shine,
-            {
-              '--shine-x': '142%',
-              duration: 0.75,
-              ease: 'power2.inOut'
-            } as gsap.TweenVars,
-            '<'
-          )
+                  .to(
+                    shine,
+                    {
+                      '--shine-x': '142%',
+                      duration: 0.75,
+                      ease: 'power2.inOut'
+                    } as gsap.TweenVars,
+                    '<'
+                  )
 
-          .to(shine, { autoAlpha: 0, duration: 0.12 }, '-=0.08');
+                  .to(shine, { autoAlpha: 0, duration: 0.12 }, '-=0.08');
 
-        if (loop) {
-          const idle = gsap.timeline({
-            repeat: -1,
-            repeatDelay: 3.4,
-            paused: true
-          });
+                if (loop) {
+                  const idle = gsap.timeline({
+                    repeat: -1,
+                    repeatDelay: 3.4,
+                    paused: true
+                  });
 
-          idle
-            .set(shine, { '--shine-x': '-42%' } as gsap.TweenVars)
-            .to(shine, { autoAlpha: 0.78, duration: 0.01 })
-            .to(
-              shine,
-              {
-                '--shine-x': '142%',
-                duration: 1,
-                ease: 'power2.inOut'
-              } as gsap.TweenVars,
-              '<'
-            )
-            .to(
-              root!,
-              {
-                filter: 'drop-shadow(0 0 14px var(--logo-shadow-idle))',
-                duration: 0.3,
-                yoyo: true,
-                repeat: 1
-              },
-              0.14
-            )
-            .to(shine, { autoAlpha: 0, duration: 0.12 }, 0.96);
+                  idle
+                    .set(shine, { '--shine-x': '-42%' } as gsap.TweenVars)
+                    .to(shine, { autoAlpha: 0.78, duration: 0.01 })
+                    .to(
+                      shine,
+                      {
+                        '--shine-x': '142%',
+                        duration: 1,
+                        ease: 'power2.inOut'
+                      } as gsap.TweenVars,
+                      '<'
+                    )
+                    .to(
+                      root!,
+                      {
+                        filter: 'drop-shadow(0 0 14px var(--logo-shadow-idle))',
+                        duration: 0.3,
+                        yoyo: true,
+                        repeat: 1
+                      },
+                      0.14
+                    )
+                    .to(shine, { autoAlpha: 0, duration: 0.12 }, 0.96);
 
-          intro.add(() => idle.play(0), '+=0.5');
-        }
-      }, root!);
+                  intro.add(() => idle.play(0), '+=0.5');
+                }
+              }, root!);
+      });
     });
 
     return () => {

@@ -8,7 +8,7 @@ const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const read = (path) => readFileSync(join(root, path), 'utf8');
 
 describe('ASA sidecar voice contracts', () => {
-  it('captures constrained microphone audio concurrently with the v2 session handshake', () => {
+  it('captures constrained microphone audio only after the v2 session is ready', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
     const constraints = read('src/lib/voice/audio/audio-constraints.ts');
 
@@ -16,10 +16,13 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(constraints, /echoCancellation: true/);
     assert.match(constraints, /autoGainControl: true/);
     assert.match(voice, /navigator\.mediaDevices\.getUserMedia\(\{ audio: this\.microphoneConstraints\(\) \}\)/);
-    assert.match(voice, /const sessionOpening = this\.openSttSession\(mode\)/);
+    // RC-03 (ASA STT accuracy recovery): session-open must resolve before capture starts - not
+    // concurrently with it. Starting capture early had nowhere authoritative to send PCM until
+    // ready, so it was buffered and then burst-flushed in one shot once the handshake resolved,
+    // which is what was overwhelming the core relay's in-flight window in the first place.
+    assert.match(voice, /await this\.openSttSession\(mode\)/);
     assert.match(voice, /const captureStarted = await this\.startPcmCapture\(\)/);
     assert.match(voice, /if \(!captureStarted\)/);
-    assert.match(voice, /await sessionOpening/);
     assert.match(voice, /await session\.open\(\)/);
     assert.match(voice, /!session\?\.isReady/);
     assert.doesNotMatch(voice, /MediaRecorder|new Blob|transcribeAudio/);
@@ -109,20 +112,20 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /void this\.armHandsFree\(\); \/\/ nothing usable/);
   });
 
-  it('buffers PCM captured before the session is ready, then flushes it once ready', () => {
+  it('never buffers or bursts pre-roll PCM - manual capture starts only after ready', () => {
     const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
 
-    // setara-s94o STT truncation incident: capture used to start only after openSttSession()
-    // resolved (HTTP prepare + WS ready), silently losing any speech during that handshake. Audio
-    // is now captured concurrently and buffered (bounded by PRE_ROLL_MAX_BYTES) until ready.
+    // RC-03 (ASA STT accuracy recovery plan): a prior fix buffered PCM captured before the WS
+    // session was ready and flushed it all in one burst once the handshake resolved - ~50 frames
+    // arriving at once, which is what was exceeding the core relay's in-flight window and frame-rate
+    // policy in the first place. The actual fix is not building the capture graph until ready, so
+    // there is never anything to buffer or burst.
     assert.match(voice, /new SttSession\(\{/);
     assert.match(voice, /await session\.open\(\)/);
-    assert.match(voice, /const sessionOpening = this\.openSttSession\(mode\)/);
+    assert.match(voice, /await this\.openSttSession\(mode\)/);
     assert.match(voice, /const captureStarted = await this\.startPcmCapture\(\)/);
-    assert.match(voice, /PRE_ROLL_MAX_BYTES/);
-    assert.match(voice, /private bufferPreRollFrame\(frame: ArrayBuffer\)/);
-    assert.match(voice, /private flushPreRollFrames\(session: SttSession\)/);
-    assert.match(voice, /this\.flushPreRollFrames\(session\)/);
+    assert.doesNotMatch(voice, /PRE_ROLL_MAX_BYTES|pendingPcmFrames|pendingPcmBytes/);
+    assert.doesNotMatch(voice, /bufferPreRollFrame|flushPreRollFrames/);
   });
 
   it('persists only current sidecar voice preferences', () => {
