@@ -1297,6 +1297,7 @@
   .messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 12px 12px 6px;
     display: flex;
     flex-direction: column;
@@ -1344,6 +1345,7 @@
     display: flex;
     gap: 7px;
     align-items: flex-end;
+    min-width: 0;
   }
   .msg--user { flex-direction: row-reverse; }
 
@@ -1372,6 +1374,11 @@
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
+    /* Flex item of .msg-col (column flex) - default min-width:auto lets it grow to an unwrapped
+       child's (e.g. a wide markdown table) full content width instead of respecting max-width,
+       which also breaks that child's own overflow-x:auto (nothing left to scroll within). */
+    min-width: 0;
+    max-width: 100%;
     /* Stay opaque + lifted so bubbles read clearly over the now-transparent panel. */
   }
   .msg--user .msg-bubble {

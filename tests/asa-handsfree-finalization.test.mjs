@@ -25,13 +25,21 @@ describe('ASA hands-free STT finalization', () => {
     assert.doesNotMatch(endVadCapture, /this\.interimTranscript[^\n]*onTranscript/);
   });
 
-  it('uses one v2 session without batch or raw-audio finalization', () => {
+  it('hands-free uses one v2 session without batch or raw-audio finalization', () => {
+    // Command mode reverted to batch MediaRecorder upload (setara-w50k, after the Moonshine
+    // migration failed its benchmark) - but hands-free itself must stay exclusively on the v2 WS
+    // session, so scope the "no batch finalization" guarantee to hands-free's own code
+    // (endVadCapture), not the whole file.
     const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
     const api = read('src/lib/api/asa.ts');
+    const endVadCapture = sidecar.slice(
+      sidecar.indexOf('private async endVadCapture'),
+      sidecar.indexOf('private rearmAfterNoise'),
+    );
 
     assert.match(sidecar, /new SttSession\(\{/);
     assert.match(sidecar, /socketFactory: \(\) => openSttStream\(prepared\.voiceSessionId\)/);
-    assert.doesNotMatch(sidecar, /MediaRecorder|new Blob|transcribeAudio|finalizeVoicePcm/);
-    assert.doesNotMatch(api, /function toWav16k|voice\/transcribe|finalizeVoicePcm/);
+    assert.doesNotMatch(endVadCapture, /MediaRecorder|new Blob|transcribeAudio|finalizeVoicePcm/);
+    assert.doesNotMatch(api, /function toWav16k|finalizeVoicePcm/);
   });
 });

@@ -68,7 +68,10 @@ describe('ASA interaction contracts', () => {
     assert.equal(pkg.dependencies['@moonshine-ai/moonshine-js'], undefined);
     assert.doesNotMatch(source, /RunAnywhere|MoonshineSttEngine|model-manifest/);
     assert.match(source, /new SttSession\(\{/);
-    assert.doesNotMatch(source, /MediaRecorder|transcribeAudio\(blob\)/);
+    // MediaRecorder/transcribeAudio(blob) ARE used again as of setara-w50k (command-mode batch
+    // upload) - that's a restored server-decoded path, not the removed client-side Moonshine/
+    // RunAnywhere browser-inference stack this test guards against. See asa-voice.test.mjs's
+    // dedicated command-mode test for that contract.
     assert.match(source, /synthesizeSpeechStream\(text/);
   });
 });

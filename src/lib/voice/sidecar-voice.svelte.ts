@@ -6,6 +6,7 @@ import {
   fetchEntityCatalog,
   fetchVoiceCue,
   prepareVoiceSession,
+  transcribeAudio,
   type AsaPreparedVoiceSession,
   type AsaVoiceOption,
 } from '$lib/api/asa';
@@ -174,6 +175,11 @@ class SidecarVoice {
   private sttFinalizing = false;
   private captureGeneration = 0;
 
+  // Command mode only (setara-w50k): batch upload via MediaRecorder replaces the rolling-PCM WS
+  // stream (STT_STREAM/sttSession above), which stays in use for dictation/hands-free.
+  private commandRecorder: MediaRecorder | null = null;
+  private commandRecorderChunks: Blob[] = [];
+
   private stream: MediaStream | null = null;
   private autoStop: ReturnType<typeof setTimeout> | null = null;
   private catalog: AsaEntityCatalog | null = null;
@@ -286,25 +292,39 @@ class SidecarVoice {
       return;
     }
     this.stream = stream;
-    try {
-      // Wait for the session to be ready before starting capture at all - not concurrently with it.
-      // Starting capture early (setara-s94o round 5) meant PCM had nowhere authoritative to go until
-      // ready, so it was buffered and burst-flushed once the handshake resolved: ~50 frames arriving
-      // at once, exceeding the core relay's in-flight window and frame-rate policy (RC-03, ASA STT
-      // accuracy recovery plan). The AudioContext + STT worklet module are already warmed well before
-      // this point (preloadCapture(), called on ASA panel open), so this sequential order costs only
-      // the real session-open handshake latency, not a cold worklet compile.
-      await this.openSttSession(mode);
-      if (captureGeneration !== this.captureGeneration) return;
-      const captureStarted = await this.startPcmCapture();
-      if (captureGeneration !== this.captureGeneration) return;
-      if (!captureStarted) {
-        throw new SttSessionError('STT_CAPTURE_UNAVAILABLE', 'Microphone capture could not start', true);
+    if (mode === 'command') {
+      // Batch upload (setara-w50k): record the whole utterance, upload once, one final decode -
+      // no rolling-PCM WS session, no partial decode. Dictation below is unchanged.
+      const started = this.startCommandRecorder(stream);
+      if (!started) {
+        if (captureGeneration !== this.captureGeneration) return;
+        this.fail(sttErrorMessage(
+          new SttSessionError('STT_CAPTURE_UNAVAILABLE', 'Microphone capture could not start', true)
+        ));
+        return;
       }
-    } catch (error) {
-      if (captureGeneration !== this.captureGeneration) return;
-      this.fail(sttErrorMessage(error));
-      return;
+      this.sttMode = mode;
+    } else {
+      try {
+        // Wait for the session to be ready before starting capture at all - not concurrently with it.
+        // Starting capture early (setara-s94o round 5) meant PCM had nowhere authoritative to go until
+        // ready, so it was buffered and burst-flushed once the handshake resolved: ~50 frames arriving
+        // at once, exceeding the core relay's in-flight window and frame-rate policy (RC-03, ASA STT
+        // accuracy recovery plan). The AudioContext + STT worklet module are already warmed well before
+        // this point (preloadCapture(), called on ASA panel open), so this sequential order costs only
+        // the real session-open handshake latency, not a cold worklet compile.
+        await this.openSttSession(mode);
+        if (captureGeneration !== this.captureGeneration) return;
+        const captureStarted = await this.startPcmCapture();
+        if (captureGeneration !== this.captureGeneration) return;
+        if (!captureStarted) {
+          throw new SttSessionError('STT_CAPTURE_UNAVAILABLE', 'Microphone capture could not start', true);
+        }
+      } catch (error) {
+        if (captureGeneration !== this.captureGeneration) return;
+        this.fail(sttErrorMessage(error));
+        return;
+      }
     }
     this.status = 'recording';
     this.turnState = 'hearing';
@@ -326,11 +346,14 @@ class SidecarVoice {
   private async finishManualCapture(reason: SttFlushReason): Promise<SidecarTranscript | null> {
     if (
       this.status !== 'recording' ||
-      !this.sttSession ||
       (this.sttMode !== 'command' && this.sttMode !== 'dictation')
     ) {
       return null;
     }
+    if (this.sttMode === 'command') {
+      return this.finishCommandRecording();
+    }
+    if (!this.sttSession) return null;
     if (this.autoStop) { clearTimeout(this.autoStop); this.autoStop = null; }
     const mode = this.sttMode;
     const session = this.sttSession;
@@ -458,6 +481,7 @@ class SidecarVoice {
   cancelRecording(): void {
     this.captureGeneration += 1;
     if (this.autoStop) { clearTimeout(this.autoStop); this.autoStop = null; }
+    this.discardCommandRecorder();
     this.stopPcmCapture();
     this.destroySttSession();
     this.releaseStream();
@@ -1310,6 +1334,111 @@ class SidecarVoice {
     }
   }
 
+  /** Command mode only (setara-w50k): record the whole utterance for one batch upload instead of
+   *  streaming PCM frames over the rolling-PCM WS session used by dictation/hands-free. */
+  private startCommandRecorder(stream: MediaStream): boolean {
+    if (typeof MediaRecorder === 'undefined') return false;
+    const mimeType = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus'].find(
+      (type) => MediaRecorder.isTypeSupported(type)
+    );
+    try {
+      this.commandRecorder = mimeType ? new MediaRecorder(stream, { mimeType }) : new MediaRecorder(stream);
+    } catch {
+      return false;
+    }
+    this.commandRecorderChunks = [];
+    this.commandRecorder.ondataavailable = (event) => {
+      if (event.data.size > 0) this.commandRecorderChunks.push(event.data);
+    };
+    this.commandRecorder.start();
+    return true;
+  }
+
+  private stopCommandRecorderAndCollect(recorder: MediaRecorder): Promise<Blob | null> {
+    return new Promise((resolve) => {
+      const collect = () =>
+        resolve(this.commandRecorderChunks.length ? new Blob(this.commandRecorderChunks, { type: recorder.mimeType }) : null);
+      if (recorder.state === 'inactive') {
+        collect();
+        return;
+      }
+      recorder.onstop = collect;
+      recorder.stop();
+    });
+  }
+
+  /** Discard an in-progress command recording without uploading it (cancel/error paths). */
+  private discardCommandRecorder(): void {
+    const recorder = this.commandRecorder;
+    this.commandRecorder = null;
+    this.commandRecorderChunks = [];
+    if (recorder && recorder.state !== 'inactive') {
+      try { recorder.stop(); } catch { /* already stopped */ }
+    }
+  }
+
+  /** Stop the command recorder, upload the recorded utterance, and run it through the same
+   *  finality/normalization/entity-resolution pipeline dictation's WS finals use. */
+  private async finishCommandRecording(): Promise<SidecarTranscript | null> {
+    if (this.autoStop) { clearTimeout(this.autoStop); this.autoStop = null; }
+    const recorder = this.commandRecorder;
+    if (!recorder) return null;
+    this.status = 'transcribing';
+    this.turnState = 'finalizing';
+    this.sttFinalizing = true;
+    try {
+      const blob = await this.stopCommandRecorderAndCollect(recorder);
+      this.releaseStream(true);
+      if (!blob || blob.size === 0) {
+        this.fail('Could not understand audio. Try again with less background noise.');
+        return null;
+      }
+      const startedAt = performance.now();
+      const response = await transcribeAudio(blob);
+      if (!response) {
+        this.fail('Voice service is unavailable right now. Try again or type your request.');
+        return null;
+      }
+      const result: SttFinalResult = {
+        text: response.text,
+        finality: 'provider_final',
+        provider: response.provider,
+        model: response.model,
+        durationMs: response.durationMs,
+        latencyMs: response.latencyMs || Math.round(performance.now() - startedAt),
+        fallbackUsed: response.fallbackUsed,
+        audioDroppedMs: 0,
+        degraded: false,
+        transport: {
+          framesProduced: 0,
+          framesSent: 0,
+          framesDropped: 0,
+          audioProducedMs: response.durationMs,
+          audioSentMs: response.durationMs,
+          audioDroppedMs: 0,
+          maxBufferedAmount: 0,
+          reconnects: 0,
+          congestionStops: 0,
+        },
+      };
+      const transcript = await this.processSttResult('command', result, true);
+      if (!transcript) return null;
+      if (sttFinalDisposition('command', result) === 'auto_submit') {
+        this.onTranscript?.(transcript.text, transcript.voiceInput);
+        return null;
+      }
+      return transcript;
+    } catch (error) {
+      this.fail(sttErrorMessage(error));
+      return null;
+    } finally {
+      this.sttFinalizing = false;
+      this.commandRecorder = null;
+      this.commandRecorderChunks = [];
+      this.sttMode = null;
+    }
+  }
+
   private handleSttSessionFinal(
     session: SttSession,
     mode: SttMode,
@@ -1401,6 +1530,7 @@ class SidecarVoice {
   }
 
   private fail(message: string): void {
+    this.discardCommandRecorder();
     this.stopPcmCapture();
     this.destroySttSession();
     this.releaseStream(true);

@@ -16,7 +16,9 @@ describe('ASA sidecar model ownership', () => {
     assert.equal(existsSync(join(root, 'src/lib/voice/model-manifest.json')), false);
     assert.match(sidecar, /new SttSession\(\{/);
     assert.match(sidecar, /openSttStream\(prepared\.voiceSessionId\)/);
-    assert.doesNotMatch(api, /apiFetch\('\/api\/asa\/voice\/transcribe'/);
+    // /voice/transcribe (batch command-mode upload, setara-w50k) still decodes server-side in the
+    // sidecar - restoring it doesn't reintroduce a client-side model cache, so it's not asserted
+    // absent here; that guarantee belongs to asa-voice.test.mjs's command-mode test instead.
     assert.match(api, /apiFetch\('\/api\/asa\/voice\/synthesize\/stream'/);
   });
 });

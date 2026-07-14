@@ -25,7 +25,27 @@ describe('ASA sidecar voice contracts', () => {
     assert.match(voice, /if \(!captureStarted\)/);
     assert.match(voice, /await session\.open\(\)/);
     assert.match(voice, /!session\?\.isReady/);
-    assert.doesNotMatch(voice, /MediaRecorder|new Blob|transcribeAudio/);
+  });
+
+  it('uses a batch MediaRecorder upload for command mode only, dictation stays on the WS session', () => {
+    // setara-w50k: command mode reverted to batch upload (record whole utterance -> one upload ->
+    // one final decode) after the Moonshine migration failed its Stage 0 benchmark; dictation keeps
+    // the rolling-PCM WS session above unchanged.
+    const voice = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const startRecording = voice.slice(voice.indexOf('async startRecording('), voice.indexOf('async stopRecording()'));
+    const commandBranch = startRecording.slice(
+      startRecording.indexOf("if (mode === 'command')"),
+      startRecording.indexOf('} else {'),
+    );
+
+    assert.match(commandBranch, /this\.startCommandRecorder\(stream\)/);
+    assert.doesNotMatch(commandBranch, /openSttSession|startPcmCapture/);
+    assert.match(voice, /new MediaRecorder\(stream, \{ mimeType \}\)/);
+    assert.match(voice, /private async finishCommandRecording\(\)/);
+    assert.match(voice, /const response = await transcribeAudio\(blob\)/);
+    assert.match(voice, /finality: 'provider_final'/);
+    assert.match(voice, /this\.processSttResult\('command', result, true\)/);
+    assert.match(voice, /sttFinalDisposition\('command', result\)/);
   });
 
   it('normalizes and routes structured sidecar transcripts', () => {

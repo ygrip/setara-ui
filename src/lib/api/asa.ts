@@ -89,6 +89,43 @@ export interface AsaVoiceOption {
   language: string;
 }
 
+export interface AsaTranscribeResult {
+  text: string;
+  provider: string;
+  model: string;
+  durationMs: number;
+  latencyMs: number;
+  fallbackUsed: boolean;
+}
+
+/**
+ * Batch STT: upload a complete recorded utterance (command mode only - setara-w50k) and get back
+ * one final transcript. Core relays the audio as multipart to the sidecar's /stt, which runs the
+ * mode-aware final-decode profile in one pass - no partial/rolling decode. Null if the sidecar is
+ * unavailable or the request fails.
+ */
+export async function transcribeAudio(blob: Blob): Promise<AsaTranscribeResult | null> {
+  try {
+    const res = await apiFetch('/api/asa/voice/transcribe', {
+      method: 'POST',
+      headers: { 'Content-Type': blob.type || 'audio/webm' },
+      body: blob,
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      text: String(data.text ?? ''),
+      provider: String(data.provider ?? 'unknown'),
+      model: String(data.model ?? 'unknown'),
+      durationMs: Number(data.durationMs ?? 0),
+      latencyMs: Number(data.latencyMs ?? 0),
+      fallbackUsed: Boolean(data.fallbackUsed),
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Fetch a pre-generated spoken cue clip ("ok"/"processing"/…) in a voice. Null if unavailable. */
 export async function fetchVoiceCue(voiceId: string, cue: string): Promise<ArrayBuffer | null> {
   try {
