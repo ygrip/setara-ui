@@ -99,6 +99,19 @@
     return page.url.pathname.startsWith(href);
   }
 
+  function isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    return (
+      target.isContentEditable ||
+      target.tagName === 'INPUT' ||
+      target.tagName === 'TEXTAREA' ||
+      target.tagName === 'SELECT'
+    );
+  }
+
   onMount(() => {
     session = getValidSession();
 
@@ -127,32 +140,55 @@
     }
 
     function handleKeydown(event: KeyboardEvent): void {
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === 'k'
-      ) {
-        event.preventDefault();
-        paletteOpen = true;
-        return;
+    const hasCommandModifier = event.metaKey || event.ctrlKey;
+
+    const isSidebarShortcut =
+      hasCommandModifier &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.code === 'Backslash';
+
+    if (
+      isDesktop &&
+      isSidebarShortcut &&
+      !isEditableTarget(event.target)
+    ) {
+      event.preventDefault();
+
+      // Prevent holding the keys from toggling repeatedly.
+      if (!event.repeat) {
+        toggleSidebarCollapsed();
       }
 
-      if (
-        (event.metaKey || event.ctrlKey) &&
-        event.key.toLowerCase() === 'i'
-      ) {
-        event.preventDefault();
-        asa.toggle();
-        return;
-      }
+      return;
+    }
 
-      if (event.key === 'Escape') {
-        userMenuOpen = false;
+    if (
+      hasCommandModifier &&
+      event.key.toLowerCase() === 'k'
+    ) {
+      event.preventDefault();
+      paletteOpen = true;
+      return;
+    }
 
-        if (!isDesktop) {
-          sidebarOpen = false;
-        }
+    if (
+      hasCommandModifier &&
+      event.key.toLowerCase() === 'i'
+    ) {
+      event.preventDefault();
+      asa.toggle();
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      userMenuOpen = false;
+
+      if (!isDesktop) {
+        sidebarOpen = false;
       }
     }
+  }
 
     function handleOutsideClick(event: MouseEvent): void {
       const userMenu = document.querySelector('.user-menu-wrap');
@@ -742,8 +778,8 @@
           : 'Collapse sidebar'}
         aria-expanded={!sidebarCollapsed}
         title={sidebarCollapsed
-          ? 'Expand sidebar'
-          : 'Collapse sidebar'}
+        ? 'Expand sidebar (⌘ / Ctrl+\\)'
+        : 'Collapse sidebar (⌘ / Ctrl+\\)'}
       >
         <svg
           viewBox="0 0 24 24"
