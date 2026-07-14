@@ -114,7 +114,7 @@
 </Modal>
 
 <style>
-  .page { max-width: none; }
+  .page { max-width: 100%; }
   .breadcrumb { display: flex; align-items: center; gap: 8px; color: var(--color-text-muted); font-size: 0.82rem; margin-bottom: 18px; }
   .breadcrumb a { color: var(--color-accent); text-decoration: none; }
   .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }

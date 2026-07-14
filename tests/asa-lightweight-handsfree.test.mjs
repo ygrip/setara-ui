@@ -17,7 +17,8 @@ describe('ASA lightweight hands-free contracts', () => {
     assert.match(sidecar, /const ML_VAD_PREF_KEY = 'setara\.asa\.voice\.mlVad'/);
     assert.match(sidecar, /private shouldUseMlVad\(\): boolean/);
     assert.match(sidecar, /localStorage\.getItem\(ML_VAD_PREF_KEY\) === '1'/);
-    assert.match(sidecar, /if \(this\.shouldUseMlVad\(\)\) \{[\s\S]*this\.micVad = await createMlVad/);
+    assert.match(sidecar, /if \(this\.shouldUseMlVad\(\)\) \{[\s\S]*const vad = await createMlVad/);
+    assert.match(sidecar, /this\.micVad = vad/);
   });
 
   it('disconnects energy VAD nodes and keeps the mic stream across ignored listening cycles', () => {

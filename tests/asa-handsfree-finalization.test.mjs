@@ -11,26 +11,35 @@ function read(relativePath) {
 }
 
 describe('ASA hands-free STT finalization', () => {
-  it('resolves a pending final transcript from final, close, error, or timeout paths', () => {
+  it('routes v2 finals through explicit authoritative versus reviewable policy', () => {
     const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
-
-    assert.match(sidecar, /private finishSttFinal\(text: string \| null\): void/);
-    assert.match(sidecar, /if \(!this\.sttFinal\) return/);
-    assert.match(sidecar, /this\.sttFinal = null/);
-    assert.match(sidecar, /this\.finishSttFinal\(msg\.text \?\? ''\)/);
-    assert.match(sidecar, /ws\.onerror = \(\) => this\.finishSttFinal\(this\.interimTranscript\)/);
-    assert.match(sidecar, /ws\.onclose = \(\) => \{[\s\S]*this\.finishSttFinal\(this\.interimTranscript\)/);
-    assert.match(sidecar, /setTimeout\(\(\) => this\.finishSttFinal\(this\.interimTranscript\), STREAM_FINAL_TIMEOUT_MS\)/);
-  });
-
-  it('uses the streaming final without starting a second raw STT request', () => {
-    const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
-    const endStreamCapture = sidecar.slice(
-      sidecar.indexOf('private async endStreamCapture()'),
-      sidecar.indexOf('private finishSttFinal'),
+    const endVadCapture = sidecar.slice(
+      sidecar.indexOf('private async endVadCapture'),
+      sidecar.indexOf('private rearmAfterNoise'),
     );
 
-    assert.match(endStreamCapture, /ws\.send\('flush'\)/);
-    assert.doesNotMatch(endStreamCapture, /await\s+finalizeVoicePcm\(|this\.utterancePcmFrames|mergePcmFrames\(/);
+    assert.match(endVadCapture, /result = await session\.stop\(reason\)/);
+    assert.match(endVadCapture, /sttFinalDisposition\('hands_free', result\) === 'auto_submit'/);
+    assert.match(endVadCapture, /this\.onTranscript\(routedTranscript\.text, routedTranscript\.voiceInput\)/);
+    assert.match(endVadCapture, /this\.onReviewTranscript\?\.\(routedTranscript\)/);
+    assert.doesNotMatch(endVadCapture, /this\.interimTranscript[^\n]*onTranscript/);
+  });
+
+  it('hands-free uses one v2 session without batch or raw-audio finalization', () => {
+    // Command mode reverted to batch MediaRecorder upload (setara-w50k, after the Moonshine
+    // migration failed its benchmark) - but hands-free itself must stay exclusively on the v2 WS
+    // session, so scope the "no batch finalization" guarantee to hands-free's own code
+    // (endVadCapture), not the whole file.
+    const sidecar = read('src/lib/voice/sidecar-voice.svelte.ts');
+    const api = read('src/lib/api/asa.ts');
+    const endVadCapture = sidecar.slice(
+      sidecar.indexOf('private async endVadCapture'),
+      sidecar.indexOf('private rearmAfterNoise'),
+    );
+
+    assert.match(sidecar, /new SttSession\(\{/);
+    assert.match(sidecar, /socketFactory: \(\) => openSttStream\(prepared\.voiceSessionId\)/);
+    assert.doesNotMatch(endVadCapture, /MediaRecorder|new Blob|transcribeAudio|finalizeVoicePcm/);
+    assert.doesNotMatch(api, /function toWav16k|finalizeVoicePcm/);
   });
 });

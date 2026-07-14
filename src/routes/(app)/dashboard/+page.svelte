@@ -503,7 +503,7 @@
 
 <style>
   .page {
-    max-width: min(1520px, 100%);
+    max-width: 100%;
     min-height: calc(100vh - 80px);
   }
 

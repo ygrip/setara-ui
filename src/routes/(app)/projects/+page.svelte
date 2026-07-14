@@ -238,7 +238,7 @@
 </Modal>
 
 <style>
-  .page { max-width: 96rem; min-height: calc(100vh - 5rem); }
+  .page { max-width: 100%; min-height: calc(100vh - 5rem); }
   .page-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; margin-bottom: 1.25rem; }
   h1 { margin: 0 0 0.25rem; color: var(--color-text); font-size: 1.5rem; }
   .page-header p { margin: 0; color: var(--color-text-muted); font-size: 0.875rem; }

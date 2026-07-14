@@ -4,9 +4,14 @@
   import { fetchVoiceModelsInfo, type AsaAction, type AsaVoiceModelsInfo } from '$lib/api/asa';
   import { renderMarkdown } from '$lib/markdown';
   import { sidecarVoice, type SidecarTranscript } from '$lib/voice/sidecar-voice.svelte';
+  import type { SttMode } from '$lib/voice/stt-stream/protocol';
   import { getValidSession } from '$lib/auth';
 
-  // Push-to-talk transcript awaiting user review - never auto-sent (setara-s94o.10).
+  type ManualVoiceMode = Extract<SttMode, 'command' | 'dictation'>;
+  let manualVoiceMode = $state<ManualVoiceMode>('command');
+
+  // Dictation and degraded command transcripts await explicit review. An authoritative command
+  // final is submitted directly by sidecarVoice according to the shared finality policy.
   let pendingTranscript = $state<SidecarTranscript | null>(null);
   let pendingDraft = $state('');
 
@@ -61,6 +66,13 @@
     orbDragSY   = e.clientY - orbY;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     startRipple();
+    // Real user gesture - AudioContext.resume() (unlike creation) needs one, and browsers refuse it
+    // silently otherwise. The onMount preload call earlier could only create the context + compile
+    // the worklet module, not actually resume it, so it sat 'suspended' until the record button's
+    // own click resumed it - eating ~800ms of real mic hardware spin-up out of the recording itself
+    // (setara-s94o STT truncation, round 7). Resuming here instead, on opening the orb, gives that
+    // spin-up the gap between "open ASA" and "click record" to finish instead.
+    if (asa.voiceSidecar) sidecarVoice.preloadCapture();
   }
 
   function onOrbPointerMove(e: PointerEvent) {
@@ -169,7 +181,8 @@
   // ── Chat ──────────────────────────────────────────────────────────────────
   let inputText = $state('');
   let chatEl    = $state<HTMLElement | null>(null);
-  let inputEl   = $state<HTMLInputElement | null>(null);
+  let inputEl   = $state<HTMLTextAreaElement | null>(null);
+  const INPUT_MAX_HEIGHT = 140;
   let orbEl     = $state<HTMLElement | null>(null);
   let reviewEl  = $state<HTMLTextAreaElement | null>(null);
   let voiceSettingsOpen = $state(false);
@@ -202,27 +215,78 @@
     const text = inputText.trim();
     if (!text) return;
     inputText = '';
+    resetInputHeight();
     // Reply is spoken sentence-by-sentence as it streams (handled in the asa store).
     await asa.send(text);
   }
 
-  // Sidecar push-to-talk: click to record, click again to stop → transcribe → show an editable
-  // review panel. Never auto-sent - the user edits/confirms or discards (setara-s94o.10).
+  // Auto-grow the composer like a normal chat input: expand with content, cap at
+  // INPUT_MAX_HEIGHT and let it scroll beyond that instead of growing forever. The grown height is
+  // kept in state (not just the element's inline style) because the textarea sits inside an {#if
+  // asa.open} block - closing the panel unmounts it, and an inline style set only via JS would be
+  // lost on remount. Reapplying it through the `style` binding survives that unmount/remount.
+  let inputHeightPx = $state<number | null>(null);
+
+  function autoGrowInput() {
+    if (!inputEl) return;
+    inputEl.style.height = 'auto';
+    inputHeightPx = Math.min(inputEl.scrollHeight, INPUT_MAX_HEIGHT);
+  }
+
+  function resetInputHeight() {
+    inputHeightPx = null;
+    if (inputEl) inputEl.style.height = 'auto';
+  }
+
+  function onInputKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') { asa.close(); return; }
+    // Enter sends; Shift+Enter (or Cmd/Ctrl+Enter, mirrored by the window-level shortcut) inserts a newline.
+    if (e.key === 'Enter' && !e.shiftKey && !e.metaKey && !e.ctrlKey) {
+      e.preventDefault();
+      if (!asa.streaming && inputText.trim()) {
+        (e.currentTarget as HTMLTextAreaElement).form?.requestSubmit();
+      }
+    }
+  }
+
+  async function showTranscriptForReview(transcript: SidecarTranscript) {
+    if (!asa.open) asa.activate();
+    pendingTranscript = transcript;
+    pendingDraft = transcript.text;
+    await tick();
+    reviewEl?.focus();
+  }
+
   async function toggleSidecarMic() {
     if (sidecarVoice.recording) {
       const transcript = await sidecarVoice.stopRecording();
-      if (transcript) {
-        if (!asa.open) asa.activate();
-        pendingTranscript = transcript;
-        pendingDraft = transcript.text;
-        await tick();
-        reviewEl?.focus();
-      }
+      if (transcript) await showTranscriptForReview(transcript);
     } else {
       pendingTranscript = null;
-      await sidecarVoice.startRecording();
+      await sidecarVoice.startRecording(manualVoiceMode);
     }
   }
+
+  function toggleManualVoiceMode() {
+    manualVoiceMode = manualVoiceMode === 'command' ? 'dictation' : 'command';
+  }
+
+  const manualVoiceLabel = $derived(manualVoiceMode === 'command' ? 'Command' : 'Dictation');
+  const handsFreeCapturing = $derived(
+    sidecarVoice.recording && sidecarVoice.captureMode === 'hands_free',
+  );
+  const activeVoiceLabel = $derived(handsFreeCapturing ? 'Command' : manualVoiceLabel);
+  const voiceMicTitle = $derived(
+    handsFreeCapturing
+      ? 'Hands-free Command recording; pause to send'
+      : sidecarVoice.recording
+      ? `Stop ${manualVoiceLabel} recording (⌘/Ctrl+M)`
+      : sidecarVoice.status === 'transcribing'
+        ? `Transcribing ${manualVoiceLabel}…`
+        : manualVoiceMode === 'command'
+          ? 'Record Command (up to 15 seconds, ⌘/Ctrl+M)'
+          : 'Record Dictation (up to 5 minutes, ⌘/Ctrl+M)',
+  );
 
   async function confirmPendingTranscript() {
     const text = pendingDraft.trim();
@@ -236,6 +300,7 @@
   function discardPendingTranscript() {
     pendingTranscript = null;
     pendingDraft = '';
+    sidecarVoice.resumeHandsFreeAfterReview();
   }
 
   function closePanel() {
@@ -256,7 +321,16 @@
         event.preventDefault();
         const text = inputText.trim();
         inputText = '';
+        resetInputHeight();
         void asa.send(text);
+      }
+      return;
+    }
+    // Cmd/Ctrl+Shift+M toggles Command/Dictation mode (checked before the plain Cmd/Ctrl+M below).
+    if ((event.metaKey || event.ctrlKey) && event.shiftKey && (event.key === 'm' || event.key === 'M')) {
+      if (asa.voiceSidecar && !sidecarVoice.busy) {
+        event.preventDefault();
+        toggleManualVoiceMode();
       }
       return;
     }
@@ -294,6 +368,28 @@
     return h > 0 ? `${h}h` : `${m}m`;
   })());
 
+  // Sleek "thinking" glow border on the panel while a reply is streaming/being composed.
+  // Held for a minimum visible duration so a near-instant response still flashes it -
+  // otherwise a fast/mocked reply can resolve before the animation ever paints a frame.
+  let panelActive = $state(false);
+  let panelActiveOffTimer: ReturnType<typeof setTimeout> | null = null;
+  const PANEL_ACTIVE_MIN_MS = 900;
+  $effect(() => {
+    const wantsActive = asa.streaming || asa.orbState === 'thinking';
+    if (wantsActive) {
+      if (panelActiveOffTimer) { clearTimeout(panelActiveOffTimer); panelActiveOffTimer = null; }
+      panelActive = true;
+    } else if (panelActive) {
+      panelActiveOffTimer = setTimeout(() => { panelActive = false; panelActiveOffTimer = null; }, PANEL_ACTIVE_MIN_MS);
+    }
+  });
+
+  function formatMsgTime(iso: string): string {
+    const d = new Date(iso);
+    if (Number.isNaN(d.getTime())) return '';
+    return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+  }
+
   onMount(() => {
     orbX = window.innerWidth  - ORB_SIZE - 24;
     orbY = window.innerHeight - ORB_SIZE - 24;
@@ -301,11 +397,13 @@
     window.addEventListener('keydown', onWindowKeydown);
     // Hands-free auto-sends each transcribed utterance.
     sidecarVoice.onTranscript = (text, voiceInput) => { void asa.send(text, voiceInput); };
+    sidecarVoice.onReviewTranscript = (transcript) => { void showTranscriptForReview(transcript); };
     asa.init().then(() => {
       if (asa.voiceSidecar) {
         sidecarVoice.hydrate();
         void sidecarVoice.loadVoices();
         void sidecarVoice.loadCatalog();
+        sidecarVoice.preloadCapture();
       }
     });
   });
@@ -317,8 +415,11 @@
 
   onDestroy(() => {
     if (rippleTimer) clearTimeout(rippleTimer);
+    if (panelActiveOffTimer) clearTimeout(panelActiveOffTimer);
     window.removeEventListener('resize', fitToViewport);
     window.removeEventListener('keydown', onWindowKeydown);
+    sidecarVoice.onTranscript = null;
+    sidecarVoice.onReviewTranscript = null;
     sidecarVoice.cancelRecording();
     sidecarVoice.disarmHandsFree();
     sidecarVoice.stopAudio();
@@ -357,9 +458,9 @@
       class:orb-voice-btn--error={sidecarVoice.status === 'error'}
       style="left:{orbX + ORB_SIZE - 30}px;top:{orbY + ORB_SIZE - 30}px"
       onclick={toggleSidecarMic}
-      disabled={sidecarVoice.status === 'transcribing'}
-      aria-label={sidecarVoice.recording ? 'Stop recording' : 'Record a voice command'}
-      title={sidecarVoice.recording ? 'Stop and transcribe' : 'Talk to ASA'}
+      disabled={sidecarVoice.status === 'transcribing' || handsFreeCapturing}
+      aria-label={handsFreeCapturing ? 'Hands-free Command recording' : sidecarVoice.recording ? `Stop ${manualVoiceLabel} recording` : `Record ${manualVoiceLabel}`}
+      title={voiceMicTitle}
     >
       {#if sidecarVoice.status === 'transcribing'}
         <span class="orb-voice-spinner" aria-hidden="true"></span>
@@ -377,7 +478,7 @@
         {#if sidecarVoice.recording && sidecarVoice.interimTranscript}
           {sidecarVoice.interimTranscript}
         {:else}
-          {sidecarVoice.recording ? 'Recording… tap to stop' : 'Transcribing…'}
+          {sidecarVoice.recording ? `Recording ${activeVoiceLabel}… ${handsFreeCapturing ? 'pause to send' : 'tap to stop'}` : `Transcribing ${activeVoiceLabel}…`}
         {/if}
       </div>
     {/if}
@@ -388,9 +489,11 @@
     <div
       class="panel"
       class:panel--moving={panelMoving}
+      class:panel--active={panelActive}
       style="left:{panelX}px;top:{panelY}px;width:{panelW}px;height:{panelH}px"
       role="dialog"
       aria-label="ASA Chat"
+      aria-busy={panelActive}
     >
       <!-- Resize handle (NW corner) -->
       <div
@@ -416,11 +519,20 @@
         onpointercancel={onPanelPointerUp}
       >
         <div class="panel-title">
-          <img src="/asa-orb-idle.gif" alt="" class="panel-avatar" />
-          <span>ASA</span>
-          {#if asa.orbState === 'thinking'}
-            <span class="panel-thinking-badge">thinking…</span>
-          {/if}
+          <span class="panel-avatar-wrap">
+            <img src="/asa-orb-idle.gif" alt="" class="panel-avatar" />
+            <span class="panel-avatar-dot" class:panel-avatar-dot--active={panelActive} aria-hidden="true"></span>
+          </span>
+          <span class="panel-title-text">
+            <span class="panel-name">ASA</span>
+            <span class="panel-status">
+              {#if panelActive}
+                Working<span class="status-dots" aria-hidden="true"><span></span><span></span><span></span></span>
+              {:else}
+                Online
+              {/if}
+            </span>
+          </span>
         </div>
         <div
           class="panel-header-actions"
@@ -432,16 +544,13 @@
             <span
               class="budget-pill"
               class:budget-pill--low={budgetPct < 0.3}
-              title="Token budget · {resetLabel} until reset"
+              title="Context budget · {resetLabel} until reset"
             >
-              <svg width="8" height="8" viewBox="0 0 8 8" aria-hidden="true">
-                <circle cx="4" cy="4" r="3" fill="none" stroke="currentColor" stroke-width="1.5"
-                  stroke-dasharray="{budgetPct * 18.85} 18.85"
-                  stroke-dashoffset="4.7"
-                  stroke-linecap="round"
-                />
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/>
+                <path d="M9 12l2 2 4-4"/>
               </svg>
-              {Math.round(budgetPct * 100)}%
+              Context · {Math.round(budgetPct * 100)}%
             </span>
           {/if}
           {#if asa.voiceSidecar}
@@ -566,8 +675,8 @@
         {#if asa.messages.length === 0}
           <div class="empty-state">
             <img src="/asa-born-idle.png" alt="ASA" class="empty-img" />
-            <p class="empty-title">Hi! I'm ASA</p>
-            <p class="empty-hint">Ask about projects, builds, test coverage, or just navigate anywhere.</p>
+            <p class="empty-title">Hey, I'm ASA 👋</p>
+            <p class="empty-hint">Your buddy for projects, builds, and test coverage. Ask me anything, or just tell me where you want to go.</p>
           </div>
         {:else}
           {#each asa.messages as msg (msg.id)}
@@ -575,38 +684,43 @@
               {#if msg.role === 'assistant'}
                 <img src="/asa-orb-idle.gif" alt="ASA" class="msg-avatar" />
               {/if}
-              <div class="msg-bubble">
-                {#if msg.content}
-                  {#if msg.role === 'assistant' && msg.streaming}
-                    <div class="msg-streaming">{msg.content}</div>
-                  {:else if msg.role === 'assistant'}
-                    <!-- Content originates from our own backend LLM; rendered as markdown. -->
-                    <div class="msg-md">{@html renderMarkdown(msg.content)}</div>
-                  {:else}
-                    {msg.content}
+              <div class="msg-col">
+                <div class="msg-bubble">
+                  {#if msg.content}
+                    {#if msg.role === 'assistant' && msg.streaming}
+                      <div class="msg-streaming">{msg.content}</div>
+                    {:else if msg.role === 'assistant'}
+                      <!-- Content originates from our own backend LLM; rendered as markdown. -->
+                      <div class="msg-md">{@html renderMarkdown(msg.content)}</div>
+                    {:else}
+                      {msg.content}
+                    {/if}
+                  {:else if asa.streaming && msg === asa.messages.at(-1)}
+                    <span class="thinking-bubble-text">{asa.thinkingText ?? 'Thinking'}</span>
+                    <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
                   {/if}
-                {:else if asa.streaming && msg === asa.messages.at(-1)}
-                  <span class="thinking-bubble-text">{asa.thinkingText ?? 'Thinking'}</span>
-                  <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
-                {/if}
-                {#if msg.options?.length}
-                  <div class="msg-options" role="group" aria-label="Choose an option">
-                    {#each msg.options as opt}
-                      <button
-                        type="button"
-                        class="msg-option-btn"
-                        disabled={asa.streaming}
-                        onclick={() => asa.send(opt.value)}
-                      >{opt.label}</button>
-                    {/each}
-                  </div>
-                {/if}
-                {#if msg.actions?.length}
-                  <div class="msg-actions">
-                    {#each msg.actions as action}
-                      {@render ActionChip({ action })}
-                    {/each}
-                  </div>
+                  {#if msg.options?.length}
+                    <div class="msg-options" role="group" aria-label="Choose an option">
+                      {#each msg.options as opt}
+                        <button
+                          type="button"
+                          class="msg-option-btn"
+                          disabled={asa.streaming}
+                          onclick={() => asa.send(opt.value)}
+                        >{opt.label}</button>
+                      {/each}
+                    </div>
+                  {/if}
+                  {#if msg.actions?.length}
+                    <div class="msg-actions">
+                      {#each msg.actions as action}
+                        {@render ActionChip({ action })}
+                      {/each}
+                    </div>
+                  {/if}
+                </div>
+                {#if msg.content}
+                  <span class="msg-time">{formatMsgTime(msg.timestamp)}</span>
                 {/if}
               </div>
             </div>
@@ -624,60 +738,77 @@
       {#if pendingTranscript}
         <!-- Voice transcript review: never auto-sent, user edits/confirms or discards (setara-s94o.10). -->
         <div class="transcript-review" role="group" aria-label="Review voice transcript">
-          <textarea
-            bind:this={reviewEl}
-            bind:value={pendingDraft}
-            class="transcript-review__text"
-            rows="2"
-            aria-label="Edit transcribed text before sending"
-            onkeydown={(e) => {
-              if (e.key === 'Escape') { discardPendingTranscript(); return; }
-              if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void confirmPendingTranscript(); }
-            }}
-          ></textarea>
-          <div class="transcript-review__actions">
-            <button type="button" class="action-chip" onclick={discardPendingTranscript}>Discard</button>
-            <button type="button" class="action-chip action-chip--send" disabled={!pendingDraft.trim()} onclick={confirmPendingTranscript}>
-              Send
+          <div class="input-shell">
+            <textarea
+              bind:this={reviewEl}
+              bind:value={pendingDraft}
+              class="chat-input"
+              rows="2"
+              aria-label="Edit transcribed text before sending"
+              onkeydown={(e) => {
+                if (e.key === 'Escape') { discardPendingTranscript(); return; }
+                if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void confirmPendingTranscript(); }
+              }}
+            ></textarea>
+            <button type="button" class="send-btn send-btn--secondary" onclick={discardPendingTranscript} aria-label="Discard" title="Discard (Esc)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/></svg>
+            </button>
+            <button type="button" class="send-btn" disabled={!pendingDraft.trim()} onclick={confirmPendingTranscript} aria-label="Send" title="Send (⌘/Ctrl+Enter)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
             </button>
           </div>
         </div>
       {:else}
       <form class="input-row" onsubmit={handleSubmit}>
-        {#if asa.voiceSidecar}
-        <!-- Push-to-talk via sidecar: click to record, click again to stop + transcribe. -->
-        <button
-          type="button"
-          class="voice-btn"
-          class:voice-btn--active={sidecarVoice.recording}
-          class:voice-btn--error={sidecarVoice.status === 'error'}
-          disabled={sidecarVoice.status === 'transcribing'}
-          onclick={toggleSidecarMic}
-          title={sidecarVoice.recording ? 'Stop and transcribe (⌘/Ctrl+M)' : (sidecarVoice.status === 'transcribing' ? 'Transcribing…' : 'Record a voice command (⌘/Ctrl+M)')}
-          aria-label={sidecarVoice.recording ? 'Stop recording' : 'Record a voice command'}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
-        </button>
-        {/if}
-        <input
-          bind:this={inputEl}
-          bind:value={inputText}
-          class="chat-input"
-          placeholder="Ask anything…"
-          disabled={asa.streaming}
-          onkeydown={(e) => { if (e.key === 'Escape') asa.close(); }}
-          autocomplete="off"
-          aria-label="Message ASA"
-        />
-        {#if asa.streaming}
-          <button type="button" class="send-btn send-btn--stop" onclick={() => asa.cancel()} aria-label="Stop">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+        <div class="input-shell" class:input-shell--disabled={asa.streaming}>
+          {#if asa.voiceSidecar}
+          <button
+            type="button"
+            class="voice-mode-toggle"
+            onclick={toggleManualVoiceMode}
+            disabled={sidecarVoice.busy}
+            aria-label="Voice capture mode: {manualVoiceLabel}. Press to switch."
+            title="Mode: {manualVoiceLabel} (click or ⌘/Ctrl+Shift+M to switch)"
+          >
+            {@render VoiceModeIcon()}
           </button>
-        {:else}
-          <button type="submit" class="send-btn" disabled={!inputText.trim()} aria-label="Send" title="Send (Enter or ⌘/Ctrl+Enter)">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+          <!-- Shared v2 push-to-talk: command can auto-submit; dictation always opens review. -->
+          <button
+            type="button"
+            class="voice-btn"
+            class:voice-btn--active={sidecarVoice.recording}
+            class:voice-btn--error={sidecarVoice.status === 'error'}
+            disabled={sidecarVoice.status === 'transcribing' || handsFreeCapturing}
+            onclick={toggleSidecarMic}
+            title={voiceMicTitle}
+            aria-label={handsFreeCapturing ? 'Hands-free Command recording' : sidecarVoice.recording ? `Stop ${manualVoiceLabel} recording` : `Record ${manualVoiceLabel}`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0M12 17v5M8 22h8"/></svg>
           </button>
-        {/if}
+          {/if}
+          <textarea
+            bind:this={inputEl}
+            bind:value={inputText}
+            class="chat-input"
+            rows="1"
+            style={inputHeightPx ? `height:${inputHeightPx}px` : undefined}
+            placeholder="Ask ASA anything…"
+            disabled={asa.streaming}
+            oninput={autoGrowInput}
+            onkeydown={onInputKeydown}
+            autocomplete="off"
+            aria-label="Message ASA"
+          ></textarea>
+          {#if asa.streaming}
+            <button type="button" class="send-btn send-btn--stop" onclick={() => asa.cancel()} aria-label="Stop">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="5" y="5" width="14" height="14" rx="2"/></svg>
+            </button>
+          {:else}
+            <button type="submit" class="send-btn" disabled={!inputText.trim()} aria-label="Send" title="Send (Enter or ⌘/Ctrl+Enter)">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+            </button>
+          {/if}
+        </div>
       </form>
       {/if}
 
@@ -689,11 +820,17 @@
         <!-- svelte-ignore a11y_unknown_role -->
         <div class="voice-state" role="status">
           <span class="voice-level voice-level--rec"></span>
-          Recording… {sidecarVoice.handsFree ? 'pause to send' : 'click the mic to stop'}
+          {#if sidecarVoice.captureMode === 'hands_free'}
+            Recording Command… pause to send
+          {:else}
+            Recording {manualVoiceLabel}… click the mic to stop
+          {/if}
         </div>
       {:else if asa.voiceSidecar && sidecarVoice.status === 'transcribing'}
         <!-- svelte-ignore a11y_unknown_role -->
-        <div class="voice-state" role="status">Transcribing…</div>
+        <div class="voice-state" role="status">
+          Transcribing {sidecarVoice.captureMode === 'dictation' ? 'Dictation' : 'Command'}…
+        </div>
       {:else if asa.voiceSidecar && sidecarVoice.status === 'listening'}
         <!-- svelte-ignore a11y_unknown_role -->
         <div class="voice-state" role="status">
@@ -724,6 +861,16 @@
           onclick={() => asa.confirmAction(action, 'APPROVE')}>Approve</button>
       </div>
     </div>
+  {/if}
+{/snippet}
+
+{#snippet VoiceModeIcon()}
+  {#if manualVoiceMode === 'command'}
+    <!-- Command: quick, one-shot capture -->
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M13 2 3 14h7l-1 8 11-13h-8l1-7z"/></svg>
+  {:else}
+    <!-- Dictation: longer-form text capture -->
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M21 6H3M17 12H3M13 18H3"/></svg>
   {/if}
 {/snippet}
 
@@ -800,6 +947,30 @@
   .orb-voice-btn:disabled { cursor: wait; }
   .orb-voice-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
+  .voice-mode-toggle {
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    transition: background 0.12s, color 0.12s, border-color 0.12s;
+  }
+  .voice-mode-toggle:hover:not(:disabled) {
+    color: var(--color-accent);
+    background: color-mix(in srgb, var(--color-accent), transparent 90%);
+  }
+  .voice-mode-toggle:disabled { cursor: not-allowed; opacity: 0.55; }
+  .voice-mode-toggle:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
   .orb-voice-spinner {
     width: 13px;
     height: 13px;
@@ -856,6 +1027,119 @@
     to   { opacity: 1; transform: none; }
   }
 
+  /* Sleek animated thinking border.
+     The border stays quiet while idle, then a narrow teal, cyan, blue, and violet
+     light streak travels around the panel while ASA is working. */
+  @property --asa-glow-angle {
+    syntax: '<angle>';
+    initial-value: 0deg;
+    inherits: false;
+  }
+
+  .panel::before,
+  .panel::after {
+    content: '';
+    position: absolute;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity 220ms ease;
+  }
+
+  /* Crisp animated ring. Most of the circumference remains transparent so the
+     animation reads as a moving light streak instead of a spinning rainbow frame. */
+  .panel::before {
+    inset: 0;
+    z-index: 4;
+    padding: 1.5px;
+    background: conic-gradient(
+      from var(--asa-glow-angle),
+      transparent 0deg 18deg,
+      rgb(255 255 255 / 0.96) 28deg,
+      var(--color-accent-mint, #5ef2d6) 48deg,
+      #25c8df 78deg,
+      #69a8ff 112deg,
+      #a58bff 146deg,
+      transparent 178deg 318deg,
+      rgb(255 255 255 / 0.82) 340deg,
+      transparent 360deg
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+  }
+
+  /* A restrained inner bloom keeps the border visible over both light and dark
+     content without turning the panel into illuminated gaming hardware. */
+  .panel::after {
+    inset: 1px;
+    z-index: 3;
+    border: 1px solid rgb(255 255 255 / 0.34);
+    box-shadow:
+      inset 0 0 14px color-mix(in srgb, var(--color-accent, #00afa5), transparent 91%),
+      inset 0 0 3px rgb(255 255 255 / 0.28);
+  }
+
+  .panel--active {
+    border-color: color-mix(in srgb, var(--color-accent, #00afa5), transparent 58%);
+    box-shadow:
+      0 10px 34px rgb(15 23 42 / 0.17),
+      inset 0 1px 0 rgb(255 255 255 / 0.54),
+      0 0 16px color-mix(in srgb, var(--color-accent, #00afa5), transparent 76%),
+      0 0 34px rgb(91 166 255 / 0.11),
+      0 0 48px rgb(165 139 255 / 0.08);
+  }
+
+  .panel--active::before {
+    opacity: 1;
+    animation: asa-glow-orbit 3.4s linear infinite;
+  }
+
+  .panel--active::after {
+    opacity: 0.72;
+    animation: asa-edge-breathe 2.4s ease-in-out infinite;
+  }
+
+  :global([data-theme='dark']) .panel--active {
+    border-color: color-mix(in srgb, var(--color-accent, #00afa5), transparent 48%);
+    box-shadow:
+      0 14px 40px rgb(0 0 0 / 0.44),
+      inset 0 1px 0 rgb(255 255 255 / 0.1),
+      0 0 18px color-mix(in srgb, var(--color-accent, #00afa5), transparent 70%),
+      0 0 38px rgb(91 166 255 / 0.14),
+      0 0 52px rgb(165 139 255 / 0.1);
+  }
+
+  @keyframes asa-glow-orbit {
+    to { --asa-glow-angle: 360deg; }
+  }
+
+  @keyframes asa-edge-breathe {
+    0%, 100% { opacity: 0.44; }
+    50% { opacity: 0.82; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel--active::before,
+    .panel--active::after {
+      animation: none;
+    }
+
+    .panel--active::before {
+      --asa-glow-angle: 105deg;
+      opacity: 0.82;
+    }
+
+    .panel--active::after {
+      opacity: 0.54;
+    }
+  }
+
   /* Header */
   .panel-header {
     display: flex;
@@ -873,28 +1157,63 @@
   .panel-title {
     display: flex;
     align-items: center;
-    gap: 7px;
+    gap: 9px;
     font-size: 13px;
     font-weight: 600;
     color: var(--color-text);
     letter-spacing: 0;
     pointer-events: none;
   }
+  .panel-avatar-wrap {
+    position: relative;
+    flex-shrink: 0;
+    display: inline-flex;
+  }
   .panel-avatar {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     object-fit: contain;
-  }
-  .panel-thinking-badge {
-    font-size: 10px;
-    font-weight: 500;
-    color: var(--color-accent);
     background: var(--color-accent-subtle);
-    border-radius: 999px;
-    padding: 1px 7px;
-    letter-spacing: 0;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-accent), transparent 55%);
   }
+  .panel-avatar-dot {
+    position: absolute;
+    right: -1px;
+    bottom: -1px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--color-success, #22c55e);
+    border: 2px solid var(--color-surface);
+  }
+  .panel-avatar-dot--active {
+    background: var(--color-accent);
+    animation: dot 1.1s ease-in-out infinite;
+  }
+  .panel-title-text {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    line-height: 1.2;
+  }
+  .panel-name { font-weight: 700; }
+  .panel-status {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--color-text-muted);
+  }
+  .status-dots { display: inline-flex; gap: 2px; align-items: center; }
+  .status-dots span {
+    width: 3px; height: 3px; border-radius: 50%;
+    background: var(--color-accent);
+    animation: dot 1.1s ease-in-out infinite;
+  }
+  .status-dots span:nth-child(2) { animation-delay: 0.18s; }
+  .status-dots span:nth-child(3) { animation-delay: 0.36s; }
 
   .panel-header-actions {
     display: flex;
@@ -906,18 +1225,19 @@
   .budget-pill {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 10px;
+    gap: 5px;
+    font-size: 10.5px;
     font-weight: 500;
     font-family: inherit;
     color: var(--color-accent);
-    background: var(--color-accent-subtle);
-    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 70%);
+    background: color-mix(in srgb, var(--color-accent), transparent 94%);
+    border: 1px solid color-mix(in srgb, var(--color-accent), transparent 55%);
     border-radius: 999px;
-    padding: 2px 7px;
-    margin-right: 2px;
+    padding: 3px 9px;
+    margin-right: 4px;
+    white-space: nowrap;
   }
-  .budget-pill--low { color: var(--color-warning, #f59e0b); border-color: rgba(245,158,11,0.3); background: rgba(245,158,11,0.08); }
+  .budget-pill--low { color: var(--color-warning, #f59e0b); border-color: rgba(245,158,11,0.4); background: rgba(245,158,11,0.08); }
 
   .icon-btn {
     display: flex;
@@ -977,6 +1297,7 @@
   .messages {
     flex: 1;
     overflow-y: auto;
+    overflow-x: hidden;
     padding: 12px 12px 6px;
     display: flex;
     flex-direction: column;
@@ -1024,6 +1345,7 @@
     display: flex;
     gap: 7px;
     align-items: flex-end;
+    min-width: 0;
   }
   .msg--user { flex-direction: row-reverse; }
 
@@ -1036,27 +1358,50 @@
     margin-bottom: 2px;
   }
 
-  .msg-bubble {
+  .msg-col {
+    display: flex;
+    flex-direction: column;
     max-width: 80%;
-    padding: 8px 11px;
-    border-radius: 8px;
+    min-width: 0;
+  }
+  .msg--user .msg-col { align-items: flex-end; }
+  .msg--assistant .msg-col { align-items: flex-start; }
+
+  .msg-bubble {
+    padding: 9px 12px;
+    border-radius: 14px;
     font-size: 13px;
     line-height: 1.55;
     white-space: pre-wrap;
     word-break: break-word;
+    /* Flex item of .msg-col (column flex) - default min-width:auto lets it grow to an unwrapped
+       child's (e.g. a wide markdown table) full content width instead of respecting max-width,
+       which also breaks that child's own overflow-x:auto (nothing left to scroll within). */
+    min-width: 0;
+    max-width: 100%;
     /* Stay opaque + lifted so bubbles read clearly over the now-transparent panel. */
-    box-shadow: 0 2px 8px rgb(15 23 42 / 0.14);
   }
   .msg--user .msg-bubble {
-    background: var(--color-accent);
+    /* Fixed to the light-theme accent pair (not var(--color-accent)) — dark theme's accent-hover
+       is a bright mint (#5EF2D6) that white text can't read against. */
+    background: linear-gradient(135deg, #00afa5, #008b84);
     color: #fff;
-    border-bottom-right-radius: 3px;
+    border-bottom-right-radius: 4px;
+    box-shadow: 0 3px 12px color-mix(in srgb, var(--color-accent), transparent 62%);
   }
   .msg--assistant .msg-bubble {
     background: var(--color-surface);
     color: var(--color-text);
-    border: 1px solid color-mix(in srgb, var(--color-border) 60%, transparent);
-    border-bottom-left-radius: 3px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+    border-bottom-left-radius: 4px;
+    box-shadow: 0 2px 10px rgb(15 23 42 / 0.1), inset 0 1px 0 rgb(255 255 255 / 0.4);
+  }
+  .msg-time {
+    margin-top: 3px;
+    padding: 0 3px;
+    font-size: 9.5px;
+    color: var(--color-text-muted);
+    opacity: 0.8;
   }
   /* Thinking dots */
   .dots { display: inline-flex; gap: 3px; align-items: center; height: 14px; }
@@ -1094,20 +1439,10 @@
   .confirmation-summary { font-size: 0.78rem; color: var(--color-text); }
   .confirmation-actions { display: flex; gap: 6px; }
   .action-chip--confirm { color: var(--color-danger, #dc2626); border-color: color-mix(in srgb, var(--color-danger, #dc2626), transparent 65%); }
-  .action-chip--send { color: #fff; background: var(--color-accent, #0ea5e9); border-color: var(--color-accent, #0ea5e9); }
-  .action-chip--send:hover:not(:disabled) { background: var(--color-accent-hover, #0284c7); }
-  .action-chip--send:disabled { opacity: 0.5; cursor: not-allowed; }
 
-  .transcript-review { display: grid; gap: 6px; padding: 8px; }
-  .transcript-review__text {
-    width: 100%; resize: vertical; min-height: 44px;
-    padding: 8px 10px; border-radius: 10px;
-    border: 1px solid var(--color-border, #cbd5e1);
-    background: var(--color-bg, #f8fafc); color: var(--color-text, #0b1220);
-    font-size: 0.85rem; font-family: inherit; line-height: 1.4;
-  }
-  .transcript-review__text:focus { outline: none; border-color: var(--color-accent, #0ea5e9); }
-  .transcript-review__actions { display: flex; justify-content: flex-end; gap: 6px; }
+  .transcript-review { display: flex; padding: 10px; }
+  .transcript-review .input-shell { min-height: 44px; }
+  .transcript-review .chat-input { resize: vertical; }
 
   /* Markdown-rendered assistant content (injected via {@html}, so selectors are :global). */
   .msg-streaming {
@@ -1183,13 +1518,30 @@
   /* Input */
   .input-row {
     display: flex;
-    align-items: center;
-    gap: 6px;
-    padding: 9px 10px;
+    align-items: flex-end;
+    gap: 8px;
+    padding: 10px;
     border-top: 1px solid rgba(203,213,225,0.45);
     flex-shrink: 0;
   }
   :global([data-theme='dark']) .input-row { border-top-color: rgba(51,65,85,0.5); }
+
+  .input-shell {
+    flex: 1;
+    display: flex;
+    align-items: flex-end;
+    min-width: 0;
+    padding: 6px 6px 6px 14px;
+    border-radius: 22px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 75%, white);
+    background: var(--color-bg);
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-shell:focus-within {
+    border-color: color-mix(in srgb, var(--color-accent), transparent 20%);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-accent), transparent 85%);
+  }
+  .input-shell--disabled { opacity: 0.7; }
 
   .interim-transcript {
     padding: 4px 12px 6px;
@@ -1203,58 +1555,71 @@
 
   .chat-input {
     flex: 1;
-    padding: 7px 11px;
-    border-radius: 9px;
-    border: 1px solid rgba(203,213,225,0.8);
-    background: var(--color-bg);
+    min-width: 0;
+    max-height: 140px;
+    padding: 5px 2px;
+    border: none;
+    background: transparent;
     color: var(--color-text);
     font-size: 13px;
+    line-height: 1.45;
     outline: none;
-    transition: border-color 0.12s, box-shadow 0.12s;
     font-family: inherit;
-  }
-  .chat-input:focus {
-    border-color: var(--color-accent, #22d3ee);
-    box-shadow: 0 0 0 3px rgba(14,165,233,0.12);
+    resize: none;
+    overflow-y: auto;
+    /* Grows with content up to max-height via autoGrowInput(); rows="1" is just the collapsed size. */
   }
   .chat-input:disabled { opacity: 0.55; }
+
   .send-btn {
     display: flex;
     align-items: center;
     justify-content: center;
     width: 32px;
     height: 32px;
-    border-radius: 9px;
+    border-radius: 50%;
     border: none;
     background: var(--color-accent, #0ea5e9);
     color: #fff;
     cursor: pointer;
     flex-shrink: 0;
+    box-shadow: 0 3px 10px color-mix(in srgb, var(--color-accent), transparent 55%);
     transition: background 0.12s, opacity 0.12s, transform 0.1s;
   }
   .send-btn:not(:disabled):hover { background: var(--color-accent-hover, #0284c7); transform: scale(1.05); }
-  .send-btn:disabled { opacity: 0.38; cursor: default; }
+  .send-btn:disabled { opacity: 0.38; cursor: default; box-shadow: none; }
   .send-btn--stop { background: var(--color-danger, #ef4444); }
   .send-btn--stop:hover { background: var(--color-danger-dark, #dc2626); }
+  .send-btn--secondary {
+    background: color-mix(in srgb, var(--color-text-muted), transparent 88%);
+    color: var(--color-text-muted);
+    box-shadow: none;
+  }
+  .send-btn--secondary:hover {
+    background: color-mix(in srgb, var(--color-danger, #ef4444), transparent 85%);
+    color: var(--color-danger, #ef4444);
+  }
 
   .voice-btn {
     display: grid;
     place-items: center;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     flex-shrink: 0;
-    border: 1px solid var(--color-border, #cbd5e1);
-    border-radius: 9px;
+    border: none;
+    border-radius: 50%;
     background: transparent;
     color: var(--color-text-muted, #64748b);
     cursor: pointer;
+    transition: background 0.12s, color 0.12s;
   }
+  .voice-btn:hover:not(:disabled) { background: color-mix(in srgb, var(--color-accent), transparent 90%); }
   .voice-btn--active {
     color: var(--color-accent, #00afa5);
-    border-color: var(--color-accent, #00afa5);
     background: var(--color-accent-subtle, #ecfcfb);
   }
-  .voice-btn--error { color: var(--color-danger, #ef4444); border-color: var(--color-danger, #ef4444); }
+  .voice-btn--error { color: var(--color-danger, #ef4444); }
+
 
   .voice-state {
     display: flex;

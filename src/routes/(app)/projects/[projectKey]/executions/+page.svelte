@@ -418,7 +418,7 @@
 <style>
   /* ── Page shell ─────────────────────────────────────── */
   .page {
-    max-width: min(1520px, 100%);
+    max-width: 100%;
     display: flex;
     flex-direction: column;
     gap: 0;

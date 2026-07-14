@@ -78,9 +78,10 @@
 <style>
   .loader {
     --loader-accent: var(--color-accent, #00afa5);
+    --loader-dark: var(--color-dark, #00afa5);
     --loader-bright: var(--color-accent-mint, #5ef2d6);
     --loader-white: var(--color-text, #ffffff);
-    --loader-black: #000000;
+    --loader-black: var(--color-black, #000000);
     --loader-size: 64px;
     display: inline-grid;
     place-items: center;

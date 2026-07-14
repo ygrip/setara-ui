@@ -201,30 +201,49 @@
 
 ## ASA Voice Capture Pattern
 
+- Keep STT WebSocket v2 wire types and boundary validation in
+  `src/lib/voice/stt-stream/protocol.ts`. Start controls use protocol version `2`, PCM16 mono 16 kHz
+  audio in fixed 20 ms frames, a bounded duration, and provider policy that defaults to `auto`.
+  Only `provider_final` and `local_recovered_final` are authoritative; every degraded finality stays
+  reviewable and must not be treated as an ordinary command final.
+- Derive STT diagnostic context through the protocol correlation helper. It may contain request,
+  session, and client IDs, but never transcript text, PCM, or other audio content.
 - Sidecar voice sends structured `AsaVoiceInput` with `source: 'sidecar'`, `rawText`, `normalizedText`,
   `resolvedText`, and bounded entity matches. Push-to-talk and hands-free must pass this payload to
   `asa.send(text, voiceInput)` so `setara-core` can re-authorize and improve domain correction.
-- Prepare a short-lived core voice session before streaming. Send its bounded STT prompt/hotwords as the first
-  WebSocket control frame, keep partials display-only, and send retained PCM to the session final endpoint so only
-  core-normalized, permission-scoped final transcripts enter chat. Promote the latest partial only when finalization
-  is unavailable.
+- Prepare a short-lived core voice session before streaming. Send its bounded prompt and hotwords in the validated v2
+  `start` control, and do not deliver microphone audio until the sidecar's `ready` capability is accepted. Keep
+  partials display-only; close, error, and timeout may expose a tagged degraded result for editing but must never
+  promote interim text into an ordinary final.
 - Keep one browser VAD session alive while ASA waits for a wake phrase and while it transitions to command capture.
   Ignored or empty transcripts update the listening mode without reopening the microphone.
 - Hands-free arming must be idempotent. Guard async VAD setup with a single in-flight promise, let the component call
-  `syncHandsFree(panelActive)`, and keep at most one streaming STT WebSocket active. Cap buffered PCM frames while the
-  socket is connecting.
+  `syncHandsFree(panelActive)`, and keep at most one streaming STT WebSocket active. Gate capture on v2 readiness;
+  never retain PCM frames while the socket connects.
 - `syncHandsFree(panelActive)` must remember panel activity separately from the user hands-free preference. If the user
   toggles hands-free on while ASA is already open, `setHandsFree(true)` must arm immediately instead of waiting for a
   component effect that might not re-run.
 - Keep hands-free lightweight by default. Use energy VAD unless `localStorage.setItem('setara.asa.voice.mlVad','1')`
   opts into Silero, disconnect analyser/source nodes on each monitor stop, and do not reopen the mic for ignored
   noise or wake-only cycles.
-- Streaming STT finalization must resolve through one helper from `final`, socket `close`, socket `error`, and timeout
-  paths. When the sidecar or relay dies after partials, promote the latest partial transcript instead of leaving
-  hands-free stuck in finalizing state.
-- Keep manual push-to-talk and hands-free duration policies separate. Manual capture has a five-minute safety cap and
-  streams display-only partials while using the proven long-upload batch transcript as the authoritative final;
-  hands-free utterances remain capped at 12 seconds and use the WebSocket final to avoid concurrent double STT.
+- `SttSession` owns framing and transport state independently from microphone and suppression graphs. It retains less
+  than one 20 ms frame, sends exact 640-byte PCM frames, applies high/low `bufferedAmount` hysteresis without a frame
+  queue, reports every dropped millisecond, and stops with one degraded flush when congestion is sustained.
+- A final result may auto-submit only when its finality is `provider_final` or `local_recovered_final` and neither
+  client nor server reports dropped audio. Connection-lost and timeout partials remain reviewable, while cancelled
+  results discard text. Stop, repeated flush, socket failure, and cleanup must settle at most one final result.
+- Keep microphone mode policy in `stt-stream/mode-policy.ts`: command is 15 seconds with explicit stop, hands-free is
+  30 seconds with VAD silence, and dictation is 300 seconds with explicit stop. All three modes use `SttSession` and
+  the same v2 WebSocket path. The UI must not build a whole recording Blob/WAV or call compatibility batch STT.
+- Keep manual voice mode explicit through the compact Command/Dictation selector beside each visible mic entry point.
+  Command is the default and may auto-submit only an authoritative zero-drop final. Dictation always opens editable
+  transcript review. Disable mode selection while capture or finalization is active and keep mic labels, titles, and
+  status copy aligned with the selected mode.
+- Dictation is always editable and never auto-executes. Command and hands-free may auto-submit only an authoritative,
+  zero-drop final; degraded but non-empty finals enter the same editable transcript review, and cancelled or empty
+  finals are discarded. A hands-free review pauses microphone capture until confirmation or discard.
+- Open and accept the v2 `ready` capability before connecting the PCM capture node. An armed hands-free socket may be
+  refreshed after Core's idle deadline, but it must not retain or replay audio across that readiness gap.
 - Reject fragmented letter noise and stock near-silence hallucinations before either manual or hands-free transcripts
   can enter chat. A low-quality transcript must never inherit context and accidentally trigger a mutation.
 - In hands-free mode, play the processing cue only after hallucination filtering and wake routing confirm a reviewable
@@ -256,3 +275,54 @@
   the current Git commit and fall back to `dev` only when neither source is available.
 - Keep text chat on the main orb click and expose microphone activation as a distinct control attached to the orb.
   Voice capture can stay panel-free until a command needs review or entity clarification.
+- STT capture (`src/lib/voice/audio/`) uses one AudioWorkletNode by default — no ScriptProcessorNode on that path.
+  Preload the worklet module as soon as the shared `AudioContext` exists (`preloadSttWorklet` in `ensureAudioContext`)
+  so the later per-utterance graph build (`AudioCaptureSession.prepare`) stays fast even on the VAD-onset
+  hot path. `setara.asa.voice.legacyScriptProcessor`
+  in localStorage is a reversible kill-switch back to the old `ScriptProcessorNode` path.
+  **Vite gotcha:** never load a worklet with a bare `new URL('./file.ts', import.meta.url)` — Vite treats an
+  unrecognized `.ts` asset reference as opaque static data and inlines the *raw, un-transpiled TypeScript source* as a
+  `data:` URL with a nonsense MIME type (confirmed by inspecting the production build output). `audioWorklet.addModule()`
+  then fails outright in a real browser. Use `import workletUrl from './worklets/foo.ts?worker&url'` instead — it runs
+  the file (and its imports) through Vite's normal bundler and hands back the URL to the compiled chunk. Always verify
+  a new worklet/worker asset by grepping the actual `.svelte-kit/output/client/**` bundle for its compiled contents,
+  not just `npm run check`/`npm run build` exiting 0 — a bad asset reference builds and type-checks cleanly.
+- Noise suppression (`src/lib/voice/audio/enhancer/`) hides the vendor package
+  (`@sapphi-red/web-noise-suppressor`, exact-pinned) behind one `AudioEnhancer` interface
+  (`audio-enhancer.ts`). Nothing outside `enhancer/` imports the vendor package directly — the factory
+  (`enhancer-factory.ts`) resolves a requested mode (`auto|speex|rnnoise|browser|none`) against detected
+  capabilities (`enhancer-capabilities.ts`: audioWorklet/wasm/wasmSimd) and always returns a working enhancer,
+  falling back to a no-op `PassthroughEnhancer('browser')` on any construction/init error. `auto` resolves to
+  browser-native by default (`preferredEnhancedMode: 'browser'` in `sidecar-voice.svelte.ts`) — it does NOT
+  promote to Speex or RNNoise until real WER/CER corpus evidence justifies it (setara-ikmt). This was a real
+  incident, not a design footnote: shipping `auto -> speex` measurably degraded STT accuracy for effectively
+  every user, because Speex is a narrowband (8kHz-era) preprocessor run unconditionally on full wideband
+  (48kHz) mic input, and the corpus validation that should have gated it never happened. Explicit `speex`/
+  `rnnoise` requests still work and fall back to `browser` if unsupported, never throw — they're just no
+  longer reachable through `auto`.
+  `buildMicrophoneConstraints(mode)` in `audio-constraints.ts` turns off the browser's own `noiseSuppression`
+  when an enhanced mode is active, so exactly one suppressor ever runs on the signal.
+  The enhancer graph is a wet/dry bypass (`dryGain`/`wetGain`/`outputGain`), not a connect/disconnect toggle —
+  `setBypass()` just flips gain values, so it's an instant, click-free switch. `AudioCaptureSession.prepare()`
+  resolves the enhancer *before* building the mic→enhancer→worklet graph, and if the requested mode fell back,
+  it reacquires the `MediaStream` with `buildMicrophoneConstraints('browser')` constraints (stopping the old
+  track) since the original `getUserMedia` call may have requested the wrong native suppression setting.
+  `@sapphi-red/web-noise-suppressor` subclasses the global `AudioWorkletNode` at import time, so it throws
+  `ReferenceError` if imported outside a browser (e.g. Node test runner) — files that reach that import chain
+  are covered by string-assertion tests (`tests/asa-audio-enhancer.test.mjs`) rather than real execution; only
+  the DOM-free files (`enhancer-capabilities.ts`, `audio-constraints.ts`) get real-execution unit tests. Same
+  `?url`/`?worker&url` bundling rule as the STT worklet applies to the vendor's `speexWorklet.js`/`speex.wasm`
+  — verify by grepping the compiled bundle, not just a clean build exit code.
+- RNNoise (`sapphi-red-rnnoise-enhancer.ts`, setara-f05x.11) is a second `AudioEnhancer` behind the same factory,
+  structurally identical to the Speex one (wet/dry bypass graph, lazy-cached WASM+worklet, `?url` imports for
+  `rnnoiseWorklet.js`/`rnnoise.wasm`/`rnnoise_simd.wasm`). It is reachable only through an explicit `rnnoise`
+  request — same as Speex, `auto` does not resolve to it (see the browser-native-default note above); the
+  gate is one hardcoded string in `sidecar-voice.svelte.ts`, not a feature flag. `loadRnnoise({ url, simdUrl })` lets the vendor package
+  pick SIMD vs. non-SIMD internally — do not re-detect SIMD at this layer. In the pinned `0.3.5` version,
+  `rnnoise.wasm` and `rnnoise_simd.wasm` are byte-identical (same SHA1), so Vite's content-hashing correctly
+  dedupes them into one physical asset; that's expected, not a sign the SIMD import broke.
+  The vendor RNNoise worklet computes but discards RNNoise's native per-frame VAD probability
+  (`_rnnoise_process_frame`'s return value is thrown away, not `port.postMessage`'d) — there is no telemetry
+  channel to source real `cpuLoad`/`overrunCount`/`quietSpeechRatio` diagnostics from, short of forking the
+  vendor's bundled worklet. `AudioEnhancerDiagnostics` carries those three fields as `null`-always on every
+  enhancer rather than inventing fake numbers; treat `null` as "not measurable," not "zero."

@@ -61,7 +61,7 @@ describe('ASA wake transcript routing', () => {
     assert.match(sidecar, /const route = routeVoiceTranscript\(this\.wakeMode, transcript\.text\)/);
     assert.match(sidecar, /this\.wakeMode = route\.nextMode/);
     assert.match(sidecar, /resolvedText: route\.command/);
-    assert.match(sidecar, /this\.speakChain = this\.speakChain\.then\(\(\) => \{ this\.turnState = 'armed'; void this\.armHandsFree\(\); \}\)/);
+    assert.match(sidecar, /this\.speakChain = this\.speakChain\.then\(\(\) => \{[\s\S]*!this\.handsFreeRuntimeActive[\s\S]*this\.turnState = 'armed';[\s\S]*void this\.armHandsFree\(\)/);
     assert.match(sidecar, /this\.turnState = 'paused'/);
     assert.match(sidecar, /this\.wakeMode = 'wake'/);
     assert.match(sidecar, /this\.stopAudio\(\); \/\/ barge-in/);
