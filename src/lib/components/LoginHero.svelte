@@ -37,10 +37,14 @@
   const BEE_TRAIL_LENGTH = 16;
   const SKY_TRANSITION_MS = 640;
 
+  // CurtainsJS uploads this as a WebGL texture (see .sky-plane img below) - like the sky
+  // textures, it needs explicit pixel dimensions. A viewBox-only SVG has no intrinsic size once
+  // it's a `display:none` <img> (never laid out), so the browser can decode it to a 0x0 bitmap
+  // and gl.texImage2D then fails with "INVALID_VALUE: texImage2D: bad image data".
   const DISPLACEMENT_TEXTURE =
     'data:image/svg+xml;charset=utf-8,' +
     encodeURIComponent(`
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+      <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
         <rect width="256" height="256" fill="#737373"/>
         <polygon fill="#efefef" points="0,0 92,0 44,104 0,142"/>
         <polygon fill="#282828" points="92,0 196,0 148,118 44,104"/>
