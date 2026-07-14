@@ -180,6 +180,9 @@
 
   // ── Chat ──────────────────────────────────────────────────────────────────
   let inputText = $state('');
+  // Free-text fallback typed alongside a clarification's option buttons, keyed by message id -
+  // options are single-click shortcuts, this is the "type your own answer" escape hatch.
+  let optionFreeText = $state<Record<string, string>>({});
   let chatEl    = $state<HTMLElement | null>(null);
   let inputEl   = $state<HTMLTextAreaElement | null>(null);
   const INPUT_MAX_HEIGHT = 140;
@@ -218,6 +221,14 @@
     resetInputHeight();
     // Reply is spoken sentence-by-sentence as it streams (handled in the asa store).
     await asa.send(text);
+  }
+
+  async function handleOptionFreeText(e: SubmitEvent, messageId: string) {
+    e.preventDefault();
+    const text = (optionFreeText[messageId] ?? '').trim();
+    if (!text) return;
+    optionFreeText[messageId] = '';
+    await asa.answerOption(messageId, text);
   }
 
   // Auto-grow the composer like a normal chat input: expand with content, cap at
@@ -699,18 +710,6 @@
                     <span class="thinking-bubble-text">{asa.thinkingText ?? 'Thinking'}</span>
                     <span class="dots" aria-hidden="true"><span></span><span></span><span></span></span>
                   {/if}
-                  {#if msg.options?.length}
-                    <div class="msg-options" role="group" aria-label="Choose an option">
-                      {#each msg.options as opt}
-                        <button
-                          type="button"
-                          class="msg-option-btn"
-                          disabled={asa.streaming}
-                          onclick={() => asa.send(opt.value)}
-                        >{opt.label}</button>
-                      {/each}
-                    </div>
-                  {/if}
                   {#if msg.actions?.length}
                     <div class="msg-actions">
                       {#each msg.actions as action}
@@ -721,6 +720,44 @@
                 </div>
                 {#if msg.content}
                   <span class="msg-time">{formatMsgTime(msg.timestamp)}</span>
+                {/if}
+                {#if msg.options?.length}
+                  <div class="msg-question-card" role="group" aria-label="Choose an option">
+                    {#each msg.options as opt, i}
+                      {@const selected = msg.answeredValue === opt.value}
+                      {@const answered = !!msg.answeredValue}
+                      <button
+                        type="button"
+                        class="msg-question-option"
+                        class:msg-question-option--selected={selected}
+                        disabled={asa.streaming || answered}
+                        onclick={() => asa.answerOption(msg.id, opt.value)}
+                      >
+                        <span class="msg-question-num">{selected ? '✓' : i + 1}</span>
+                        <span class="msg-question-text">
+                          <span class="msg-question-title">{opt.label}</span>
+                          {#if opt.description}
+                            <span class="msg-question-subtitle">{opt.description}</span>
+                          {/if}
+                        </span>
+                      </button>
+                    {/each}
+                    <form class="msg-options-freetext" onsubmit={(e) => handleOptionFreeText(e, msg.id)}>
+                      <input
+                        type="text"
+                        class="msg-option-input"
+                        placeholder="Or type your own answer…"
+                        disabled={asa.streaming || !!msg.answeredValue}
+                        value={optionFreeText[msg.id] ?? ''}
+                        oninput={(e) => (optionFreeText[msg.id] = e.currentTarget.value)}
+                      />
+                      <button
+                        type="submit"
+                        class="msg-option-send"
+                        disabled={asa.streaming || !!msg.answeredValue || !(optionFreeText[msg.id] ?? '').trim()}
+                      >Send</button>
+                    </form>
+                  </div>
                 {/if}
               </div>
             </div>
@@ -1491,21 +1528,86 @@
     color: var(--color-text-muted, #64748b);
   }
 
-  /* Clarification option buttons - ASA asking the user to choose. */
-  .msg-options { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-  .msg-option-btn {
-    padding: 5px 11px;
-    border-radius: 999px;
-    font-size: 12px;
-    font-weight: 500;
+  /* Clarification question - a numbered list card, separate from the chat bubble (like an IDE's
+     ask-the-user prompt), not another chat pill. Sits under msg-bubble, inside msg-col. */
+  .msg-question-card {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 6px;
+    padding: 6px;
+    border-radius: 10px;
+    background: var(--color-surface, rgba(100,116,139,0.06));
+    border: 1px solid var(--color-border, #e2e8f0);
+  }
+  .msg-question-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 8px;
+    border-radius: 7px;
+    background: transparent;
+    border: 1px solid transparent;
+    text-align: left;
+    cursor: pointer;
+    transition: background 0.1s, border-color 0.1s;
+  }
+  .msg-question-option:hover:not(:disabled) { background: rgba(100,116,139,0.1); }
+  .msg-question-option:disabled { cursor: default; }
+  .msg-question-option:disabled:not(.msg-question-option--selected) { opacity: 0.45; }
+  .msg-question-option--selected {
+    background: color-mix(in srgb, var(--color-accent), transparent 88%);
+    border-color: var(--color-accent);
+  }
+  .msg-question-num {
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    margin-top: 1px;
+    border-radius: 5px;
+    font-size: 11px;
+    font-weight: 600;
     background: var(--color-bg, #fff);
     color: var(--color-accent);
     border: 1px solid var(--color-accent);
-    cursor: pointer;
-    transition: background 0.1s, color 0.1s;
   }
-  .msg-option-btn:hover:not(:disabled) { background: var(--color-accent); color: #fff; }
-  .msg-option-btn:disabled { opacity: 0.5; cursor: default; }
+  .msg-question-option--selected .msg-question-num {
+    background: var(--color-accent);
+    color: #fff;
+  }
+  .msg-question-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+  .msg-question-title { font-size: 12.5px; font-weight: 600; color: var(--color-text, #0f172a); }
+  .msg-question-subtitle { font-size: 11.5px; color: var(--color-text-muted, #64748b); }
+
+  /* Free-text fallback alongside the options - always available, not just "Other". */
+  .msg-options-freetext { display: flex; gap: 6px; margin-top: 2px; padding: 0 2px; }
+  .msg-option-input {
+    flex: 1;
+    min-width: 0;
+    padding: 5px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    background: var(--color-bg, #fff);
+    color: var(--color-text, #0f172a);
+    border: 1px solid var(--color-border, #cbd5e1);
+  }
+  .msg-option-input:disabled { opacity: 0.5; cursor: default; }
+  .msg-option-send {
+    padding: 5px 12px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--color-accent);
+    color: #fff;
+    border: 1px solid var(--color-accent);
+    cursor: pointer;
+    transition: opacity 0.1s;
+  }
+  .msg-option-send:disabled { opacity: 0.4; cursor: default; }
 
   .error-msg {
     font-size: 12px;

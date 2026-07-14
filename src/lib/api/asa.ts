@@ -14,10 +14,14 @@ export interface AsaMessage {
   actions?: AsaAction[];
   /** Selectable choices when ASA asks the user to disambiguate. Clicking one sends its value. */
   options?: AsaMessageOption[];
+  /** Set once the user answers this message's options (by click or free text) - locks the list. */
+  answeredValue?: string;
 }
 
 export interface AsaMessageOption {
   label: string;
+  /** Optional one-line subtitle with the distinguishing detail (e.g. "4 projects, 97.69% coverage"). */
+  description?: string;
   value: string;
 }
 
