@@ -370,6 +370,16 @@ class AsaStore {
     await this.send(text, undefined, { token, decision });
   }
 
+  /** Answer a clarification's options (click or free text) - locks that message's list permanently. */
+  async answerOption(messageId: string, value: string) {
+    const message = this.messages.find((m) => m.id === messageId);
+    if (!message || message.answeredValue) return;
+    this.messages = this.messages.map((m) =>
+      m.id === messageId ? { ...m, answeredValue: value } : m,
+    );
+    await this.send(value);
+  }
+
   clearConversation() {
     this.messages = [];
     this.historyCursor = null;
@@ -423,7 +433,7 @@ class AsaStore {
     }
   }
 
-  /** Normalize backend option payloads (strings or {label,value}) into AsaMessageOption[]. */
+  /** Normalize backend option payloads (strings or {label,value,description}) into AsaMessageOption[]. */
   private parseOptions(raw: unknown): AsaMessageOption[] | undefined {
     if (!Array.isArray(raw) || raw.length === 0) return undefined;
     const options = raw
@@ -433,7 +443,8 @@ class AsaStore {
           const o = item as Record<string, unknown>;
           const label = String(o.label ?? o.value ?? '');
           if (!label) return null;
-          return { label, value: String(o.value ?? o.label ?? label) };
+          const description = typeof o.description === 'string' && o.description.trim() ? o.description : undefined;
+          return { label, description, value: String(o.value ?? o.label ?? label) };
         }
         return null;
       })
