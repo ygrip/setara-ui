@@ -21,5 +21,6 @@ jobs:
 
       - name: Move v0.1.1 to optimized CI commit
         run: |
+          # This workflow is intentionally temporary.
           git tag --force v0.1.1 5f7046eb7d1765fdee1ddf30dd48e95066512f79
           git push origin refs/tags/v0.1.1 --force
