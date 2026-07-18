@@ -666,9 +666,12 @@
               <dt>Voice mode</dt><dd>{voiceModelsInfo.mode}</dd>
               <dt>STT provider</dt><dd>{voiceModelsInfo.stt.activeProvider}</dd>
               <dt>STT model</dt><dd>{voiceModelsInfo.stt.activeModel}</dd>
-              <dt>Fallback</dt><dd>{voiceModelsInfo.stt.fallbackProvider ? `enabled (${voiceModelsInfo.stt.fallbackProvider})` : 'disabled'}</dd>
+              <dt>STT fallback</dt><dd>{voiceModelsInfo.stt.fallbackProvider ? `enabled (${voiceModelsInfo.stt.fallbackProvider})` : 'disabled'}</dd>
               <dt>Last latency</dt><dd>{sidecarVoice.lastSttStats?.latencyMs != null ? `${sidecarVoice.lastSttStats.latencyMs}ms` : '-'}</dd>
               <dt>Fallback used</dt><dd>{sidecarVoice.lastSttStats ? (sidecarVoice.lastSttStats.fallbackUsed ? 'true' : 'false') : '-'}</dd>
+              <dt>TTS provider</dt><dd>{voiceModelsInfo.tts.activeProvider}</dd>
+              <dt>TTS model</dt><dd>{voiceModelsInfo.tts.activeModel}</dd>
+              <dt>TTS fallback</dt><dd>{voiceModelsInfo.tts.fallbackProvider ? `enabled (${voiceModelsInfo.tts.fallbackProvider})` : 'disabled'}</dd>
             </dl>
           {:else}
             <span class="voice-diagnostics__empty">Voice service info unavailable.</span>
