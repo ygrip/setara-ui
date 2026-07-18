@@ -1,0 +1,25 @@
+src/lib/api/asa.ts
+  3e1b7f987a536b8e 209-214,232-236
+src/lib/components/AsaOrb.svelte
+  3e1b7f987a536b8e 669,672-674
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.1.23",
+  "base_commit_sha": "014e54cb3e39873c5a60f0290ed3fa905e0110fb",
+  "prompts": {
+    "3e1b7f987a536b8e": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1cf910cc-4b39-446a-bba7-762faa923a03",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "ygrip <yunaz.gilang@gmail.com>",
+      "messages": [],
+      "total_additions": 16,
+      "total_deletions": 1,
+      "accepted_lines": 16,
+      "overriden_lines": 0
+    }
+  }
+}
