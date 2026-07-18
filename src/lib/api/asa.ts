@@ -206,6 +206,12 @@ export interface AsaVoiceModelsInfo {
     fallbackProvider?: string | null;
     availableProviders: string[];
   };
+  tts: {
+    activeProvider: string;
+    activeModel: string;
+    fallbackProvider?: string | null;
+    availableProviders: string[];
+  };
 }
 
 /** Voice mode/provider/model info for the dev/admin diagnostics panel (setara-s94o.12). */
@@ -222,6 +228,12 @@ export async function fetchVoiceModelsInfo(): Promise<AsaVoiceModelsInfo | null>
         activeModel: String(data.stt.activeModel ?? ''),
         fallbackProvider: data.stt.fallbackProvider ?? null,
         availableProviders: Array.isArray(data.stt.availableProviders) ? data.stt.availableProviders : [],
+      },
+      tts: {
+        activeProvider: String(data.tts?.activeProvider ?? ''),
+        activeModel: String(data.tts?.activeModel ?? ''),
+        fallbackProvider: data.tts?.fallbackProvider ?? null,
+        availableProviders: Array.isArray(data.tts?.availableProviders) ? data.tts.availableProviders : [],
       },
     };
   } catch {
